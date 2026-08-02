@@ -4,6 +4,7 @@ import L from "leaflet";
 import { useEffect } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 
+import { ClaimSpotButton } from "@/components/map/ClaimSpotButton";
 import {
   MAP_DEFAULT_CENTER,
   MAP_DEFAULT_ZOOM,
@@ -100,6 +101,11 @@ export function ParkingMap({ spots }: ParkingMapProps) {
                 <span className="text-zinc-500">Expires: </span>
                 {formatDateTime(spot.expires_at)}
               </p>
+              {spot.canClaim ? (
+                <ClaimSpotButton spotId={spot.id} />
+              ) : (
+                <p className="mt-2 text-zinc-500">This is your published spot.</p>
+              )}
             </div>
           </Popup>
         </Marker>

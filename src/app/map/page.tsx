@@ -5,32 +5,38 @@ import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
 import { requireUser } from "@/lib/auth/require-user";
 import type { MapSpot } from "@/types/map-spot";
 
-function toMapSpots(rows: unknown): MapSpot[] {
+type SpotRow = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  address: string | null;
+  available_at: string;
+  expires_at: string;
+  owner_id: string;
+};
+
+function toMapSpots(rows: unknown, userId: string): MapSpot[] {
   if (!Array.isArray(rows)) {
     return [];
   }
 
   return rows.flatMap((row) => {
-    if (
-      !row ||
-      typeof row !== "object" ||
-      typeof (row as MapSpot).id !== "string" ||
-      typeof (row as MapSpot).latitude !== "number" ||
-      typeof (row as MapSpot).longitude !== "number" ||
-      typeof (row as MapSpot).available_at !== "string" ||
-      typeof (row as MapSpot).expires_at !== "string"
-    ) {
+    if (!row || typeof row !== "object") {
       return [];
     }
 
-    const spot = row as {
-      id: string;
-      latitude: number;
-      longitude: number;
-      address: string | null;
-      available_at: string;
-      expires_at: string;
-    };
+    const spot = row as Partial<SpotRow>;
+
+    if (
+      typeof spot.id !== "string" ||
+      typeof spot.latitude !== "number" ||
+      typeof spot.longitude !== "number" ||
+      typeof spot.available_at !== "string" ||
+      typeof spot.expires_at !== "string" ||
+      typeof spot.owner_id !== "string"
+    ) {
+      return [];
+    }
 
     return [
       {
@@ -40,21 +46,24 @@ function toMapSpots(rows: unknown): MapSpot[] {
         address: spot.address ?? null,
         available_at: spot.available_at,
         expires_at: spot.expires_at,
+        canClaim: spot.owner_id !== userId,
       },
     ];
   });
 }
 
 export default async function MapPage() {
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
 
   const { data, error } = await supabase
     .from("parking_spots")
-    .select("id, latitude, longitude, address, available_at, expires_at")
+    .select(
+      "id, latitude, longitude, address, available_at, expires_at, owner_id",
+    )
     .eq("status", "available")
     .gt("expires_at", new Date().toISOString());
 
-  const spots = error ? [] : toMapSpots(data);
+  const spots = error ? [] : toMapSpots(data, user.id);
 
   return (
     <AuthenticatedShell

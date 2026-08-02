@@ -5,6 +5,8 @@ export type MapSpot = {
   address: string | null;
   available_at: string;
   expires_at: string;
+  /** True when the signed-in user may claim this spot (not their own). */
+  canClaim: boolean;
 };
 
 export const MAP_DEFAULT_CENTER = {
