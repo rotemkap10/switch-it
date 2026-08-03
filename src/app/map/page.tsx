@@ -1,6 +1,10 @@
 import Link from "next/link";
 
 import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
+import {
+  ActiveClaimPanel,
+  type ActiveClaimSummary,
+} from "@/components/map/ActiveClaimPanel";
 import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
 import { requireUser } from "@/lib/auth/require-user";
 import type { MapSpot } from "@/types/map-spot";
@@ -13,6 +17,19 @@ type SpotRow = {
   available_at: string;
   expires_at: string;
   owner_id: string;
+};
+
+type ActiveClaimRow = {
+  id: string;
+  expires_at: string;
+  parking_spots:
+    | {
+        address: string | null;
+      }
+    | {
+        address: string | null;
+      }[]
+    | null;
 };
 
 function toMapSpots(rows: unknown, userId: string): MapSpot[] {
@@ -52,31 +69,76 @@ function toMapSpots(rows: unknown, userId: string): MapSpot[] {
   });
 }
 
+function toActiveClaim(row: unknown): ActiveClaimSummary | null {
+  if (!row || typeof row !== "object") {
+    return null;
+  }
+
+  const claim = row as Partial<ActiveClaimRow>;
+  if (typeof claim.id !== "string" || typeof claim.expires_at !== "string") {
+    return null;
+  }
+
+  const spotRelation = Array.isArray(claim.parking_spots)
+    ? claim.parking_spots[0]
+    : claim.parking_spots;
+
+  return {
+    claimId: claim.id,
+    claimExpiresAt: claim.expires_at,
+    spotAddress:
+      spotRelation && typeof spotRelation.address === "string"
+        ? spotRelation.address
+        : spotRelation?.address ?? null,
+  };
+}
+
 export default async function MapPage() {
   const { supabase, user } = await requireUser();
 
-  const { data, error } = await supabase
-    .from("parking_spots")
-    .select(
-      "id, latitude, longitude, address, available_at, expires_at, owner_id",
-    )
-    .eq("status", "available")
-    .gt("expires_at", new Date().toISOString());
+  const [spotsResult, activeClaimResult] = await Promise.all([
+    supabase
+      .from("parking_spots")
+      .select(
+        "id, latitude, longitude, address, available_at, expires_at, owner_id",
+      )
+      .eq("status", "available")
+      .gt("expires_at", new Date().toISOString()),
+    supabase
+      .from("claims")
+      .select("id, expires_at, parking_spots(address)")
+      .eq("seeker_id", user.id)
+      .eq("status", "active")
+      .maybeSingle(),
+  ]);
 
-  const spots = error ? [] : toMapSpots(data, user.id);
+  const spots = spotsResult.error
+    ? []
+    : toMapSpots(spotsResult.data, user.id);
+  const activeClaim = activeClaimResult.error
+    ? null
+    : toActiveClaim(activeClaimResult.data);
 
   return (
     <AuthenticatedShell
       title="Map"
       description="Browse available public street parking handoffs near you."
     >
-      {error ? (
+      {spotsResult.error ? (
         <p className="text-sm text-red-600" role="alert">
           Could not load parking spots.
         </p>
       ) : null}
 
-      {!error && spots.length === 0 ? (
+      {activeClaimResult.error ? (
+        <p className="text-sm text-red-600" role="alert">
+          Could not load your active claim.
+        </p>
+      ) : null}
+
+      {activeClaim ? <ActiveClaimPanel claim={activeClaim} /> : null}
+
+      {!spotsResult.error && spots.length === 0 ? (
         <div className="rounded border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
           <p>No available parking spots right now.</p>
           <p className="mt-1">
@@ -88,7 +150,7 @@ export default async function MapPage() {
         </div>
       ) : null}
 
-      {!error ? <ParkingMapLoader spots={spots} /> : null}
+      {!spotsResult.error ? <ParkingMapLoader spots={spots} /> : null}
     </AuthenticatedShell>
   );
 }
