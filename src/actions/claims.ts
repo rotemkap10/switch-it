@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth/require-user";
 import {
+  cancelClaimSchema,
   claimSpotSchema,
   completeClaimSchema,
 } from "@/lib/validations/claim";
@@ -21,6 +22,12 @@ export type CompleteClaimActionState = {
   claimId?: string;
   seekerCredits?: number;
   alreadyCompleted?: boolean;
+};
+
+export type CancelClaimActionState = {
+  error?: string;
+  success?: boolean;
+  alreadyCancelled?: boolean;
 };
 
 const CLAIM_SPOT_ERROR_MESSAGES: Record<string, string> = {
@@ -43,6 +50,15 @@ const COMPLETE_CLAIM_ERROR_MESSAGES: Record<string, string> = {
   INSUFFICIENT_CREDITS: "You need at least 1 credit to complete this handoff.",
   PROFILE_NOT_FOUND: "Could not complete the handoff.",
   INCONSISTENT_COMPLETION_STATE: "This handoff is in an inconsistent state.",
+};
+
+const CANCEL_CLAIM_ERROR_MESSAGES: Record<string, string> = {
+  NOT_AUTHENTICATED: "Could not cancel this claim.",
+  CLAIM_NOT_FOUND: "Claim not found.",
+  NOT_SEEKER: "Only the claiming driver can cancel this claim.",
+  CLAIM_NOT_ACTIVE: "This claim cannot be cancelled.",
+  SPOT_NOT_FOUND: "Parking spot not found.",
+  INCONSISTENT_STATE: "Could not update this handoff.",
 };
 
 function mapRpcError(
@@ -197,5 +213,47 @@ export async function completeClaim(
     claimId: result.claim_id,
     seekerCredits: result.seeker_credits,
     alreadyCompleted: Boolean(result.already_completed),
+  };
+}
+
+export async function cancelClaim(
+  _prevState: CancelClaimActionState,
+  formData: FormData,
+): Promise<CancelClaimActionState> {
+  const parsed = cancelClaimSchema.safeParse({
+    claim_id: formData.get("claim_id"),
+  });
+
+  if (!parsed.success) {
+    return { error: "Could not cancel this claim." };
+  }
+
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("cancel_claim", {
+    p_claim_id: parsed.data.claim_id,
+  });
+
+  if (error) {
+    return {
+      error: mapRpcError(
+        error,
+        CANCEL_CLAIM_ERROR_MESSAGES,
+        "Could not cancel this claim.",
+      ),
+    };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row || typeof row !== "object") {
+    return { error: "Could not cancel this claim." };
+  }
+
+  revalidatePath("/map");
+
+  return {
+    success: true,
+    alreadyCancelled: Boolean(
+      (row as { already_cancelled?: boolean }).already_cancelled,
+    ),
   };
 }

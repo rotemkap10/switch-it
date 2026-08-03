@@ -1,12 +1,10 @@
 "use client";
 
 import L from "leaflet";
-import { useEffect } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { useEffect, useState } from "react";
+import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 
-import { ClaimSpotButton } from "@/components/map/ClaimSpotButton";
-import { Countdown } from "@/components/ui/Countdown";
-import { formatDateTime } from "@/lib/format/time";
+import { SelectedSpotCard } from "@/components/map/SelectedSpotCard";
 import {
   MAP_DEFAULT_CENTER,
   MAP_DEFAULT_ZOOM,
@@ -58,51 +56,43 @@ type ParkingMapProps = {
 };
 
 export function ParkingMap({ spots }: ParkingMapProps) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedSpot =
+    selectedId === null
+      ? null
+      : (spots.find((spot) => spot.id === selectedId) ?? null);
+
   return (
-    <MapContainer
-      center={[MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng]}
-      zoom={MAP_DEFAULT_ZOOM}
-      className="z-0 h-[60vh] min-h-[24rem] w-full"
-      scrollWheelZoom
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      <MapPositionController spots={spots} />
-      {spots.map((spot) => (
-        <Marker
-          key={spot.id}
-          position={[spot.latitude, spot.longitude]}
-          icon={spotIcon}
-        >
-          <Popup>
-            <div className="min-w-[12rem] space-y-2 text-sm text-slate-900">
-              <p className="font-semibold">
-                {spot.address?.trim()
-                  ? spot.address
-                  : "Public street parking spot"}
-              </p>
-              <p className="font-medium">
-                <Countdown
-                  targetIso={spot.available_at}
-                  pendingLabel="Available in"
-                  readyLabel="Available now"
-                />
-              </p>
-              <p>
-                <span className="text-slate-600">Leave time: </span>
-                {formatDateTime(spot.available_at)}
-              </p>
-              {spot.canClaim ? (
-                <ClaimSpotButton spotId={spot.id} />
-              ) : (
-                <p className="mt-1 text-slate-600">This is your published spot.</p>
-              )}
-            </div>
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+    <div className="relative">
+      <MapContainer
+        center={[MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng]}
+        zoom={MAP_DEFAULT_ZOOM}
+        className="z-0 h-[60vh] min-h-[24rem] w-full"
+        scrollWheelZoom
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <MapPositionController spots={spots} />
+        {spots.map((spot) => (
+          <Marker
+            key={spot.id}
+            position={[spot.latitude, spot.longitude]}
+            icon={spotIcon}
+            eventHandlers={{
+              click: () => setSelectedId(spot.id),
+            }}
+          />
+        ))}
+      </MapContainer>
+
+      {selectedSpot ? (
+        <SelectedSpotCard
+          spot={selectedSpot}
+          onClose={() => setSelectedId(null)}
+        />
+      ) : null}
+    </div>
   );
 }

@@ -24,7 +24,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       </Card>
       <p className="text-sm text-muted">
         No account yet?{" "}
-        <Link href="/register" className="font-medium text-accent underline">
+        <Link href="/register" className="font-medium text-accent-hover underline">
           Create one
         </Link>
       </p>

@@ -17,23 +17,23 @@ export function ClaimSpotButton({ spotId }: ClaimSpotButtonProps) {
 
   if (state.success) {
     return (
-      <Alert tone="success" title="Spot claimed">
+      <Alert tone="success" title="You’re on your way">
         {state.claimExpiresAt
-          ? `Claim expires ${new Date(state.claimExpiresAt).toLocaleString(undefined, {
+          ? `Hold this spot until ${new Date(state.claimExpiresAt).toLocaleString(undefined, {
               dateStyle: "medium",
               timeStyle: "short",
             })}.`
-          : "Your claim is active."}
+          : "Head over before the hold expires."}
       </Alert>
     );
   }
 
   return (
-    <form action={formAction} className="mt-2 space-y-2">
+    <form action={formAction} className="space-y-2">
       <input type="hidden" name="spot_id" value={spotId} />
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "Claiming…" : "Claim spot"}
+        {pending ? "On my way…" : "I’m on my way"}
       </Button>
     </form>
   );

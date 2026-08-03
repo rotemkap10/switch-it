@@ -161,7 +161,7 @@ export function PublishSpotForm() {
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
       <Button type="submit" disabled={pending} className="w-fit">
-        {pending ? "Publishing…" : "Publish spot"}
+        {pending ? "Sharing…" : "Share my parking spot"}
       </Button>
     </form>
   );

@@ -9,7 +9,7 @@ type BadgeProps = {
 
 const toneClasses: Record<BadgeTone, string> = {
   neutral: "bg-accent-soft text-foreground",
-  accent: "bg-accent text-white",
+  accent: "bg-accent text-foreground",
   success: "bg-success-bg text-success",
   warning: "bg-warning-bg text-warning",
   danger: "bg-danger-bg text-danger",

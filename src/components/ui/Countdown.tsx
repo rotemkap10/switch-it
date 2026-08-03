@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 type CountdownProps = {
   targetIso: string;
-  pendingLabel?: "Available in" | "Leaving in";
+  pendingLabel?: string;
   readyLabel?: string;
   className?: string;
 };
@@ -36,17 +36,21 @@ export function Countdown({
 
   const target = new Date(targetIso).getTime();
   if (Number.isNaN(target)) {
-    return <span className={className}>{readyLabel}</span>;
+    return (
+      <span className={`countdown-ready ${className}`}>{readyLabel}</span>
+    );
   }
 
   const remainingMs = target - now;
 
   if (remainingMs <= 0) {
-    return <span className={className}>{readyLabel}</span>;
+    return (
+      <span className={`countdown-ready ${className}`}>{readyLabel}</span>
+    );
   }
 
   return (
-    <span className={className}>
+    <span className={`countdown-pending ${className}`}>
       {pendingLabel} {formatRemaining(remainingMs)}
     </span>
   );

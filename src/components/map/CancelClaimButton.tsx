@@ -3,21 +3,21 @@
 import { useActionState } from "react";
 
 import {
-  completeClaim,
-  type CompleteClaimActionState,
+  cancelClaim,
+  type CancelClaimActionState,
 } from "@/actions/claims";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 
-const initialState: CompleteClaimActionState = {};
+const initialState: CancelClaimActionState = {};
 
-type CompleteClaimButtonProps = {
+type CancelClaimButtonProps = {
   claimId: string;
 };
 
-export function CompleteClaimButton({ claimId }: CompleteClaimButtonProps) {
+export function CancelClaimButton({ claimId }: CancelClaimButtonProps) {
   const [state, formAction, pending] = useActionState(
-    completeClaim,
+    cancelClaim,
     initialState,
   );
 
@@ -26,14 +26,12 @@ export function CompleteClaimButton({ claimId }: CompleteClaimButtonProps) {
       <Alert
         tone="success"
         title={
-          state.alreadyCompleted
-            ? "You already got this spot"
-            : "You got the spot"
+          state.alreadyCancelled
+            ? "You already stepped away"
+            : "You’re no longer coming"
         }
       >
-        {typeof state.seekerCredits === "number"
-          ? `Your credit balance is now ${state.seekerCredits}.`
-          : "Credits were updated."}
+        The spot can go to someone else if it is still available.
       </Alert>
     );
   }
@@ -42,8 +40,13 @@ export function CompleteClaimButton({ claimId }: CompleteClaimButtonProps) {
     <form action={formAction} className="space-y-2">
       <input type="hidden" name="claim_id" value={claimId} />
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-        {pending ? "Confirming…" : "I got the spot"}
+      <Button
+        type="submit"
+        variant="ghost"
+        disabled={pending}
+        className="px-0 text-muted hover:text-foreground"
+      >
+        {pending ? "Updating…" : "I’m no longer coming"}
       </Button>
     </form>
   );

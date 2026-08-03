@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/Badge";
+import { CancelSpotButton } from "@/components/spots/CancelSpotButton";
 import { Card } from "@/components/ui/Card";
 import { Countdown } from "@/components/ui/Countdown";
 import { formatDateTime } from "@/lib/format/time";
@@ -12,46 +12,46 @@ export type PublisherSpotSummary = {
 
 type PublisherSpotCardProps = {
   spot: PublisherSpotSummary;
+  layout?: "page" | "compact";
 };
 
-export function PublisherSpotCard({ spot }: PublisherSpotCardProps) {
+export function PublisherSpotCard({
+  spot,
+  layout = "page",
+}: PublisherSpotCardProps) {
   const claimed = spot.status === "claimed";
 
   return (
     <Card
       className={[
-        "flex flex-col gap-3 border-accent/30 bg-surface",
-        "md:fixed md:bottom-6 md:right-6 md:z-40 md:w-80 md:shadow-[var(--shadow-card)]",
+        "flex flex-col gap-4 motion-fade-in",
+        layout === "page" ? "max-w-lg" : "",
       ].join(" ")}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge tone={claimed ? "accent" : "neutral"}>
-          {claimed ? "Claimed" : "Published"}
-        </Badge>
-        <span className="text-sm font-medium text-foreground">Your spot</span>
+      <div className="status-band px-4 py-3">
+        <p className="text-sm font-medium text-muted">Your parking spot</p>
+        <h2 className="mt-1 text-xl font-semibold text-foreground">
+          {claimed ? "A driver is on the way" : "Waiting for a driver"}
+        </h2>
+        <p className="mt-2 text-sm text-foreground">
+          {spot.address?.trim() ? spot.address : "Public street parking spot"}
+        </p>
+        <p className="mt-3 text-lg">
+          <Countdown
+            targetIso={spot.available_at}
+            pendingLabel="Leaving in"
+            readyLabel="Available now"
+          />
+        </p>
       </div>
 
-      <p className="text-sm text-foreground">
-        {spot.address?.trim() ? spot.address : "Public street parking spot"}
+      <p className="text-sm text-muted">
+        Leave time: {formatDateTime(spot.available_at)}
       </p>
 
-      <p className="text-sm font-semibold text-foreground">
-        <Countdown
-          targetIso={spot.available_at}
-          pendingLabel="Leaving in"
-          readyLabel="Available now"
-        />
-      </p>
-
-      <p className="text-xs text-muted">
-        Handoff time: {formatDateTime(spot.available_at)}
-      </p>
-
-      {claimed ? (
-        <p className="text-sm font-medium text-accent">A driver is on the way</p>
-      ) : (
-        <p className="text-sm text-muted">Waiting for a driver to claim</p>
-      )}
+      <div className="pt-1">
+        <CancelSpotButton spotId={spot.id} />
+      </div>
     </Card>
   );
 }

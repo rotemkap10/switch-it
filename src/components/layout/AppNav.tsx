@@ -5,14 +5,22 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { ModeSwitcher } from "@/components/mode/ModeSwitcher";
+import { useMode } from "@/components/mode/ModeProvider";
 import { Button } from "@/components/ui/Button";
+import type { AppMode } from "@/lib/mode/constants";
 
-const links = [
-  { href: "/map", label: "Map" },
-  { href: "/spots/new", label: "Publish Spot" },
-  { href: "/profile", label: "Profile" },
-  { href: "/history", label: "History" },
-] as const;
+const linksByMode: Record<AppMode, ReadonlyArray<{ href: string; label: string }>> =
+  {
+    seeker: [
+      { href: "/map", label: "Find parking" },
+      { href: "/profile", label: "Profile" },
+    ],
+    leaver: [
+      { href: "/spots/new", label: "My parking spot" },
+      { href: "/profile", label: "Profile" },
+    ],
+  };
 
 function NavLink({
   href,
@@ -30,9 +38,9 @@ function NavLink({
     <Link
       href={href}
       onClick={onNavigate}
-      className={`rounded-lg px-3 py-2 text-sm font-medium ${
+      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-[var(--motion-fast)] ${
         active
-          ? "bg-accent-soft text-accent"
+          ? "bg-accent text-foreground"
           : "text-foreground hover:bg-accent-soft"
       }`}
       aria-current={active ? "page" : undefined}
@@ -44,13 +52,22 @@ function NavLink({
 
 export function AppNav() {
   const [open, setOpen] = useState(false);
+  const { mode, homeFor } = useMode();
+  const links = mode ? linksByMode[mode] : [];
+  const brandHref = mode ? homeFor(mode) : "/map";
 
   return (
-    <header className="border-b border-border bg-surface shadow-[var(--shadow-card)]">
+    <header className="border-b border-border/80 bg-surface/95 shadow-[var(--shadow-card)] backdrop-blur-sm">
       <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <Link href="/map" className="text-lg font-semibold tracking-tight text-foreground">
-          Switch It
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href={brandHref}
+            className="text-lg font-semibold tracking-tight text-foreground"
+          >
+            Switch It
+          </Link>
+          <ModeSwitcher />
+        </div>
 
         <nav className="hidden items-center gap-1 md:flex" aria-label="Main">
           {links.map((link) => (

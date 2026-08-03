@@ -16,7 +16,7 @@ export default function RegisterPage() {
       </Card>
       <p className="text-sm text-muted">
         Already registered?{" "}
-        <Link href="/login" className="font-medium text-accent underline">
+        <Link href="/login" className="font-medium text-accent-hover underline">
           Sign in
         </Link>
       </p>

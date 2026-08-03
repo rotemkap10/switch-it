@@ -5,11 +5,8 @@ import {
   ActiveClaimPanel,
   type ActiveClaimSummary,
 } from "@/components/map/ActiveClaimPanel";
+import { OwnSpotNotice } from "@/components/map/OwnSpotNotice";
 import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
-import {
-  PublisherSpotCard,
-  type PublisherSpotSummary,
-} from "@/components/spots/PublisherSpotCard";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -47,6 +44,8 @@ type OwnedSpotRow = {
   available_at: string;
   address: string | null;
 };
+
+type MapSupabase = Awaited<ReturnType<typeof requireUser>>["supabase"];
 
 function toMapSpots(rows: unknown, userId: string): MapSpot[] {
   if (!Array.isArray(rows)) {
@@ -99,10 +98,7 @@ function toActiveClaim(row: unknown): ActiveClaimSummary | null {
     ? claim.parking_spots[0]
     : claim.parking_spots;
 
-  if (
-    !spotRelation ||
-    typeof spotRelation.available_at !== "string"
-  ) {
+  if (!spotRelation || typeof spotRelation.available_at !== "string") {
     return null;
   }
 
@@ -115,30 +111,83 @@ function toActiveClaim(row: unknown): ActiveClaimSummary | null {
   };
 }
 
-function toPublisherSpot(row: unknown): PublisherSpotSummary | null {
+function hasOpenOwnedSpot(row: unknown): boolean {
   if (!row || typeof row !== "object") {
-    return null;
+    return false;
   }
 
   const spot = row as Partial<OwnedSpotRow>;
+  return (
+    typeof spot.id === "string" &&
+    (spot.status === "available" || spot.status === "claimed")
+  );
+}
+
+function isPastDue(expiresAt: string, nowIso: string): boolean {
+  return expiresAt <= nowIso;
+}
+
+async function expireDueClaims(
+  supabase: MapSupabase,
+  userId: string,
+  nowIso: string,
+): Promise<void> {
+  const [seekerClaimResult, ownedClaimedSpotResult] = await Promise.all([
+    supabase
+      .from("claims")
+      .select("id, expires_at")
+      .eq("seeker_id", userId)
+      .eq("status", "active")
+      .maybeSingle(),
+    supabase
+      .from("parking_spots")
+      .select("id")
+      .eq("owner_id", userId)
+      .eq("status", "claimed")
+      .maybeSingle(),
+  ]);
+
+  const claimIds = new Set<string>();
+
+  const seekerClaim = seekerClaimResult.data;
   if (
-    typeof spot.id !== "string" ||
-    typeof spot.available_at !== "string" ||
-    (spot.status !== "available" && spot.status !== "claimed")
+    seekerClaim &&
+    typeof seekerClaim.id === "string" &&
+    typeof seekerClaim.expires_at === "string" &&
+    isPastDue(seekerClaim.expires_at, nowIso)
   ) {
-    return null;
+    claimIds.add(seekerClaim.id);
   }
 
-  return {
-    id: spot.id,
-    status: spot.status,
-    available_at: spot.available_at,
-    address: typeof spot.address === "string" ? spot.address : null,
-  };
+  const ownedClaimedSpot = ownedClaimedSpotResult.data;
+  if (ownedClaimedSpot && typeof ownedClaimedSpot.id === "string") {
+    const { data: claimOnSpot } = await supabase
+      .from("claims")
+      .select("id, expires_at")
+      .eq("spot_id", ownedClaimedSpot.id)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (
+      claimOnSpot &&
+      typeof claimOnSpot.id === "string" &&
+      typeof claimOnSpot.expires_at === "string" &&
+      isPastDue(claimOnSpot.expires_at, nowIso)
+    ) {
+      claimIds.add(claimOnSpot.id);
+    }
+  }
+
+  for (const claimId of claimIds) {
+    await supabase.rpc("expire_claim_if_needed", { p_claim_id: claimId });
+  }
 }
 
 export default async function MapPage() {
   const { supabase, user } = await requireUser();
+  const nowIso = new Date().toISOString();
+
+  await expireDueClaims(supabase, user.id, nowIso);
 
   const [spotsResult, activeClaimResult, ownedSpotResult] = await Promise.all([
     supabase
@@ -168,41 +217,42 @@ export default async function MapPage() {
   const activeClaim = activeClaimResult.error
     ? null
     : toActiveClaim(activeClaimResult.data);
-  const publisherSpot = ownedSpotResult.error
-    ? null
-    : toPublisherSpot(ownedSpotResult.data);
+  const showOwnSpotNotice =
+    !ownedSpotResult.error && hasOpenOwnedSpot(ownedSpotResult.data);
 
   return (
     <AuthenticatedShell
-      title="Map"
-      description="Browse available public street parking handoffs near you."
+      title="Find parking"
+      description="Pick a spot nearby and head over before the hold expires."
     >
       {spotsResult.error ? (
         <Alert tone="error">Could not load parking spots.</Alert>
       ) : null}
 
       {activeClaimResult.error ? (
-        <Alert tone="error">Could not load your active claim.</Alert>
+        <Alert tone="error">Could not load your active trip.</Alert>
       ) : null}
 
       {ownedSpotResult.error ? (
-        <Alert tone="error">Could not load your published spot.</Alert>
+        <Alert tone="error">Could not check your published spot.</Alert>
       ) : null}
 
       {activeClaim ? <ActiveClaimPanel claim={activeClaim} /> : null}
+
+      {showOwnSpotNotice ? <OwnSpotNotice /> : null}
 
       {!spotsResult.error && spots.length === 0 ? (
         <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-medium text-foreground">
-              No available parking spots right now
+              No parking spots right now
             </p>
             <p className="mt-1 text-sm text-muted">
-              Publish a spot you are leaving, or check back soon.
+              Check back soon, or share a spot you are leaving.
             </p>
           </div>
           <Link href="/spots/new">
-            <Button>Publish a spot</Button>
+            <Button variant="secondary">Share my parking spot</Button>
           </Link>
         </Card>
       ) : null}
@@ -212,8 +262,6 @@ export default async function MapPage() {
           <ParkingMapLoader spots={spots} />
         </Card>
       ) : null}
-
-      {publisherSpot ? <PublisherSpotCard spot={publisherSpot} /> : null}
     </AuthenticatedShell>
   );
 }

@@ -5,13 +5,13 @@ import { Card } from "@/components/ui/Card";
 export default function HistoryPage() {
   return (
     <AuthenticatedShell
-      title="History"
-      description="Your spot and claim activity will appear here."
+      title="Activity"
+      description="Your recent parking activity will appear here."
     >
       <Card>
         <Alert tone="info" title="Coming soon">
-          Activity history is not built yet. Publishing, claiming, and
-          completing handoffs already work from Map and Publish Spot.
+          Activity history is not built yet. Finding and sharing spots already
+          work from the map and My parking spot pages.
         </Alert>
       </Card>
     </AuthenticatedShell>

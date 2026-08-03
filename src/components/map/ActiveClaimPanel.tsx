@@ -1,6 +1,5 @@
+import { CancelClaimButton } from "@/components/map/CancelClaimButton";
 import { CompleteClaimButton } from "@/components/map/CompleteClaimButton";
-import { Alert } from "@/components/ui/Alert";
-import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { Countdown } from "@/components/ui/Countdown";
 import { formatDateTime } from "@/lib/format/time";
@@ -18,41 +17,38 @@ type ActiveClaimPanelProps = {
 
 export function ActiveClaimPanel({ claim }: ActiveClaimPanelProps) {
   return (
-    <Card className="flex flex-col gap-4 border-accent/30 bg-accent-soft/40">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge tone="accent">Active claim</Badge>
-      </div>
-
-      <div>
-        <h2 className="text-base font-semibold text-foreground">
-          Your active claim
-        </h2>
-        <p className="mt-1 text-sm text-foreground">
+    <Card className="flex flex-col gap-4 motion-fade-in">
+      <div className="status-band px-4 py-3">
+        <p className="text-sm font-semibold text-accent-hover">
+          You’re on your way
+        </p>
+        <h2 className="mt-1 text-xl font-semibold text-foreground">
           {claim.spotAddress?.trim()
             ? claim.spotAddress
             : "Public street parking spot"}
-        </p>
-        <p className="mt-2 text-base font-semibold text-foreground">
+        </h2>
+        <p className="mt-3 text-lg">
           <Countdown
             targetIso={claim.spotAvailableAt}
             pendingLabel="Available in"
             readyLabel="Available now"
           />
         </p>
-        <p className="mt-1 text-sm text-muted">
-          Expected leave time: {formatDateTime(claim.spotAvailableAt)}
-        </p>
-        <p className="mt-1 text-sm text-muted">
-          Claim expires: {formatDateTime(claim.claimExpiresAt)}
-        </p>
       </div>
 
-      <Alert tone="info">
-        Before the leave time, the owner is still preparing to leave. When the
-        countdown reaches zero, the spot should be available for handoff.
-      </Alert>
+      <div className="space-y-1 text-sm text-muted">
+        <p>Leave time: {formatDateTime(claim.spotAvailableAt)}</p>
+        <p>Hold until: {formatDateTime(claim.claimExpiresAt)}</p>
+      </div>
 
-      <CompleteClaimButton claimId={claim.claimId} />
+      <p className="text-sm leading-6 text-muted">
+        When the countdown reaches zero, the spot should be free for you to take.
+      </p>
+
+      <div className="flex flex-col gap-3">
+        <CompleteClaimButton claimId={claim.claimId} />
+        <CancelClaimButton claimId={claim.claimId} />
+      </div>
     </Card>
   );
 }
