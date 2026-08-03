@@ -5,6 +5,8 @@ import { useEffect } from "react";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 
 import { ClaimSpotButton } from "@/components/map/ClaimSpotButton";
+import { Countdown } from "@/components/ui/Countdown";
+import { formatDateTime } from "@/lib/format/time";
 import {
   MAP_DEFAULT_CENTER,
   MAP_DEFAULT_ZOOM,
@@ -23,18 +25,6 @@ const spotIcon = new L.Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41],
 });
-
-function formatDateTime(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-}
 
 function MapPositionController({ spots }: { spots: MapSpot[] }) {
   const map = useMap();
@@ -72,7 +62,7 @@ export function ParkingMap({ spots }: ParkingMapProps) {
     <MapContainer
       center={[MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng]}
       zoom={MAP_DEFAULT_ZOOM}
-      className="h-[60vh] min-h-[24rem] w-full rounded border border-zinc-200 z-0"
+      className="z-0 h-[60vh] min-h-[24rem] w-full"
       scrollWheelZoom
     >
       <TileLayer
@@ -87,24 +77,27 @@ export function ParkingMap({ spots }: ParkingMapProps) {
           icon={spotIcon}
         >
           <Popup>
-            <div className="space-y-1 text-sm">
-              <p className="font-medium">
+            <div className="min-w-[12rem] space-y-2 text-sm text-slate-900">
+              <p className="font-semibold">
                 {spot.address?.trim()
                   ? spot.address
                   : "Public street parking spot"}
               </p>
-              <p>
-                <span className="text-zinc-500">Available: </span>
-                {formatDateTime(spot.available_at)}
+              <p className="font-medium">
+                <Countdown
+                  targetIso={spot.available_at}
+                  pendingLabel="Available in"
+                  readyLabel="Available now"
+                />
               </p>
               <p>
-                <span className="text-zinc-500">Expires: </span>
-                {formatDateTime(spot.expires_at)}
+                <span className="text-slate-600">Leave time: </span>
+                {formatDateTime(spot.available_at)}
               </p>
               {spot.canClaim ? (
                 <ClaimSpotButton spotId={spot.id} />
               ) : (
-                <p className="mt-2 text-zinc-500">This is your published spot.</p>
+                <p className="mt-1 text-slate-600">This is your published spot.</p>
               )}
             </div>
           </Popup>

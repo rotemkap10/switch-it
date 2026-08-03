@@ -1,6 +1,8 @@
 import Link from "next/link";
 
 import { LoginForm } from "@/components/auth/LoginForm";
+import { Card } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { getSafeRedirectPath } from "@/lib/auth/safe-redirect";
 
 type LoginPageProps = {
@@ -12,19 +14,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const next = getSafeRedirectPath(params.next);
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-6 py-12">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Sign in</h1>
-        <p className="mt-2 text-sm text-zinc-600">
-          Welcome back to Switch It.
-        </p>
-      </div>
-
-      <LoginForm next={next} />
-
-      <p className="text-sm text-zinc-600">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12 sm:px-6">
+      <PageHeader
+        title="Sign in"
+        description="Welcome back to Switch It."
+      />
+      <Card>
+        <LoginForm next={next} />
+      </Card>
+      <p className="text-sm text-muted">
         No account yet?{" "}
-        <Link href="/register" className="font-medium text-zinc-900 underline">
+        <Link href="/register" className="font-medium text-accent underline">
           Create one
         </Link>
       </p>

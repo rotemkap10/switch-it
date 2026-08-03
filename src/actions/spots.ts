@@ -31,8 +31,7 @@ export async function publishSpot(
     latitude: formData.get("latitude"),
     longitude: formData.get("longitude"),
     address: formData.get("address") ?? "",
-    available_at: formData.get("available_at"),
-    expires_at: formData.get("expires_at"),
+    available_in_minutes: formData.get("available_in_minutes"),
   });
 
   if (!parsed.success) {

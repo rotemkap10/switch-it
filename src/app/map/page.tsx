@@ -6,6 +6,13 @@ import {
   type ActiveClaimSummary,
 } from "@/components/map/ActiveClaimPanel";
 import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
+import {
+  PublisherSpotCard,
+  type PublisherSpotSummary,
+} from "@/components/spots/PublisherSpotCard";
+import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
 import { requireUser } from "@/lib/auth/require-user";
 import type { MapSpot } from "@/types/map-spot";
 
@@ -25,11 +32,20 @@ type ActiveClaimRow = {
   parking_spots:
     | {
         address: string | null;
+        available_at: string;
       }
     | {
         address: string | null;
+        available_at: string;
       }[]
     | null;
+};
+
+type OwnedSpotRow = {
+  id: string;
+  status: string;
+  available_at: string;
+  address: string | null;
 };
 
 function toMapSpots(rows: unknown, userId: string): MapSpot[] {
@@ -83,20 +99,48 @@ function toActiveClaim(row: unknown): ActiveClaimSummary | null {
     ? claim.parking_spots[0]
     : claim.parking_spots;
 
+  if (
+    !spotRelation ||
+    typeof spotRelation.available_at !== "string"
+  ) {
+    return null;
+  }
+
   return {
     claimId: claim.id,
     claimExpiresAt: claim.expires_at,
+    spotAvailableAt: spotRelation.available_at,
     spotAddress:
-      spotRelation && typeof spotRelation.address === "string"
-        ? spotRelation.address
-        : spotRelation?.address ?? null,
+      typeof spotRelation.address === "string" ? spotRelation.address : null,
+  };
+}
+
+function toPublisherSpot(row: unknown): PublisherSpotSummary | null {
+  if (!row || typeof row !== "object") {
+    return null;
+  }
+
+  const spot = row as Partial<OwnedSpotRow>;
+  if (
+    typeof spot.id !== "string" ||
+    typeof spot.available_at !== "string" ||
+    (spot.status !== "available" && spot.status !== "claimed")
+  ) {
+    return null;
+  }
+
+  return {
+    id: spot.id,
+    status: spot.status,
+    available_at: spot.available_at,
+    address: typeof spot.address === "string" ? spot.address : null,
   };
 }
 
 export default async function MapPage() {
   const { supabase, user } = await requireUser();
 
-  const [spotsResult, activeClaimResult] = await Promise.all([
+  const [spotsResult, activeClaimResult, ownedSpotResult] = await Promise.all([
     supabase
       .from("parking_spots")
       .select(
@@ -106,9 +150,15 @@ export default async function MapPage() {
       .gt("expires_at", new Date().toISOString()),
     supabase
       .from("claims")
-      .select("id, expires_at, parking_spots(address)")
+      .select("id, expires_at, parking_spots(address, available_at)")
       .eq("seeker_id", user.id)
       .eq("status", "active")
+      .maybeSingle(),
+    supabase
+      .from("parking_spots")
+      .select("id, status, available_at, address")
+      .eq("owner_id", user.id)
+      .in("status", ["available", "claimed"])
       .maybeSingle(),
   ]);
 
@@ -118,6 +168,9 @@ export default async function MapPage() {
   const activeClaim = activeClaimResult.error
     ? null
     : toActiveClaim(activeClaimResult.data);
+  const publisherSpot = ownedSpotResult.error
+    ? null
+    : toPublisherSpot(ownedSpotResult.data);
 
   return (
     <AuthenticatedShell
@@ -125,32 +178,42 @@ export default async function MapPage() {
       description="Browse available public street parking handoffs near you."
     >
       {spotsResult.error ? (
-        <p className="text-sm text-red-600" role="alert">
-          Could not load parking spots.
-        </p>
+        <Alert tone="error">Could not load parking spots.</Alert>
       ) : null}
 
       {activeClaimResult.error ? (
-        <p className="text-sm text-red-600" role="alert">
-          Could not load your active claim.
-        </p>
+        <Alert tone="error">Could not load your active claim.</Alert>
+      ) : null}
+
+      {ownedSpotResult.error ? (
+        <Alert tone="error">Could not load your published spot.</Alert>
       ) : null}
 
       {activeClaim ? <ActiveClaimPanel claim={activeClaim} /> : null}
 
       {!spotsResult.error && spots.length === 0 ? (
-        <div className="rounded border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
-          <p>No available parking spots right now.</p>
-          <p className="mt-1">
-            <Link href="/spots/new" className="font-medium underline">
-              Publish a spot
-            </Link>{" "}
-            or check back soon.
-          </p>
-        </div>
+        <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-medium text-foreground">
+              No available parking spots right now
+            </p>
+            <p className="mt-1 text-sm text-muted">
+              Publish a spot you are leaving, or check back soon.
+            </p>
+          </div>
+          <Link href="/spots/new">
+            <Button>Publish a spot</Button>
+          </Link>
+        </Card>
       ) : null}
 
-      {!spotsResult.error ? <ParkingMapLoader spots={spots} /> : null}
+      {!spotsResult.error ? (
+        <Card className="overflow-hidden p-0">
+          <ParkingMapLoader spots={spots} />
+        </Card>
+      ) : null}
+
+      {publisherSpot ? <PublisherSpotCard spot={publisherSpot} /> : null}
     </AuthenticatedShell>
   );
 }

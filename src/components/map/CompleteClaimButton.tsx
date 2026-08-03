@@ -6,6 +6,8 @@ import {
   completeClaim,
   type CompleteClaimActionState,
 } from "@/actions/claims";
+import { Alert } from "@/components/ui/Alert";
+import { Button } from "@/components/ui/Button";
 
 const initialState: CompleteClaimActionState = {};
 
@@ -21,36 +23,28 @@ export function CompleteClaimButton({ claimId }: CompleteClaimButtonProps) {
 
   if (state.success) {
     return (
-      <div className="space-y-1 text-sm" role="status">
-        <p className="font-medium text-green-700">
-          {state.alreadyCompleted
-            ? "Handoff was already completed."
-            : "Handoff completed."}
-        </p>
-        {typeof state.seekerCredits === "number" ? (
-          <p className="text-zinc-600">
-            Your credit balance is now {state.seekerCredits}.
-          </p>
-        ) : null}
-      </div>
+      <Alert
+        tone="success"
+        title={
+          state.alreadyCompleted
+            ? "Handoff was already completed"
+            : "Handoff completed"
+        }
+      >
+        {typeof state.seekerCredits === "number"
+          ? `Your credit balance is now ${state.seekerCredits}.`
+          : "Credits were updated."}
+      </Alert>
     );
   }
 
   return (
     <form action={formAction} className="space-y-2">
       <input type="hidden" name="claim_id" value={claimId} />
-      {state.error ? (
-        <p className="text-sm text-red-600" role="alert">
-          {state.error}
-        </p>
-      ) : null}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white disabled:opacity-60"
-      >
+      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
+      <Button type="submit" disabled={pending}>
         {pending ? "Completing…" : "Complete handoff"}
-      </button>
+      </Button>
     </form>
   );
 }

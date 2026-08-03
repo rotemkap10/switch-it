@@ -9,7 +9,7 @@ const ParkingMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[60vh] min-h-[24rem] items-center justify-center rounded border border-zinc-200 bg-zinc-100 text-sm text-zinc-600">
+      <div className="flex h-[60vh] min-h-[24rem] items-center justify-center bg-accent-soft text-sm text-muted">
         Loading map…
       </div>
     ),
