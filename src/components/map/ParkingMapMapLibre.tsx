@@ -225,6 +225,8 @@ export function ParkingMapMapLibre({
   ];
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapUnavailable, setMapUnavailable] = useState(false);
+  const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
   const selectedSpot = useMemo(() => {
     if (!selectedId) {
       return null;
@@ -493,9 +495,9 @@ export function ParkingMapMapLibre({
     }
   }, [userLocation, followMode, prefersReducedMotion]);
 
-  if (styleFallback) {
+  if (styleFallback || mapUnavailable) {
     return (
-      <div className="relative">
+      <div className="relative flex h-[60vh] min-h-[24rem] w-full items-center justify-center p-4">
         <MapUnavailable />
       </div>
     );
@@ -561,6 +563,8 @@ export function ParkingMapMapLibre({
             center={initialCenter}
             zoom={MAP_DEFAULT_ZOOM}
             className="absolute inset-0 h-full w-full"
+            onMapUnavailable={() => setMapUnavailable(true)}
+            onVisuallyReady={() => setMapVisuallyReady(true)}
             onMapReady={(map) => {
             mapRef.current = map;
 
@@ -616,7 +620,8 @@ export function ParkingMapMapLibre({
         />
         </div>
 
-        {userLocation.status === "ready" &&
+        {mapVisuallyReady &&
+        userLocation.status === "ready" &&
         isWithinSupportedMapBounds(
           userLocation.longitude,
           userLocation.latitude,

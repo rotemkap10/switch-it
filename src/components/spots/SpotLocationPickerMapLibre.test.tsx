@@ -22,11 +22,13 @@ const mockMap = {
 vi.mock("@/components/map/BaseMap", () => ({
   BaseMap: (props: {
     onMapReady: (map: typeof mockMap) => void;
+    onVisuallyReady?: () => void;
     center: [number, number];
     zoom: number;
   }) => {
     useEffect(() => {
       props.onMapReady(mockMap);
+      props.onVisuallyReady?.();
     }, [props]);
     return <div data-testid="base-map" />;
   },

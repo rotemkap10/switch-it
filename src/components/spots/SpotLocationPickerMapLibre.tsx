@@ -75,6 +75,8 @@ export function SpotLocationPickerMapLibre({
   const onLocationChangeRef = useRef(onLocationChange);
   const programmaticMoveRef = useRef(false);
   const [pinLifting, setPinLifting] = useState(false);
+  const [mapUnavailable, setMapUnavailable] = useState(false);
+  const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
 
   useEffect(() => {
     onLocationChangeRef.current = onLocationChange;
@@ -114,10 +116,10 @@ export function SpotLocationPickerMapLibre({
     programmaticMoveRef.current = false;
   }, [latitude, longitude, disabled]);
 
-  if (styleUrl === null) {
+  if (styleUrl === null || mapUnavailable) {
     return (
       <div
-        className={`motion-fade-slide-up overflow-hidden rounded-[var(--radius-card)] border border-border ${LEAVER_MAP_SHELL_HEIGHT_CLASS}`}
+        className={`motion-fade-slide-up flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border p-4 ${LEAVER_MAP_SHELL_HEIGHT_CLASS}`}
         aria-label="Map to adjust your parking spot location"
       >
         <MapUnavailable />
@@ -141,6 +143,8 @@ export function SpotLocationPickerMapLibre({
         center={initialCenter}
         zoom={MAP_SELECTED_SPOT_ZOOM}
         className="absolute inset-0 z-0 h-full w-full"
+        onMapUnavailable={() => setMapUnavailable(true)}
+        onVisuallyReady={() => setMapVisuallyReady(true)}
         onMapReady={(map) => {
           mapRef.current = map;
           map.resize();
@@ -174,14 +178,18 @@ export function SpotLocationPickerMapLibre({
         }}
       />
 
-      {/* Fixed center parking pin — above canvas, not clipped */}
-      <div className="pointer-events-none absolute inset-0 z-[2] flex items-center justify-center overflow-visible">
+      {/* Fixed center parking pin — above canvas; hidden until map is visually ready. */}
+      <div
+        className={[
+          "pointer-events-none absolute inset-0 z-[2] flex items-center justify-center overflow-visible map-canvas-fade",
+          mapVisuallyReady ? "is-ready" : "",
+        ].join(" ")}
+        aria-hidden="true"
+      >
         <div
-          className={[
-            "leaver-center-pin",
-            pinLifting ? "is-lifting" : "",
-          ].join(" ")}
-          aria-hidden="true"
+          className={["leaver-center-pin", pinLifting ? "is-lifting" : ""].join(
+            " ",
+          )}
         >
           <svg
             width="40"
@@ -205,7 +213,7 @@ export function SpotLocationPickerMapLibre({
         </div>
       </div>
 
-      {canRecenter ? (
+      {canRecenter && mapVisuallyReady ? (
         <div className="absolute right-2 top-2 z-[3]">
           <Button
             type="button"

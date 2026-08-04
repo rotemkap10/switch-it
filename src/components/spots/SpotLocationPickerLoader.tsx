@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 
 import type { ComponentProps } from "react";
 
+import { MapLoadingState } from "@/components/map/MapLoadingState";
 import type { SpotLocationPicker } from "@/components/spots/SpotLocationPickerMapLibre";
 import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
 
@@ -17,15 +18,13 @@ const SpotLocationPickerClient = dynamic(
     loading: () => (
       <div
         className={[
-          "flex w-full items-center justify-center",
-          "rounded-[var(--radius-card)] border border-border bg-accent-soft",
-          "text-sm text-muted",
+          "w-full overflow-hidden",
+          "rounded-[var(--radius-card)] border border-border",
           LEAVER_MAP_SHELL_HEIGHT_CLASS,
         ].join(" ")}
-        role="status"
         aria-label="Map to adjust your parking spot location"
       >
-        Loading map…
+        <MapLoadingState />
       </div>
     ),
   },

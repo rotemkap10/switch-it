@@ -139,6 +139,92 @@ body {
   transform: translateY(calc(-42% - 10px));
 }
 
+/* MapLibre branded loading overlay */
+.map-canvas-fade {
+  opacity: 0;
+  transition: opacity 250ms var(--motion-ease);
+  pointer-events: none;
+}
+
+.map-canvas-fade.is-ready {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.map-loader-fade {
+  opacity: 1;
+  transition: opacity 250ms var(--motion-ease);
+}
+
+.map-loader-fade.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.map-loading-pin {
+  position: relative;
+  display: flex;
+  height: 3.5rem;
+  width: 3.5rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-loading-ring {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  border: 2px solid rgb(85 191 243 / 35%);
+  transform: translate(-50%, -50%) scale(0.7);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.map-loading-pin-animate .map-loading-ring-a {
+  animation: map-loading-ring 2.4s var(--motion-ease) infinite;
+}
+
+.map-loading-pin-animate .map-loading-ring-b {
+  animation: map-loading-ring 2.4s var(--motion-ease) 0.7s infinite;
+}
+
+.map-loading-pin-animate svg {
+  animation: map-loading-pin-lift 2.2s var(--motion-ease) infinite;
+  transform-origin: 50% 90%;
+  will-change: transform;
+}
+
+@keyframes map-loading-pin-lift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  45% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes map-loading-ring {
+  0% {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.65);
+  }
+
+  70% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.55);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.55);
+  }
+}
+
 .motion-ready-emphasis {
   animation: motion-ready-emphasis 520ms var(--motion-ease) both;
 }
@@ -389,6 +475,12 @@ body {
   .leaver-center-pin.is-lifting {
     transition: none !important;
     transform: translateY(-42%);
+  }
+
+  .map-loading-pin-animate svg,
+  .map-loading-pin-animate .map-loading-ring-a,
+  .map-loading-pin-animate .map-loading-ring-b {
+    animation: none !important;
   }
 
   .motion-location-indicator::before {
