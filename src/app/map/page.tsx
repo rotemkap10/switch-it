@@ -1,15 +1,6 @@
-import Link from "next/link";
-
 import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
-import {
-  ActiveClaimPanel,
-  type ActiveClaimSummary,
-} from "@/components/map/ActiveClaimPanel";
-import { OwnSpotNotice } from "@/components/map/OwnSpotNotice";
-import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
-import { Alert } from "@/components/ui/Alert";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { type ActiveClaimSummary } from "@/components/map/ActiveClaimPanel";
+import { SeekerMapExperience } from "@/components/map/SeekerMapExperience";
 import { requireUser } from "@/lib/auth/require-user";
 import type { MapSpot } from "@/types/map-spot";
 
@@ -258,54 +249,19 @@ export default async function MapPage() {
 
   return (
     <AuthenticatedShell
+      layout="map"
       title="Find parking"
-      description="Pick a spot nearby and head over before the hold expires."
+      description="Choose a spot nearby."
     >
-      {spotsResult.error ? (
-        <Alert tone="error">Could not load parking spots.</Alert>
-      ) : null}
-
-      {activeClaimResult.error ? (
-        <Alert tone="error">Could not load your active trip.</Alert>
-      ) : null}
-
-      {ownedSpotResult.error ? (
-        <Alert tone="error">Could not check your published spot.</Alert>
-      ) : null}
-
-      {activeClaim ? (
-        <ActiveClaimPanel
-          claim={activeClaim}
-          destination={activeClaimDestination}
-        />
-      ) : null}
-
-      {showOwnSpotNotice ? <OwnSpotNotice /> : null}
-
-      {!spotsResult.error && spots.length === 0 ? (
-        <Card className="motion-fade-in flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-medium text-foreground">
-              No parking spots right now
-            </p>
-            <p className="mt-1 text-sm text-muted">
-              Check back soon, or share a spot you are leaving.
-            </p>
-          </div>
-          <Link href="/spots/new">
-            <Button variant="secondary">Share my parking spot</Button>
-          </Link>
-        </Card>
-      ) : null}
-
-      {!spotsResult.error ? (
-        <Card className="overflow-hidden p-0">
-          <ParkingMapLoader
-            spots={spots}
-            destination={activeClaimDestination}
-          />
-        </Card>
-      ) : null}
+      <SeekerMapExperience
+        spots={spots}
+        destination={activeClaimDestination}
+        activeClaim={activeClaim}
+        showOwnSpotNotice={showOwnSpotNotice}
+        spotsError={Boolean(spotsResult.error)}
+        activeClaimError={Boolean(activeClaimResult.error)}
+        ownedSpotError={Boolean(ownedSpotResult.error)}
+      />
     </AuthenticatedShell>
   );
 }

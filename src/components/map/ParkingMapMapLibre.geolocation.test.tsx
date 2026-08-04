@@ -145,7 +145,9 @@ describe("ParkingMapMapLibre geolocation", () => {
       const banner = await screen.findByText(
         "Location unavailable — you can still browse parking spots.",
       );
-      expect(banner.className).not.toContain("absolute");
+      expect(banner).toBeInTheDocument();
+      // Location banners overlay the map shell rather than stacking above it.
+      expect(banner.closest(".absolute")).not.toBeNull();
 
       await waitFor(() => {
         expect(mockMap.hasImage).toHaveBeenCalledWith("spot-unselected");

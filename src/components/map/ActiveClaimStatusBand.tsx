@@ -7,11 +7,13 @@ import { Countdown } from "@/components/ui/Countdown";
 type ActiveClaimStatusBandProps = {
   spotAvailableAt: string;
   spotAddress: string | null;
+  compact?: boolean;
 };
 
 export function ActiveClaimStatusBand({
   spotAvailableAt,
   spotAddress,
+  compact = false,
 }: ActiveClaimStatusBandProps) {
   const [now, setNow] = useState(() => Date.now());
   const [readyEmphasis, setReadyEmphasis] = useState(false);
@@ -37,6 +39,36 @@ export function ActiveClaimStatusBand({
     }
     return undefined;
   }, [isReady]);
+
+  if (compact) {
+    return (
+      <div
+        className={[
+          "status-band flex items-center justify-between gap-3 px-3 py-2.5 shadow-[var(--shadow-card)]",
+          isReady ? "status-band-ready" : "",
+          readyEmphasis ? "motion-ready-emphasis" : "",
+        ].join(" ")}
+      >
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-accent-hover">
+            You’re on your way
+          </p>
+          <p className="truncate text-sm font-medium text-foreground">
+            {spotAddress?.trim()
+              ? spotAddress
+              : "Public street parking spot"}
+          </p>
+        </div>
+        <p className="shrink-0 text-sm">
+          <Countdown
+            targetIso={spotAvailableAt}
+            pendingLabel="In"
+            readyLabel="Now"
+          />
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div

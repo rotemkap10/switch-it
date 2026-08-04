@@ -497,7 +497,7 @@ export function ParkingMapMapLibre({
 
   if (styleFallback || mapUnavailable) {
     return (
-      <div className="relative flex h-[60vh] min-h-[24rem] w-full items-center justify-center p-4">
+      <div className="relative flex h-full min-h-[18rem] w-full items-center justify-center p-4">
         <MapUnavailable />
       </div>
     );
@@ -517,14 +517,14 @@ export function ParkingMapMapLibre({
     );
 
   return (
-    <div className="flex flex-col">
+    <div className="relative h-full min-h-[18rem] w-full">
       {userLocation.status === "loading" ? (
         <div
-          className="mx-auto w-full px-4 py-2"
+          className="pointer-events-none absolute inset-x-0 top-14 z-[3] flex justify-center px-3"
           role="status"
           aria-live="polite"
         >
-          <div className="rounded-[var(--radius-card)] border border-border bg-surface/90 px-3 py-2 text-sm text-muted motion-fade-in">
+          <div className="pointer-events-auto rounded-[var(--radius-card)] border border-border bg-surface/95 px-3 py-2 text-sm text-muted shadow-[var(--shadow-card)] motion-fade-in">
             <span className="motion-location-indicator">
               Finding your location…
             </span>
@@ -534,11 +534,11 @@ export function ParkingMapMapLibre({
 
       {locationFailure ? (
         <div
-          className="mx-auto w-full px-4 py-2"
+          className="pointer-events-none absolute inset-x-0 top-14 z-[3] flex justify-center px-3"
           role="status"
           aria-live="polite"
         >
-          <div className="rounded-[var(--radius-card)] border border-border bg-surface/90 px-3 py-2 text-sm text-muted motion-fade-in">
+          <div className="pointer-events-auto rounded-[var(--radius-card)] border border-border bg-surface/95 px-3 py-2 text-sm text-muted shadow-[var(--shadow-card)] motion-fade-in">
             Location unavailable — you can still browse parking spots.
           </div>
         </div>
@@ -546,18 +546,17 @@ export function ParkingMapMapLibre({
 
       {locationOutsideSupportedArea ? (
         <div
-          className="mx-auto w-full px-4 py-2"
+          className="pointer-events-none absolute inset-x-0 top-14 z-[3] flex justify-center px-3"
           role="status"
           aria-live="polite"
         >
-          <div className="rounded-[var(--radius-card)] border border-border bg-surface/90 px-3 py-2 text-sm text-muted motion-fade-in">
+          <div className="pointer-events-auto rounded-[var(--radius-card)] border border-border bg-surface/95 px-3 py-2 text-sm text-muted shadow-[var(--shadow-card)] motion-fade-in">
             Location is outside the current map area — browsing Tel Aviv.
           </div>
         </div>
       ) : null}
 
-      <div className="relative">
-        <div className="relative z-0 h-[60vh] min-h-[24rem] w-full">
+      <div className="absolute inset-0 z-0 h-full w-full">
           <BaseMap
             styleUrl={mapTilerStyleUrl!}
             center={initialCenter}
@@ -618,53 +617,52 @@ export function ParkingMapMapLibre({
             }
           }}
         />
-        </div>
-
-        {mapVisuallyReady &&
-        userLocation.status === "ready" &&
-        isWithinSupportedMapBounds(
-          userLocation.longitude,
-          userLocation.latitude,
-        ) ? (
-          <div className="absolute right-3 top-3 z-[2] flex items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="px-3 py-2"
-              onClick={() => {
-                const map = mapRef.current;
-                if (
-                  !map ||
-                  userLocation.status !== "ready" ||
-                  !isWithinSupportedMapBounds(
-                    userLocation.longitude,
-                    userLocation.latitude,
-                  )
-                ) {
-                  return;
-                }
-                setFollowMode(true);
-                map.easeTo({
-                  center: [userLocation.longitude, userLocation.latitude],
-                  zoom: map.getZoom(),
-                  duration: prefersReducedMotion ? 0 : 550,
-                  essential: true,
-                });
-              }}
-              aria-label="Recenter on my location"
-            >
-              Recenter
-            </Button>
-          </div>
-        ) : null}
-
-        {selectedSpot ? (
-          <SelectedSpotCard
-            spot={selectedSpot}
-            onClose={() => setSelectedId(null)}
-          />
-        ) : null}
       </div>
+
+      {mapVisuallyReady &&
+      userLocation.status === "ready" &&
+      isWithinSupportedMapBounds(
+        userLocation.longitude,
+        userLocation.latitude,
+      ) ? (
+        <div className="absolute bottom-28 right-3 z-[2] md:bottom-24">
+          <Button
+            type="button"
+            variant="secondary"
+            className="rounded-full border border-border bg-surface px-3.5 py-2.5 shadow-[var(--shadow-card)]"
+            onClick={() => {
+              const map = mapRef.current;
+              if (
+                !map ||
+                userLocation.status !== "ready" ||
+                !isWithinSupportedMapBounds(
+                  userLocation.longitude,
+                  userLocation.latitude,
+                )
+              ) {
+                return;
+              }
+              setFollowMode(true);
+              map.easeTo({
+                center: [userLocation.longitude, userLocation.latitude],
+                zoom: map.getZoom(),
+                duration: prefersReducedMotion ? 0 : 550,
+                essential: true,
+              });
+            }}
+            aria-label="Recenter on my location"
+          >
+            Recenter
+          </Button>
+        </div>
+      ) : null}
+
+      {selectedSpot ? (
+        <SelectedSpotCard
+          spot={selectedSpot}
+          onClose={() => setSelectedId(null)}
+        />
+      ) : null}
     </div>
   );
 }

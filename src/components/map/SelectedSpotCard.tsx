@@ -4,7 +4,6 @@ import { useState } from "react";
 
 import { ClaimSpotButton } from "@/components/map/ClaimSpotButton";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 import { Countdown } from "@/components/ui/Countdown";
 import type { MapSpot } from "@/types/map-spot";
 
@@ -27,10 +26,16 @@ export function SelectedSpotCard({ spot, onClose }: SelectedSpotCardProps) {
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1000] p-3 sm:p-4">
-      <Card
+    <div
+      className={[
+        "pointer-events-none absolute z-[1000] p-3",
+        // Within the map shell (already above bottom nav). Desktop: lower-left.
+        "inset-x-0 bottom-0 md:inset-x-auto md:bottom-4 md:left-4 md:right-auto md:w-full md:max-w-sm md:p-0",
+      ].join(" ")}
+    >
+      <div
         className={[
-          "pointer-events-auto mx-auto flex w-full max-w-md flex-col gap-3 shadow-[var(--shadow-card)]",
+          "pointer-events-auto flex w-full flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-card)]",
           closing ? "motion-panel-exit" : "motion-fade-slide-up",
         ].join(" ")}
       >
@@ -65,7 +70,7 @@ export function SelectedSpotCard({ spot, onClose }: SelectedSpotCardProps) {
         ) : (
           <p className="text-sm text-muted">This is your published spot.</p>
         )}
-      </Card>
+      </div>
     </div>
   );
 }

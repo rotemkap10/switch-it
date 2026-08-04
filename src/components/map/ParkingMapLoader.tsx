@@ -13,7 +13,7 @@ const ParkingMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="h-[60vh] min-h-[24rem] w-full overflow-hidden">
+      <div className="h-full min-h-[18rem] w-full overflow-hidden">
         <MapLoadingState />
       </div>
     ),
@@ -26,5 +26,9 @@ type ParkingMapLoaderProps = {
 };
 
 export function ParkingMapLoader({ spots, destination }: ParkingMapLoaderProps) {
-  return <ParkingMap spots={spots} destination={destination ?? null} />;
+  return (
+    <div className="h-full min-h-[18rem] w-full">
+      <ParkingMap spots={spots} destination={destination ?? null} />
+    </div>
+  );
 }

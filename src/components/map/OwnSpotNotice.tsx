@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useMode } from "@/components/mode/ModeProvider";
-import { Button } from "@/components/ui/Button";
 
 export function OwnSpotNotice() {
   const router = useRouter();
@@ -16,24 +15,21 @@ export function OwnSpotNotice() {
   }
 
   return (
-    <div className="motion-fade-in flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border bg-surface px-4 py-3 text-sm text-muted">
-      <p>You also have an active parking spot</p>
-      <div className="flex flex-wrap items-center gap-2">
-        <Link
-          href="/spots/new"
-          className="font-medium text-accent-hover hover:text-foreground"
-        >
-          View spot
-        </Link>
-        <Button
-          type="button"
-          variant="ghost"
-          className="px-2 py-1 text-muted"
-          onClick={switchToLeaving}
-        >
-          Switch to Leaving
-        </Button>
-      </div>
+    <div className="motion-fade-in inline-flex max-w-full items-center gap-2 rounded-full border border-border bg-surface/95 px-3 py-1.5 text-xs text-muted shadow-[var(--shadow-card)] backdrop-blur-sm">
+      <p className="truncate">You also have an active parking spot</p>
+      <Link
+        href="/spots/new"
+        className="shrink-0 font-medium text-accent-hover hover:text-foreground"
+      >
+        View
+      </Link>
+      <button
+        type="button"
+        className="shrink-0 font-medium text-accent-hover hover:text-foreground"
+        onClick={switchToLeaving}
+      >
+        Leave mode
+      </button>
     </div>
   );
 }
