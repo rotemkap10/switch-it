@@ -13,6 +13,20 @@ vi.mock("@/actions/spots", () => ({
   publishSpot: publishSpotMock,
 }));
 
+vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
+  SpotLocationPickerLoader: ({
+    latitude,
+    longitude,
+  }: {
+    latitude: number;
+    longitude: number;
+  }) => (
+    <div role="img" aria-label="Map to adjust your parking spot location">
+      Map at {latitude}, {longitude}
+    </div>
+  ),
+}));
+
 function fieldErrorsFromZod(error: import("zod").ZodError) {
   const fieldErrors: Record<string, string[]> = {};
   for (const issue of error.issues) {
@@ -42,71 +56,100 @@ function mockPublishWithSchemaValidation() {
   );
 }
 
+function stubGeolocation(
+  implementation: (
+    success: PositionCallback,
+    error?: PositionErrorCallback,
+  ) => void,
+) {
+  vi.stubGlobal("navigator", {
+    ...navigator,
+    geolocation: { getCurrentPosition: vi.fn(implementation) },
+  });
+}
+
 describe("PublishSpotForm", () => {
   beforeEach(() => {
     publishSpotMock.mockReset();
     mockPublishWithSchemaValidation();
+    stubGeolocation((success) => {
+      success({
+        coords: {
+          latitude: 32.085312,
+          longitude: 34.781812,
+          accuracy: 10,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      } as GeolocationPosition);
+    });
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the main fields and primary submit action", () => {
+  it("renders the location section, leave-time choices, and primary action", async () => {
     render(<PublishSpotForm />);
 
-    expect(screen.getByLabelText("Latitude")).toBeInTheDocument();
-    expect(screen.getByLabelText("Longitude")).toBeInTheDocument();
-    expect(screen.getByLabelText("Address (optional)")).toBeInTheDocument();
-    expect(screen.getByLabelText("Expected leave time")).toBeInTheDocument();
+    expect(screen.getByText("Your parking spot")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Share my parking spot" }),
+      screen.getByText("Check that the marker is in the right place."),
     ).toBeInTheDocument();
+    expect(screen.getByRole("radiogroup")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Use my location" }),
+      screen.getByRole("button", { name: "Share this spot" }),
     ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.getByText("Location found")).toBeInTheDocument();
+    });
   });
 
-  it("submits valid manual coordinates through the publish action", async () => {
+  it("submits coordinates from automatic geolocation", async () => {
     const user = userEvent.setup();
     render(<PublishSpotForm />);
 
-    await user.type(screen.getByLabelText("Latitude"), "32.0853");
-    await user.type(screen.getByLabelText("Longitude"), "34.7818");
-    await user.selectOptions(
-      screen.getByLabelText("Expected leave time"),
-      "10",
-    );
-    await user.click(
-      screen.getByRole("button", { name: "Share my parking spot" }),
-    );
+    await waitFor(() => {
+      expect(screen.getByText("Location found")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("radio", { name: "10 min" }));
+    await user.click(screen.getByRole("button", { name: "Share this spot" }));
 
     await waitFor(() => {
       expect(publishSpotMock).toHaveBeenCalledTimes(1);
     });
 
     const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
-    expect(formData.get("latitude")).toBe("32.0853");
-    expect(formData.get("longitude")).toBe("34.7818");
+    expect(formData.get("latitude")).toBe("32.085312");
+    expect(formData.get("longitude")).toBe("34.781812");
     expect(formData.get("available_in_minutes")).toBe("10");
   });
 
-  it("shows validation feedback for invalid latitude and longitude", async () => {
+  it("shows validation feedback for invalid coordinates via manual entry", async () => {
     const user = userEvent.setup();
     render(<PublishSpotForm />);
 
+    await waitFor(() => {
+      expect(screen.getByText("Location found")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Enter coordinates manually" }));
+    await user.clear(screen.getByLabelText("Latitude"));
+    await user.type(screen.getByLabelText("Latitude"), "91");
+    await user.clear(screen.getByLabelText("Longitude"));
+    await user.type(screen.getByLabelText("Longitude"), "181");
+
     const form = screen
-      .getByRole("button", { name: "Share my parking spot" })
+      .getByRole("button", { name: "Share this spot" })
       .closest("form");
-    expect(form).toBeTruthy();
-    // Bypass browser min/max so Zod field errors from the action can surface.
     form!.noValidate = true;
 
-    await user.type(screen.getByLabelText("Latitude"), "91");
-    await user.type(screen.getByLabelText("Longitude"), "181");
-    await user.click(
-      screen.getByRole("button", { name: "Share my parking spot" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Share this spot" }));
 
     expect(
       await screen.findByText("Latitude must be between -90 and 90."),
@@ -116,105 +159,63 @@ describe("PublishSpotForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("rejects unsupported timing values on submit", async () => {
-    const user = userEvent.setup();
-    render(<PublishSpotForm />);
-
-    await user.type(screen.getByLabelText("Latitude"), "32");
-    await user.type(screen.getByLabelText("Longitude"), "34");
-
-    const timing = screen.getByLabelText(
-      "Expected leave time",
-    ) as HTMLSelectElement;
-    const unsupported = document.createElement("option");
-    unsupported.value = "7";
-    unsupported.textContent = "Unsupported";
-    timing.appendChild(unsupported);
-    await user.selectOptions(timing, "7");
-
-    await user.click(
-      screen.getByRole("button", { name: "Share my parking spot" }),
-    );
-
-    expect(
-      await screen.findByText("Choose when you expect to leave."),
-    ).toBeInTheDocument();
-  });
-
-  it("fills coordinates when geolocation succeeds", async () => {
-    const user = userEvent.setup();
-    const getCurrentPosition = vi.fn(
-      (success: PositionCallback) => {
-        success({
-          coords: {
-            latitude: 32.085312,
-            longitude: 34.781812,
-            accuracy: 10,
-            altitude: null,
-            altitudeAccuracy: null,
-            heading: null,
-            speed: null,
-          },
-          timestamp: Date.now(),
-        } as GeolocationPosition);
-      },
-    );
-
-    vi.stubGlobal("navigator", {
-      ...navigator,
-      geolocation: { getCurrentPosition },
+  it("requests geolocation automatically on load", async () => {
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({
+        coords: {
+          latitude: 32,
+          longitude: 34,
+          accuracy: 10,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      } as GeolocationPosition);
     });
 
+    stubGeolocation(getCurrentPosition);
     render(<PublishSpotForm />);
-    await user.click(screen.getByRole("button", { name: "Use my location" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Latitude")).toHaveValue(32.085312);
-      expect(screen.getByLabelText("Longitude")).toHaveValue(34.781812);
+      expect(getCurrentPosition).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("keeps manual entry usable when geolocation is denied", async () => {
+  it("offers map fallback when geolocation is denied", async () => {
     const user = userEvent.setup();
-    const getCurrentPosition = vi.fn(
-      (_success: PositionCallback, error?: PositionErrorCallback) => {
-        error?.({
-          code: 1,
-          message: "User denied geolocation",
-          PERMISSION_DENIED: 1,
-          POSITION_UNAVAILABLE: 2,
-          TIMEOUT: 3,
-        } as GeolocationPositionError);
-      },
-    );
-
-    vi.stubGlobal("navigator", {
-      ...navigator,
-      geolocation: { getCurrentPosition },
+    stubGeolocation((_success, error) => {
+      error?.({
+        code: 1,
+        message: "User denied geolocation",
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
     });
 
     render(<PublishSpotForm />);
-    await user.click(screen.getByRole("button", { name: "Use my location" }));
 
     expect(
-      await screen.findByText(
-        "Location unavailable. Enter coordinates manually.",
-      ),
+      await screen.findByText("We couldn’t access your location."),
     ).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Latitude"), "32.1");
-    await user.type(screen.getByLabelText("Longitude"), "34.8");
-    await user.click(
-      screen.getByRole("button", { name: "Share my parking spot" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Choose on map" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("img", {
+          name: "Map to adjust your parking spot location",
+        }),
+      ).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Share this spot" }));
 
     await waitFor(() => {
       expect(publishSpotMock).toHaveBeenCalledTimes(1);
     });
-
-    const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
-    expect(formData.get("latitude")).toBe("32.1");
-    expect(formData.get("longitude")).toBe("34.8");
   });
 
   it("shows a pending disabled submit state while publishing", async () => {
@@ -228,11 +229,12 @@ describe("PublishSpotForm", () => {
     );
 
     render(<PublishSpotForm />);
-    await user.type(screen.getByLabelText("Latitude"), "32");
-    await user.type(screen.getByLabelText("Longitude"), "34");
-    await user.click(
-      screen.getByRole("button", { name: "Share my parking spot" }),
-    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Location found")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Share this spot" }));
 
     const pendingButton = await screen.findByRole("button", {
       name: "Sharing…",
@@ -242,7 +244,7 @@ describe("PublishSpotForm", () => {
     resolvePublish({});
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "Share my parking spot" }),
+        screen.getByRole("button", { name: "Share this spot" }),
       ).toBeEnabled();
     });
   });

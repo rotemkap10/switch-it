@@ -1,33 +1,35 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useCallback, useEffect, useRef, useState } from "react";
 
 import {
   publishSpot,
   type PublishSpotActionState,
 } from "@/actions/spots";
+import { LeaveTimeChoices } from "@/components/spots/LeaveTimeChoices";
+import { SpotLocationPickerLoader } from "@/components/spots/SpotLocationPickerLoader";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
-import { Select } from "@/components/ui/Select";
 import {
-  AVAILABLE_IN_MINUTES_OPTIONS,
+  type AvailableInMinutes,
   GEOLOCATION_TIMEOUT_MS,
-  SPOT_GRACE_MINUTES,
 } from "@/lib/spots/constants";
+import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
 const initialState: PublishSpotActionState = {};
 
-const availableLabels: Record<number, string> = {
-  0: "Now",
-  5: "In 5 minutes",
-  10: "In 10 minutes",
-  15: "In 15 minutes",
-  20: "In 20 minutes",
-  25: "In 25 minutes",
-  30: "In 30 minutes",
-};
+type GeoStatus = "loading" | "success" | "error" | "manual";
+
+function formatCoord(value: number): string {
+  return value.toFixed(6);
+}
+
+function parseCoord(value: string): number | null {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 export function PublishSpotForm() {
   const [state, formAction, pending] = useActionState(
@@ -36,29 +38,34 @@ export function PublishSpotForm() {
   );
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [geoPending, setGeoPending] = useState(false);
+  const [leaveInMinutes, setLeaveInMinutes] = useState<AvailableInMinutes>(0);
+  const [geoStatus, setGeoStatus] = useState<GeoStatus>("loading");
+  const [showManualCoords, setShowManualCoords] = useState(false);
+  const autoRequestedRef = useRef(false);
 
-  function useCurrentLocation() {
-    setGeoError(null);
+  const hasLocation = latitude !== "" && longitude !== "";
+  const showMap =
+    geoStatus === "success" || geoStatus === "manual" || hasLocation;
 
+  const setLocation = useCallback((lat: number, lng: number) => {
+    setLatitude(formatCoord(lat));
+    setLongitude(formatCoord(lng));
+  }, []);
+
+  const requestLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setGeoError(
-        "Location is not supported in this browser. Enter coordinates manually.",
-      );
+      setGeoStatus("error");
       return;
     }
 
-    setGeoPending(true);
+    setGeoStatus("loading");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLatitude(position.coords.latitude.toFixed(6));
-        setLongitude(position.coords.longitude.toFixed(6));
-        setGeoPending(false);
+        setLocation(position.coords.latitude, position.coords.longitude);
+        setGeoStatus("success");
       },
       () => {
-        setGeoError("Location unavailable. Enter coordinates manually.");
-        setGeoPending(false);
+        setGeoStatus("error");
       },
       {
         enableHighAccuracy: true,
@@ -66,103 +73,185 @@ export function PublishSpotForm() {
         maximumAge: 60_000,
       },
     );
+  }, [setLocation]);
+
+  useEffect(() => {
+    if (autoRequestedRef.current) {
+      return;
+    }
+    autoRequestedRef.current = true;
+    requestLocation();
+  }, [requestLocation]);
+
+  function chooseOnMap() {
+    if (!hasLocation) {
+      setLocation(MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng);
+    }
+    setGeoStatus("manual");
   }
 
+  function handleMapLocationChange(lat: number, lng: number) {
+    setLocation(lat, lng);
+    if (geoStatus !== "manual") {
+      setGeoStatus("success");
+    }
+  }
+
+  const parsedLat = parseCoord(latitude);
+  const parsedLng = parseCoord(longitude);
+
   return (
-    <form action={formAction} className="flex flex-col gap-6">
-      <Card className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <form action={formAction} className="flex max-w-lg flex-col gap-4">
+      <Card className="flex flex-col gap-6 motion-fade-in">
+        <section className="flex flex-col gap-3" aria-labelledby="spot-location-heading">
           <div>
-            <h2 className="text-base font-semibold text-foreground">Location</h2>
-            <p className="text-sm text-muted">
-              Use your current position or enter coordinates manually.
+            <h2
+              id="spot-location-heading"
+              className="text-base font-semibold text-foreground"
+            >
+              Your parking spot
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Check that the marker is in the right place.
             </p>
           </div>
+
+          {geoStatus === "loading" ? (
+            <p className="text-sm font-medium text-foreground" role="status">
+              Finding your location…
+            </p>
+          ) : null}
+
+          {geoStatus === "success" && hasLocation ? (
+            <p className="text-sm font-medium text-success" role="status">
+              Location found
+            </p>
+          ) : null}
+
+          {geoStatus === "error" ? (
+            <div className="flex flex-col gap-3">
+              <Alert tone="warning" title="We couldn’t access your location.">
+                You can try again or choose the spot on the map.
+              </Alert>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={requestLocation}
+                  disabled={pending}
+                >
+                  Try again
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={chooseOnMap}
+                  disabled={pending}
+                >
+                  Choose on map
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {showMap && parsedLat !== null && parsedLng !== null ? (
+            <SpotLocationPickerLoader
+              latitude={parsedLat}
+              longitude={parsedLng}
+              onLocationChange={handleMapLocationChange}
+              disabled={pending}
+            />
+          ) : null}
+
+          {!showManualCoords ? (
+            <>
+              <input type="hidden" name="latitude" value={latitude} />
+              <input type="hidden" name="longitude" value={longitude} />
+            </>
+          ) : null}
+          <input
+            type="hidden"
+            name="available_in_minutes"
+            value={String(leaveInMinutes)}
+          />
+
+          {!showManualCoords ? (
+            <button
+              type="button"
+              onClick={() => setShowManualCoords(true)}
+              className="w-fit text-left text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Enter coordinates manually
+            </button>
+          ) : (
+            <div className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+              <Input
+                id="latitude-manual"
+                name="latitude"
+                label="Latitude"
+                type="number"
+                step="any"
+                required
+                min={-90}
+                max={90}
+                value={latitude}
+                onChange={(event) => setLatitude(event.target.value)}
+                disabled={pending}
+                error={state.fieldErrors?.latitude?.[0]}
+              />
+              <Input
+                id="longitude-manual"
+                name="longitude"
+                label="Longitude"
+                type="number"
+                step="any"
+                required
+                min={-180}
+                max={180}
+                value={longitude}
+                onChange={(event) => setLongitude(event.target.value)}
+                disabled={pending}
+                error={state.fieldErrors?.longitude?.[0]}
+              />
+            </div>
+          )}
+
+          {!showManualCoords && state.fieldErrors?.latitude?.[0] ? (
+            <p className="text-sm text-danger" role="alert">
+              {state.fieldErrors.latitude[0]}
+            </p>
+          ) : null}
+          {!showManualCoords && state.fieldErrors?.longitude?.[0] ? (
+            <p className="text-sm text-danger" role="alert">
+              {state.fieldErrors.longitude[0]}
+            </p>
+          ) : null}
+        </section>
+
+        <section aria-labelledby="leave-time-label">
+          <LeaveTimeChoices
+            value={leaveInMinutes}
+            onChange={setLeaveInMinutes}
+            disabled={pending}
+            error={state.fieldErrors?.available_in_minutes?.[0]}
+          />
+        </section>
+
+        {state.error ? <Alert tone="error">{state.error}</Alert> : null}
+
+        <div className="flex flex-col gap-2">
           <Button
-            type="button"
-            variant="secondary"
-            onClick={useCurrentLocation}
-            disabled={pending || geoPending}
+            type="submit"
+            disabled={pending || !hasLocation}
+            className="w-full sm:w-fit"
           >
-            {geoPending ? "Getting location…" : "Use my location"}
+            {pending ? "Sharing…" : "Share this spot"}
           </Button>
-        </div>
-
-        {geoError ? <Alert tone="warning">{geoError}</Alert> : null}
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            id="latitude"
-            name="latitude"
-            label="Latitude"
-            type="number"
-            step="any"
-            required
-            min={-90}
-            max={90}
-            value={latitude}
-            onChange={(event) => setLatitude(event.target.value)}
-            disabled={pending}
-            error={state.fieldErrors?.latitude?.[0]}
-          />
-          <Input
-            id="longitude"
-            name="longitude"
-            label="Longitude"
-            type="number"
-            step="any"
-            required
-            min={-180}
-            max={180}
-            value={longitude}
-            onChange={(event) => setLongitude(event.target.value)}
-            disabled={pending}
-            error={state.fieldErrors?.longitude?.[0]}
-          />
-        </div>
-
-        <Input
-          id="address"
-          name="address"
-          label="Address (optional)"
-          type="text"
-          maxLength={200}
-          disabled={pending}
-          placeholder="Street or landmark"
-          error={state.fieldErrors?.address?.[0]}
-        />
-      </Card>
-
-      <Card className="flex flex-col gap-4">
-        <div>
-          <h2 className="text-base font-semibold text-foreground">
-            When are you leaving?
-          </h2>
-          <p className="text-sm text-muted">
-            The spot appears on the map immediately. After your leave time, it
-            stays claimable for a {SPOT_GRACE_MINUTES}-minute grace period.
+          <p className="text-xs leading-5 text-muted">
+            This helps coordinate a handoff. It does not reserve the spot.
           </p>
         </div>
-
-        <Select
-          id="available_in_minutes"
-          name="available_in_minutes"
-          label="Expected leave time"
-          defaultValue="0"
-          disabled={pending}
-          error={state.fieldErrors?.available_in_minutes?.[0]}
-          options={AVAILABLE_IN_MINUTES_OPTIONS.map((minutes) => ({
-            value: String(minutes),
-            label: availableLabels[minutes],
-          }))}
-        />
       </Card>
-
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-
-      <Button type="submit" disabled={pending} className="w-fit">
-        {pending ? "Sharing…" : "Share my parking spot"}
-      </Button>
     </form>
   );
 }

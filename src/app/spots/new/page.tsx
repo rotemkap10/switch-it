@@ -51,7 +51,7 @@ export default async function NewSpotPage() {
   return (
     <AuthenticatedShell
       title="Share my parking spot"
-      description="Tell others when you’re leaving. This coordinates a handoff—it does not reserve or sell the spot."
+      description="Let nearby drivers know when this spot becomes available."
     >
       {error ? (
         <Alert tone="error">Could not load your parking spot.</Alert>
