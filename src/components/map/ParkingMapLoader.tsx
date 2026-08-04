@@ -23,12 +23,21 @@ const ParkingMap = dynamic(
 type ParkingMapLoaderProps = {
   spots: MapSpot[];
   destination?: { latitude: number; longitude: number } | null;
+  onVisuallyReady?: () => void;
 };
 
-export function ParkingMapLoader({ spots, destination }: ParkingMapLoaderProps) {
+export function ParkingMapLoader({
+  spots,
+  destination,
+  onVisuallyReady,
+}: ParkingMapLoaderProps) {
   return (
     <div className="h-full min-h-[18rem] w-full">
-      <ParkingMap spots={spots} destination={destination ?? null} />
+      <ParkingMap
+        spots={spots}
+        destination={destination ?? null}
+        onVisuallyReady={onVisuallyReady}
+      />
     </div>
   );
 }

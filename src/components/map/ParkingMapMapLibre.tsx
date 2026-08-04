@@ -35,6 +35,7 @@ type DestinationCoords = { latitude: number; longitude: number };
 type ParkingMapMapLibreProps = {
   spots: MapSpot[];
   destination?: DestinationCoords | null;
+  onVisuallyReady?: () => void;
 };
 
 function usePrefersReducedMotion() {
@@ -211,6 +212,7 @@ function metersToPixels(map: MapLibreMap, lng: number, lat: number, m: number) {
 export function ParkingMapMapLibre({
   spots,
   destination = null,
+  onVisuallyReady,
 }: ParkingMapMapLibreProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
   const mapTilerStyleUrl = useMemo(
@@ -227,6 +229,19 @@ export function ParkingMapMapLibre({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapUnavailable, setMapUnavailable] = useState(false);
   const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
+  const [dismissedLocationNoticeKey, setDismissedLocationNoticeKey] = useState<
+    string | null
+  >(null);
+  const onVisuallyReadyRef = useRef(onVisuallyReady);
+
+  useEffect(() => {
+    onVisuallyReadyRef.current = onVisuallyReady;
+  }, [onVisuallyReady]);
+
+  const markVisuallyReady = () => {
+    setMapVisuallyReady(true);
+    onVisuallyReadyRef.current?.();
+  };
   const selectedSpot = useMemo(() => {
     if (!selectedId) {
       return null;
@@ -253,6 +268,38 @@ export function ParkingMapMapLibre({
   const disableFollowOnUserMove = () => {
     setFollowMode(false);
   };
+
+  const locationFailure =
+    userLocation.status === "denied" ||
+    userLocation.status === "unavailable" ||
+    userLocation.status === "timeout" ||
+    userLocation.status === "unsupported";
+
+  const locationOutsideSupportedArea =
+    userLocation.status === "ready" &&
+    !isWithinSupportedMapBounds(
+      userLocation.longitude,
+      userLocation.latitude,
+    );
+
+  const locationNoticeKey = `${userLocation.status}:${String(mapVisuallyReady)}`;
+  const locationNoticeHidden = dismissedLocationNoticeKey === locationNoticeKey;
+  const showLocationNotice =
+    mapVisuallyReady &&
+    !locationNoticeHidden &&
+    (userLocation.status === "loading" ||
+      locationFailure ||
+      locationOutsideSupportedArea);
+
+  useEffect(() => {
+    if (!showLocationNotice) {
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setDismissedLocationNoticeKey(locationNoticeKey);
+    }, 6000);
+    return () => window.clearTimeout(id);
+  }, [showLocationNotice, locationNoticeKey]);
 
   useEffect(() => {
     if (userLocation.status !== "ready" || hasCenteredOnUserOnceRef.current) {
@@ -503,55 +550,63 @@ export function ParkingMapMapLibre({
     );
   }
 
-  const locationFailure =
-    userLocation.status === "denied" ||
-    userLocation.status === "unavailable" ||
-    userLocation.status === "timeout" ||
-    userLocation.status === "unsupported";
-
-  const locationOutsideSupportedArea =
-    userLocation.status === "ready" &&
-    !isWithinSupportedMapBounds(
-      userLocation.longitude,
-      userLocation.latitude,
-    );
-
   return (
     <div className="relative h-full min-h-[18rem] w-full">
-      {userLocation.status === "loading" ? (
+      {mapVisuallyReady &&
+      userLocation.status === "loading" &&
+      !locationNoticeHidden ? (
         <div
-          className="pointer-events-none absolute inset-x-0 top-14 z-[3] flex justify-center px-3"
+          className="pointer-events-none absolute bottom-28 right-3 z-[4] md:bottom-24"
           role="status"
           aria-live="polite"
         >
-          <div className="pointer-events-auto rounded-[var(--radius-card)] border border-border bg-surface/95 px-3 py-2 text-sm text-muted shadow-[var(--shadow-card)] motion-fade-in">
-            <span className="motion-location-indicator">
-              Finding your location…
-            </span>
+          <div
+            data-testid="location-loading-pill"
+            className="pointer-events-auto max-w-[11rem] rounded-full border border-border bg-surface/95 px-3 py-1.5 text-xs text-muted shadow-[var(--shadow-card)] motion-fade-in"
+          >
+            Finding location…
           </div>
         </div>
       ) : null}
 
-      {locationFailure ? (
+      {mapVisuallyReady && locationFailure && !locationNoticeHidden ? (
         <div
-          className="pointer-events-none absolute inset-x-0 top-14 z-[3] flex justify-center px-3"
+          className="pointer-events-none absolute bottom-28 right-3 z-[4] md:bottom-24"
           role="status"
           aria-live="polite"
         >
-          <div className="pointer-events-auto rounded-[var(--radius-card)] border border-border bg-surface/95 px-3 py-2 text-sm text-muted shadow-[var(--shadow-card)] motion-fade-in">
-            Location unavailable — you can still browse parking spots.
+          <div
+            data-testid="location-unavailable-pill"
+            className="pointer-events-auto max-w-[12.5rem] rounded-full border border-border bg-surface/95 px-3 py-1.5 text-left shadow-[var(--shadow-card)] motion-fade-in"
+          >
+            <p className="text-xs font-medium text-foreground">
+              Location unavailable
+            </p>
+            <p className="text-[0.65rem] leading-4 text-muted">
+              You can still browse the map.
+            </p>
           </div>
         </div>
       ) : null}
 
-      {locationOutsideSupportedArea ? (
+      {mapVisuallyReady &&
+      locationOutsideSupportedArea &&
+      !locationNoticeHidden ? (
         <div
-          className="pointer-events-none absolute inset-x-0 top-14 z-[3] flex justify-center px-3"
+          className="pointer-events-none absolute bottom-28 right-3 z-[4] md:bottom-24"
           role="status"
           aria-live="polite"
         >
-          <div className="pointer-events-auto rounded-[var(--radius-card)] border border-border bg-surface/95 px-3 py-2 text-sm text-muted shadow-[var(--shadow-card)] motion-fade-in">
-            Location is outside the current map area — browsing Tel Aviv.
+          <div
+            data-testid="location-outside-pill"
+            className="pointer-events-auto max-w-[12.5rem] rounded-full border border-border bg-surface/95 px-3 py-1.5 text-left shadow-[var(--shadow-card)] motion-fade-in"
+          >
+            <p className="text-xs font-medium text-foreground">
+              Outside map area
+            </p>
+            <p className="text-[0.65rem] leading-4 text-muted">
+              Browsing Tel Aviv.
+            </p>
           </div>
         </div>
       ) : null}
@@ -563,7 +618,7 @@ export function ParkingMapMapLibre({
             zoom={MAP_DEFAULT_ZOOM}
             className="absolute inset-0 h-full w-full"
             onMapUnavailable={() => setMapUnavailable(true)}
-            onVisuallyReady={() => setMapVisuallyReady(true)}
+            onVisuallyReady={markVisuallyReady}
             onMapReady={(map) => {
             mapRef.current = map;
 
@@ -657,7 +712,7 @@ export function ParkingMapMapLibre({
         </div>
       ) : null}
 
-      {selectedSpot ? (
+      {mapVisuallyReady && selectedSpot ? (
         <SelectedSpotCard
           spot={selectedSpot}
           onClose={() => setSelectedId(null)}

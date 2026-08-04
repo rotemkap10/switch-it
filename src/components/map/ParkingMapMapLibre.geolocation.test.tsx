@@ -45,6 +45,7 @@ vi.mock("@/components/map/BaseMap", () => {
   return {
     BaseMap: (props: {
       onMapReady: (map: unknown) => void;
+      onVisuallyReady?: () => void;
       styleUrl: string;
       center: unknown;
       zoom: unknown;
@@ -54,6 +55,7 @@ vi.mock("@/components/map/BaseMap", () => {
 
       useEffect(() => {
         props.onMapReady(mockMap);
+        props.onVisuallyReady?.();
       }, [props]);
 
       return <div data-testid="base-map" />;
@@ -142,12 +144,15 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect(await screen.findByTestId("base-map")).toBeInTheDocument();
       expect(screen.queryByText(/Map is unavailable/i)).not.toBeInTheDocument();
 
-      const banner = await screen.findByText(
-        "Location unavailable — you can still browse parking spots.",
-      );
-      expect(banner).toBeInTheDocument();
-      // Location banners overlay the map shell rather than stacking above it.
-      expect(banner.closest(".absolute")).not.toBeNull();
+      const banner = await screen.findByTestId("location-unavailable-pill");
+      expect(banner).toHaveTextContent("Location unavailable");
+      expect(banner).toHaveTextContent("You can still browse the map.");
+      expect(banner.className).toContain("rounded-full");
+      expect(
+        screen.queryByText(
+          "Location unavailable — you can still browse parking spots.",
+        ),
+      ).not.toBeInTheDocument();
 
       await waitFor(() => {
         expect(mockMap.hasImage).toHaveBeenCalledWith("spot-unselected");
