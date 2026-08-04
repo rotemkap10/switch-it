@@ -5,8 +5,13 @@ Aligned with `PROJECT_CONTEXT.md`, `docs/PRODUCT_SPEC.md`,
 `docs/TECHNICAL_DESIGN.md`, and the current application (auth, publish, map,
 claim, complete, cancel, lazy expiry, profile, countdown, two-mode UX).
 
-**Status:** planning only. No test packages or test files are required by this
-document. Implement tests later against a dedicated Supabase **test** project.
+**Status:** Active student MVP plan. Automated coverage today is Vitest unit and
+component tests. Critical database behaviors (`complete_claim`, credit
+transfer, idempotency, cancel, expiry, RLS, races) are verified with
+**documented SQL/manual checks** against a non-production Supabase project.
+A dedicated automated Supabase integration environment (service-role fixtures,
+`.env.test.local`, CI integration jobs) is a **future improvement**, not
+required for the current MVP.
 
 ---
 
@@ -46,18 +51,19 @@ document. Implement tests later against a dedicated Supabase **test** project.
 - Load/performance testing, real payments, push/email product flows
 - Mandatory Playwright coverage of email-confirmation SMTP
 
-### Tooling (when implementing later)
+### Tooling (current MVP vs later)
 
-| Layer | Tool |
-|-------|------|
-| Unit | Vitest |
-| Component | React Testing Library + Vitest |
-| Integration | Automated scripts/clients against a Supabase **test** project |
-| Concurrency | Documented SQL / dual-session manual (not flaky Playwright) |
-| E2E | Playwright |
-| RLS / constraints | SQL against test project + short manual matrix |
+| Layer | Tool | Current MVP |
+|-------|------|-------------|
+| Unit | Vitest | Required / implemented for schemas and helpers |
+| Component | React Testing Library + Vitest | Required / implemented for focused forms |
+| Integration (automated vs Supabase) | Future improvement | **Not required** for current MVP |
+| Concurrency / RPC / credits | Documented SQL + manual | **Required** (see §26) |
+| E2E | Playwright | Optional later |
+| RLS / constraints | SQL / manual matrix | Documented; run manually for demo readiness |
 
-Do **not** install packages or create test files as part of writing this plan.
+Do **not** treat a dedicated automated Supabase test harness as blocking for
+this course MVP.
 
 ---
 
@@ -1118,28 +1124,18 @@ Run before demo or production deploy:
 
 ## 24. Test data and user accounts
 
-Use a **dedicated Supabase test project** (never production data).
+For **manual / SQL** checks, use a non-production Supabase project (or the
+course demo project), never production.
 
 | Account | Role in tests | Notes |
 |---------|---------------|-------|
-| `owner@test.local` (A) | Publisher / leaver | Starts with 5 credits |
-| `seeker@test.local` (B) | Seeker | Starts with 5 credits |
-| `other@test.local` (C) | Third party / race loser | Starts with 5 credits |
-| Optional zero-credit user | Insufficient-credit cases | Set credits via **service role in test project only** |
+| Owner (A) | Publisher / leaver | Known starting credits |
+| Seeker (B) | Seeker | Known starting credits |
+| Optional third user (C) | Race / authorization checks | Optional |
 
-**Fixtures**
-
-- Fresh available spot near default map center for claim tests
-- Active claim with past `expires_at` for lazy expiry (update timestamps via
-  service role in test project)
-- Do not commit real passwords; store locally in a private env or password
-  manager for the student team
-
-**Auth settings for test project**
-
-- Prefer **email confirmation disabled** so optional registration E2E works
-- If confirmation must stay on, create users in Dashboard / Admin API and
-  document registration as manual
+Do not commit passwords. A fully automated dedicated test project with
+service-role keys is a **future improvement** (§26), not part of the current
+MVP.
 
 ---
 
@@ -1147,20 +1143,60 @@ Use a **dedicated Supabase test project** (never production data).
 
 This MVP testing effort is done when:
 
-1. **P0 automated set** (login/protected routes, publish, second-spot reject,
-   claim, self-claim, sequential double-claim, complete + idempotent complete,
-   cancel claim, cancel spot, lazy expiry both spot outcomes, profile
-   display_name + credits/role protection) passes against the test project.
-2. **Documented concurrent claim** procedure has been run once and results
-   recorded (even if informal).
-3. **Manual demo checklist** (§23) completed on a build candidate.
-4. Registration is either covered by optional E2E (confirm off) or signed off
-   manually—SMTP confirmation is not a blocker.
-5. No open P0 defects on credits, double claim, or unauthorized access.
-6. Lint/build clean on the candidate revision.
+1. **Automated unit + focused component tests** pass (`npm run test:run`,
+   lint, build).
+2. **Manual / SQL verification record** in §26 has been executed once on a
+   non-production Supabase project (or equivalent demo environment) and
+   checked off.
+3. **Documented concurrent claim** procedure (CR-02) has been considered or
+   run informally if time allows.
+4. **Regression checklist** (§23) completed on a build candidate.
+5. Registration is signed off manually or via optional E2E—SMTP confirmation
+   is not a blocker.
+6. No open P0 defects on credits, double claim, or unauthorized access.
 
-Out of done scope: full visual regression suite, History feature tests,
-exhaustive RLS fuzzing, production load tests.
+Out of done scope for the **current** MVP:
+
+- Dedicated automated Supabase integration project / service-role test env
+- Full visual regression, History feature tests, exhaustive RLS fuzzing,
+  production load tests
+
+---
+
+## 26. Manual / SQL verification record (current MVP)
+
+Use two non-production accounts (owner A, seeker B) with **known starting
+credit balances**. Prefer the app UI plus Supabase Table Editor / SQL for
+ledger checks. Do **not** use production data.
+
+Checklist (run before demo):
+
+- [ ] Owner and seeker started with known balances (record both numbers).
+- [ ] Seeker claimed the owner’s available spot (spot `claimed`, claim `active`).
+- [ ] First `complete_claim` (seeker):
+  - [ ] claim status → `completed`
+  - [ ] parking spot status → `completed`
+  - [ ] seeker lost **exactly 1** credit
+  - [ ] owner gained **exactly 1** credit
+  - [ ] exactly **one** `handoff_debit` (−1) for that claim
+  - [ ] exactly **one** `handoff_credit` (+1) for that claim
+- [ ] Repeated completion of the same claim did **not** transfer credits again
+      (balances unchanged; still one debit and one credit row; idempotent
+      success with `already_completed` or equivalent documented behavior).
+- [ ] Cancel flows (cancel claim and/or cancel spot) caused **no** credit
+      movement and no new handoff ledger rows.
+- [ ] Expiry (`expire_claim_if_needed` / map lazy expiry) caused **no** credit
+      movement and no handoff ledger rows.
+
+Related detailed cases remain in §§7, 11–17 (I-07/I-08, CC-*, X-*, L-*, R-*,
+CR-*). Those stay **SQL/manual** for the current MVP.
+
+### Future improvement (not required now)
+
+Automated integration against a dedicated Supabase test project (publishable +
+service-role env files, prepared/ephemeral users, Vitest `*.integration.test.ts`,
+CI secrets) may be added later. It is **out of scope** for the current student
+MVP deliverable.
 
 ---
 
@@ -1183,15 +1219,17 @@ exhaustive RLS fuzzing, production load tests.
 | Update display_name only | I-15 |
 | Preserve credits/role | I-16, R-02 |
 
-## Appendix B — What stays manual vs needs Supabase test project
+## Appendix B — Manual/SQL vs future automated integration
 
-See the summary tables intended for the implementation kickoff (kept here for
-single-doc convenience):
+**Current MVP (required):** SQL/manual verification for `complete_claim`,
+idempotency, credit transfer, cancel, expiry, RLS spot-checks, and claim
+races (see §26 and CR-02). Unit + component Vitest coverage for pure logic and
+focused UI.
 
-**Needs Supabase test project:** all Integration I-\*, SQL D-\*/R-\*, RPC
-authorization, credit ledger asserts, lazy expiry time fixtures, optional
-registration automation.
+**Future improvement (optional):** Dedicated Supabase test project with
+automated integration tests, service-role fixtures, and ignored
+`.env.test.local` secrets. Not required to complete the current MVP.
 
-**Remain manual (or documented SQL concurrency):** CR-02 simultaneous claim,
-M-\* UX/demo, RA-\* a11y/responsive, real-device geolocation, SMTP registration
-if confirmation enabled, L-03 map timing feel, mode localStorage UX.
+**Also remain manual:** M-* UX/demo, RA-* a11y/responsive, real-device
+geolocation, SMTP registration if confirmation is enabled, mode localStorage
+UX.
