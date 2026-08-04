@@ -270,6 +270,17 @@ body {
   animation: motion-panel-exit var(--motion-fast) var(--motion-ease) both;
 }
 
+.active-claim-sheet-collapsed,
+.active-claim-sheet-expanded {
+  transition:
+    box-shadow var(--motion-standard) var(--motion-ease),
+    background-color var(--motion-standard) var(--motion-ease);
+}
+
+.active-claim-sheet-expanded {
+  box-shadow: var(--shadow-card-hover);
+}
+
 .motion-chip-selected {
   transform: scale(1.02);
 }

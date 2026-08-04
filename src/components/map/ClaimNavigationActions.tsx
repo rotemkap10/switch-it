@@ -11,6 +11,7 @@ import {
 type ClaimNavigationActionsProps = {
   latitude: number;
   longitude: number;
+  fullWidth?: boolean;
 };
 
 function openExternalUrl(url: string) {
@@ -31,6 +32,7 @@ function openExternalUrl(url: string) {
 export function ClaimNavigationActions({
   latitude,
   longitude,
+  fullWidth = false,
 }: ClaimNavigationActionsProps) {
   const dialogId = useId();
   const titleId = useId();
@@ -105,7 +107,7 @@ export function ClaimNavigationActions({
         ref={navigateButtonRef}
         type="button"
         variant="primary"
-        className="w-full sm:w-fit"
+        className={fullWidth ? "w-full" : "w-full sm:w-fit"}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? dialogId : undefined}

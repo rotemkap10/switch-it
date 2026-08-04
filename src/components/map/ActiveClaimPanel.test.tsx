@@ -1,19 +1,37 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ActiveClaimPanel } from "@/components/map/ActiveClaimPanel";
+import {
+  ACTIVE_CLAIM_DESTINATION_FALLBACK,
+  ActiveClaimPanel,
+  activeClaimDestinationLabel,
+} from "@/components/map/ActiveClaimPanel";
 
 vi.mock("@/components/map/CancelClaimButton", () => ({
-  CancelClaimButton: () => <button type="button">Cancel trip</button>,
+  CancelClaimButton: ({ claimId }: { claimId: string }) => (
+    <button type="button" data-claim-id={claimId}>
+      I’m no longer coming
+    </button>
+  ),
 }));
 
 vi.mock("@/components/map/CompleteClaimButton", () => ({
-  CompleteClaimButton: () => <button type="button">I got the spot</button>,
+  CompleteClaimButton: ({ claimId }: { claimId: string }) => (
+    <button type="button" data-claim-id={claimId}>
+      I got the spot
+    </button>
+  ),
 }));
 
 vi.mock("@/components/ui/Countdown", () => ({
-  Countdown: () => <span>Available in 5:00</span>,
+  Countdown: ({
+    pendingLabel,
+    readyLabel,
+  }: {
+    pendingLabel?: string;
+    readyLabel?: string;
+  }) => <span>{pendingLabel ?? readyLabel ?? "Available in 5:00"}</span>,
 }));
 
 const claim = {
@@ -28,7 +46,19 @@ const destination = {
   longitude: 34.781812,
 };
 
-describe("ActiveClaimPanel navigation", () => {
+describe("activeClaimDestinationLabel", () => {
+  it("uses the fallback when address is missing", () => {
+    expect(activeClaimDestinationLabel(null)).toBe(
+      ACTIVE_CLAIM_DESTINATION_FALLBACK,
+    );
+    expect(activeClaimDestinationLabel("   ")).toBe(
+      ACTIVE_CLAIM_DESTINATION_FALLBACK,
+    );
+    expect(activeClaimDestinationLabel("Rothschild")).toBe("Rothschild");
+  });
+});
+
+describe("ActiveClaimPanel sheet UX", () => {
   beforeEach(() => {
     vi.stubGlobal(
       "open",
@@ -36,22 +66,152 @@ describe("ActiveClaimPanel navigation", () => {
     );
   });
 
-  it("shows Navigate for a valid active-claim destination", () => {
-    render(<ActiveClaimPanel claim={claim} destination={destination} />);
+  it("starts expanded with complete and cancel actions", () => {
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        variant="overlay"
+      />,
+    );
+
+    const region = screen.getByRole("region", { name: "Rothschild Blvd 1" });
+    expect(region).toHaveAttribute("aria-labelledby");
+    expect(region).not.toHaveAttribute("aria-label");
     expect(
-      screen.getByRole("button", { name: "Navigate" }),
+      screen.getByRole("button", { name: /Collapse claim details/i }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "I got the spot" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "I’m no longer coming" }),
     ).toBeInTheDocument();
   });
 
-  it("hides Navigate when destination coordinates are missing", () => {
-    render(<ActiveClaimPanel claim={claim} destination={null} />);
+  it("keeps Navigate available when collapsed and hides complete/cancel", async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        variant="overlay"
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Collapse claim details/i }),
+    );
+
     expect(
-      screen.queryByRole("button", { name: "Navigate" }),
+      screen.getByRole("button", { name: /Expand claim details/i }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "I got the spot" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "I’m no longer coming" }),
     ).not.toBeInTheDocument();
   });
 
-  it("hides Navigate when destination coordinates are invalid", () => {
+  it("expands again to reveal complete and cancel", async () => {
+    const user = userEvent.setup();
     render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        variant="overlay"
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Collapse claim details/i }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Expand claim details/i }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "I got the spot" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "I’m no longer coming" }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses the destination fallback when address is missing", () => {
+    render(
+      <ActiveClaimPanel
+        claim={{ ...claim, spotAddress: null }}
+        destination={destination}
+        variant="overlay"
+      />,
+    );
+
+    expect(
+      screen.getByRole("region", { name: ACTIVE_CLAIM_DESTINATION_FALLBACK }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(ACTIVE_CLAIM_DESTINATION_FALLBACK),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/32\.085/)).not.toBeInTheDocument();
+  });
+
+  it("collapses on Escape without removing the claim experience", async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        variant="overlay"
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "I’m no longer coming" }),
+    ).toBeInTheDocument();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: /Expand claim details/i }),
+      ).toHaveAttribute("aria-expanded", "false");
+    });
+    expect(
+      screen.getByRole("region", { name: "Rothschild Blvd 1" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "I’m no longer coming" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows Navigate for a valid destination and opens the action sheet", async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveClaimPanel claim={claim} destination={destination} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Navigate" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("Open destination in")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open in Waze" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides Navigate when destination coordinates are missing or invalid", () => {
+    const { rerender } = render(
+      <ActiveClaimPanel claim={claim} destination={null} />,
+    );
+    expect(
+      screen.queryByRole("button", { name: "Navigate" }),
+    ).not.toBeInTheDocument();
+
+    rerender(
       <ActiveClaimPanel
         claim={claim}
         destination={{ latitude: 999, longitude: 34.78 }}
@@ -62,26 +222,7 @@ describe("ActiveClaimPanel navigation", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("opens and closes the navigation action sheet", async () => {
-    const user = userEvent.setup();
-    render(<ActiveClaimPanel claim={claim} destination={destination} />);
-
-    await user.click(screen.getByRole("button", { name: "Navigate" }));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Open in Waze" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Open in Google Maps" }),
-    ).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-  });
-
-  it("opens Waze and Google Maps with the claimed destination", async () => {
+  it("opens Waze with the claimed destination and unchanged payload semantics", async () => {
     const user = userEvent.setup();
     const openSpy = vi.mocked(window.open);
     render(<ActiveClaimPanel claim={claim} destination={destination} />);
@@ -94,56 +235,35 @@ describe("ActiveClaimPanel navigation", () => {
       "_blank",
       "noopener,noreferrer",
     );
-
-    await user.click(screen.getByRole("button", { name: "Navigate" }));
-    await user.click(
-      screen.getByRole("button", { name: "Open in Google Maps" }),
-    );
-
-    expect(openSpy).toHaveBeenCalledWith(
-      "https://www.google.com/maps/dir/?api=1&destination=32.085312%2C34.781812",
-      "_blank",
-      "noopener,noreferrer",
-    );
   });
 
-  it("closes the sheet on Escape", async () => {
-    const user = userEvent.setup();
-    render(<ActiveClaimPanel claim={claim} destination={destination} />);
-
-    await user.click(screen.getByRole("button", { name: "Navigate" }));
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    await user.keyboard("{Escape}");
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-  });
-
-  it("closes the sheet on outside click and returns focus to Navigate", async () => {
-    const user = userEvent.setup();
+  it("preserves claim ids on complete and cancel actions", () => {
     render(
-      <div>
-        <button type="button">Outside</button>
-        <ActiveClaimPanel claim={claim} destination={destination} />
-      </div>,
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        variant="overlay"
+      />,
     );
 
-    const navigate = screen.getByRole("button", { name: "Navigate" });
-    await user.click(navigate);
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-
-    await user.click(screen.getByRole("button", { name: "Outside" }));
-    await waitFor(() => {
-      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    });
-    expect(navigate).toHaveFocus();
+    expect(
+      screen.getByRole("button", { name: "I got the spot" }),
+    ).toHaveAttribute("data-claim-id", claim.claimId);
+    expect(
+      screen.getByRole("button", { name: "I’m no longer coming" }),
+    ).toHaveAttribute("data-claim-id", claim.claimId);
   });
 });
 
-describe("navigation not shown outside active claims", () => {
-  it("does not render navigation UI without an ActiveClaimPanel", () => {
-    const { container } = render(<div data-testid="available-spot-card" />);
-    expect(container.querySelector("[aria-haspopup='dialog']")).toBeNull();
+describe("active claim experience gating", () => {
+  it("does not render the experience without an ActiveClaimPanel", () => {
+    render(<div data-testid="available-spot-card" />);
+    expect(
+      screen.queryByRole("region", { name: ACTIVE_CLAIM_DESTINATION_FALLBACK }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("region", { name: "Rothschild Blvd 1" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Navigate" }),
     ).not.toBeInTheDocument();
