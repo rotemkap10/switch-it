@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type CountdownProps = {
   targetIso: string;
@@ -23,6 +23,8 @@ export function Countdown({
   className = "",
 }: CountdownProps) {
   const [now, setNow] = useState(() => Date.now());
+  const [readyEmphasis, setReadyEmphasis] = useState(false);
+  const wasReadyRef = useRef(false);
 
   useEffect(() => {
     const id = window.setInterval(() => {
@@ -35,22 +37,38 @@ export function Countdown({
   }, []);
 
   const target = new Date(targetIso).getTime();
-  if (Number.isNaN(target)) {
-    return (
-      <span className={`countdown-ready ${className}`}>{readyLabel}</span>
-    );
-  }
+  const isValidTarget = !Number.isNaN(target);
+  const remainingMs = isValidTarget ? target - now : 0;
+  const isReady = !isValidTarget || remainingMs <= 0;
 
-  const remainingMs = target - now;
+  useEffect(() => {
+    if (isReady && !wasReadyRef.current) {
+      wasReadyRef.current = true;
+      setReadyEmphasis(true);
+      const timer = window.setTimeout(() => {
+        setReadyEmphasis(false);
+      }, 520);
+      return () => window.clearTimeout(timer);
+    }
+    return undefined;
+  }, [isReady]);
 
-  if (remainingMs <= 0) {
+  if (!isValidTarget || isReady) {
     return (
-      <span className={`countdown-ready ${className}`}>{readyLabel}</span>
+      <span
+        className={[
+          "countdown-value countdown-ready",
+          readyEmphasis ? "motion-ready-emphasis" : "",
+          className,
+        ].join(" ")}
+      >
+        {readyLabel}
+      </span>
     );
   }
 
   return (
-    <span className={`countdown-pending ${className}`}>
+    <span className={`countdown-value countdown-pending ${className}`}>
       {pendingLabel} {formatRemaining(remainingMs)}
     </span>
   );

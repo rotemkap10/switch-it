@@ -1,7 +1,7 @@
 "use client";
 
 import L from "leaflet";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 
 import { MAP_SINGLE_SPOT_ZOOM } from "@/types/map-spot";
@@ -35,6 +35,55 @@ function MapViewSync({ latitude, longitude }: { latitude: number; longitude: num
   return null;
 }
 
+function PulsingMarker({
+  latitude,
+  longitude,
+  disabled,
+  onLocationChange,
+}: {
+  latitude: number;
+  longitude: number;
+  disabled: boolean;
+  onLocationChange: (latitude: number, longitude: number) => void;
+}) {
+  const markerRef = useRef<L.Marker | null>(null);
+
+  useEffect(() => {
+    const marker = markerRef.current;
+    if (!marker) {
+      return;
+    }
+
+    const iconElement = marker.getElement();
+    if (!iconElement) {
+      return;
+    }
+
+    iconElement.classList.add("motion-marker-pulse-once");
+    const timer = window.setTimeout(() => {
+      iconElement.classList.remove("motion-marker-pulse-once");
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[latitude, longitude]}
+      icon={spotIcon}
+      draggable={!disabled}
+      eventHandlers={{
+        dragend: (event) => {
+          const marker = event.target;
+          const position = marker.getLatLng();
+          onLocationChange(position.lat, position.lng);
+        },
+      }}
+    />
+  );
+}
+
 export function SpotLocationPicker({
   latitude,
   longitude,
@@ -43,7 +92,7 @@ export function SpotLocationPicker({
 }: SpotLocationPickerProps) {
   return (
     <div
-      className="motion-fade-in overflow-hidden rounded-[var(--radius-card)] border border-border"
+      className="motion-fade-slide-up overflow-hidden rounded-[var(--radius-card)] border border-border"
       aria-label="Map to adjust your parking spot location"
     >
       <MapContainer
@@ -60,17 +109,11 @@ export function SpotLocationPicker({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapViewSync latitude={latitude} longitude={longitude} />
-        <Marker
-          position={[latitude, longitude]}
-          icon={spotIcon}
-          draggable={!disabled}
-          eventHandlers={{
-            dragend: (event) => {
-              const marker = event.target;
-              const position = marker.getLatLng();
-              onLocationChange(position.lat, position.lng);
-            },
-          }}
+        <PulsingMarker
+          latitude={latitude}
+          longitude={longitude}
+          disabled={disabled}
+          onLocationChange={onLocationChange}
         />
       </MapContainer>
     </div>

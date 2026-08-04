@@ -24,11 +24,16 @@ export function PublisherSpotCard({
   return (
     <Card
       className={[
-        "flex flex-col gap-4 motion-fade-in",
+        "flex flex-col gap-4 motion-fade-slide-up",
         layout === "page" ? "max-w-lg" : "",
       ].join(" ")}
     >
-      <div className="status-band px-4 py-3">
+      <div
+        className={[
+          "status-band px-4 py-3",
+          claimed ? "status-band-ready motion-soft-scale-in" : "motion-status-pulse",
+        ].join(" ")}
+      >
         <p className="text-sm font-medium text-muted">Your parking spot</p>
         <h2 className="mt-1 text-xl font-semibold text-foreground">
           {claimed ? "A driver is on the way" : "Waiting for a driver"}

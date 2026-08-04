@@ -102,7 +102,7 @@ export function PublishSpotForm() {
 
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
-      <Card className="flex flex-col gap-6 motion-fade-in">
+      <Card className="flex flex-col gap-6 motion-soft-scale-in">
         <section className="flex flex-col gap-3" aria-labelledby="spot-location-heading">
           <div>
             <h2
@@ -117,19 +117,25 @@ export function PublishSpotForm() {
           </div>
 
           {geoStatus === "loading" ? (
-            <p className="text-sm font-medium text-foreground" role="status">
+            <p
+              className="motion-location-indicator text-sm font-medium text-foreground"
+              role="status"
+            >
               Finding your location…
             </p>
           ) : null}
 
           {geoStatus === "success" && hasLocation ? (
-            <p className="text-sm font-medium text-success" role="status">
+            <p
+              className="motion-success-flash text-sm font-medium text-success"
+              role="status"
+            >
               Location found
             </p>
           ) : null}
 
           {geoStatus === "error" ? (
-            <div className="flex flex-col gap-3">
+            <div className="motion-fade-in flex flex-col gap-3">
               <Alert tone="warning" title="We couldn’t access your location.">
                 You can try again or choose the spot on the map.
               </Alert>
@@ -243,7 +249,8 @@ export function PublishSpotForm() {
           <Button
             type="submit"
             disabled={pending || !hasLocation}
-            className="w-full sm:w-fit"
+            loading={pending}
+            className="min-w-[9.5rem] w-full sm:w-fit"
           >
             {pending ? "Sharing…" : "Share this spot"}
           </Button>

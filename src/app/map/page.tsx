@@ -242,7 +242,7 @@ export default async function MapPage() {
       {showOwnSpotNotice ? <OwnSpotNotice /> : null}
 
       {!spotsResult.error && spots.length === 0 ? (
-        <Card className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Card className="motion-fade-in flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="font-medium text-foreground">
               No parking spots right now

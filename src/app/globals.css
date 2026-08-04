@@ -18,10 +18,13 @@
   --color-warning-bg: #fff6ea;
   --color-ready: #4fbf8f;
   --shadow-card: 0 1px 2px rgb(47 169 230 / 10%), 0 12px 28px rgb(85 191 243 / 18%);
+  --shadow-card-hover: 0 2px 4px rgb(47 169 230 / 12%), 0 16px 32px rgb(85 191 243 / 22%);
   --radius: 14px;
   --focus-ring: 0 0 0 3px #9fd9f5;
-  --motion-fast: 160ms ease;
-  --motion-med: 220ms ease;
+  --motion-fast: 160ms;
+  --motion-standard: 220ms;
+  --motion-panel: 300ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @theme inline {
@@ -68,8 +71,119 @@ body {
   box-shadow: var(--focus-ring);
 }
 
+/* Motion utilities */
+
 .motion-fade-in {
-  animation: fade-slide-in var(--motion-med) both;
+  animation: motion-fade-in var(--motion-standard) var(--motion-ease) both;
+}
+
+.motion-fade-slide-up {
+  animation: motion-fade-slide-up var(--motion-panel) var(--motion-ease) both;
+}
+
+.motion-fade-slide-down {
+  animation: motion-fade-slide-down var(--motion-panel) var(--motion-ease) both;
+}
+
+.motion-soft-scale-in {
+  animation: motion-soft-scale-in var(--motion-standard) var(--motion-ease) both;
+}
+
+.motion-interactive-press {
+  transition: transform var(--motion-fast) var(--motion-ease);
+}
+
+.motion-interactive-press:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.motion-interactive-press:active:not(:disabled) {
+  transform: scale(0.98) translateY(0);
+}
+
+.motion-card-hover {
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-fast) var(--motion-ease);
+}
+
+.motion-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+
+.motion-subtle-pulse {
+  animation: motion-subtle-pulse 2.8s var(--motion-ease) infinite;
+}
+
+.motion-status-pulse {
+  animation: motion-status-pulse 3s ease-in-out infinite;
+}
+
+.motion-marker-pulse-once {
+  animation: motion-marker-pulse-once 600ms var(--motion-ease) both;
+}
+
+.motion-ready-emphasis {
+  animation: motion-ready-emphasis 520ms var(--motion-ease) both;
+}
+
+.motion-success-flash {
+  animation: motion-success-flash 720ms var(--motion-ease) both;
+}
+
+.motion-stagger-1 {
+  animation-delay: 0ms;
+}
+
+.motion-stagger-2 {
+  animation-delay: 90ms;
+}
+
+.motion-stagger-3 {
+  animation-delay: 180ms;
+}
+
+.motion-stagger-4 {
+  animation-delay: 270ms;
+}
+
+.motion-location-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.motion-location-indicator::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--color-accent);
+  animation: motion-location-dot 1.6s var(--motion-ease) infinite;
+}
+
+.motion-panel-exit {
+  animation: motion-panel-exit var(--motion-fast) var(--motion-ease) both;
+}
+
+.motion-chip-selected {
+  transform: scale(1.02);
+}
+
+.motion-mode-selected {
+  transform: scale(0.98);
+  border-color: var(--color-accent) !important;
+  background: var(--color-accent-soft) !important;
+}
+
+.countdown-value {
+  display: inline-block;
+  min-width: 11ch;
+  font-variant-numeric: tabular-nums;
+  transition: color var(--motion-standard) var(--motion-ease);
 }
 
 .countdown-pending {
@@ -86,11 +200,192 @@ body {
   border-radius: calc(var(--radius) - 4px);
   background: var(--color-accent-soft);
   border: 1px solid var(--color-border);
+  transition:
+    background-color var(--motion-standard) var(--motion-ease),
+    border-color var(--motion-standard) var(--motion-ease);
+}
+
+.status-band-ready {
+  background: var(--color-success-bg);
+  border-color: rgb(79 191 143 / 30%);
+}
+
+.motion-spinner {
+  display: inline-block;
+  width: 0.875rem;
+  height: 0.875rem;
+  border: 2px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 9999px;
+  animation: motion-spin 640ms linear infinite;
+}
+
+@keyframes motion-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes motion-fade-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-fade-slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-soft-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes motion-subtle-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.88;
+  }
+}
+
+@keyframes motion-status-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.92;
+  }
+}
+
+@keyframes motion-marker-pulse-once {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(1.08);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes motion-ready-emphasis {
+  0% {
+    transform: scale(1);
+  }
+
+  35% {
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes motion-success-flash {
+  0% {
+    opacity: 0.6;
+  }
+
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes motion-location-dot {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.92);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes motion-panel-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes motion-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .motion-fade-in {
+  .motion-fade-in,
+  .motion-fade-slide-up,
+  .motion-fade-slide-down,
+  .motion-soft-scale-in,
+  .motion-subtle-pulse,
+  .motion-status-pulse,
+  .motion-marker-pulse-once,
+  .motion-ready-emphasis,
+  .motion-success-flash,
+  .motion-panel-exit,
+  .motion-spinner {
+    animation: none !important;
+  }
+
+  .motion-location-indicator::before {
     animation: none;
+    opacity: 0.8;
+  }
+
+  .motion-interactive-press:hover:not(:disabled),
+  .motion-interactive-press:active:not(:disabled),
+  .motion-card-hover:hover,
+  .motion-chip-selected {
+    transform: none;
+  }
+
+  .motion-mode-selected {
+    transform: none;
   }
 
   *,
@@ -99,16 +394,5 @@ body {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-}
-
-@keyframes fade-slide-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }

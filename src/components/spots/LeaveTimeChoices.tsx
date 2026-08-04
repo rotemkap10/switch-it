@@ -40,9 +40,11 @@ export function LeaveTimeChoices({
               disabled={disabled}
               onClick={() => onChange(minutes)}
               className={[
-                "rounded-full border px-4 py-2 text-sm font-medium transition-[color,background-color,border-color,transform] duration-[var(--motion-fast)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60",
+                "rounded-full border px-4 py-2 text-sm font-medium motion-interactive-press",
+                "transition-[color,background-color,border-color,transform,box-shadow] duration-[var(--motion-standard)]",
+                "disabled:cursor-not-allowed disabled:opacity-60 disabled:transform-none",
                 selected
-                  ? "border-accent bg-accent text-foreground shadow-sm"
+                  ? "motion-chip-selected border-accent bg-accent text-foreground shadow-sm"
                   : "border-border bg-surface text-foreground hover:border-accent/50 hover:bg-accent-soft",
               ].join(" ")}
             >

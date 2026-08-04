@@ -1,7 +1,7 @@
 "use client";
 
 import L from "leaflet";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 
 import { SelectedSpotCard } from "@/components/map/SelectedSpotCard";
@@ -21,6 +21,16 @@ const spotIcon = new L.Icon({
   iconSize: [25, 41],
   iconAnchor: [12, 41],
   popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+const selectedSpotIcon = new L.Icon({
+  iconUrl: "/leaflet/marker-icon.png",
+  iconRetinaUrl: "/leaflet/marker-icon-2x.png",
+  shadowUrl: "/leaflet/marker-shadow.png",
+  iconSize: [29, 47],
+  iconAnchor: [14, 47],
+  popupAnchor: [1, -40],
   shadowSize: [41, 41],
 });
 
@@ -51,6 +61,52 @@ function MapPositionController({ spots }: { spots: MapSpot[] }) {
   return null;
 }
 
+function SpotMarker({
+  spot,
+  selected,
+  onSelect,
+}: {
+  spot: MapSpot;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  const markerRef = useRef<L.Marker | null>(null);
+
+  useEffect(() => {
+    if (!selected) {
+      return;
+    }
+
+    const marker = markerRef.current;
+    if (!marker) {
+      return;
+    }
+
+    const iconElement = marker.getElement();
+    if (!iconElement) {
+      return;
+    }
+
+    iconElement.classList.add("motion-marker-pulse-once");
+    const timer = window.setTimeout(() => {
+      iconElement.classList.remove("motion-marker-pulse-once");
+    }, 600);
+
+    return () => window.clearTimeout(timer);
+  }, [selected]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[spot.latitude, spot.longitude]}
+      icon={selected ? selectedSpotIcon : spotIcon}
+      eventHandlers={{
+        click: onSelect,
+      }}
+    />
+  );
+}
+
 type ParkingMapProps = {
   spots: MapSpot[];
 };
@@ -76,13 +132,11 @@ export function ParkingMap({ spots }: ParkingMapProps) {
         />
         <MapPositionController spots={spots} />
         {spots.map((spot) => (
-          <Marker
+          <SpotMarker
             key={spot.id}
-            position={[spot.latitude, spot.longitude]}
-            icon={spotIcon}
-            eventHandlers={{
-              click: () => setSelectedId(spot.id),
-            }}
+            spot={spot}
+            selected={spot.id === selectedId}
+            onSelect={() => setSelectedId(spot.id)}
           />
         ))}
       </MapContainer>

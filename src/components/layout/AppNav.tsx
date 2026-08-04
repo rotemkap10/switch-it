@@ -38,11 +38,13 @@ function NavLink({
     <Link
       href={href}
       onClick={onNavigate}
-      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-[var(--motion-fast)] ${
+      className={[
+        "rounded-lg px-3 py-2 text-sm font-medium motion-interactive-press",
+        "transition-[color,background-color,border-color] duration-[var(--motion-standard)]",
         active
           ? "bg-accent text-foreground"
-          : "text-foreground hover:bg-accent-soft"
-      }`}
+          : "text-foreground hover:bg-accent-soft",
+      ].join(" ")}
       aria-current={active ? "page" : undefined}
     >
       {label}
@@ -62,7 +64,7 @@ export function AppNav() {
         <div className="flex items-center gap-3">
           <Link
             href={brandHref}
-            className="text-lg font-semibold tracking-tight text-foreground"
+            className="text-lg font-semibold tracking-tight text-foreground transition-colors duration-[var(--motion-fast)] hover:text-accent-hover"
           >
             Switch It
           </Link>
@@ -91,7 +93,7 @@ export function AppNav() {
       {open ? (
         <nav
           id="mobile-nav"
-          className="border-t border-border px-4 py-3 md:hidden"
+          className="motion-fade-slide-down border-t border-border px-4 py-3 md:hidden"
           aria-label="Mobile"
         >
           <div className="mx-auto flex w-full max-w-5xl flex-col gap-1">

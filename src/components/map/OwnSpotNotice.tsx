@@ -16,7 +16,7 @@ export function OwnSpotNotice() {
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border bg-surface px-4 py-3 text-sm text-muted motion-fade-in">
+    <div className="motion-fade-in flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-card)] border border-border bg-surface px-4 py-3 text-sm text-muted">
       <p>You also have an active parking spot</p>
       <div className="flex flex-wrap items-center gap-2">
         <Link
