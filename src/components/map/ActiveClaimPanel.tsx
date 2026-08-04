@@ -1,8 +1,10 @@
 import { CancelClaimButton } from "@/components/map/CancelClaimButton";
+import { ClaimNavigationActions } from "@/components/map/ClaimNavigationActions";
 import { CompleteClaimButton } from "@/components/map/CompleteClaimButton";
 import { ActiveClaimStatusBand } from "@/components/map/ActiveClaimStatusBand";
 import { Card } from "@/components/ui/Card";
 import { formatDateTime } from "@/lib/format/time";
+import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 
 export type ActiveClaimSummary = {
   claimId: string;
@@ -11,17 +13,38 @@ export type ActiveClaimSummary = {
   spotAddress: string | null;
 };
 
-type ActiveClaimPanelProps = {
-  claim: ActiveClaimSummary;
+export type ActiveClaimDestination = {
+  latitude: number;
+  longitude: number;
 };
 
-export function ActiveClaimPanel({ claim }: ActiveClaimPanelProps) {
+type ActiveClaimPanelProps = {
+  claim: ActiveClaimSummary;
+  /** Claimed spot coordinates for external navigation only. */
+  destination?: ActiveClaimDestination | null;
+};
+
+export function ActiveClaimPanel({
+  claim,
+  destination = null,
+}: ActiveClaimPanelProps) {
+  const canNavigate =
+    !!destination &&
+    isValidNavigationCoords(destination.latitude, destination.longitude);
+
   return (
     <Card className="flex flex-col gap-4 motion-fade-slide-up">
       <ActiveClaimStatusBand
         spotAvailableAt={claim.spotAvailableAt}
         spotAddress={claim.spotAddress}
       />
+
+      {canNavigate && destination ? (
+        <ClaimNavigationActions
+          latitude={destination.latitude}
+          longitude={destination.longitude}
+        />
+      ) : null}
 
       <div className="space-y-1 text-sm text-muted">
         <p>Leave time: {formatDateTime(claim.spotAvailableAt)}</p>

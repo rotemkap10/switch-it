@@ -17,12 +17,37 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
   SpotLocationPickerLoader: ({
     latitude,
     longitude,
+    onLocationChange,
+    userLatitude,
+    userLongitude,
   }: {
     latitude: number;
     longitude: number;
+    onLocationChange?: (latitude: number, longitude: number) => void;
+    userLatitude?: number | null;
+    userLongitude?: number | null;
   }) => (
-    <div role="img" aria-label="Map to adjust your parking spot location">
+    <div
+      role="img"
+      aria-label="Map to adjust your parking spot location"
+      data-testid="leaver-map-picker"
+    >
       Map at {latitude}, {longitude}
+      <button
+        type="button"
+        onClick={() => onLocationChange?.(32.111111, 34.222222)}
+      >
+        Simulate map move
+      </button>
+      {typeof userLatitude === "number" && typeof userLongitude === "number" ? (
+        <button
+          type="button"
+          aria-label="Recenter on my location"
+          onClick={() => onLocationChange?.(userLatitude, userLongitude)}
+        >
+          Recenter
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -107,6 +132,31 @@ describe("PublishSpotForm", () => {
     await waitFor(() => {
       expect(screen.getByText("Location found")).toBeInTheDocument();
     });
+    expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Enter coordinates manually" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Latitude")).not.toBeInTheDocument();
+  });
+
+  it("updates hidden coordinates from the map picker callback", async () => {
+    const user = userEvent.setup();
+    render(<PublishSpotForm />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    await user.click(screen.getByRole("button", { name: "Share this spot" }));
+
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+
+    const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
+    expect(formData.get("latitude")).toBe("32.111111");
+    expect(formData.get("longitude")).toBe("34.222222");
   });
 
   it("submits coordinates from automatic geolocation", async () => {
@@ -204,6 +254,7 @@ describe("PublishSpotForm", () => {
     await user.click(screen.getByRole("button", { name: "Choose on map" }));
 
     await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
       expect(
         screen.getByRole("img", {
           name: "Map to adjust your parking spot location",
@@ -211,11 +262,47 @@ describe("PublishSpotForm", () => {
       ).toBeInTheDocument();
     });
 
+    expect(
+      screen.queryByRole("button", { name: "Recenter on my location" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Latitude")).not.toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Share this spot" }));
 
     await waitFor(() => {
       expect(publishSpotMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("shows recenter after geolocation success and hides it for choose-on-map", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<PublishSpotForm />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Location found")).toBeInTheDocument();
+    });
+    expect(
+      screen.getByRole("button", { name: "Recenter on my location" }),
+    ).toBeInTheDocument();
+    unmount();
+
+    stubGeolocation((_success, error) => {
+      error?.({
+        code: 1,
+        message: "User denied geolocation",
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
+    });
+
+    render(<PublishSpotForm />);
+    await user.click(
+      await screen.findByRole("button", { name: "Choose on map" }),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Recenter on my location" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows a pending disabled submit state while publishing", async () => {

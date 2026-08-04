@@ -5,7 +5,10 @@ import dynamic from "next/dynamic";
 import type { MapSpot } from "@/types/map-spot";
 
 const ParkingMap = dynamic(
-  () => import("@/components/map/ParkingMap").then((mod) => mod.ParkingMap),
+  () =>
+    import("@/components/map/ParkingMapMapLibre").then(
+      (mod) => mod.ParkingMap,
+    ),
   {
     ssr: false,
     loading: () => (
@@ -18,8 +21,9 @@ const ParkingMap = dynamic(
 
 type ParkingMapLoaderProps = {
   spots: MapSpot[];
+  destination?: { latitude: number; longitude: number } | null;
 };
 
-export function ParkingMapLoader({ spots }: ParkingMapLoaderProps) {
-  return <ParkingMap spots={spots} />;
+export function ParkingMapLoader({ spots, destination }: ParkingMapLoaderProps) {
+  return <ParkingMap spots={spots} destination={destination ?? null} />;
 }

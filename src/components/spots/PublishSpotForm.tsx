@@ -12,6 +12,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
+import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
 import {
   type AvailableInMinutes,
   GEOLOCATION_TIMEOUT_MS,
@@ -31,6 +32,23 @@ function parseCoord(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function MapShellSkeleton({ message }: { message: string }) {
+  return (
+    <div
+      className={[
+        "flex w-full items-center justify-center",
+        "rounded-[var(--radius-card)] border border-border bg-accent-soft",
+        "text-sm text-muted",
+        LEAVER_MAP_SHELL_HEIGHT_CLASS,
+      ].join(" ")}
+      role="status"
+      aria-label="Map to adjust your parking spot location"
+    >
+      <span className="motion-location-indicator">{message}</span>
+    </div>
+  );
+}
+
 export function PublishSpotForm() {
   const [state, formAction, pending] = useActionState(
     publishSpot,
@@ -38,6 +56,10 @@ export function PublishSpotForm() {
   );
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
+  const [detectedLocation, setDetectedLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [leaveInMinutes, setLeaveInMinutes] = useState<AvailableInMinutes>(0);
   const [geoStatus, setGeoStatus] = useState<GeoStatus>("loading");
   const [showManualCoords, setShowManualCoords] = useState(false);
@@ -61,7 +83,9 @@ export function PublishSpotForm() {
     setGeoStatus("loading");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setLocation(position.coords.latitude, position.coords.longitude);
+        const { latitude: lat, longitude: lng } = position.coords;
+        setDetectedLocation({ latitude: lat, longitude: lng });
+        setLocation(lat, lng);
         setGeoStatus("success");
       },
       () => {
@@ -99,6 +123,8 @@ export function PublishSpotForm() {
 
   const parsedLat = parseCoord(latitude);
   const parsedLng = parseCoord(longitude);
+  const canRenderPicker =
+    showMap && parsedLat !== null && parsedLng !== null;
 
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
@@ -160,12 +186,19 @@ export function PublishSpotForm() {
             </div>
           ) : null}
 
-          {showMap && parsedLat !== null && parsedLng !== null ? (
+          {/* Stable map shell: skeleton while locating; picker once coords exist. */}
+          {geoStatus === "loading" ? (
+            <MapShellSkeleton message="Finding your location…" />
+          ) : null}
+
+          {canRenderPicker ? (
             <SpotLocationPickerLoader
               latitude={parsedLat}
               longitude={parsedLng}
               onLocationChange={handleMapLocationChange}
               disabled={pending}
+              userLatitude={detectedLocation?.latitude ?? null}
+              userLongitude={detectedLocation?.longitude ?? null}
             />
           ) : null}
 

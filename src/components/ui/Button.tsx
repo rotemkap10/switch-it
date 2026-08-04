@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost";
 
@@ -17,19 +17,23 @@ const variantClasses: Record<ButtonVariant, string> = {
     "bg-transparent text-foreground hover:bg-accent-soft disabled:opacity-60",
 };
 
-export function Button({
-  variant = "primary",
-  className = "",
-  children,
-  type = "button",
-  loading = false,
-  disabled,
-  ...props
-}: ButtonProps) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  {
+    variant = "primary",
+    className = "",
+    children,
+    type = "button",
+    loading = false,
+    disabled,
+    ...props
+  },
+  ref,
+) {
   const isDisabled = disabled || loading;
 
   return (
     <button
+      ref={ref}
       type={type}
       disabled={isDisabled}
       className={[
@@ -47,4 +51,4 @@ export function Button({
       <span className={loading ? "opacity-90" : undefined}>{children}</span>
     </button>
   );
-}
+});

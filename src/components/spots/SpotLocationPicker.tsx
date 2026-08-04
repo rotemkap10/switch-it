@@ -23,6 +23,9 @@ type SpotLocationPickerProps = {
   longitude: number;
   onLocationChange: (latitude: number, longitude: number) => void;
   disabled?: boolean;
+  /** Kept for loader prop compatibility with the MapLibre picker. */
+  userLatitude?: number | null;
+  userLongitude?: number | null;
 };
 
 function MapViewSync({ latitude, longitude }: { latitude: number; longitude: number }) {

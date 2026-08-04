@@ -30,10 +30,14 @@ type ActiveClaimRow = {
     | {
         address: string | null;
         available_at: string;
+        latitude: number;
+        longitude: number;
       }
     | {
         address: string | null;
         available_at: string;
+        latitude: number;
+        longitude: number;
       }[]
     | null;
 };
@@ -108,6 +112,32 @@ function toActiveClaim(row: unknown): ActiveClaimSummary | null {
     spotAvailableAt: spotRelation.available_at,
     spotAddress:
       typeof spotRelation.address === "string" ? spotRelation.address : null,
+  };
+}
+
+type DestinationCoords = { latitude: number; longitude: number };
+
+function toActiveClaimDestination(row: unknown): DestinationCoords | null {
+  if (!row || typeof row !== "object") {
+    return null;
+  }
+
+  const claim = row as Partial<ActiveClaimRow>;
+  const spotRelation = Array.isArray(claim.parking_spots)
+    ? claim.parking_spots[0]
+    : claim.parking_spots;
+
+  if (
+    !spotRelation ||
+    typeof spotRelation.latitude !== "number" ||
+    typeof spotRelation.longitude !== "number"
+  ) {
+    return null;
+  }
+
+  return {
+    latitude: spotRelation.latitude,
+    longitude: spotRelation.longitude,
   };
 }
 
@@ -199,7 +229,9 @@ export default async function MapPage() {
       .gt("expires_at", new Date().toISOString()),
     supabase
       .from("claims")
-      .select("id, expires_at, parking_spots(address, available_at)")
+      .select(
+        "id, expires_at, parking_spots(address, available_at, latitude, longitude)",
+      )
       .eq("seeker_id", user.id)
       .eq("status", "active")
       .maybeSingle(),
@@ -217,6 +249,10 @@ export default async function MapPage() {
   const activeClaim = activeClaimResult.error
     ? null
     : toActiveClaim(activeClaimResult.data);
+
+  const activeClaimDestination = activeClaimResult.error
+    ? null
+    : toActiveClaimDestination(activeClaimResult.data);
   const showOwnSpotNotice =
     !ownedSpotResult.error && hasOpenOwnedSpot(ownedSpotResult.data);
 
@@ -237,7 +273,12 @@ export default async function MapPage() {
         <Alert tone="error">Could not check your published spot.</Alert>
       ) : null}
 
-      {activeClaim ? <ActiveClaimPanel claim={activeClaim} /> : null}
+      {activeClaim ? (
+        <ActiveClaimPanel
+          claim={activeClaim}
+          destination={activeClaimDestination}
+        />
+      ) : null}
 
       {showOwnSpotNotice ? <OwnSpotNotice /> : null}
 
@@ -259,7 +300,10 @@ export default async function MapPage() {
 
       {!spotsResult.error ? (
         <Card className="overflow-hidden p-0">
-          <ParkingMapLoader spots={spots} />
+          <ParkingMapLoader
+            spots={spots}
+            destination={activeClaimDestination}
+          />
         </Card>
       ) : null}
     </AuthenticatedShell>

@@ -126,6 +126,19 @@ body {
   animation: motion-marker-pulse-once 600ms var(--motion-ease) both;
 }
 
+/* Leaver MapLibre center-pin: tip sits on map center; lifts while panning. */
+.leaver-center-pin {
+  /* Anchor pin tip at the visual center (pin tip is near bottom of SVG). */
+  transform: translateY(-42%);
+  transition: transform var(--motion-fast) var(--motion-ease);
+  filter: drop-shadow(0 2px 4px rgb(15 23 42 / 0.22));
+  will-change: transform;
+}
+
+.leaver-center-pin.is-lifting {
+  transform: translateY(calc(-42% - 10px));
+}
+
 .motion-ready-emphasis {
   animation: motion-ready-emphasis 520ms var(--motion-ease) both;
 }
@@ -370,6 +383,12 @@ body {
   .motion-panel-exit,
   .motion-spinner {
     animation: none !important;
+  }
+
+  .leaver-center-pin,
+  .leaver-center-pin.is-lifting {
+    transition: none !important;
+    transform: translateY(-42%);
   }
 
   .motion-location-indicator::before {

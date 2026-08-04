@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "public/maplibre/maplibre-gl-*.mjs",
+    "public/maplibre/mapbox-gl-rtl-text.js",
   ]),
 ]);
 
