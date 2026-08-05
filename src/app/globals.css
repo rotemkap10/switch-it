@@ -22,9 +22,12 @@
   --radius: 14px;
   --focus-ring: 0 0 0 3px #9fd9f5;
   --motion-fast: 160ms;
-  --motion-standard: 220ms;
-  --motion-panel: 300ms;
+  --motion-standard: 240ms;
+  --motion-panel: 280ms;
+  --motion-expressive: 720ms;
+  --motion-celebrate: 1000ms;
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
   --app-header-height: 3.5rem;
   --app-toast-offset: calc(0.75rem + env(safe-area-inset-bottom, 0px));
 }
@@ -112,9 +115,11 @@ body {
     background-color var(--motion-fast) var(--motion-ease);
 }
 
-.motion-card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-card-hover);
+@media (hover: hover) and (pointer: fine) {
+  .motion-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
 }
 
 .motion-subtle-pulse {
@@ -563,6 +568,81 @@ body {
   animation: motion-feedback-enter var(--motion-standard) var(--motion-ease) both;
 }
 
+.motion-feedback-icon {
+  animation: motion-soft-scale-in var(--motion-fast) var(--motion-ease) both;
+}
+
+.motion-vehicle-drive-in {
+  animation: motion-vehicle-drive-in var(--motion-expressive) var(--motion-ease) both;
+}
+
+.motion-vehicle-preview-nudge {
+  animation: motion-vehicle-preview-nudge 420ms var(--motion-ease) both;
+}
+
+.motion-credits-settle {
+  animation: motion-credits-settle var(--motion-expressive) var(--motion-ease) both;
+}
+
+.motion-credits-update {
+  animation: motion-credits-update 560ms var(--motion-ease) both;
+}
+
+.motion-check-pop {
+  animation: motion-check-pop 520ms var(--motion-ease) both;
+}
+
+.motion-check-draw {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: motion-check-draw 480ms var(--motion-ease) 80ms both;
+}
+
+.motion-avatar-pop {
+  animation: motion-avatar-pop 520ms var(--motion-ease) both;
+}
+
+.motion-badge-fade-in {
+  animation: motion-fade-in var(--motion-standard) var(--motion-ease) both;
+}
+
+.motion-pin-settle {
+  animation: motion-fade-in var(--motion-standard) var(--motion-ease) both;
+}
+
+.motion-pin-drop {
+  transform-origin: 32px 34px;
+  animation: motion-pin-drop 640ms var(--motion-ease) both;
+}
+
+.motion-handoff-celebrate {
+  animation: motion-fade-in var(--motion-standard) var(--motion-ease) both;
+}
+
+.motion-celebrate-coin {
+  animation: motion-celebrate-coin var(--motion-celebrate) var(--motion-ease) both;
+}
+
+.motion-celebrate-car-left {
+  animation: motion-celebrate-car-left 700ms var(--motion-ease) both;
+}
+
+.motion-celebrate-car-right {
+  animation: motion-celebrate-car-right 700ms var(--motion-ease) both;
+}
+
+.motion-spot-select {
+  animation: motion-spot-select 280ms var(--motion-ease) both;
+}
+
+.motion-chevron {
+  transition: transform var(--motion-fast) var(--motion-ease-in-out);
+}
+
+.motion-chevron.is-open {
+  transform: rotate(180deg);
+}
+
 @keyframes motion-feedback-enter {
   from {
     opacity: 0;
@@ -586,6 +666,159 @@ body {
   }
 }
 
+@keyframes motion-vehicle-drive-in {
+  0% {
+    opacity: 0.65;
+    transform: translateX(-1.25rem);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(0.15rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes motion-vehicle-preview-nudge {
+  0% {
+    transform: translateX(-0.35rem);
+    opacity: 0.85;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes motion-credits-settle {
+  0% {
+    opacity: 0;
+    transform: translateY(10px) scale(0.92);
+  }
+  65% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes motion-credits-update {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes motion-check-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes motion-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes motion-avatar-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.7) rotate(-8deg);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.05) rotate(3deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes motion-pin-drop {
+  0% {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  75% {
+    opacity: 1;
+    transform: translateY(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-celebrate-coin {
+  0% {
+    opacity: 0;
+    transform: translateX(-2.5rem) translateY(0.4rem) scale(0.8);
+  }
+  55% {
+    opacity: 1;
+    transform: translateX(0) translateY(-0.35rem) scale(1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) translateY(0) scale(1);
+  }
+}
+
+@keyframes motion-celebrate-car-left {
+  from {
+    opacity: 0;
+    transform: translateX(-0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes motion-celebrate-car-right {
+  from {
+    opacity: 0;
+    transform: translateX(0.75rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes motion-spot-select {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  45% {
+    transform: translateY(-3px) scale(1.02);
+  }
+  100% {
+    transform: translateY(-2px) scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .motion-fade-in,
   .motion-fade-slide-up,
@@ -600,12 +833,29 @@ body {
   .motion-spinner,
   .motion-handoff-approach,
   .motion-feedback-enter,
-  .motion-mode-content {
+  .motion-feedback-icon,
+  .motion-mode-content,
+  .motion-vehicle-drive-in,
+  .motion-vehicle-preview-nudge,
+  .motion-credits-settle,
+  .motion-credits-update,
+  .motion-check-pop,
+  .motion-check-draw,
+  .motion-avatar-pop,
+  .motion-badge-fade-in,
+  .motion-pin-settle,
+  .motion-pin-drop,
+  .motion-handoff-celebrate,
+  .motion-celebrate-coin,
+  .motion-celebrate-car-left,
+  .motion-celebrate-car-right,
+  .motion-spot-select {
     animation: none !important;
   }
 
   .motion-mode-pill,
-  .motion-reveal-panel {
+  .motion-reveal-panel,
+  .motion-chevron {
     transition: none !important;
   }
 

@@ -80,7 +80,9 @@ describe("AppNav", () => {
     const user = userEvent.setup();
     render(<AppNav displayName="Alex" />);
 
-    await user.click(screen.getByRole("button", { name: "Profile menu" }));
+    await user.click(
+      screen.getByRole("button", { name: "Profile menu for Alex" }),
+    );
     expect(screen.getByRole("menuitem", { name: "Profile" })).toHaveAttribute(
       "href",
       "/profile",

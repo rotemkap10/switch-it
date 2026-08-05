@@ -6,7 +6,7 @@ function StatusIcon({ tone }: { tone: FeedbackTone }) {
   if (tone === "success") {
     return (
       <span
-        className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success-bg text-success"
+        className="motion-feedback-icon mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-success-bg text-success"
         aria-hidden="true"
       >
         <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none">
@@ -25,7 +25,7 @@ function StatusIcon({ tone }: { tone: FeedbackTone }) {
   if (tone === "error") {
     return (
       <span
-        className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-danger-bg text-danger"
+        className="motion-feedback-icon mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-danger-bg text-danger"
         aria-hidden="true"
       >
         <svg viewBox="0 0 16 16" className="h-3 w-3" fill="none">
@@ -42,7 +42,7 @@ function StatusIcon({ tone }: { tone: FeedbackTone }) {
 
   return (
     <span
-      className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-hover"
+      className="motion-feedback-icon mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-hover"
       aria-hidden="true"
     >
       <svg viewBox="0 0 16 16" className="h-3 w-3" fill="currentColor">

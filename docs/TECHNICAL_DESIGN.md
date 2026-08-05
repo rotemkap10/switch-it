@@ -429,6 +429,29 @@ server-only, env-protected, and out of the MVP user path.
   live. CSS transform/opacity only; `prefers-reduced-motion` shows the final
   frame immediately. Decorative only (`aria-hidden`).
 
+### Micro-animations (presentation)
+
+Shared CSS tokens in `globals.css`: `--motion-fast` (~160ms), `--motion-standard`
+(~240ms), `--motion-panel` (~280ms), `--motion-expressive` (~720ms),
+`--motion-celebrate` (~1000ms).
+
+**One-shot sessionStorage (decorative only, never in Supabase):**
+`claimOneShotAnimation` / `useOneShotAnimation` use keys under
+`switch-it:anim:*` (plus existing publisher claimed-emphasis and handoff-approach
+keys). Purpose: prevent Realtime remounts and ordinary rerenders from replaying
+entrances (credits settle, vehicle drive-in, avatar pop, waiting pin, vehicle-ready
+check). No business state.
+
+**Profile:** summary-first display name + vehicle editors; large hero vehicle art;
+credits coin settle + expandable “How credits work”; vehicle-ready check pop.
+
+**App-wide (selective):** handoff complete celebration (visual only beside existing
+toast), publisher waiting pin settle, claimed-state vehicle approach (existing),
+carousel select lift, toast icon soft scale, button press / pointer-only card hover.
+
+Reduced motion: skip travel/rotation; final state remains visible; no interaction
+blocking.
+
 ### Seeker spot discovery carousel (presentation)
 
 - Horizontal native-scroll carousel of compact spot cards over the seeker map.

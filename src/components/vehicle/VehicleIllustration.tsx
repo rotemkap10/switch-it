@@ -19,12 +19,25 @@ type VehicleIllustrationProps = {
   label?: string;
   className?: string;
   animate?: boolean;
-  size?: "default" | "compact";
+  /**
+   * `hero` — full-width profile showcase (not a side icon).
+   * `default` — standard card preview.
+   * `compact` — handoff / inline identity only.
+   */
+  size?: "default" | "compact" | "hero";
+  /** Marks one-shot entrance for tests / analytics-free contracts. */
+  dataEntrance?: boolean;
 };
 
 const SIZE_CLASSES = {
-  default: "max-w-full [&_svg]:h-auto [&_svg]:w-[10rem]",
-  compact: "max-w-full [&_svg]:h-auto [&_svg]:w-[4.5rem]",
+  default: "max-w-full bg-accent-soft/70 p-2 [&_svg]:h-auto [&_svg]:w-[10rem]",
+  compact:
+    "max-w-full bg-accent-soft/70 p-2 [&_svg]:h-auto [&_svg]:w-[4.5rem]",
+  hero: [
+    "w-full bg-accent-soft",
+    "px-4 py-5 sm:px-8 sm:py-8",
+    "[&_svg]:h-auto [&_svg]:w-[min(100%,14.5rem)] sm:[&_svg]:w-[min(100%,20rem)]",
+  ].join(" "),
 } as const;
 
 export function VehicleIllustration({
@@ -35,6 +48,7 @@ export function VehicleIllustration({
   className = "",
   animate = true,
   size = "default",
+  dataEntrance = false,
 }: VehicleIllustrationProps) {
   const resolvedType = resolveVehicleIllustration(vehicleType, illustrationKey);
   const palette = vehiclePalette(vehicleColor);
@@ -42,7 +56,7 @@ export function VehicleIllustration({
   return (
     <div
       className={[
-        "flex items-center justify-center rounded-[var(--radius-card)] bg-accent-soft/70 p-2",
+        "flex items-center justify-center rounded-[var(--radius-card)]",
         SIZE_CLASSES[size],
         animate ? "motion-soft-scale-in" : "",
         className,
@@ -51,15 +65,16 @@ export function VehicleIllustration({
       data-vehicle-type={resolvedType}
       data-vehicle-color={vehicleColor}
       data-silhouette={resolvedType}
+      data-size={size}
+      data-entrance={dataEntrance ? "true" : "false"}
       role={label ? "img" : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}
     >
       <svg
         viewBox="0 0 112 80"
-        width={size === "compact" ? 72 : 160}
-        height={size === "compact" ? 52 : 114}
-        className="block"
+        className="block max-h-none"
+        preserveAspectRatio="xMidYMid meet"
         xmlns="http://www.w3.org/2000/svg"
       >
         {silhouetteForType(resolvedType, palette)}

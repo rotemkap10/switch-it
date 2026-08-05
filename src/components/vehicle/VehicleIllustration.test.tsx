@@ -112,4 +112,22 @@ describe("VehicleIllustration", () => {
 
     expect(screen.getByRole("img", { name: "White SUV" })).toBeInTheDocument();
   });
+
+  it("renders a full-width hero showcase without cropping proportions", () => {
+    render(
+      <VehicleIllustration
+        vehicleType="suv"
+        vehicleColor="blue"
+        size="hero"
+        animate={false}
+      />,
+    );
+
+    const illustration = screen.getByTestId("vehicle-illustration");
+    expect(illustration).toHaveAttribute("data-size", "hero");
+    expect(illustration.querySelector("svg")).toHaveAttribute(
+      "preserveAspectRatio",
+      "xMidYMid meet",
+    );
+  });
 });

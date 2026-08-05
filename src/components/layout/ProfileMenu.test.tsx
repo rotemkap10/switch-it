@@ -13,8 +13,14 @@ describe("ProfileMenu", () => {
     const user = userEvent.setup();
     render(<ProfileMenu displayName="Alex" />);
 
-    const trigger = screen.getByRole("button", { name: "Profile menu" });
+    const trigger = screen.getByRole("button", {
+      name: "Profile menu for Alex",
+    });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("user-initial-avatar")).toHaveAttribute(
+      "data-initial",
+      "A",
+    );
 
     await user.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");

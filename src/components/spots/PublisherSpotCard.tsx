@@ -5,9 +5,11 @@ import { useEffect, useState } from "react";
 import { CancelSpotButton } from "@/components/spots/CancelSpotButton";
 import { HandoffCodeSection } from "@/components/spots/HandoffCodeSection";
 import { PublisherSpotPreviewMapLoader } from "@/components/spots/PublisherSpotPreviewMapLoader";
+import { ParkingPinSettle } from "@/components/illustrations/ParkingPinSettle";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import { Countdown } from "@/components/ui/Countdown";
 import { formatDateTime } from "@/lib/format/time";
+import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 
 export type PublisherSpotSummary = {
@@ -46,6 +48,9 @@ export function PublisherSpotCard({
   const destinationLabel = publisherSpotTitleLabel(spot.address);
   const hasValidCoords =
     Number.isFinite(spot.latitude) && Number.isFinite(spot.longitude);
+  const waitingPin = useOneShotAnimation(
+    !claimed ? `publisher-waiting-pin:${spot.id}` : null,
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -99,9 +104,17 @@ export function PublisherSpotCard({
           <p className="text-xs font-semibold text-muted">
             {claimed ? "Driver coming" : "Live"}
           </p>
-          <h2 className="mt-1 text-xl font-semibold text-foreground">
-            {claimed ? "A driver is on the way" : "Waiting for a driver"}
-          </h2>
+          <div className="mt-1 flex items-start justify-between gap-3">
+            <h2 className="text-xl font-semibold text-foreground">
+              {claimed ? "A driver is on the way" : "Waiting for a driver"}
+            </h2>
+            {!claimed ? (
+              <ParkingPinSettle
+                className="mt-0.5 h-10 w-14 shrink-0"
+                animate={waitingPin}
+              />
+            ) : null}
+          </div>
           <p className="mt-1 text-sm text-muted">
             {claimed
               ? "Please stay near the spot until the handoff."

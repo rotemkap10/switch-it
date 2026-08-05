@@ -7,6 +7,7 @@ import {
   type CompleteClaimActionState,
 } from "@/actions/claims";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
+import { HandoffCompleteCelebration } from "@/components/illustrations/HandoffCompleteCelebration";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -44,9 +45,10 @@ export function CompleteHandoffForm({ claimId }: CompleteHandoffFormProps) {
 
   if (state.success) {
     return (
-      <p className="text-sm text-muted" role="status">
-        Updating your trip…
-      </p>
+      <div className="space-y-2" data-testid="handoff-complete-status" role="status">
+        <HandoffCompleteCelebration animate />
+        <p className="text-center text-sm text-muted">Updating your trip…</p>
+      </div>
     );
   }
 

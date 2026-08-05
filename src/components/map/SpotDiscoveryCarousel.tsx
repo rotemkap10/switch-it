@@ -137,7 +137,7 @@ export function SpotDiscoveryCarousel({
                 "w-[min(82vw,20rem)] max-w-[20rem] px-3.5 py-3 md:w-[17.5rem] md:max-w-[18.75rem]",
                 "transition-[border-color,box-shadow,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease)]",
                 selected
-                  ? "border-accent-hover shadow-[var(--shadow-card-hover)] ring-2 ring-accent/40 -translate-y-0.5"
+                  ? "border-accent-hover shadow-[var(--shadow-card-hover)] ring-2 ring-accent/40 -translate-y-0.5 motion-spot-select"
                   : "border-border shadow-[var(--shadow-card)]",
               ].join(" ")}
             >

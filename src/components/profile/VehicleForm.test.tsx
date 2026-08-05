@@ -67,6 +67,15 @@ describe("VehicleForm", () => {
   beforeEach(() => {
     updateVehicleMock.mockReset();
     mockUpdateWithSchemaValidation();
+    vi.stubGlobal("sessionStorage", {
+      store: new Map<string, string>(),
+      getItem(key: string) {
+        return this.store.get(key) ?? null;
+      },
+      setItem(key: string, value: string) {
+        this.store.set(key, value);
+      },
+    });
   });
 
   function renderForm(ui: JSX.Element) {
@@ -82,14 +91,35 @@ describe("VehicleForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("populates existing vehicle values", () => {
+  it("keeps a complete vehicle collapsed by default", () => {
     renderForm(<VehicleForm initialVehicle={existingVehicle} />);
 
+    expect(screen.getByTestId("vehicle-summary-panel")).toBeInTheDocument();
     expect(screen.getByTestId("vehicle-summary")).toHaveTextContent("White");
     expect(screen.getByTestId("vehicle-summary")).toHaveTextContent("SUV");
     expect(screen.getByTestId("vehicle-summary")).toHaveTextContent(
       "Hyundai Tucson",
     );
+    expect(screen.getByTestId("vehicle-summary")).toHaveTextContent("12-345-67");
+    expect(screen.getByTestId("vehicle-illustration")).toHaveAttribute(
+      "data-size",
+      "hero",
+    );
+    expect(
+      screen.getByRole("button", { name: "Edit vehicle details" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Make")).not.toBeInTheDocument();
+  });
+
+  it("expands the editor and populates existing vehicle values", async () => {
+    const user = userEvent.setup();
+    renderForm(<VehicleForm initialVehicle={existingVehicle} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Edit vehicle details" }),
+    );
+
+    expect(screen.getByTestId("vehicle-edit-panel")).toBeInTheDocument();
     expect(screen.getByLabelText("Make")).toHaveValue("Hyundai");
     expect(screen.getByLabelText("Model")).toHaveValue("Tucson");
     expect(screen.getByLabelText("License plate")).toHaveValue("12-345-67");
@@ -103,6 +133,47 @@ describe("VehicleForm", () => {
       "data-vehicle-color",
       "white",
     );
+    expect(screen.getByTestId("vehicle-illustration")).toHaveAttribute(
+      "data-size",
+      "hero",
+    );
+    expect(
+      screen.getAllByTestId("vehicle-illustration"),
+    ).toHaveLength(1);
+  });
+
+  it("closes the editor and returns to the summary", async () => {
+    const user = userEvent.setup();
+    renderForm(<VehicleForm initialVehicle={existingVehicle} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Edit vehicle details" }),
+    );
+    expect(screen.getByLabelText("Make")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.getByTestId("vehicle-summary-panel")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Make")).not.toBeInTheDocument();
+  });
+
+  it("discards unsaved edits on Cancel and restores persisted values", async () => {
+    const user = userEvent.setup();
+    renderForm(<VehicleForm initialVehicle={existingVehicle} />);
+
+    await user.click(
+      screen.getByRole("button", { name: "Edit vehicle details" }),
+    );
+    const make = screen.getByLabelText("Make");
+    await user.clear(make);
+    await user.type(make, "Changed");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await user.click(
+      screen.getByRole("button", { name: "Edit vehicle details" }),
+    );
+    expect(screen.getByLabelText("Make")).toHaveValue("Hyundai");
+    expect(screen.queryByRole("button", { name: "Done" })).not.toBeInTheDocument();
   });
 
   it("updates type and color selection and preview illustration", async () => {
@@ -120,6 +191,10 @@ describe("VehicleForm", () => {
       "data-vehicle-color",
       "blue",
     );
+    expect(screen.getByTestId("vehicle-illustration")).toHaveAttribute(
+      "data-size",
+      "hero",
+    );
   });
 
   it("shows validation feedback for a partial vehicle", async () => {
@@ -127,7 +202,7 @@ describe("VehicleForm", () => {
     renderForm(<VehicleForm initialVehicle={emptyVehicle} />);
 
     await user.type(screen.getByLabelText("Make"), "Toyota");
-    await user.click(screen.getByRole("button", { name: "Save vehicle" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
       expect(screen.getByText("Choose a vehicle type.")).toBeInTheDocument();
@@ -136,7 +211,7 @@ describe("VehicleForm", () => {
     expect(screen.queryByTestId("feedback-toast-error")).not.toBeInTheDocument();
   });
 
-  it("submits a complete vehicle successfully", async () => {
+  it("submits a complete vehicle successfully and collapses", async () => {
     const user = userEvent.setup();
     render(
       <FeedbackShell>
@@ -149,7 +224,7 @@ describe("VehicleForm", () => {
     await user.type(screen.getByLabelText("Make"), "Mazda");
     await user.type(screen.getByLabelText("Model"), "3");
     await user.type(screen.getByLabelText("License plate"), "1234567");
-    await user.click(screen.getByRole("button", { name: "Save vehicle" }));
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("feedback-toast-success")).toHaveTextContent(
@@ -164,5 +239,13 @@ describe("VehicleForm", () => {
     expect(formData.get("vehicle_make")).toBe("Mazda");
     expect(formData.get("vehicle_model")).toBe("3");
     expect(formData.get("license_plate")).toBe("1234567");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("vehicle-summary-panel")).toBeInTheDocument();
+    });
+    expect(screen.queryByLabelText("Make")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Edit vehicle details" }),
+    ).toBeInTheDocument();
   });
 });

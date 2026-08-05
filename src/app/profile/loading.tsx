@@ -9,10 +9,14 @@ export default function ProfileLoading() {
           <div className="h-8 w-40 animate-pulse rounded bg-accent-soft" />
           <div className="h-4 w-64 animate-pulse rounded bg-accent-soft" />
         </div>
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div className="h-28 animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
-          <div className="h-28 animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
-          <div className="h-28 animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 sm:gap-5">
+          <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+            <div className="h-[9.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
+            <div className="h-[9.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
+            <div className="h-[9.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
+          </div>
+          <div className="h-[5.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
+          <div className="h-[22rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft sm:h-[24rem]" />
         </div>
         <p className="text-sm text-muted">Loading profile…</p>
       </main>

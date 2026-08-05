@@ -29,6 +29,10 @@ type VehicleFieldsProps = {
   disabled?: boolean;
   showSummary?: boolean;
   showPreview?: boolean;
+  /** Size for the live type/color preview illustration. */
+  previewSize?: "default" | "compact" | "hero";
+  /** Short nudge when opening the editor (not a full drive-in). */
+  previewEmphasis?: boolean;
   state?: VehicleFieldsState;
 };
 
@@ -37,6 +41,8 @@ export function VehicleFields({
   disabled = false,
   showSummary = false,
   showPreview = true,
+  previewSize = "default",
+  previewEmphasis = false,
   state,
 }: VehicleFieldsProps) {
   const [vehicleType, setVehicleType] = useState(
@@ -92,6 +98,9 @@ export function VehicleFields({
         <VehicleIllustration
           vehicleType={previewType}
           vehicleColor={previewColor}
+          size={previewSize}
+          animate={false}
+          className={previewEmphasis ? "motion-vehicle-preview-nudge" : ""}
           label={`${VEHICLE_COLOR_LABELS[previewColor]} ${VEHICLE_TYPE_LABELS[previewType]}`}
         />
       ) : null}

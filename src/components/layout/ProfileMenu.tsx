@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { logout } from "@/actions/auth";
+import { UserInitialAvatar } from "@/components/illustrations/UserInitialAvatar";
+import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
 
 type ProfileMenuProps = {
   displayName?: string | null;
@@ -14,6 +16,7 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
   const trimmedName = displayName?.trim() || null;
+  const avatarEntrance = useOneShotAnimation("nav-avatar-entrance");
 
   useEffect(() => {
     if (!open) {
@@ -52,17 +55,16 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
-        aria-label="Profile menu"
+        aria-label={
+          trimmedName ? `Profile menu for ${trimmedName}` : "Profile menu"
+        }
         onClick={() => setOpen((value) => !value)}
       >
-        <span
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent-hover"
-          aria-hidden="true"
-        >
-          <svg viewBox="0 0 20 20" className="h-4 w-4" fill="currentColor">
-            <path d="M10 10a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm0 1.5c-3.1 0-5.5 1.7-5.5 3.25V16h11v-1.25c0-1.55-2.4-3.25-5.5-3.25Z" />
-          </svg>
-        </span>
+        <UserInitialAvatar
+          name={trimmedName}
+          animateEntrance={avatarEntrance}
+          size="sm"
+        />
         {trimmedName ? (
           <span className="hidden truncate md:inline" aria-hidden="true">
             {trimmedName}
