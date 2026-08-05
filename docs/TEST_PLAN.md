@@ -225,7 +225,7 @@ Cosmetic form tests are P1/P2 and may be deferred.
 |-------|---------|
 | **Level** | Component |
 | **Preconditions** | Mock actions |
-| **Actions** | Trigger “I got the spot” and “I’m no longer coming” |
+| **Actions** | Trigger “Verify and complete” and “I’m no longer coming” |
 | **Expected** | Correct pending/success/error; cancel is visually secondary |
 | **Priority** | P1 |
 
@@ -455,7 +455,7 @@ manually (§8 / §21).
 |-------|---------|
 | **Level** | E2E |
 | **Preconditions** | Users A (owner) and B (seeker); A has no open spot; B has credits |
-| **Actions** | A shares spot → B “I’m on my way” → B “I got the spot”; check profiles |
+| **Actions** | A shares spot → B “I’m on my way” → B enters owner handoff code and completes; check profiles |
 | **Expected** | End states completed; B credits −1; A +1 vs start-of-flow snapshots |
 | **Priority** | P0 |
 
@@ -1187,9 +1187,27 @@ Checklist (run before demo):
       movement and no new handoff ledger rows.
 - [ ] Expiry (`expire_claim_if_needed` / map lazy expiry) caused **no** credit
       movement and no handoff ledger rows.
+- [ ] Handoff code (Phase 3):
+  - [ ] Owner sees a 5-digit code only while spot is actively claimed.
+  - [ ] Seeker cannot retrieve the code via `get_handoff_code`.
+  - [ ] Wrong code does not move credits and increments attempts.
+  - [ ] Fifth wrong attempt locks verification briefly.
+  - [ ] Correct code completes once with exactly one debit and one credit.
+  - [ ] Repeated completion is idempotent with no new ledger rows.
+  - [ ] Code is unavailable after completion, cancellation, or expiry.
 
 Related detailed cases remain in §§7, 11–17 (I-07/I-08, CC-*, X-*, L-*, R-*,
 CR-*). Those stay **SQL/manual** for the current MVP.
+
+## 27. Handoff verification code verification (Phase 3)
+
+Use the SQL checklist in `supabase/tests/handoff_verification_code.test.sql`
+after applying migration `20260805120000_handoff_verification_code.sql`.
+
+Vitest migration assertions live in
+`supabase/migrations/20260805120000_handoff_verification_code.migration.test.ts`.
+
+Live RPC integration remains manual/SQL for the current MVP (see Appendix B).
 
 ### Future improvement (not required now)
 

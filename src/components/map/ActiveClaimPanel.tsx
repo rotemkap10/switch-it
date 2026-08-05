@@ -4,10 +4,12 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { CancelClaimButton } from "@/components/map/CancelClaimButton";
 import { ClaimNavigationActions } from "@/components/map/ClaimNavigationActions";
-import { CompleteClaimButton } from "@/components/map/CompleteClaimButton";
+import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
+import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import { Countdown } from "@/components/ui/Countdown";
 import { formatDateTime } from "@/lib/format/time";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
+import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 
 export type ActiveClaimSummary = {
   claimId: string;
@@ -34,6 +36,8 @@ type ActiveClaimPanelProps = {
   claim: ActiveClaimSummary;
   /** Claimed spot coordinates for external navigation only. */
   destination?: ActiveClaimDestination | null;
+  /** Owner vehicle for an active handoff; omitted when unavailable. */
+  counterpartVehicle?: HandoffVehicle | null;
   /** Overlay sits on the map; default is a stacked page card. */
   variant?: "card" | "overlay";
 };
@@ -81,12 +85,14 @@ function ExpandChevron({ expanded }: { expanded: boolean }) {
 function ActiveClaimSheetBody({
   claim,
   destination,
+  counterpartVehicle,
   expanded,
   onToggleExpanded,
   sheetLabelId,
 }: {
   claim: ActiveClaimSummary;
   destination: ActiveClaimDestination | null;
+  counterpartVehicle: HandoffVehicle | null;
   expanded: boolean;
   onToggleExpanded: () => void;
   sheetLabelId: string;
@@ -182,6 +188,12 @@ function ActiveClaimSheetBody({
       >
         {expanded ? (
           <>
+            {counterpartVehicle ? (
+              <HandoffVehicleSection
+                title="Look for this vehicle"
+                vehicle={counterpartVehicle}
+              />
+            ) : null}
             <div className="space-y-1 text-xs text-muted">
               <p>Leave time: {formatDateTime(claim.spotAvailableAt)}</p>
               <p>Hold until: {formatDateTime(claim.claimExpiresAt)}</p>
@@ -190,7 +202,7 @@ function ActiveClaimSheetBody({
               When the countdown reaches zero, the spot should be free for you
               to take.
             </p>
-            <CompleteClaimButton claimId={claim.claimId} />
+            <CompleteHandoffForm claimId={claim.claimId} />
             <CancelClaimButton claimId={claim.claimId} />
           </>
         ) : null}
@@ -202,6 +214,7 @@ function ActiveClaimSheetBody({
 export function ActiveClaimPanel({
   claim,
   destination = null,
+  counterpartVehicle = null,
   variant = "card",
 }: ActiveClaimPanelProps) {
   // Start expanded so actions are discoverable; session-only preference.
@@ -233,6 +246,7 @@ export function ActiveClaimPanel({
     <ActiveClaimSheetBody
       claim={claim}
       destination={destination}
+      counterpartVehicle={counterpartVehicle}
       expanded={expanded}
       onToggleExpanded={() => setExpanded((value) => !value)}
       sheetLabelId={sheetLabelId}

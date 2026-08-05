@@ -25,7 +25,7 @@ vi.mock("@/components/map/ActiveClaimPanel", () => ({
   }) => (
     <div data-testid="active-claim-panel" data-variant={variant}>
       <button type="button">Navigate</button>
-      <button type="button">I got the spot</button>
+      <button type="button">Verify and complete</button>
       <button type="button">I’m no longer coming</button>
     </div>
   ),
@@ -133,7 +133,7 @@ describe("SeekerMapExperience overlay hierarchy", () => {
     );
     expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "I got the spot" }),
+      screen.getByRole("button", { name: "Verify and complete" }),
     ).toBeInTheDocument();
     expect(screen.queryByTestId("map-empty-overlay")).not.toBeInTheDocument();
   });

@@ -44,7 +44,7 @@ export function CancelSpotButton({ spotId }: CancelSpotButtonProps) {
         type="submit"
         variant="ghost"
         disabled={pending}
-        className="px-0 text-muted hover:text-foreground"
+        className="w-full px-0 py-1 text-center text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
       >
         {pending ? "Updating…" : "This spot is no longer available"}
       </Button>

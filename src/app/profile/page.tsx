@@ -1,5 +1,6 @@
 import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
 import { ProfileForm } from "@/components/profile/ProfileForm";
+import { VehicleForm } from "@/components/profile/VehicleForm";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -10,7 +11,9 @@ export default async function ProfilePage() {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("display_name, credits, role")
+    .select(
+      "display_name, credits, role, license_plate, vehicle_make, vehicle_model, vehicle_color, vehicle_type",
+    )
     .eq("id", user.id)
     .maybeSingle();
 
@@ -59,6 +62,26 @@ export default async function ProfilePage() {
           </p>
         </div>
         <ProfileForm initialDisplayName={profile.display_name} />
+      </Card>
+
+      <Card className="flex max-w-lg flex-col gap-4">
+        <div>
+          <h2 className="text-base font-semibold text-foreground">
+            Your vehicle
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            This helps drivers recognize each other during a parking handoff.
+          </p>
+        </div>
+        <VehicleForm
+          initialVehicle={{
+            license_plate: profile.license_plate,
+            vehicle_make: profile.vehicle_make,
+            vehicle_model: profile.vehicle_model,
+            vehicle_color: profile.vehicle_color,
+            vehicle_type: profile.vehicle_type,
+          }}
+        />
       </Card>
     </AuthenticatedShell>
   );

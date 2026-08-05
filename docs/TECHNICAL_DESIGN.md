@@ -152,7 +152,7 @@ claim detail page.
 | Auth | `LoginForm`, `RegisterForm` | Client forms → Server Actions |
 | Map | `ParkingMap`, `SpotMarker`, `SpotDetailsPanel` | Client (Leaflet) |
 | Spots | `PublishSpotForm`, `ClaimButton`, `CancelSpotButton` | Forms / actions |
-| Claims | `CompleteClaimButton`, `CancelClaimButton` | Seeker-only complete |
+| Claims | `CompleteHandoffForm`, `CancelClaimButton` | Seeker-only verified complete |
 | Profile | `ProfileSummary`, `CreditBalance` | Mostly server-rendered |
 | History | `HistoryList`, `TransactionRow` | Server-rendered lists |
 | UI | `Button`, `Input`, `Alert`, `EmptyState` | Minimal shared primitives |
@@ -488,11 +488,19 @@ server-only, env-protected, and out of the MVP user path.
 | | |
 |--|--|
 | **Who** | Seeker of the active claim only |
-| **Input** | `claim_id` |
-| **Validation** | Zod UUID; SQL: `seeker_id = auth.uid()`, status active, not expired |
-| **DB changes (atomic, idempotent)** | Lock claim/spot/profiles as needed; if already `completed` by this claim, return success without new txs; else set claim `completed` + `completed_at`; set spot `completed`; insert `handoff_debit` (−1) for seeker and `handoff_credit` (+1) for owner; update both `profiles.credits`; unique indexes prevent double insert |
-| **Errors** | Not seeker; not active; expired (lazy); insufficient credits at complete time; concurrent conflict |
+| **Input** | `claim_id`, `handoff_code` (5-digit string) |
+| **Validation** | Zod UUID + handoff code schema; SQL: `seeker_id = auth.uid()`, status active, not expired, bcrypt code verify |
+| **DB changes (atomic, idempotent)** | Lock claim → spot → secret → profiles (deterministic profile order); if already `completed`, return success without new txs and without requiring the code; else verify code with attempt throttling; set claim `completed`; set spot `completed`; insert one `handoff_debit` and one `handoff_credit`; update credits |
+| **Errors** | `INVALID_HANDOFF_CODE`, `HANDOFF_TEMPORARILY_LOCKED`, `HANDOFF_UNAVAILABLE`, not seeker, insufficient credits |
 | **Result** | Completed handoff; seeker −1; owner +1; two transaction rows |
+
+**Handoff secrets:** stored in private table `claim_handoff_secrets` with RLS
+and no direct client access. One secret is created atomically in `claim_spot`.
+Owner retrieves plaintext code via `get_handoff_code`; seeker never receives
+the code through any RPC.
+
+**Attempt throttling:** max 5 incorrect attempts, then 2-minute lockout.
+No credit movement on failed or locked attempts.
 
 **Note:** Credits are checked at claim (≥ 1) and again at complete so a
 seeker cannot complete if their balance was reduced by another completed
@@ -696,7 +704,8 @@ Supabase project
 - No realtime map subscriptions (refresh on navigation / after actions).
 - No push notifications or chat.
 - Single role `user`; no admin UI.
-- Completion is seeker-attested only (honor system for physical handoff).
+- Completion requires seeker-entered handoff code verified against a private
+  server-side secret; owner sees the code during active claims only.
 - Leaflet/OSM accuracy depends on user pin placement.
 - At most one open spot and one active claim per user (simplifies demo and
   concurrency).

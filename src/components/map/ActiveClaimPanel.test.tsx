@@ -16,11 +16,11 @@ vi.mock("@/components/map/CancelClaimButton", () => ({
   ),
 }));
 
-vi.mock("@/components/map/CompleteClaimButton", () => ({
-  CompleteClaimButton: ({ claimId }: { claimId: string }) => (
-    <button type="button" data-claim-id={claimId}>
-      I got the spot
-    </button>
+vi.mock("@/components/map/CompleteHandoffForm", () => ({
+  CompleteHandoffForm: ({ claimId }: { claimId: string }) => (
+    <form data-testid="complete-handoff-form" data-claim-id={claimId}>
+      <button type="button">Verify and complete</button>
+    </form>
   ),
 }));
 
@@ -44,6 +44,14 @@ const claim = {
 const destination = {
   latitude: 32.085312,
   longitude: 34.781812,
+};
+
+const ownerVehicle = {
+  licensePlate: "1234567",
+  make: "Hyundai",
+  model: "Tucson",
+  color: "white" as const,
+  type: "suv" as const,
 };
 
 describe("activeClaimDestinationLabel", () => {
@@ -83,7 +91,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     ).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "I got the spot" }),
+      screen.getByRole("button", { name: "Verify and complete" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "I’m no longer coming" }),
@@ -109,7 +117,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     ).toHaveAttribute("aria-expanded", "false");
     expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "I got the spot" }),
+      screen.queryByRole("button", { name: "Verify and complete" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "I’m no longer coming" }),
@@ -134,7 +142,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "I got the spot" }),
+      screen.getByRole("button", { name: "Verify and complete" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "I’m no longer coming" }),
@@ -246,12 +254,73 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
 
-    expect(
-      screen.getByRole("button", { name: "I got the spot" }),
-    ).toHaveAttribute("data-claim-id", claim.claimId);
+    expect(screen.getByTestId("complete-handoff-form")).toHaveAttribute(
+      "data-claim-id",
+      claim.claimId,
+    );
     expect(
       screen.getByRole("button", { name: "I’m no longer coming" }),
     ).toHaveAttribute("data-claim-id", claim.claimId);
+  });
+
+  it("shows owner vehicle in expanded state only", async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        counterpartVehicle={ownerVehicle}
+        variant="overlay"
+      />,
+    );
+
+    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
+    expect(screen.getByText("White SUV")).toBeInTheDocument();
+    expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
+    expect(screen.getByText("12-345-67")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Collapse claim details/i }),
+    );
+
+    expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
+    expect(screen.queryByText("White SUV")).not.toBeInTheDocument();
+  });
+
+  it("shows fallback when counterpart vehicle is incomplete", () => {
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        counterpartVehicle={{
+          licensePlate: null,
+          make: null,
+          model: null,
+          color: null,
+          type: null,
+        }}
+        variant="overlay"
+      />,
+    );
+
+    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
+    expect(
+      screen.getByText("Vehicle details not added yet"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/@/)).not.toBeInTheDocument();
+  });
+
+  it("omits vehicle section when counterpart vehicle is unavailable", () => {
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        counterpartVehicle={null}
+        variant="overlay"
+      />,
+    );
+
+    expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
   });
 });
 

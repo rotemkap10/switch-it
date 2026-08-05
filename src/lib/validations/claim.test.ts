@@ -30,14 +30,29 @@ describe("claimSpotSchema", () => {
 });
 
 describe("completeClaimSchema", () => {
-  it("accepts a valid claim_id uuid", () => {
-    const result = completeClaimSchema.safeParse({ claim_id: validUuid });
+  it("accepts a valid claim_id and handoff_code", () => {
+    const result = completeClaimSchema.safeParse({
+      claim_id: validUuid,
+      handoff_code: "12345",
+    });
     expect(result.success).toBe(true);
   });
 
   it("rejects a non-uuid claim_id", () => {
     expect(
-      completeClaimSchema.safeParse({ claim_id: "abc" }).success,
+      completeClaimSchema.safeParse({
+        claim_id: "abc",
+        handoff_code: "12345",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects an invalid handoff_code", () => {
+    expect(
+      completeClaimSchema.safeParse({
+        claim_id: validUuid,
+        handoff_code: "12ab",
+      }).success,
     ).toBe(false);
   });
 });

@@ -4,12 +4,26 @@ import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth/require-user";
 import { updateDisplayNameSchema } from "@/lib/validations/profile";
+import { updateVehicleSchema } from "@/lib/validations/vehicle";
 
 export type ProfileActionState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
   success?: boolean;
   displayName?: string;
+};
+
+export type VehicleActionState = {
+  error?: string;
+  fieldErrors?: Record<string, string[]>;
+  success?: boolean;
+  vehicle?: {
+    license_plate: string | null;
+    vehicle_make: string | null;
+    vehicle_model: string | null;
+    vehicle_color: string | null;
+    vehicle_type: string | null;
+  } | null;
 };
 
 function flattenFieldErrors(
@@ -56,5 +70,61 @@ export async function updateDisplayName(
   return {
     success: true,
     displayName: data.display_name,
+  };
+}
+
+export async function updateVehicle(
+  _prevState: VehicleActionState,
+  formData: FormData,
+): Promise<VehicleActionState> {
+  const parsed = updateVehicleSchema.safeParse({
+    license_plate: String(formData.get("license_plate") ?? ""),
+    vehicle_make: String(formData.get("vehicle_make") ?? ""),
+    vehicle_model: String(formData.get("vehicle_model") ?? ""),
+    vehicle_color: String(formData.get("vehicle_color") ?? ""),
+    vehicle_type: String(formData.get("vehicle_type") ?? ""),
+  });
+
+  if (!parsed.success) {
+    return { fieldErrors: flattenFieldErrors(parsed.error) };
+  }
+
+  const { supabase, user } = await requireUser();
+  const vehicle = parsed.data;
+
+  const payload = vehicle
+    ? {
+        license_plate: vehicle.license_plate,
+        vehicle_make: vehicle.vehicle_make,
+        vehicle_model: vehicle.vehicle_model,
+        vehicle_color: vehicle.vehicle_color,
+        vehicle_type: vehicle.vehicle_type,
+      }
+    : {
+        license_plate: null,
+        vehicle_make: null,
+        vehicle_model: null,
+        vehicle_color: null,
+        vehicle_type: null,
+      };
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update(payload)
+    .eq("id", user.id)
+    .select(
+      "license_plate, vehicle_make, vehicle_model, vehicle_color, vehicle_type",
+    )
+    .single();
+
+  if (error || !data) {
+    return { error: "Could not update vehicle details." };
+  }
+
+  revalidatePath("/profile");
+
+  return {
+    success: true,
+    vehicle: data,
   };
 }

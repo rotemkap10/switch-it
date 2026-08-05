@@ -18,10 +18,12 @@ export type ClaimSpotActionState = {
 
 export type CompleteClaimActionState = {
   error?: string;
+  fieldErrors?: Record<string, string[]>;
   success?: boolean;
   claimId?: string;
   seekerCredits?: number;
   alreadyCompleted?: boolean;
+  lockout?: boolean;
 };
 
 export type CancelClaimActionState = {
@@ -45,12 +47,28 @@ const COMPLETE_CLAIM_ERROR_MESSAGES: Record<string, string> = {
   CLAIM_NOT_FOUND: "Claim not found.",
   NOT_SEEKER: "Only the claiming driver can complete this handoff.",
   CLAIM_NOT_ACTIVE: "This claim cannot be completed.",
-  CLAIM_EXPIRED: "This claim has expired.",
-  SPOT_UNAVAILABLE: "This parking spot is not in a claimable handoff state.",
+  CLAIM_EXPIRED: "This handoff is no longer available.",
+  SPOT_UNAVAILABLE: "This handoff is no longer available.",
+  HANDOFF_UNAVAILABLE: "This handoff is no longer available.",
+  INVALID_HANDOFF_CODE: "That code didn't match. Check with the driver and try again.",
+  HANDOFF_TEMPORARILY_LOCKED: "Too many attempts. Try again shortly.",
   INSUFFICIENT_CREDITS: "You need at least 1 credit to complete this handoff.",
   PROFILE_NOT_FOUND: "Could not complete the handoff.",
   INCONSISTENT_COMPLETION_STATE: "This handoff is in an inconsistent state.",
 };
+
+function flattenFieldErrors(
+  error: import("zod").ZodError,
+): Record<string, string[]> {
+  const fieldErrors: Record<string, string[]> = {};
+  for (const issue of error.issues) {
+    const key = issue.path[0];
+    if (typeof key !== "string") continue;
+    fieldErrors[key] ??= [];
+    fieldErrors[key].push(issue.message);
+  }
+  return fieldErrors;
+}
 
 const CANCEL_CLAIM_ERROR_MESSAGES: Record<string, string> = {
   NOT_AUTHENTICATED: "Could not cancel this claim.",
@@ -166,18 +184,31 @@ export async function completeClaim(
 ): Promise<CompleteClaimActionState> {
   const parsed = completeClaimSchema.safeParse({
     claim_id: formData.get("claim_id"),
+    handoff_code: formData.get("handoff_code"),
   });
 
   if (!parsed.success) {
-    return { error: "Could not complete the handoff." };
+    return { fieldErrors: flattenFieldErrors(parsed.error) };
   }
 
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("complete_claim", {
     p_claim_id: parsed.data.claim_id,
+    p_handoff_code: parsed.data.handoff_code,
   });
 
   if (error) {
+    const haystack = [error.message, error.details, error.hint]
+      .filter(Boolean)
+      .join(" ");
+
+    if (haystack.includes("HANDOFF_TEMPORARILY_LOCKED")) {
+      return {
+        error: COMPLETE_CLAIM_ERROR_MESSAGES.HANDOFF_TEMPORARILY_LOCKED,
+        lockout: true,
+      };
+    }
+
     return {
       error: mapRpcError(
         error,

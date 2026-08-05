@@ -11,12 +11,14 @@ import {
 import { OwnSpotNotice } from "@/components/map/OwnSpotNotice";
 import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
 import { Alert } from "@/components/ui/Alert";
+import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 import type { MapSpot } from "@/types/map-spot";
 
 type SeekerMapExperienceProps = {
   spots: MapSpot[];
   destination: ActiveClaimDestination | null;
   activeClaim: ActiveClaimSummary | null;
+  counterpartVehicle?: HandoffVehicle | null;
   showOwnSpotNotice: boolean;
   spotsError: boolean;
   activeClaimError: boolean;
@@ -27,6 +29,7 @@ export function SeekerMapExperience({
   spots,
   destination,
   activeClaim,
+  counterpartVehicle = null,
   showOwnSpotNotice,
   spotsError,
   activeClaimError,
@@ -117,6 +120,7 @@ export function SeekerMapExperience({
               <ActiveClaimPanel
                 claim={activeClaim}
                 destination={destination}
+                counterpartVehicle={counterpartVehicle}
                 variant="overlay"
               />
             </div>

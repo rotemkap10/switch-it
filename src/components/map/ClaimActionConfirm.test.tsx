@@ -11,26 +11,23 @@ vi.mock("@/actions/claims", () => ({
 }));
 
 import { CancelClaimButton } from "@/components/map/CancelClaimButton";
-import { CompleteClaimButton } from "@/components/map/CompleteClaimButton";
+import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 
 const claimId = "11111111-1111-4111-8111-111111111111";
 
 describe("claim action confirmations", () => {
-  it("asks for a lightweight complete confirmation before submitting", async () => {
-    const user = userEvent.setup();
-    completeClaimMock.mockResolvedValue({ success: true, seekerCredits: 3 });
+  it("shows the handoff code form without revealing the expected code", async () => {
+    render(<CompleteHandoffForm claimId={claimId} />);
 
-    render(<CompleteClaimButton claimId={claimId} />);
-
-    expect(screen.queryByText(/Confirm that you received/i)).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "I got the spot" }));
+    expect(screen.getByText("Complete the handoff")).toBeInTheDocument();
     expect(
-      screen.getByText("Confirm that you received the parking spot"),
+      screen.getByText("Ask the driver for the 5-digit handoff code."),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("Handoff code")).toBeInTheDocument();
+    expect(screen.queryByText(/^\d{5}$/)).not.toBeInTheDocument();
 
-    const form = screen.getByText("Confirm that you received the parking spot")
-      .closest("form");
-    expect(form?.querySelector('input[name="claim_id"]')).toHaveValue(claimId);
+    const form = screen.getByTestId("complete-handoff-form");
+    expect(form.querySelector('input[name="claim_id"]')).toHaveValue(claimId);
   });
 
   it("asks for a lightweight cancel confirmation before submitting", async () => {

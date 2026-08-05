@@ -149,12 +149,16 @@ Out of scope for the MVP:
 
 ### 9.5 Completing a handoff
 
-1. During the active claim, publisher and/or seeker confirm completion
-   according to the implemented confirmation rule (kept simple for MVP).
-2. System marks the claim and spot as **completed**.
-3. Credits transfer from seeker to publisher **only after successful
-   completion**.
-4. Both users see the event in history; balances update.
+1. When a spot is claimed, the publisher receives a short **5-digit handoff
+   code** visible only to them during the active claim.
+2. The seeker arrives and enters the code in the app.
+3. On a correct code, the system marks the claim and spot as **completed**
+   and transfers credits seeker → publisher **exactly once**.
+4. Wrong codes are rejected without credit movement. After five incorrect
+   attempts, verification is temporarily locked for two minutes.
+5. Both users see the event in history; balances update.
+
+QR scanning and other external verification are future enhancements only.
 
 ### 9.6 Cancelling or expiring a claim
 

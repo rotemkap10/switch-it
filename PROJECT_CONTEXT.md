@@ -42,7 +42,7 @@ The project must demonstrate:
 4. Publishing a parking spot.
 5. Claiming a parking spot.
 6. Preventing more than one active claim for a spot.
-7. Completing or cancelling a claim.
+7. Completing or cancelling a claim (verified handoff code on completion).
 8. Credit transactions.
 9. User activity history.
 10. Responsive user interface.
@@ -68,6 +68,6 @@ The project must demonstrate:
 - Never expose service-role keys in client-side code.
 - Store database changes in migration files.
 - Keep components focused and reasonably small.
-- Add tests for central business flows.
+- Add tests for central business flows (including handoff code validation).
 - Prefer simple, readable solutions over unnecessary abstractions.
 - Explain every library and architectural decision.

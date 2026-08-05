@@ -2,6 +2,7 @@ import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
 import { type ActiveClaimSummary } from "@/components/map/ActiveClaimPanel";
 import { SeekerMapExperience } from "@/components/map/SeekerMapExperience";
 import { requireUser } from "@/lib/auth/require-user";
+import { fetchHandoffCounterpartVehicle } from "@/lib/vehicle/fetch-handoff-counterpart-vehicle";
 import type { MapSpot } from "@/types/map-spot";
 
 type SpotRow = {
@@ -247,6 +248,11 @@ export default async function MapPage() {
   const showOwnSpotNotice =
     !ownedSpotResult.error && hasOpenOwnedSpot(ownedSpotResult.data);
 
+  const counterpartVehicle =
+    activeClaim?.claimId != null
+      ? await fetchHandoffCounterpartVehicle(supabase, activeClaim.claimId)
+      : null;
+
   return (
     <AuthenticatedShell
       layout="map"
@@ -257,6 +263,7 @@ export default async function MapPage() {
         spots={spots}
         destination={activeClaimDestination}
         activeClaim={activeClaim}
+        counterpartVehicle={counterpartVehicle}
         showOwnSpotNotice={showOwnSpotNotice}
         spotsError={Boolean(spotsResult.error)}
         activeClaimError={Boolean(activeClaimResult.error)}

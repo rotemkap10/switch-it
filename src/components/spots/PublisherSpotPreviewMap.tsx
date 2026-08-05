@@ -1,0 +1,151 @@
+"use client";
+
+import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
+import { useMemo, useRef } from "react";
+
+import { BaseMap } from "@/components/map/BaseMap";
+import { MapUnavailable } from "@/components/map/MapUnavailable";
+import {
+  MAP_SELECTED_SPOT_ZOOM,
+  assertMapTilerStyleUrlOrNull,
+} from "@/lib/map/seekerMapConfig";
+import {
+  SEEKER_MARKER_IMAGE_IDS,
+  registerSeekerMarkerImages,
+} from "@/lib/map/seekerMarkerImages";
+
+const PREVIEW_SOURCE = "publisher-preview-src";
+const PREVIEW_LAYER = "publisher-preview-layer";
+export const PUBLISHER_PREVIEW_HEIGHT_CLASS = "h-[220px]";
+
+export type PublisherSpotPreviewMapProps = {
+  latitude: number;
+  longitude: number;
+};
+
+function disableMapChrome(map: MapLibreMap) {
+  const handlers = [
+    map.dragPan,
+    map.scrollZoom,
+    map.boxZoom,
+    map.doubleClickZoom,
+    map.touchZoomRotate,
+    map.keyboard,
+  ] as const;
+
+  for (const handler of handlers) {
+    handler.disable();
+  }
+}
+
+/**
+ * Compact, non-interactive MapLibre preview of the publisher's parked spot.
+ * Coordinates only — no geolocation or seeker data.
+ */
+export function PublisherSpotPreviewMap({
+  latitude,
+  longitude,
+}: PublisherSpotPreviewMapProps) {
+  const styleUrl = useMemo(() => assertMapTilerStyleUrlOrNull(), []);
+  const initializedRef = useRef(false);
+  const center = useMemo(
+    (): [number, number] => [longitude, latitude],
+    [longitude, latitude],
+  );
+
+  if (styleUrl === null) {
+    return (
+      <div
+        className={`flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border ${PUBLISHER_PREVIEW_HEIGHT_CLASS}`}
+        aria-label="Map preview of your parking spot"
+      >
+        <MapUnavailable />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={[
+        "relative w-full overflow-hidden rounded-[var(--radius-card)] border border-border motion-fade-in",
+        PUBLISHER_PREVIEW_HEIGHT_CLASS,
+      ].join(" ")}
+      aria-label="Map preview of your parking spot"
+      data-testid="publisher-spot-preview-map"
+      data-latitude={String(latitude)}
+      data-longitude={String(longitude)}
+    >
+      <BaseMap
+        styleUrl={styleUrl}
+        center={center}
+        zoom={MAP_SELECTED_SPOT_ZOOM}
+        className="absolute inset-0 h-full w-full"
+        onMapReady={(map) => {
+          if (initializedRef.current) {
+            return;
+          }
+          initializedRef.current = true;
+
+          disableMapChrome(map);
+          registerSeekerMarkerImages(map);
+
+          if (!map.getSource(PREVIEW_SOURCE)) {
+            map.addSource(PREVIEW_SOURCE, {
+              type: "geojson",
+              data: {
+                type: "FeatureCollection",
+                features: [
+                  {
+                    type: "Feature",
+                    properties: {},
+                    geometry: {
+                      type: "Point",
+                      coordinates: [longitude, latitude],
+                    },
+                  },
+                ],
+              },
+            });
+          } else {
+            const source = map.getSource(PREVIEW_SOURCE) as GeoJSONSource;
+            source.setData({
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  properties: {},
+                  geometry: {
+                    type: "Point",
+                    coordinates: [longitude, latitude],
+                  },
+                },
+              ],
+            });
+          }
+
+          if (
+            map.hasImage(SEEKER_MARKER_IMAGE_IDS.destination) &&
+            !map.getLayer(PREVIEW_LAYER)
+          ) {
+            map.addLayer({
+              id: PREVIEW_LAYER,
+              type: "symbol",
+              source: PREVIEW_SOURCE,
+              layout: {
+                "icon-image": SEEKER_MARKER_IMAGE_IDS.destination,
+                "icon-size": 0.9,
+                "icon-allow-overlap": true,
+              },
+            });
+          }
+
+          map.jumpTo({
+            center: [longitude, latitude],
+            zoom: MAP_SELECTED_SPOT_ZOOM,
+          });
+          map.resize();
+        }}
+      />
+    </div>
+  );
+}
