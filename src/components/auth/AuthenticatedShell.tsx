@@ -1,7 +1,11 @@
 import type { ReactNode } from "react";
 
 import { AuthenticatedFrame } from "@/components/auth/AuthenticatedFrame";
-import { requireUser } from "@/lib/auth/require-user";
+import {
+  requireAuthenticatedVehicleAccess,
+  type VehicleAccessMode,
+  type VehicleHandoffException,
+} from "@/lib/auth/vehicle-access";
 
 type AuthenticatedShellProps = {
   title: string;
@@ -9,6 +13,10 @@ type AuthenticatedShellProps = {
   children?: ReactNode;
   /** Immersive map layout: no page header, full-height main. */
   layout?: "default" | "map";
+  /** Vehicle onboarding gate for this route. */
+  vehicleAccess?: VehicleAccessMode;
+  /** Allow incomplete users when they have an active handoff on this route. */
+  handoffException?: VehicleHandoffException;
 };
 
 export async function AuthenticatedShell({
@@ -16,8 +24,13 @@ export async function AuthenticatedShell({
   description,
   children,
   layout = "default",
+  vehicleAccess = "require-complete",
+  handoffException = null,
 }: AuthenticatedShellProps) {
-  const { user } = await requireUser();
+  const { user } = await requireAuthenticatedVehicleAccess({
+    mode: vehicleAccess,
+    handoffException,
+  });
 
   return (
     <AuthenticatedFrame

@@ -3,7 +3,8 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { getSafeRedirectPath } from "@/lib/auth/safe-redirect";
+import { resolvePostAuthRedirect } from "@/lib/auth/post-auth-redirect";
+import { getAuthenticatedVehicleStatus } from "@/lib/auth/vehicle-status";
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
 
@@ -66,7 +67,7 @@ export async function register(
     return { checkEmail: true };
   }
 
-  redirect("/map");
+  redirect("/onboarding/vehicle");
 }
 
 export async function login(
@@ -85,16 +86,17 @@ export async function login(
 
   const { email, password, next } = parsed.data;
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
-  if (error) {
+  if (error || !signInData.user) {
     return { error: "Invalid email or password." };
   }
 
-  redirect(getSafeRedirectPath(next));
+  const status = await getAuthenticatedVehicleStatus(supabase, signInData.user.id);
+  redirect(resolvePostAuthRedirect(status, next));
 }
 
 export async function logout() {

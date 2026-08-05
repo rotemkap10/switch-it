@@ -57,7 +57,7 @@ export function RegisterForm() {
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
       <Button type="submit" disabled={pending}>
-        {pending ? "Creating account…" : "Create account"}
+        {pending ? "Creating account…" : "Continue"}
       </Button>
     </form>
   );

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/require-user";
 import { updateDisplayNameSchema } from "@/lib/validations/profile";
@@ -91,26 +92,17 @@ export async function updateVehicle(
 
   const { supabase, user } = await requireUser();
   const vehicle = parsed.data;
-
-  const payload = vehicle
-    ? {
-        license_plate: vehicle.license_plate,
-        vehicle_make: vehicle.vehicle_make,
-        vehicle_model: vehicle.vehicle_model,
-        vehicle_color: vehicle.vehicle_color,
-        vehicle_type: vehicle.vehicle_type,
-      }
-    : {
-        license_plate: null,
-        vehicle_make: null,
-        vehicle_model: null,
-        vehicle_color: null,
-        vehicle_type: null,
-      };
+  const completeSetup = formData.get("complete_setup") === "1";
 
   const { data, error } = await supabase
     .from("profiles")
-    .update(payload)
+    .update({
+      license_plate: vehicle.license_plate,
+      vehicle_make: vehicle.vehicle_make,
+      vehicle_model: vehicle.vehicle_model,
+      vehicle_color: vehicle.vehicle_color,
+      vehicle_type: vehicle.vehicle_type,
+    })
     .eq("id", user.id)
     .select(
       "license_plate, vehicle_make, vehicle_model, vehicle_color, vehicle_type",
@@ -122,6 +114,13 @@ export async function updateVehicle(
   }
 
   revalidatePath("/profile");
+  revalidatePath("/onboarding/vehicle");
+  revalidatePath("/map");
+  revalidatePath("/spots/new");
+
+  if (completeSetup) {
+    redirect("/map");
+  }
 
   return {
     success: true,

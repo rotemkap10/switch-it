@@ -33,7 +33,7 @@ describe("updateVehicleSchema", () => {
     }
   });
 
-  it("accepts a fully empty vehicle as clear (null)", () => {
+  it("rejects a fully empty vehicle", () => {
     const result = updateVehicleSchema.safeParse({
       license_plate: "",
       vehicle_make: "",
@@ -42,13 +42,15 @@ describe("updateVehicleSchema", () => {
       vehicle_type: "",
     });
 
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data).toBeNull();
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(
+        result.error.issues.some((issue) => issue.path[0] === "form"),
+      ).toBe(true);
     }
   });
 
-  it("treats whitespace-only fields as empty clear", () => {
+  it("rejects whitespace-only fields as empty", () => {
     const result = updateVehicleSchema.safeParse({
       license_plate: "   ",
       vehicle_make: "  ",
@@ -57,10 +59,7 @@ describe("updateVehicleSchema", () => {
       vehicle_type: " ",
     });
 
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data).toBeNull();
-    }
+    expect(result.success).toBe(false);
   });
 
   it("rejects a partially completed vehicle", () => {

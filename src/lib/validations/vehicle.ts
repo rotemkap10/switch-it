@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import {
+  isVehicleProfileComplete,
+  type VehicleProfileFields,
+} from "@/lib/vehicle/profile-fields";
+import {
   isVehicleColor,
   type VehicleColor,
 } from "@/lib/vehicle/colors";
@@ -46,8 +50,8 @@ function parseMakeModel(
 }
 
 /**
- * Vehicle section is either fully empty (clear → null) or fully complete.
- * Partial payloads are rejected.
+ * Vehicle updates require a fully complete profile.
+ * Clearing all fields is not allowed after onboarding.
  */
 export const updateVehicleSchema = z
   .object({
@@ -68,13 +72,18 @@ export const updateVehicleSchema = z
     const blankCount = blanks.filter(Boolean).length;
 
     if (blankCount === 5) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Complete all vehicle fields.",
+        path: ["form"],
+      });
       return;
     }
 
     if (blankCount > 0) {
       ctx.addIssue({
         code: "custom",
-        message: "Complete all vehicle fields, or clear them all.",
+        message: "Complete all vehicle fields.",
         path: ["form"],
       });
     }
@@ -115,17 +124,7 @@ export const updateVehicleSchema = z
       });
     }
   })
-  .transform((data): VehicleProfile | null => {
-    if (
-      isBlank(data.license_plate) &&
-      isBlank(data.vehicle_make) &&
-      isBlank(data.vehicle_model) &&
-      isBlank(data.vehicle_color) &&
-      isBlank(data.vehicle_type)
-    ) {
-      return null;
-    }
-
+  .transform((data): VehicleProfile => {
     const plate = normalizeLicensePlate(data.license_plate);
     if (!plate.ok || !isVehicleColor(data.vehicle_color) || !isVehicleType(data.vehicle_type)) {
       throw new Error("Vehicle validation transform received invalid data.");
@@ -142,26 +141,10 @@ export const updateVehicleSchema = z
 
 export type UpdateVehicleInput = z.infer<typeof updateVehicleSchema>;
 
-export function hasCompleteVehicleProfile(value: {
-  license_plate: string | null;
-  vehicle_make: string | null;
-  vehicle_model: string | null;
-  vehicle_color: string | null;
-  vehicle_type: string | null;
-} | null | undefined): boolean {
-  if (!value) {
-    return false;
-  }
-  return (
-    typeof value.license_plate === "string" &&
-    value.license_plate.length > 0 &&
-    typeof value.vehicle_make === "string" &&
-    value.vehicle_make.trim().length > 0 &&
-    typeof value.vehicle_model === "string" &&
-    value.vehicle_model.trim().length > 0 &&
-    typeof value.vehicle_color === "string" &&
-    isVehicleColor(value.vehicle_color) &&
-    typeof value.vehicle_type === "string" &&
-    isVehicleType(value.vehicle_type)
-  );
+export function hasCompleteVehicleProfile(
+  value: VehicleProfileFields | null | undefined,
+): boolean {
+  return isVehicleProfileComplete(value);
 }
+
+export { isVehicleProfileComplete };

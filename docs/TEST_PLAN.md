@@ -1209,6 +1209,17 @@ Vitest migration assertions live in
 
 Live RPC integration remains manual/SQL for the current MVP (see Appendix B).
 
+## 28. Mandatory vehicle onboarding (Phase 4)
+
+- [ ] Registration redirects to `/onboarding/vehicle` (not `/map`).
+- [ ] Vehicle fields are not written to auth metadata.
+- [ ] Incomplete users are blocked from `/map`, `/history`, and new publish/claim.
+- [ ] Incomplete users with an active seeker claim can still use `/map`.
+- [ ] Incomplete users with an active published spot can still use `/spots/new`.
+- [ ] `/profile` remains reachable for recovery while incomplete.
+- [ ] `publishSpot` and `claimSpot` reject incomplete vehicle profiles.
+- [ ] Users cannot clear all vehicle fields after onboarding.
+
 ### Future improvement (not required now)
 
 Automated integration against a dedicated Supabase test project (publishable +

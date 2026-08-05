@@ -120,6 +120,15 @@ Out of scope for the MVP:
 4. Authenticated users can access map, publish, claim, profile, and history.
 5. Logout ends the session.
 
+### 9.1 Registration and vehicle onboarding
+
+1. User registers with email, password, and display name only.
+2. After account creation, the user is guided to **Step 2: Add your vehicle**
+   at `/onboarding/vehicle`.
+3. Vehicle details are stored on `public.profiles` (not in auth metadata).
+4. Users cannot access the main app until vehicle onboarding is complete,
+   except during an active handoff (see business rules).
+
 ### 9.2 Publishing a parking spot
 
 1. Authenticated publisher opens “publish spot”.
@@ -193,7 +202,10 @@ QR scanning and other external verification are future enhancements only.
    after a successfully completed handoff.
 9. **No permanent charge on failure** – cancelled or expired claims must not
    permanently deduct the seeker’s credits.
-10. **Authentication required** – publishing, claiming, completing, and
+10. **Vehicle identity required** – users must complete vehicle details during
+    onboarding before publishing or claiming new spots. Existing active
+    handoffs remain accessible if vehicle details are still missing.
+11. **Authentication required** – publishing, claiming, completing, and
     viewing personal history require a signed-in user.
 11. **Server/database enforcement** – critical rules (single claim, credits,
     ownership checks) are enforced on the server and/or with database

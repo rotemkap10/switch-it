@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { assertVehicleProfileCompleteForMutation } from "@/lib/auth/vehicle-access";
 import {
   cancelClaimSchema,
   claimSpotSchema,
@@ -138,7 +139,18 @@ export async function claimSpot(
     return { error: "Could not claim parking spot." };
   }
 
-  const { supabase } = await requireUser();
+  const { supabase, user } = await requireUser();
+
+  const vehicleCheck = await assertVehicleProfileCompleteForMutation(
+    supabase,
+    user.id,
+  );
+  if (!vehicleCheck.ok) {
+    return {
+      error: "Add your vehicle in your profile before claiming a parking spot.",
+    };
+  }
+
   const { data, error } = await supabase.rpc("claim_spot", {
     p_spot_id: parsed.data.spot_id,
   });

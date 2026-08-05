@@ -135,12 +135,13 @@ public/
 |-------|------|---------|
 | `/` | Public | Landing: product pitch + links to login/register |
 | `/login` | Public | Email/password sign-in |
-| `/register` | Public | Email/password sign-up |
+| `/register` | Public | Email/password sign-up (Step 1 of 2) |
+| `/onboarding/vehicle` | Required | Mandatory vehicle setup (Step 2 of 2) |
 | `/auth/callback` | Special | Auth redirect handler if required by Supabase email flow |
-| `/map` | Required | Browse available spots; open details; claim |
-| `/spot/new` | Required | Publish a parking spot |
-| `/profile` | Required | Display name, role, credit balance |
-| `/history` | Required | Own spots, claims, and credit transactions |
+| `/map` | Required + vehicle | Browse available spots; open details; claim |
+| `/spots/new` | Required + vehicle | Publish a parking spot |
+| `/profile` | Required | Display name, vehicle, credit balance (allowed while vehicle incomplete) |
+| `/history` | Required + vehicle | Own spots, claims, and credit transactions |
 
 Optional later: a small claim status panel on `/map` instead of a separate
 claim detail page.
@@ -331,16 +332,22 @@ minutes) without schema changes.
 
 ## 10. Authentication flow
 
-1. User registers on `/register` with email + password (Supabase Auth).
+1. User registers on `/register` with email, password, and display name only
+   (Step 1 of 2). Vehicle data is **not** stored in auth metadata.
 2. Supabase creates `auth.users` row.
-3. DB trigger creates `profiles` (`credits = 5`, `role = 'user'`) and
-   `initial_grant` transaction.
-4. User logs in on `/login`; session cookies are set via `@supabase/ssr`.
-5. `src/middleware.ts` refreshes the session and redirects unauthenticated
-   users away from `/map`, `/spot/*`, `/profile`, `/history`.
-6. `/` remains public. Auth pages stay reachable when logged out.
-7. Logout clears the session via a Server Action.
-8. If email confirmation redirects are enabled in Supabase, use a Route
+3. DB trigger creates `profiles` (`credits = 5`, `role = 'user'`, vehicle
+   columns NULL) and `initial_grant` transaction.
+4. New users redirect to `/onboarding/vehicle` (Step 2 of 2) to save vehicle
+   fields on `public.profiles` via server action.
+5. `src/proxy.ts` refreshes the session and redirects unauthenticated users
+   away from protected routes. Vehicle completeness is enforced in
+   `AuthenticatedShell` (one profile query per protected page), not in proxy.
+6. Incomplete users are redirected to onboarding except during an active
+   handoff (`/map` with active claim, `/spots/new` with open spot).
+7. User logs in on `/login`; post-auth redirect sends complete users to
+   `/map` and incomplete users to onboarding (or active handoff route).
+8. Logout clears the session via a Server Action.
+9. If email confirmation redirects are enabled in Supabase, use a Route
    Handler at `/auth/callback` to exchange the code for a session.
    Prefer disabling mandatory email confirm in local/demo if it blocks the
    course demo — document the chosen Supabase Auth setting.

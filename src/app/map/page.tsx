@@ -258,6 +258,7 @@ export default async function MapPage() {
       layout="map"
       title="Find parking"
       description="Choose a spot nearby."
+      handoffException="active-seeker"
     >
       <SeekerMapExperience
         spots={spots}

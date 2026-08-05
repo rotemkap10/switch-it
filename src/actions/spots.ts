@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { assertVehicleProfileCompleteForMutation } from "@/lib/auth/vehicle-access";
 import { cancelSpotSchema } from "@/lib/validations/claim";
 import { publishSpotSchema } from "@/lib/validations/spot";
 
@@ -74,6 +75,18 @@ export async function publishSpot(
   }
 
   const { supabase, user } = await requireUser();
+
+  const vehicleCheck = await assertVehicleProfileCompleteForMutation(
+    supabase,
+    user.id,
+  );
+  if (!vehicleCheck.ok) {
+    return {
+      error:
+        "Add your vehicle in your profile before publishing a parking spot.",
+    };
+  }
+
   const { latitude, longitude, address, available_at, expires_at } =
     parsed.data;
 

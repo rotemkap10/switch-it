@@ -4,10 +4,13 @@ import { VehicleForm } from "@/components/profile/VehicleForm";
 import { Alert } from "@/components/ui/Alert";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { requireUser } from "@/lib/auth/require-user";
+import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
+import { isVehicleProfileComplete } from "@/lib/vehicle/profile-fields";
 
 export default async function ProfilePage() {
-  const { supabase, user } = await requireUser();
+  const { supabase, user, status } = await requireAuthenticatedVehicleAccess({
+    mode: "allow-incomplete",
+  });
 
   const { data: profile, error } = await supabase
     .from("profiles")
@@ -22,16 +25,20 @@ export default async function ProfilePage() {
       <AuthenticatedShell
         title="Profile"
         description="Manage your Switch It account details."
+        vehicleAccess="allow-incomplete"
       >
         <Alert tone="error">Your profile could not be loaded.</Alert>
       </AuthenticatedShell>
     );
   }
 
+  const vehicleComplete = isVehicleProfileComplete(profile);
+
   return (
     <AuthenticatedShell
       title="Profile"
       description="Manage your Switch It account details."
+      vehicleAccess="allow-incomplete"
     >
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
@@ -45,9 +52,11 @@ export default async function ProfilePage() {
           </p>
         </Card>
         <Card>
-          <p className="text-sm font-medium text-muted">Role</p>
+          <p className="text-sm font-medium text-muted">Vehicle status</p>
           <div className="mt-2">
-            <Badge tone="neutral">{profile.role}</Badge>
+            <Badge tone={vehicleComplete ? "success" : "warning"}>
+              {vehicleComplete ? "Vehicle ready" : "Vehicle setup required"}
+            </Badge>
           </div>
         </Card>
       </div>
@@ -81,6 +90,7 @@ export default async function ProfilePage() {
             vehicle_color: profile.vehicle_color,
             vehicle_type: profile.vehicle_type,
           }}
+          requiresSetup={!status.vehicleComplete}
         />
       </Card>
     </AuthenticatedShell>

@@ -38,19 +38,6 @@ function mockUpdateWithSchemaValidation() {
         return { fieldErrors: fieldErrorsFromZod(parsed.error) };
       }
 
-      if (parsed.data === null) {
-        return {
-          success: true,
-          vehicle: {
-            license_plate: null,
-            vehicle_make: null,
-            vehicle_model: null,
-            vehicle_color: null,
-            vehicle_type: null,
-          },
-        };
-      }
-
       return {
         success: true,
         vehicle: parsed.data,
@@ -81,12 +68,12 @@ describe("VehicleForm", () => {
     mockUpdateWithSchemaValidation();
   });
 
-  it("shows an empty state when no vehicle is saved", () => {
-    render(<VehicleForm initialVehicle={emptyVehicle} />);
+  it("shows setup-required messaging when configured", () => {
+    render(<VehicleForm initialVehicle={emptyVehicle} requiresSetup />);
 
-    expect(screen.getByTestId("vehicle-empty-state")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-setup-required")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Save vehicle" }),
+      screen.getByRole("button", { name: "Save and continue" }),
     ).toBeInTheDocument();
   });
 
@@ -142,7 +129,6 @@ describe("VehicleForm", () => {
         screen.getByText(/Complete all vehicle fields/i),
       ).toBeInTheDocument();
     });
-    expect(updateVehicleMock).toHaveBeenCalled();
   });
 
   it("submits a complete vehicle successfully", async () => {

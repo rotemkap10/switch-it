@@ -43,6 +43,7 @@ The project must demonstrate:
 5. Claiming a parking spot.
 6. Preventing more than one active claim for a spot.
 7. Completing or cancelling a claim (verified handoff code on completion).
+8. Mandatory vehicle onboarding before using the main app.
 8. Credit transactions.
 9. User activity history.
 10. Responsive user interface.

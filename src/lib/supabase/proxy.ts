@@ -3,7 +3,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { getSafeRedirectPath } from "@/lib/auth/safe-redirect";
 
-const PROTECTED_PREFIXES = ["/map", "/profile", "/history", "/spots/new"] as const;
+const PROTECTED_PREFIXES = [
+  "/map",
+  "/profile",
+  "/history",
+  "/spots/new",
+  "/onboarding",
+] as const;
 const AUTH_PAGES = ["/login", "/register"] as const;
 
 function isProtectedPath(pathname: string): boolean {

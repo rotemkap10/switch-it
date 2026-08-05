@@ -1,4 +1,5 @@
 import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
+import { VehicleSetupReminder } from "@/components/onboarding/VehicleSetupReminder";
 import { PublishSpotForm } from "@/components/spots/PublishSpotForm";
 import {
   PublisherSpotCard,
@@ -80,7 +81,9 @@ export default async function NewSpotPage() {
     <AuthenticatedShell
       title="Share my parking spot"
       description="Let nearby drivers know when this spot becomes available."
+      handoffException="active-publisher"
     >
+      <VehicleSetupReminder />
       {error ? (
         <Alert tone="error">Could not load your parking spot.</Alert>
       ) : null}
