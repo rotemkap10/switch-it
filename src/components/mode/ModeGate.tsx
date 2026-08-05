@@ -2,15 +2,18 @@
 
 import type { ReactNode } from "react";
 
-import { ModeChooser } from "@/components/mode/ModeChooser";
 import { useMode } from "@/components/mode/ModeProvider";
 
 type ModeGateProps = {
   children: ReactNode;
 };
 
+/**
+ * Waits for mode preference hydration. Route is authoritative for the
+ * selected mode — no first-run Looking/Leaving chooser.
+ */
 export function ModeGate({ children }: ModeGateProps) {
-  const { mode, ready } = useMode();
+  const { ready } = useMode();
 
   if (!ready) {
     return (
@@ -18,10 +21,6 @@ export function ModeGate({ children }: ModeGateProps) {
         <p className="text-sm text-muted">Loading…</p>
       </div>
     );
-  }
-
-  if (!mode) {
-    return <ModeChooser />;
   }
 
   return <>{children}</>;

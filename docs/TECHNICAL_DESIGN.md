@@ -157,7 +157,7 @@ claim detail page.
 | Profile | `ProfileSummary`, `CreditBalance` | Mostly server-rendered |
 | History | `HistoryList`, `TransactionRow` | Server-rendered lists |
 | UI | `Button`, `Input`, `Alert`, `EmptyState` | Minimal shared primitives |
-| Shell | `AppNav` | Links + logout |
+| Shell | `AppNav`, `ModeSwitch`, `ProfileMenu` | Two-intent mode switch + profile menu |
 
 Keep components small. Business rules live in SQL/Actions, not in map UI.
 
@@ -411,6 +411,72 @@ Never put the **service-role** key in browser code or in Client Components.
 Avoid service-role for normal user operations; prefer the patterns above.
 If a service-role client is ever needed (e.g. rare admin script), it stays
 server-only, env-protected, and out of the MVP user path.
+
+### Vehicle identity UI (presentation)
+
+- **Authoritative data:** make, model, color label, type label, and formatted
+  license plate from `get_handoff_counterpart_vehicle` (active handoffs only).
+- **Illustrations:** local SVG silhouettes in `VehicleIllustration`, one shared
+  architecture with per-type paths in `illustration-silhouettes.tsx`. Colors use
+  the controlled palette only; no brand logos or external imagery.
+- **Representative only:** UI may note that the illustration is representative;
+  text identity remains the source of truth for recognition.
+- **Future extension:** `VehicleIllustration` accepts an optional `illustrationKey`
+  prop for approved local/CDN assets later. Unknown keys fall back to the generic
+  type silhouette. No database column in the MVP.
+- **Handoff approach animation:** `HandoffVehicleAnimation` plays once per
+  browser session (sessionStorage key per claim/spot) when a handoff becomes
+  live. CSS transform/opacity only; `prefers-reduced-motion` shows the final
+  frame immediately. Decorative only (`aria-hidden`).
+
+### Seeker spot discovery carousel (presentation)
+
+- Horizontal native-scroll carousel of compact spot cards over the seeker map.
+- Synchronized with map markers via a single `selectedId` in `ParkingMapMapLibre`.
+- Distance is approximate Haversine only (not ETA); omitted when location is unknown.
+- Availability labels update on a shared minute-level tick; SelectedSpotCard keeps
+  the precise countdown and claim CTA.
+- Hidden while an active claim overlay is shown.
+
+### Application feedback (presentation)
+
+- Global client toasts via `AppFeedbackRoot` → `FeedbackShell` (`FeedbackProvider` +
+  `FeedbackViewport`) + `FeedbackUrlListener`, mounted once in the root layout.
+- Queue max **2** items; success/info auto-dismiss sooner than errors; manual
+  dismiss; no persistence (no DB / localStorage).
+- Accessibility: success/info `role="status"` + `aria-live="polite"`; errors
+  `role="alert"`; dismiss labeled; no autofocus; CSS motion respects
+  `prefers-reduced-motion`.
+- Placement: mobile above the safe-area bottom inset; desktop
+  top-right under the header.
+- Canonical RPC/app codes map through `mapAppError` / `APP_ERROR_MESSAGES` —
+  never raw Supabase/SQL text, UUIDs, or status enums in UI. Do not log handoff
+  codes or license plates.
+- **Field vs toast:** Zod/field validation stays inline. Toast for network, RPC
+  rejection, and mutation success. Exception: `INVALID_HANDOFF_CODE` and
+  `HANDOFF_TEMPORARILY_LOCKED` stay next to the code input only (no duplicate toast).
+- **Redirect-safe success:** allowlisted `?feedback=` keys only
+  (`FEEDBACK_SUCCESS_KEYS`); consumed once by `FeedbackUrlListener` then stripped
+  via `router.replace`. No arbitrary messages or sensitive values in query params.
+- Mutation buttons use consistent pending labels (`Sharing…`, `Claiming…`,
+  `Verifying…`, etc.) + `Button` `loading`/`disabled`/`aria-busy`.
+- No automatic retries for state-changing operations.
+
+### Two-intent navigation (presentation)
+
+- Authenticated chrome exposes exactly two primary intents:
+  **Find parking** (`/map`) and **Share a spot** (`/spots/new`).
+- One shared `ModeSwitch` in the header; the current route is authoritative.
+  localStorage mode is a secondary convenience only.
+- Profile and Log out live in a compact `ProfileMenu` (no permanent Log out
+  button; no My spot / Looking / Leaving labels).
+- Mobile: brand + profile on the first row; full-width mode switch on the
+  second. No bottom tab bar.
+- Desktop: brand, mode switch, and profile on one row.
+- Mode content uses a short CSS fade/slide (`motion-mode-content`); the
+  sliding mode pill uses `motion-mode-pill` (~200ms ease-out). Respect
+  `prefers-reduced-motion`.
+- Publish CTA copy is **Share spot** / **Sharing…**.
 
 ## 12. Server Actions or Route Handlers
 

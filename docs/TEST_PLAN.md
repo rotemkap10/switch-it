@@ -206,7 +206,7 @@ Cosmetic form tests are P1/P2 and may be deferred.
 | **Level** | Component |
 | **Preconditions** | Mock `publishSpot` |
 | **Actions** | Submit without coords; then valid path |
-| **Expected** | Field errors; pending “Sharing…”; no dual form+status (page-level) |
+| **Expected** | Field errors; pending “Sharing…”; toast on RPC failure; redirect feedback key on success |
 | **Priority** | P1 |
 
 ### C-03 — Claim button human copy and success
@@ -216,7 +216,7 @@ Cosmetic form tests are P1/P2 and may be deferred.
 | **Level** | Component |
 | **Preconditions** | Mock `claimSpot` success |
 | **Actions** | Click “I’m on my way” |
-| **Expected** | Pending then success “You’re on your way” |
+| **Expected** | Pending “Claiming…”; toast “You’re on your way.”; duplicate submit blocked |
 | **Priority** | P1 |
 
 ### C-04 — Complete and cancel claim buttons
@@ -225,9 +225,19 @@ Cosmetic form tests are P1/P2 and may be deferred.
 |-------|---------|
 | **Level** | Component |
 | **Preconditions** | Mock actions |
-| **Actions** | Trigger “Verify and complete” and “I’m no longer coming” |
-| **Expected** | Correct pending/success/error; cancel is visually secondary |
+| **Actions** | Trigger verify/complete and cancel |
+| **Expected** | Pending “Verifying…” / “Cancelling…”; invalid handoff code inline only (no duplicate toast); cancel secondary |
 | **Priority** | P1 |
+
+### C-07 — Feedback system and error mapping
+
+| Field | Content |
+|-------|---------|
+| **Level** | Unit / component |
+| **Preconditions** | `FeedbackShell` (tests) or mocked App Router for URL listener |
+| **Actions** | Push success/error; dismiss; overflow queue; advance timers; map known/unknown codes; allowlisted `?feedback=` keys |
+| **Expected** | Live regions correct; max 2 toasts; auto-dismiss success; friendly mapped copy only; unknown URL keys ignored; no raw DB text |
+| **Priority** | P0 |
 
 ### C-05 — Countdown pending vs ready
 
@@ -509,7 +519,7 @@ manually (§8 / §21).
 |-------|---------|
 | **Level** | Manual |
 | **Preconditions** | Two browser profiles or clear storage |
-| **Actions** | First login → chooser; pick Find vs Share; switch Looking/Leaving; login as other user |
+| **Actions** | Switch Find parking / Share a spot; open profile menu; login as other user |
 | **Expected** | Preference key per user id; switch navigates `/map` or `/spots/new`; logout does not clear preference |
 | **Priority** | P1 |
 

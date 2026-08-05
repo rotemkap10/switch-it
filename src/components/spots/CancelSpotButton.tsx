@@ -6,8 +6,9 @@ import {
   cancelSpot,
   type CancelSpotActionState,
 } from "@/actions/spots";
-import { Alert } from "@/components/ui/Alert";
+import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
+import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 
 const initialState: CancelSpotActionState = {};
 
@@ -21,32 +22,30 @@ export function CancelSpotButton({ spotId }: CancelSpotButtonProps) {
     initialState,
   );
 
+  useActionFeedback(state, {
+    successMessage: FEEDBACK_SUCCESS_KEYS["spot-cancelled"],
+    toastErrors: true,
+  });
+
   if (state.success) {
     return (
-      <Alert
-        tone="success"
-        title={
-          state.alreadyCancelled
-            ? "Spot was already removed"
-            : "Spot removed"
-        }
-      >
-        Your spot is no longer listed.
-      </Alert>
+      <p className="text-xs text-muted" role="status">
+        Updating your spot…
+      </p>
     );
   }
 
   return (
     <form action={formAction} className="space-y-2">
       <input type="hidden" name="spot_id" value={spotId} />
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       <Button
         type="submit"
         variant="ghost"
+        loading={pending}
         disabled={pending}
         className="w-full px-0 py-1 text-center text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
       >
-        {pending ? "Updating…" : "This spot is no longer available"}
+        {pending ? "Cancelling…" : "This spot is no longer available"}
       </Button>
     </form>
   );

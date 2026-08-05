@@ -27,10 +27,21 @@ export async function AuthenticatedShell({
   vehicleAccess = "require-complete",
   handoffException = null,
 }: AuthenticatedShellProps) {
-  const { user } = await requireAuthenticatedVehicleAccess({
+  const { supabase, user } = await requireAuthenticatedVehicleAccess({
     mode: vehicleAccess,
     handoffException,
   });
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const displayName =
+    profile && typeof profile.display_name === "string"
+      ? profile.display_name
+      : null;
 
   return (
     <AuthenticatedFrame
@@ -38,6 +49,7 @@ export async function AuthenticatedShell({
       title={title}
       description={description}
       layout={layout}
+      displayName={displayName}
     >
       {children}
     </AuthenticatedFrame>

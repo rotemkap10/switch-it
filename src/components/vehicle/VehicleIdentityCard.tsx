@@ -10,39 +10,60 @@ import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
 
 type VehicleIdentityCardProps = {
   vehicle: HandoffVehicle;
+  showRepresentativeNote?: boolean;
 };
 
-export function VehicleIdentityCard({ vehicle }: VehicleIdentityCardProps) {
+export function VehicleIdentityCard({
+  vehicle,
+  showRepresentativeNote = false,
+}: VehicleIdentityCardProps) {
   if (!isCompleteHandoffVehicle(vehicle)) {
     return null;
   }
 
   const { color, type, make, model, licensePlate } = vehicle;
   const plate = formatLicensePlateForDisplay(licensePlate!);
-  const accessibleLabel = handoffVehicleAccessibleLabel(vehicle);
 
   return (
     <div
-      className="flex items-center gap-3"
+      className="flex items-start gap-3"
       data-testid="vehicle-identity-card"
     >
       <VehicleIllustration
         vehicleType={type!}
         vehicleColor={color!}
-        label={accessibleLabel}
         animate={false}
-        className="shrink-0 !p-1.5 [&_svg]:!h-auto [&_svg]:!w-[5.5rem]"
+        size="compact"
+        className="shrink-0 !p-1"
+        aria-hidden
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-foreground">
+        <p className="truncate text-sm font-semibold text-foreground">
           {VEHICLE_COLOR_LABELS[color!]} {VEHICLE_TYPE_LABELS[type!]}
         </p>
-        <p className="mt-0.5 truncate text-sm text-muted">
+        <p
+          className="mt-0.5 truncate text-sm text-muted"
+          data-testid="vehicle-identity-make-model"
+          title={`${make} ${model}`}
+        >
           {make} {model}
         </p>
-        <p className="mt-0.5 text-sm font-semibold tracking-wide text-foreground">
+        <p
+          className="vehicle-plate-display mt-2"
+          data-testid="vehicle-identity-plate"
+          aria-label={`License plate ${plate}`}
+        >
           {plate}
         </p>
+        <p className="sr-only">{handoffVehicleAccessibleLabel(vehicle)}</p>
+        {showRepresentativeNote ? (
+          <p
+            className="mt-1 text-xs text-muted"
+            data-testid="vehicle-representative-note"
+          >
+            Vehicle illustration is representative.
+          </p>
+        ) : null}
       </div>
     </div>
   );

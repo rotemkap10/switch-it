@@ -6,9 +6,10 @@ import {
   updateDisplayName,
   type ProfileActionState,
 } from "@/actions/profile";
-import { Alert } from "@/components/ui/Alert";
+import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 
 const initialState: ProfileActionState = {};
 
@@ -21,6 +22,11 @@ export function ProfileForm({ initialDisplayName }: ProfileFormProps) {
     updateDisplayName,
     initialState,
   );
+
+  useActionFeedback(state, {
+    successMessage: FEEDBACK_SUCCESS_KEYS["profile-updated"],
+    toastErrors: true,
+  });
 
   const currentName = state.displayName ?? initialDisplayName;
 
@@ -40,12 +46,7 @@ export function ProfileForm({ initialDisplayName }: ProfileFormProps) {
         error={state.fieldErrors?.display_name?.[0]}
       />
 
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      {state.success ? (
-        <Alert tone="success">Display name updated.</Alert>
-      ) : null}
-
-      <Button type="submit" disabled={pending} className="w-fit">
+      <Button type="submit" loading={pending} disabled={pending} className="w-fit">
         {pending ? "Saving…" : "Save display name"}
       </Button>
     </form>

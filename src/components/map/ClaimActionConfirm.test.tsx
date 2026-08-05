@@ -10,6 +10,7 @@ vi.mock("@/actions/claims", () => ({
   cancelClaim: cancelClaimMock,
 }));
 
+import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { CancelClaimButton } from "@/components/map/CancelClaimButton";
 import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 
@@ -17,7 +18,7 @@ const claimId = "11111111-1111-4111-8111-111111111111";
 
 describe("claim action confirmations", () => {
   it("shows the handoff code form without revealing the expected code", async () => {
-    render(<CompleteHandoffForm claimId={claimId} />);
+    render(<FeedbackShell><CompleteHandoffForm claimId={claimId} /></FeedbackShell>);
 
     expect(screen.getByText("Complete the handoff")).toBeInTheDocument();
     expect(
@@ -34,7 +35,7 @@ describe("claim action confirmations", () => {
     const user = userEvent.setup();
     cancelClaimMock.mockResolvedValue({ success: true });
 
-    render(<CancelClaimButton claimId={claimId} />);
+    render(<FeedbackShell><CancelClaimButton claimId={claimId} /></FeedbackShell>);
 
     await user.click(
       screen.getByRole("button", { name: "I’m no longer coming" }),

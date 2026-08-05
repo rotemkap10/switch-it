@@ -122,7 +122,10 @@ export function PublisherSpotCard({
         <div className="border-t border-border/70 pt-3">
           <HandoffVehicleSection
             title="Arriving vehicle"
+            helper="This is the driver coming to your spot."
             vehicle={counterpartVehicle}
+            showRepresentativeNote
+            approachAnimationKey={`publisher-${spot.id}`}
           />
         </div>
       ) : null}

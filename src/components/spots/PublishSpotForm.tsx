@@ -6,9 +6,9 @@ import {
   publishSpot,
   type PublishSpotActionState,
 } from "@/actions/spots";
+import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { LeaveTimeChoices } from "@/components/spots/LeaveTimeChoices";
 import { SpotLocationPickerLoader } from "@/components/spots/SpotLocationPickerLoader";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
@@ -54,6 +54,11 @@ export function PublishSpotForm() {
     publishSpot,
     initialState,
   );
+
+  useActionFeedback(state, {
+    toastErrors: true,
+  });
+
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
   const [detectedLocation, setDetectedLocation] = useState<{
@@ -129,19 +134,10 @@ export function PublishSpotForm() {
   return (
     <form action={formAction} className="flex max-w-lg flex-col gap-4">
       <Card className="flex flex-col gap-6 motion-soft-scale-in">
-        <section className="flex flex-col gap-3" aria-labelledby="spot-location-heading">
-          <div>
-            <h2
-              id="spot-location-heading"
-              className="text-base font-semibold text-foreground"
-            >
-              Your parking spot
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              Check that the marker is in the right place.
-            </p>
-          </div>
-
+        <section
+          className="flex flex-col gap-3"
+          aria-label="Location"
+        >
           {geoStatus === "loading" ? (
             <p
               className="motion-location-indicator text-sm font-medium text-foreground"
@@ -161,16 +157,21 @@ export function PublishSpotForm() {
           ) : null}
 
           {geoStatus === "error" ? (
-            <div className="motion-fade-in flex flex-col gap-3">
-              <Alert tone="warning" title="We couldn’t access your location.">
-                You can try again or choose the spot on the map.
-              </Alert>
+            <div
+              className="motion-fade-in flex flex-wrap items-center gap-x-3 gap-y-2 rounded-[var(--radius-card)] border border-border bg-accent-soft px-3 py-2.5"
+              role="status"
+              data-testid="location-unavailable"
+            >
+              <p className="text-sm font-medium text-foreground">
+                Location unavailable
+              </p>
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="secondary"
                   onClick={requestLocation}
                   disabled={pending}
+                  className="!px-2.5 !py-1 text-xs"
                 >
                   Try again
                 </Button>
@@ -179,6 +180,7 @@ export function PublishSpotForm() {
                   variant="secondary"
                   onClick={chooseOnMap}
                   disabled={pending}
+                  className="!px-2.5 !py-1 text-xs"
                 >
                   Choose on map
                 </Button>
@@ -186,7 +188,6 @@ export function PublishSpotForm() {
             </div>
           ) : null}
 
-          {/* Stable map shell: skeleton while locating; picker once coords exist. */}
           {geoStatus === "loading" ? (
             <MapShellSkeleton message="Finding your location…" />
           ) : null}
@@ -214,46 +215,50 @@ export function PublishSpotForm() {
             value={String(leaveInMinutes)}
           />
 
-          {!showManualCoords ? (
+          <div>
             <button
               type="button"
-              onClick={() => setShowManualCoords(true)}
+              aria-expanded={showManualCoords}
+              onClick={() => setShowManualCoords((open) => !open)}
               className="w-fit text-left text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
             >
               Enter coordinates manually
             </button>
-          ) : (
-            <div className="grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
-              <Input
-                id="latitude-manual"
-                name="latitude"
-                label="Latitude"
-                type="number"
-                step="any"
-                required
-                min={-90}
-                max={90}
-                value={latitude}
-                onChange={(event) => setLatitude(event.target.value)}
-                disabled={pending}
-                error={state.fieldErrors?.latitude?.[0]}
-              />
-              <Input
-                id="longitude-manual"
-                name="longitude"
-                label="Longitude"
-                type="number"
-                step="any"
-                required
-                min={-180}
-                max={180}
-                value={longitude}
-                onChange={(event) => setLongitude(event.target.value)}
-                disabled={pending}
-                error={state.fieldErrors?.longitude?.[0]}
-              />
-            </div>
-          )}
+            {showManualCoords ? (
+              <div className="motion-reveal-panel is-open">
+                <div className="motion-reveal-panel-inner grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
+                  <Input
+                    id="latitude-manual"
+                    name="latitude"
+                    label="Latitude"
+                    type="number"
+                    step="any"
+                    required
+                    min={-90}
+                    max={90}
+                    value={latitude}
+                    onChange={(event) => setLatitude(event.target.value)}
+                    disabled={pending}
+                    error={state.fieldErrors?.latitude?.[0]}
+                  />
+                  <Input
+                    id="longitude-manual"
+                    name="longitude"
+                    label="Longitude"
+                    type="number"
+                    step="any"
+                    required
+                    min={-180}
+                    max={180}
+                    value={longitude}
+                    onChange={(event) => setLongitude(event.target.value)}
+                    disabled={pending}
+                    error={state.fieldErrors?.longitude?.[0]}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
 
           {!showManualCoords && state.fieldErrors?.latitude?.[0] ? (
             <p className="text-sm text-danger" role="alert">
@@ -276,8 +281,6 @@ export function PublishSpotForm() {
           />
         </section>
 
-        {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-
         <div className="flex flex-col gap-2">
           <Button
             type="submit"
@@ -285,10 +288,10 @@ export function PublishSpotForm() {
             loading={pending}
             className="min-w-[9.5rem] w-full sm:w-fit"
           >
-            {pending ? "Sharing…" : "Share this spot"}
+            {pending ? "Sharing…" : "Share spot"}
           </Button>
           <p className="text-xs leading-5 text-muted">
-            This helps coordinate a handoff. It does not reserve the spot.
+            This coordinates a handoff; it does not reserve the spot.
           </p>
         </div>
       </Card>

@@ -1,11 +1,53 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/vehicle/VehicleIdentityCard", () => ({
-  VehicleIdentityCard: () => <div data-testid="vehicle-identity-card" />,
+vi.mock("@/components/vehicle/HandoffVehicleAnimation", () => ({
+  HandoffVehicleAnimation: ({
+    vehicleType,
+    vehicleColor,
+  }: {
+    vehicleType: string;
+    vehicleColor: string;
+  }) => (
+    <div
+      data-testid="handoff-vehicle-animation"
+      data-vehicle-type={vehicleType}
+      data-vehicle-color={vehicleColor}
+    />
+  ),
 }));
 
+const sessionStore = new Map<string, string>();
+
+beforeEach(() => {
+  sessionStore.clear();
+  resetSessionHandoffAnimationForTests();
+  vi.stubGlobal("sessionStorage", {
+    getItem: (key: string) => sessionStore.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      sessionStore.set(key, value);
+    },
+    removeItem: (key: string) => {
+      sessionStore.delete(key);
+    },
+    clear: () => {
+      sessionStore.clear();
+    },
+    key: () => null,
+    length: 0,
+  });
+});
+
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
+import { resetSessionHandoffAnimationForTests } from "@/components/vehicle/useSessionHandoffAnimation";
+
+const completeVehicle = {
+  licensePlate: "1234567",
+  make: "Mazda",
+  model: "3",
+  color: "red" as const,
+  type: "hatchback" as const,
+};
 
 describe("HandoffVehicleSection", () => {
   it("shows the fallback for incomplete vehicles", () => {
@@ -29,24 +71,49 @@ describe("HandoffVehicleSection", () => {
     expect(screen.queryByTestId("vehicle-identity-card")).not.toBeInTheDocument();
   });
 
-  it("renders the identity card for complete vehicles", () => {
+  it("renders the identity card and helper for complete vehicles", () => {
     render(
       <HandoffVehicleSection
         title="Arriving vehicle"
-        vehicle={{
-          licensePlate: "1234567",
-          make: "Mazda",
-          model: "3",
-          color: "red",
-          type: "hatchback",
-        }}
+        helper="This is the driver coming to your spot."
+        vehicle={completeVehicle}
       />,
     );
 
     expect(screen.getByText("Arriving vehicle")).toBeInTheDocument();
+    expect(
+      screen.getByText("This is the driver coming to your spot."),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("vehicle-identity-card")).toBeInTheDocument();
     expect(
       screen.queryByTestId("handoff-vehicle-fallback"),
     ).not.toBeInTheDocument();
+  });
+
+  it("plays the approach animation once per session key", () => {
+    const { unmount } = render(
+      <HandoffVehicleSection
+        title="Arriving vehicle"
+        vehicle={completeVehicle}
+        approachAnimationKey="publisher-spot-1"
+      />,
+    );
+
+    expect(screen.getByTestId("handoff-vehicle-animation")).toBeInTheDocument();
+
+    unmount();
+
+    render(
+      <HandoffVehicleSection
+        title="Arriving vehicle"
+        vehicle={completeVehicle}
+        approachAnimationKey="publisher-spot-1"
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("handoff-vehicle-animation"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-identity-card")).toBeInTheDocument();
   });
 });

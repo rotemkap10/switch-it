@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { resolvePostAuthRedirect } from "@/lib/auth/post-auth-redirect";
 import { getAuthenticatedVehicleStatus } from "@/lib/auth/vehicle-status";
+import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
 import { createClient } from "@/lib/supabase/server";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
 
@@ -13,19 +14,6 @@ export type AuthActionState = {
   fieldErrors?: Record<string, string[]>;
   checkEmail?: boolean;
 };
-
-function flattenFieldErrors(
-  error: import("zod").ZodError,
-): Record<string, string[]> {
-  const fieldErrors: Record<string, string[]> = {};
-  for (const issue of error.issues) {
-    const key = issue.path[0];
-    if (typeof key !== "string") continue;
-    fieldErrors[key] ??= [];
-    fieldErrors[key].push(issue.message);
-  }
-  return fieldErrors;
-}
 
 export async function register(
   _prevState: AuthActionState,

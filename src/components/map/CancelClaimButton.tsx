@@ -6,8 +6,9 @@ import {
   cancelClaim,
   type CancelClaimActionState,
 } from "@/actions/claims";
-import { Alert } from "@/components/ui/Alert";
+import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
+import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 
 const initialState: CancelClaimActionState = {};
 
@@ -22,18 +23,16 @@ export function CancelClaimButton({ claimId }: CancelClaimButtonProps) {
     initialState,
   );
 
+  useActionFeedback(state, {
+    successMessage: FEEDBACK_SUCCESS_KEYS["claim-cancelled"],
+    toastErrors: true,
+  });
+
   if (state.success) {
     return (
-      <Alert
-        tone="success"
-        title={
-          state.alreadyCancelled
-            ? "You already stepped away"
-            : "You’re no longer coming"
-        }
-      >
-        The spot can go to someone else if it is still available.
-      </Alert>
+      <p className="text-xs text-muted" role="status">
+        Updating your trip…
+      </p>
     );
   }
 
@@ -53,7 +52,6 @@ export function CancelClaimButton({ claimId }: CancelClaimButtonProps) {
     <form action={formAction} className="space-y-2">
       <input type="hidden" name="claim_id" value={claimId} />
       <p className="text-xs leading-5 text-muted">Stop heading to this spot?</p>
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
       <div className="flex flex-col items-center gap-2">
         <Button
           type="submit"
@@ -62,7 +60,7 @@ export function CancelClaimButton({ claimId }: CancelClaimButtonProps) {
           disabled={pending}
           className="min-w-[10rem] px-3 py-1.5 text-xs text-muted hover:text-foreground"
         >
-          Yes, stop
+          {pending ? "Cancelling…" : "Yes, stop"}
         </Button>
         <button
           type="button"

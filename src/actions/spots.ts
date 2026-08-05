@@ -5,59 +5,28 @@ import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/require-user";
 import { assertVehicleProfileCompleteForMutation } from "@/lib/auth/vehicle-access";
+import {
+  APP_ERROR_MESSAGES,
+  GENERIC_APP_ERROR,
+  mapAppError,
+} from "@/lib/feedback/error-map";
+import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
+import { withFeedbackQuery } from "@/lib/feedback/success-keys";
 import { cancelSpotSchema } from "@/lib/validations/claim";
 import { publishSpotSchema } from "@/lib/validations/spot";
 
 export type PublishSpotActionState = {
   error?: string;
+  errorCode?: string;
   fieldErrors?: Record<string, string[]>;
 };
 
 export type CancelSpotActionState = {
   error?: string;
+  errorCode?: string;
   success?: boolean;
   alreadyCancelled?: boolean;
 };
-
-const CANCEL_SPOT_ERROR_MESSAGES: Record<string, string> = {
-  NOT_AUTHENTICATED: "Could not cancel this parking spot.",
-  SPOT_NOT_FOUND: "Parking spot not found.",
-  NOT_OWNER: "Only the publisher can cancel this spot.",
-  SPOT_NOT_CANCELLABLE: "This spot can no longer be cancelled.",
-  ACTIVE_CLAIM_NOT_FOUND: "No active claim found for this spot.",
-  INCONSISTENT_STATE: "Could not update this parking spot.",
-};
-
-function mapCancelSpotError(error: {
-  code?: string;
-  message?: string;
-  details?: string;
-  hint?: string;
-}): string {
-  const haystack = [error.message, error.details, error.hint]
-    .filter(Boolean)
-    .join(" ");
-
-  for (const code of Object.keys(CANCEL_SPOT_ERROR_MESSAGES)) {
-    if (haystack.includes(code)) {
-      return CANCEL_SPOT_ERROR_MESSAGES[code];
-    }
-  }
-
-  return "Could not cancel this parking spot.";
-}
-
-function flattenFieldErrors(
-  error: import("zod").ZodError,
-): Record<string, string[]> {
-  const fieldErrors: Record<string, string[]> = {};
-  for (const issue of error.issues) {
-    const key = String(issue.path[0] ?? "form");
-    fieldErrors[key] ??= [];
-    fieldErrors[key].push(issue.message);
-  }
-  return fieldErrors;
-}
 
 export async function publishSpot(
   _prevState: PublishSpotActionState,
@@ -82,8 +51,8 @@ export async function publishSpot(
   );
   if (!vehicleCheck.ok) {
     return {
-      error:
-        "Add your vehicle in your profile before publishing a parking spot.",
+      error: APP_ERROR_MESSAGES.VEHICLE_PROFILE_REQUIRED,
+      errorCode: "VEHICLE_PROFILE_REQUIRED",
     };
   }
 
@@ -105,15 +74,19 @@ export async function publishSpot(
 
   if (error || !data) {
     if (error?.code === "23505") {
-      return { error: "You already have an active parking spot." };
+      return {
+        error: APP_ERROR_MESSAGES.OPEN_SPOT_EXISTS,
+        errorCode: "OPEN_SPOT_EXISTS",
+      };
     }
 
-    return { error: "Could not publish parking spot." };
+    const mapped = mapAppError(error, "Could not publish parking spot.");
+    return { error: mapped.message, errorCode: mapped.code };
   }
 
   revalidatePath("/map");
   revalidatePath("/spots/new");
-  redirect("/spots/new");
+  redirect(withFeedbackQuery("/spots/new", "spot-published"));
 }
 
 export async function cancelSpot(
@@ -125,7 +98,10 @@ export async function cancelSpot(
   });
 
   if (!parsed.success) {
-    return { error: "Could not cancel this parking spot." };
+    return {
+      error: GENERIC_APP_ERROR,
+      errorCode: "UNKNOWN",
+    };
   }
 
   const { supabase } = await requireUser();
@@ -134,12 +110,13 @@ export async function cancelSpot(
   });
 
   if (error) {
-    return { error: mapCancelSpotError(error) };
+    const mapped = mapAppError(error, "Could not cancel this parking spot.");
+    return { error: mapped.message, errorCode: mapped.code };
   }
 
   const row = Array.isArray(data) ? data[0] : data;
   if (!row || typeof row !== "object") {
-    return { error: "Could not cancel this parking spot." };
+    return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
   }
 
   revalidatePath("/map");

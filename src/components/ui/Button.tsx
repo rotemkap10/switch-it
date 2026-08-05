@@ -36,6 +36,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       ref={ref}
       type={type}
       disabled={isDisabled}
+      aria-busy={loading || undefined}
+      aria-disabled={isDisabled || undefined}
       className={[
         "inline-flex items-center justify-center gap-2 rounded-[var(--radius-card)] px-4 py-2 text-sm font-medium",
         "motion-interactive-press transition-[color,background-color,border-color,opacity] duration-[var(--motion-fast)]",

@@ -5,10 +5,15 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@/components/map/ParkingMapLoader", () => ({
   ParkingMapLoader: ({
     onVisuallyReady,
+    showDiscoveryCarousel,
   }: {
     onVisuallyReady?: () => void;
+    showDiscoveryCarousel?: boolean;
   }) => (
-    <div data-testid="parking-map">
+    <div
+      data-testid="parking-map"
+      data-discovery={showDiscoveryCarousel === false ? "off" : "on"}
+    >
       <button type="button" onClick={() => onVisuallyReady?.()}>
         Simulate map ready
       </button>
@@ -64,6 +69,47 @@ function renderExperience(
 }
 
 describe("SeekerMapExperience overlay hierarchy", () => {
+  it("uses a flex-1 absolute-fill map stage without fixed desktop heights", () => {
+    const { container } = renderExperience({ spots: [] });
+
+    const stage = screen.getByTestId("seeker-map-stage");
+    expect(stage.className).toContain("flex-1");
+    expect(stage.className).toContain("min-h-0");
+    expect(stage.className).toContain("relative");
+    expect(stage.className).not.toMatch(/h-\[\d/);
+    expect(stage.className).not.toContain("h-[60vh]");
+    expect(stage.className).not.toContain("min-h-[18rem]");
+    expect(stage.className).not.toContain("min-h-[24rem]");
+
+    const surface = screen.getByTestId("seeker-map-surface");
+    expect(surface.className).toContain("absolute");
+    expect(surface.className).toContain("inset-0");
+    expect(screen.getByTestId("parking-map").closest("[data-testid='seeker-map-surface']")).not.toBeNull();
+
+    // Overlays must not be in normal document flow before readiness.
+    expect(container.querySelector("[data-testid='map-empty-overlay']")).toBeNull();
+  });
+
+  it("disables the discovery carousel while an active claim is present", () => {
+    renderExperience({
+      destination: { latitude: 32.08, longitude: 34.78 },
+      activeClaim: claim,
+    });
+
+    expect(screen.getByTestId("parking-map")).toHaveAttribute(
+      "data-discovery",
+      "off",
+    );
+  });
+
+  it("keeps discovery enabled when browsing without an active claim", () => {
+    renderExperience({ spots: [] });
+    expect(screen.getByTestId("parking-map")).toHaveAttribute(
+      "data-discovery",
+      "on",
+    );
+  });
+
   it("hides empty state and title before the map is visually ready", () => {
     renderExperience({ spots: [] });
 
@@ -86,10 +132,15 @@ describe("SeekerMapExperience overlay hierarchy", () => {
     expect(empty).toHaveTextContent("New spots will appear automatically.");
     expect(empty).toHaveTextContent("Share a spot");
     expect(empty.className).toContain("max-w-[20rem]");
-    expect(empty.closest(".absolute")).not.toBeNull();
+    const emptyHost = empty.closest(".absolute");
+    expect(emptyHost).not.toBeNull();
+    expect(emptyHost?.className).toContain("top-3");
+    expect(emptyHost?.className).not.toContain("md:top-14");
+    expect(emptyHost?.className).not.toContain("inset-0");
+    expect(emptyHost?.className).not.toContain("items-center");
   });
 
-  it("keeps the title pill desktop-only after readiness", () => {
+  it("does not show a redundant Find parking title pill", () => {
     renderExperience({
       spots: [
         {
@@ -108,11 +159,7 @@ describe("SeekerMapExperience overlay hierarchy", () => {
       screen.getByRole("button", { name: "Simulate map ready" }).click();
     });
 
-    const title = screen.getByTestId("map-title-pill");
-    expect(title.className).toContain("hidden");
-    expect(title.className).toContain("md:block");
-    expect(title).toHaveTextContent("Find parking");
-    expect(title).not.toHaveTextContent("Choose a spot nearby");
+    expect(screen.queryByTestId("map-title-pill")).not.toBeInTheDocument();
   });
 
   it("prioritizes active claim overlays after readiness", () => {

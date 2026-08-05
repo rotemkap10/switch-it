@@ -39,16 +39,46 @@ describe("VehicleIdentityCard", () => {
     expect(screen.getByText("White SUV")).toBeInTheDocument();
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
     expect(screen.getByText("123-45-678")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-identity-plate")).toHaveClass(
+      "vehicle-plate-display",
+    );
+  });
+
+  it("truncates long make and model text", () => {
+    render(
+      <VehicleIdentityCard
+        vehicle={{
+          ...completeVehicle,
+          make: "Very Long Manufacturer Name",
+          model: "Extremely Long Model Name Edition",
+        }}
+      />,
+    );
+
+    const makeModel = screen.getByTestId("vehicle-identity-make-model");
+    expect(makeModel).toHaveClass("truncate");
+    expect(makeModel).toHaveAttribute(
+      "title",
+      "Very Long Manufacturer Name Extremely Long Model Name Edition",
+    );
   });
 
   it("exposes an accessible label with plate", () => {
     render(<VehicleIdentityCard vehicle={completeVehicle} />);
 
     expect(
-      screen.getByRole("img", {
-        name: "White Hyundai Tucson, license plate 123-45-678",
-      }),
-    ).toBeInTheDocument();
+      screen.getByText("White Hyundai Tucson, license plate 123-45-678"),
+    ).toHaveClass("sr-only");
+  });
+
+  it("shows the representative illustration note when requested", () => {
+    render(
+      <VehicleIdentityCard vehicle={completeVehicle} showRepresentativeNote />,
+    );
+
+    expect(screen.getByTestId("vehicle-representative-note")).toHaveTextContent(
+      "Vehicle illustration is representative.",
+    );
   });
 
   it("renders nothing for incomplete vehicles", () => {

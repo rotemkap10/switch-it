@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { VehicleForm } from "@/components/profile/VehicleForm";
 import { updateVehicleSchema } from "@/lib/validations/vehicle";
 
@@ -68,8 +69,12 @@ describe("VehicleForm", () => {
     mockUpdateWithSchemaValidation();
   });
 
+  function renderForm(ui: JSX.Element) {
+    return render(<FeedbackShell>{ui}</FeedbackShell>);
+  }
+
   it("shows setup-required messaging when configured", () => {
-    render(<VehicleForm initialVehicle={emptyVehicle} requiresSetup />);
+    renderForm(<VehicleForm initialVehicle={emptyVehicle} requiresSetup />);
 
     expect(screen.getByTestId("vehicle-setup-required")).toBeInTheDocument();
     expect(
@@ -78,7 +83,7 @@ describe("VehicleForm", () => {
   });
 
   it("populates existing vehicle values", () => {
-    render(<VehicleForm initialVehicle={existingVehicle} />);
+    renderForm(<VehicleForm initialVehicle={existingVehicle} />);
 
     expect(screen.getByTestId("vehicle-summary")).toHaveTextContent("White");
     expect(screen.getByTestId("vehicle-summary")).toHaveTextContent("SUV");
@@ -102,7 +107,7 @@ describe("VehicleForm", () => {
 
   it("updates type and color selection and preview illustration", async () => {
     const user = userEvent.setup();
-    render(<VehicleForm initialVehicle={emptyVehicle} />);
+    renderForm(<VehicleForm initialVehicle={emptyVehicle} />);
 
     await user.selectOptions(screen.getByLabelText("Vehicle type"), "sedan");
     await user.selectOptions(screen.getByLabelText("Color"), "blue");
@@ -119,21 +124,25 @@ describe("VehicleForm", () => {
 
   it("shows validation feedback for a partial vehicle", async () => {
     const user = userEvent.setup();
-    render(<VehicleForm initialVehicle={emptyVehicle} />);
+    renderForm(<VehicleForm initialVehicle={emptyVehicle} />);
 
     await user.type(screen.getByLabelText("Make"), "Toyota");
     await user.click(screen.getByRole("button", { name: "Save vehicle" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/Complete all vehicle fields/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Choose a vehicle type.")).toBeInTheDocument();
+      expect(screen.getByText("License plate is required.")).toBeInTheDocument();
     });
+    expect(screen.queryByTestId("feedback-toast-error")).not.toBeInTheDocument();
   });
 
   it("submits a complete vehicle successfully", async () => {
     const user = userEvent.setup();
-    render(<VehicleForm initialVehicle={emptyVehicle} />);
+    render(
+      <FeedbackShell>
+        <VehicleForm initialVehicle={emptyVehicle} />
+      </FeedbackShell>,
+    );
 
     await user.selectOptions(screen.getByLabelText("Vehicle type"), "hatchback");
     await user.selectOptions(screen.getByLabelText("Color"), "red");
@@ -143,7 +152,9 @@ describe("VehicleForm", () => {
     await user.click(screen.getByRole("button", { name: "Save vehicle" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Vehicle saved.")).toBeInTheDocument();
+      expect(screen.getByTestId("feedback-toast-success")).toHaveTextContent(
+        "Vehicle updated.",
+      );
     });
 
     expect(updateVehicleMock).toHaveBeenCalled();

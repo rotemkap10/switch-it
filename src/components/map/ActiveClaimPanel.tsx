@@ -9,7 +9,13 @@ import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSectio
 import { Countdown } from "@/components/ui/Countdown";
 import { formatDateTime } from "@/lib/format/time";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
-import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
+import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
+import {
+  isCompleteHandoffVehicle,
+  type HandoffVehicle,
+} from "@/lib/vehicle/handoff-vehicle";
+import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
+import { VEHICLE_TYPE_LABELS } from "@/lib/vehicle/types";
 
 export type ActiveClaimSummary = {
   claimId: string;
@@ -102,6 +108,10 @@ function ActiveClaimSheetBody({
   const canNavigate =
     !!destination &&
     isValidNavigationCoords(destination.latitude, destination.longitude);
+  const compactVehicleLabel =
+    counterpartVehicle && isCompleteHandoffVehicle(counterpartVehicle)
+      ? `${VEHICLE_COLOR_LABELS[counterpartVehicle.color!]} ${VEHICLE_TYPE_LABELS[counterpartVehicle.type!]} · ${formatLicensePlateForDisplay(counterpartVehicle.licensePlate!)}`
+      : null;
 
   return (
     <div
@@ -181,6 +191,16 @@ function ActiveClaimSheetBody({
         />
       ) : null}
 
+      {!expanded && compactVehicleLabel ? (
+        <p
+          className="truncate text-xs font-medium text-foreground"
+          data-testid="active-claim-compact-vehicle"
+          title={compactVehicleLabel}
+        >
+          {compactVehicleLabel}
+        </p>
+      ) : null}
+
       <div
         id="active-claim-details"
         hidden={!expanded}
@@ -191,7 +211,10 @@ function ActiveClaimSheetBody({
             {counterpartVehicle ? (
               <HandoffVehicleSection
                 title="Look for this vehicle"
+                helper="Check the model, color, and plate before completing the handoff."
                 vehicle={counterpartVehicle}
+                showRepresentativeNote
+                approachAnimationKey={`seeker-${claim.claimId}`}
               />
             ) : null}
             <div className="space-y-1 text-xs text-muted">

@@ -6,8 +6,8 @@ import {
   completeVehicleOnboarding,
   type OnboardingVehicleActionState,
 } from "@/actions/onboarding";
+import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { VehicleFields } from "@/components/vehicle/VehicleFields";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import type { VehicleProfileFields } from "@/lib/vehicle/profile-fields";
 
@@ -25,6 +25,10 @@ export function OnboardingVehicleForm({
     initialState,
   );
 
+  useActionFeedback(state, {
+    toastErrors: true,
+  });
+
   return (
     <form action={formAction} className="flex flex-col gap-4">
       <VehicleFields
@@ -34,12 +38,12 @@ export function OnboardingVehicleForm({
         state={state}
       />
 
-      {state.fieldErrors?.form?.[0] ? (
-        <Alert tone="error">{state.fieldErrors.form[0]}</Alert>
-      ) : null}
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-
-      <Button type="submit" disabled={pending} className="w-full sm:w-fit">
+      <Button
+        type="submit"
+        loading={pending}
+        disabled={pending}
+        className="w-full sm:w-fit"
+      >
         {pending ? "Saving…" : "Continue to the map"}
       </Button>
     </form>

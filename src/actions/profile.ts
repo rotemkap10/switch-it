@@ -4,11 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { mapAppError } from "@/lib/feedback/error-map";
+import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
+import { withFeedbackQuery } from "@/lib/feedback/success-keys";
 import { updateDisplayNameSchema } from "@/lib/validations/profile";
 import { updateVehicleSchema } from "@/lib/validations/vehicle";
 
 export type ProfileActionState = {
   error?: string;
+  errorCode?: string;
   fieldErrors?: Record<string, string[]>;
   success?: boolean;
   displayName?: string;
@@ -16,6 +20,7 @@ export type ProfileActionState = {
 
 export type VehicleActionState = {
   error?: string;
+  errorCode?: string;
   fieldErrors?: Record<string, string[]>;
   success?: boolean;
   vehicle?: {
@@ -26,19 +31,6 @@ export type VehicleActionState = {
     vehicle_type: string | null;
   } | null;
 };
-
-function flattenFieldErrors(
-  error: import("zod").ZodError,
-): Record<string, string[]> {
-  const fieldErrors: Record<string, string[]> = {};
-  for (const issue of error.issues) {
-    const key = issue.path[0];
-    if (typeof key !== "string") continue;
-    fieldErrors[key] ??= [];
-    fieldErrors[key].push(issue.message);
-  }
-  return fieldErrors;
-}
 
 export async function updateDisplayName(
   _prevState: ProfileActionState,
@@ -63,7 +55,8 @@ export async function updateDisplayName(
     .single();
 
   if (error || !data) {
-    return { error: "Could not update display name." };
+    const mapped = mapAppError(error, "Could not update display name.");
+    return { error: mapped.message, errorCode: mapped.code };
   }
 
   revalidatePath("/profile");
@@ -110,7 +103,8 @@ export async function updateVehicle(
     .single();
 
   if (error || !data) {
-    return { error: "Could not update vehicle details." };
+    const mapped = mapAppError(error, "Could not update vehicle details.");
+    return { error: mapped.message, errorCode: mapped.code };
   }
 
   revalidatePath("/profile");
@@ -119,7 +113,7 @@ export async function updateVehicle(
   revalidatePath("/spots/new");
 
   if (completeSetup) {
-    redirect("/map");
+    redirect(withFeedbackQuery("/map", "vehicle-updated"));
   }
 
   return {

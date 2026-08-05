@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+
+import { AppFeedbackRoot } from "@/components/feedback/AppFeedbackRoot";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,8 +30,8 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col bg-background text-foreground">
-        {children}
+      <body className="flex min-h-dvh flex-col bg-background text-foreground">
+        <AppFeedbackRoot>{children}</AppFeedbackRoot>
       </body>
     </html>
   );

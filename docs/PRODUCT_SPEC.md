@@ -110,6 +110,17 @@ Out of scope for the MVP:
 
 ## 9. Main user flows
 
+### Navigation model
+
+Authenticated users have two primary intents only:
+
+1. **Find parking** → `/map`
+2. **Share a spot** → `/spots/new`
+
+The header mode switch is the single primary way to move between these
+experiences. Profile and Log out live in a compact profile menu. There is no
+separate “My spot”, “Looking”, or “Leaving” navigation item.
+
 ### 9.1 Registration and login
 
 1. User opens the app and chooses register or login.
@@ -129,22 +140,32 @@ Out of scope for the MVP:
 4. Users cannot access the main app until vehicle onboarding is complete,
    except during an active handoff (see business rules).
 
+During an active handoff, counterpart vehicle identity is shown using generic
+type-and-color illustrations. The make, model, and license plate text are the
+authoritative recognition details; illustrations are representative only. A
+one-time approach animation may play when a handoff becomes live.
+
 ### 9.2 Publishing a parking spot
 
-1. Authenticated publisher opens “publish spot”.
-2. Publisher sets location (map pin / coordinates) and expected availability
-   time (when the spot will be free, within a limited window).
+1. Authenticated publisher opens **Share a spot**.
+2. Publisher confirms location and leaving time, then taps **Share spot**.
 3. System validates input and creates a spot in an **available** state.
-4. Spot appears on the map for other users until claimed, completed,
-   cancelled by the publisher (if allowed), or expired.
+4. Spot appears on the map for other users; the publisher sees
+   **Waiting for a driver** until claimed, cancelled, or expired.
 
 ### 9.3 Browsing available spots
 
 1. Authenticated user opens the main map page.
 2. Map shows currently available spots (not claimed, not expired).
-3. User can select a spot to see basic details (availability timing,
-   distance/context as implemented).
-4. User may proceed to claim if eligible.
+3. When spots exist, a compact horizontal **discovery carousel** lists them
+   near the bottom of the map. Cards show availability, approximate
+   straight-line distance (when location is available), and a short address.
+4. Selecting a map marker or a carousel card keeps a single selected spot:
+   the matching card is emphasized, the map eases to keep the marker visible,
+   and the detailed SelectedSpotCard provides claim actions.
+5. During an active claim, the discovery carousel is hidden; the claim sheet
+   takes priority.
+6. User may proceed to claim if eligible.
 
 ### 9.4 Claiming a parking spot
 

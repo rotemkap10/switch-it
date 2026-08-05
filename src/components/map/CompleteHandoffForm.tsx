@@ -6,9 +6,11 @@ import {
   completeClaim,
   type CompleteClaimActionState,
 } from "@/actions/claims";
+import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 
 const initialState: CompleteClaimActionState = {};
 
@@ -22,20 +24,20 @@ export function CompleteHandoffForm({ claimId }: CompleteHandoffFormProps) {
     initialState,
   );
 
+  useActionFeedback(state, {
+    successMessage: (s) =>
+      s.alreadyCompleted
+        ? "Handoff already completed."
+        : FEEDBACK_SUCCESS_KEYS["handoff-completed"],
+    // Incorrect / locked codes stay next to the input — no duplicate toast.
+    toastErrors: false,
+  });
+
   if (state.success) {
     return (
-      <Alert
-        tone="success"
-        title={
-          state.alreadyCompleted
-            ? "You already got this spot"
-            : "Handoff complete"
-        }
-      >
-        {typeof state.seekerCredits === "number"
-          ? `Your credit balance is now ${state.seekerCredits}.`
-          : "Credits were updated."}
-      </Alert>
+      <p className="text-sm text-muted" role="status">
+        Updating your trip…
+      </p>
     );
   }
 
@@ -61,7 +63,7 @@ export function CompleteHandoffForm({ claimId }: CompleteHandoffFormProps) {
         autoComplete="one-time-code"
         pattern="[0-9]*"
         maxLength={5}
-        disabled={pending}
+        disabled={pending || state.lockout}
         defaultValue=""
         key={state.lockout ? "lockout" : "default"}
         error={state.fieldErrors?.handoff_code?.[0]}
@@ -74,10 +76,10 @@ export function CompleteHandoffForm({ claimId }: CompleteHandoffFormProps) {
         type="submit"
         variant="secondary"
         loading={pending}
-        disabled={pending}
+        disabled={pending || state.lockout}
         className="w-full min-w-[12rem] border-success/25 bg-success-bg text-foreground hover:bg-success-bg/80"
       >
-        Verify and complete
+        {pending ? "Verifying…" : "Verify and complete"}
       </Button>
     </form>
   );

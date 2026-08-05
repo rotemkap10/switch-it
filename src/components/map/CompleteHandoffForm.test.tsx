@@ -11,6 +11,7 @@ vi.mock("@/actions/claims", () => ({
 }));
 
 import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
+import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { completeClaimSchema } from "@/lib/validations/claim";
 
 const claimId = "11111111-1111-4111-8111-111111111111";
@@ -48,8 +49,16 @@ describe("CompleteHandoffForm", () => {
     mockCompleteWithSchemaValidation();
   });
 
+  function renderForm() {
+    return render(
+      <FeedbackShell>
+        <CompleteHandoffForm claimId={claimId} />
+      </FeedbackShell>,
+    );
+  }
+
   it("shows the verification form instead of the old direct completion button", () => {
-    render(<CompleteHandoffForm claimId={claimId} />);
+    renderForm();
 
     expect(screen.getByText("Complete the handoff")).toBeInTheDocument();
     expect(
@@ -65,7 +74,7 @@ describe("CompleteHandoffForm", () => {
 
   it("submits claim_id and handoff_code only", async () => {
     const user = userEvent.setup();
-    render(<CompleteHandoffForm claimId={claimId} />);
+    renderForm();
 
     await user.type(screen.getByLabelText("Handoff code"), "12345");
     await user.click(
@@ -85,7 +94,7 @@ describe("CompleteHandoffForm", () => {
 
   it("shows validation feedback for invalid codes", async () => {
     const user = userEvent.setup();
-    render(<CompleteHandoffForm claimId={claimId} />);
+    renderForm();
 
     await user.type(screen.getByLabelText("Handoff code"), "1234");
     await user.click(
@@ -101,11 +110,12 @@ describe("CompleteHandoffForm", () => {
 
   it("shows lockout and invalid-code messages from the action", async () => {
     completeClaimMock.mockResolvedValueOnce({
-      error: "That code didn't match. Check with the driver and try again.",
+      error: "That handoff code isn’t correct.",
+      errorCode: "INVALID_HANDOFF_CODE",
     });
 
     const user = userEvent.setup();
-    render(<CompleteHandoffForm claimId={claimId} />);
+    renderForm();
 
     await user.type(screen.getByLabelText("Handoff code"), "99999");
     await user.click(
@@ -114,12 +124,14 @@ describe("CompleteHandoffForm", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/That code didn't match/i),
+        screen.getByText("That handoff code isn’t correct."),
       ).toBeInTheDocument();
     });
+    expect(screen.queryByTestId("feedback-toast-error")).not.toBeInTheDocument();
 
     completeClaimMock.mockResolvedValueOnce({
       error: "Too many attempts. Try again shortly.",
+      errorCode: "HANDOFF_TEMPORARILY_LOCKED",
       lockout: true,
     });
 

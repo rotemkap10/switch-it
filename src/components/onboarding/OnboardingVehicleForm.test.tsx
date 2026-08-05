@@ -9,6 +9,7 @@ vi.mock("@/actions/onboarding", () => ({
   completeVehicleOnboarding: completeVehicleOnboardingMock,
 }));
 
+import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { OnboardingVehicleForm } from "@/components/onboarding/OnboardingVehicleForm";
 
 const emptyVehicle = {
@@ -21,7 +22,11 @@ const emptyVehicle = {
 
 describe("OnboardingVehicleForm", () => {
   it("renders the onboarding fields without a skip action", () => {
-    render(<OnboardingVehicleForm initialVehicle={emptyVehicle} />);
+    render(
+      <FeedbackShell>
+        <OnboardingVehicleForm initialVehicle={emptyVehicle} />
+      </FeedbackShell>,
+    );
 
     expect(screen.getByText("Continue to the map")).toBeInTheDocument();
     expect(screen.getByLabelText("Vehicle type")).toBeInTheDocument();

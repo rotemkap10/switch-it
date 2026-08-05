@@ -6,9 +6,10 @@ import {
   updateVehicle,
   type VehicleActionState,
 } from "@/actions/profile";
+import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { VehicleFields } from "@/components/vehicle/VehicleFields";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
+import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 import { isVehicleProfileComplete } from "@/lib/vehicle/profile-fields";
 import type { VehicleProfileFields } from "@/lib/vehicle/profile-fields";
 
@@ -31,7 +32,12 @@ export function VehicleForm({
     initialState,
   );
 
-  const saved = state.vehicle ?? (hasVehicle ? initialVehicle : initialVehicle);
+  useActionFeedback(state, {
+    successMessage: FEEDBACK_SUCCESS_KEYS["vehicle-updated"],
+    toastErrors: true,
+  });
+
+  const saved = state.vehicle ?? initialVehicle;
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -52,14 +58,6 @@ export function VehicleForm({
         state={state}
       />
 
-      {state.fieldErrors?.form?.[0] ? (
-        <Alert tone="error">{state.fieldErrors.form[0]}</Alert>
-      ) : null}
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      {state.success ? (
-        <Alert tone="success">Vehicle saved.</Alert>
-      ) : null}
-
       <p className="text-xs text-muted">
         Vehicle details will be used during active parking handoffs.
       </p>
@@ -68,7 +66,7 @@ export function VehicleForm({
         <input type="hidden" name="complete_setup" value="1" />
       ) : null}
 
-      <Button type="submit" disabled={pending} className="w-fit">
+      <Button type="submit" loading={pending} disabled={pending} className="w-fit">
         {pending ? "Saving…" : requiresSetup ? "Save and continue" : "Save vehicle"}
       </Button>
     </form>

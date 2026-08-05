@@ -3,8 +3,9 @@
 import { useActionState } from "react";
 
 import { claimSpot, type ClaimSpotActionState } from "@/actions/claims";
-import { Alert } from "@/components/ui/Alert";
+import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
+import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 
 const initialState: ClaimSpotActionState = {};
 
@@ -15,25 +16,29 @@ type ClaimSpotButtonProps = {
 export function ClaimSpotButton({ spotId }: ClaimSpotButtonProps) {
   const [state, formAction, pending] = useActionState(claimSpot, initialState);
 
+  useActionFeedback(state, {
+    successMessage: FEEDBACK_SUCCESS_KEYS["claim-created"],
+    toastErrors: true,
+  });
+
   if (state.success) {
     return (
-      <Alert tone="success" title="You’re on your way">
-        {state.claimExpiresAt
-          ? `Hold this spot until ${new Date(state.claimExpiresAt).toLocaleString(undefined, {
-              dateStyle: "medium",
-              timeStyle: "short",
-            })}.`
-          : "Head over before the hold expires."}
-      </Alert>
+      <p className="text-sm text-muted" role="status">
+        Opening your trip…
+      </p>
     );
   }
 
   return (
     <form action={formAction} className="space-y-2">
       <input type="hidden" name="spot_id" value={spotId} />
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
-      <Button type="submit" disabled={pending} className="w-full">
-        {pending ? "On my way…" : "I’m on my way"}
+      <Button
+        type="submit"
+        loading={pending}
+        disabled={pending}
+        className="w-full"
+      >
+        {pending ? "Claiming…" : "I’m on my way"}
       </Button>
     </form>
   );

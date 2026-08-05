@@ -10,7 +10,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BaseMap } from "@/components/map/BaseMap";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
 import { SelectedSpotCard } from "@/components/map/SelectedSpotCard";
+import { SpotDiscoveryCarousel } from "@/components/map/SpotDiscoveryCarousel";
 import { Button } from "@/components/ui/Button";
+import { focusSelectedSpot } from "@/lib/map/focus-selected-spot";
 import type { MapSpot } from "@/types/map-spot";
 
 import {
@@ -36,6 +38,8 @@ type ParkingMapMapLibreProps = {
   spots: MapSpot[];
   destination?: DestinationCoords | null;
   onVisuallyReady?: () => void;
+  /** Hide discovery carousel during an active claim experience. */
+  showDiscoveryCarousel?: boolean;
 };
 
 function usePrefersReducedMotion() {
@@ -213,6 +217,7 @@ export function ParkingMapMapLibre({
   spots,
   destination = null,
   onVisuallyReady,
+  showDiscoveryCarousel = true,
 }: ParkingMapMapLibreProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
   const mapTilerStyleUrl = useMemo(
@@ -264,6 +269,7 @@ export function ParkingMapMapLibre({
   const hasInitialDestinationViewRef = useRef(false);
   const userLayersAddedRef = useRef(false);
   const interactionHandlersBoundRef = useRef(false);
+  const lastFocusedSpotIdRef = useRef<string | null>(null);
 
   const disableFollowOnUserMove = () => {
     setFollowMode(false);
@@ -326,6 +332,27 @@ export function ParkingMapMapLibre({
     () => createGeoJsonSpots(spots, selectedId),
     [spots, selectedId],
   );
+
+  useEffect(() => {
+    if (!selectedId) {
+      lastFocusedSpotIdRef.current = null;
+      return;
+    }
+    if (!selectedSpot || !mapRef.current || !hasInitializedLayersRef.current) {
+      return;
+    }
+    if (lastFocusedSpotIdRef.current === selectedId) {
+      return;
+    }
+    lastFocusedSpotIdRef.current = selectedId;
+    setFollowMode(false);
+    focusSelectedSpot(mapRef.current, {
+      longitude: selectedSpot.longitude,
+      latitude: selectedSpot.latitude,
+      offsetY: -112,
+      durationMs: prefersReducedMotion ? 0 : MAP_MOVEMENT_DURATION_MS,
+    });
+  }, [selectedId, selectedSpot, prefersReducedMotion, mapVisuallyReady]);
 
   useEffect(() => {
     if (!mapRef.current || !hasInitializedLayersRef.current) {
@@ -544,14 +571,14 @@ export function ParkingMapMapLibre({
 
   if (styleFallback || mapUnavailable) {
     return (
-      <div className="relative flex h-full min-h-[18rem] w-full items-center justify-center p-4">
+      <div className="relative flex h-full w-full items-center justify-center p-4">
         <MapUnavailable />
       </div>
     );
   }
 
   return (
-    <div className="relative h-full min-h-[18rem] w-full">
+    <div className="relative h-full w-full">
       {mapVisuallyReady &&
       userLocation.status === "loading" &&
       !locationNoticeHidden ? (
@@ -710,6 +737,27 @@ export function ParkingMapMapLibre({
             Recenter
           </Button>
         </div>
+      ) : null}
+
+      {mapVisuallyReady &&
+      showDiscoveryCarousel &&
+      spots.length > 0 ? (
+        <SpotDiscoveryCarousel
+          spots={spots}
+          selectedId={selectedId}
+          onSelect={(id) => {
+            setSelectedId((prev) => (prev === id ? prev : id));
+          }}
+          userLocation={
+            userLocation.status === "ready"
+              ? {
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                }
+              : null
+          }
+          raised={Boolean(selectedSpot)}
+        />
       ) : null}
 
       {mapVisuallyReady && selectedSpot ? (

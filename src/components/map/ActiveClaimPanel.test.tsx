@@ -7,6 +7,7 @@ import {
   ActiveClaimPanel,
   activeClaimDestinationLabel,
 } from "@/components/map/ActiveClaimPanel";
+import { resetSessionHandoffAnimationForTests } from "@/components/vehicle/useSessionHandoffAnimation";
 
 vi.mock("@/components/map/CancelClaimButton", () => ({
   CancelClaimButton: ({ claimId }: { claimId: string }) => (
@@ -67,7 +68,34 @@ describe("activeClaimDestinationLabel", () => {
 });
 
 describe("ActiveClaimPanel sheet UX", () => {
+  const sessionStore = new Map<string, string>();
+
   beforeEach(() => {
+    sessionStore.clear();
+    resetSessionHandoffAnimationForTests();
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => sessionStore.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        sessionStore.set(key, value);
+      },
+      removeItem: (key: string) => {
+        sessionStore.delete(key);
+      },
+      clear: () => {
+        sessionStore.clear();
+      },
+      key: () => null,
+      length: 0,
+    });
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
     vi.stubGlobal(
       "open",
       vi.fn(() => ({ closed: false })),
@@ -275,9 +303,15 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Check the model, color, and plate before completing the handoff.",
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText("White SUV")).toBeInTheDocument();
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
     expect(screen.getByText("12-345-67")).toBeInTheDocument();
+    expect(screen.getByTestId("handoff-vehicle-animation")).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: /Collapse claim details/i }),
@@ -285,6 +319,40 @@ describe("ActiveClaimPanel sheet UX", () => {
 
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
     expect(screen.queryByText("White SUV")).not.toBeInTheDocument();
+    expect(screen.getByTestId("active-claim-compact-vehicle")).toHaveTextContent(
+      "White SUV · 12-345-67",
+    );
+    expect(
+      screen.queryByTestId("handoff-vehicle-animation"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not replay the approach animation on expand and collapse", async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        counterpartVehicle={ownerVehicle}
+        variant="overlay"
+      />,
+    );
+
+    expect(screen.getByTestId("handoff-vehicle-animation")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Collapse claim details/i }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Expand claim details/i }),
+    );
+
+    expect(
+      screen.queryByTestId("handoff-vehicle-animation"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("White SUV")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
+    expect(screen.getByTestId("complete-handoff-form")).toBeInTheDocument();
   });
 
   it("shows fallback when counterpart vehicle is incomplete", () => {

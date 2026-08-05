@@ -42,7 +42,7 @@ export function LoginForm({ next }: LoginFormProps) {
 
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
 
-      <Button type="submit" disabled={pending}>
+      <Button type="submit" loading={pending} disabled={pending}>
         {pending ? "Signing in…" : "Sign in"}
       </Button>
     </form>

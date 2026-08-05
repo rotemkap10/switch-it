@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { ClaimSpotButton } from "@/components/map/ClaimSpotButton";
 
 const { claimSpotMock } = vi.hoisted(() => ({
@@ -14,13 +15,21 @@ vi.mock("@/actions/claims", () => ({
 
 const spotId = "550e8400-e29b-41d4-a716-446655440000";
 
+function renderClaimButton() {
+  return render(
+    <FeedbackShell>
+      <ClaimSpotButton spotId={spotId} />
+    </FeedbackShell>,
+  );
+}
+
 describe("ClaimSpotButton", () => {
   beforeEach(() => {
     claimSpotMock.mockReset();
   });
 
   it("renders the friendly primary wording", () => {
-    render(<ClaimSpotButton spotId={spotId} />);
+    renderClaimButton();
 
     expect(
       screen.getByRole("button", { name: "I’m on my way" }),
@@ -35,7 +44,7 @@ describe("ClaimSpotButton", () => {
       claimExpiresAt: "2026-08-03T12:30:00.000Z",
     });
 
-    render(<ClaimSpotButton spotId={spotId} />);
+    renderClaimButton();
     await user.click(screen.getByRole("button", { name: "I’m on my way" }));
 
     await waitFor(() => {
@@ -61,11 +70,11 @@ describe("ClaimSpotButton", () => {
         }),
     );
 
-    render(<ClaimSpotButton spotId={spotId} />);
+    renderClaimButton();
     await user.click(screen.getByRole("button", { name: "I’m on my way" }));
 
     const pendingButton = await screen.findByRole("button", {
-      name: "On my way…",
+      name: "Claiming…",
     });
     expect(pendingButton).toBeDisabled();
 
@@ -78,29 +87,31 @@ describe("ClaimSpotButton", () => {
       claimExpiresAt: "2026-08-03T12:30:00.000Z",
     });
 
+    expect(await screen.findByText("Opening your trip…")).toBeInTheDocument();
     expect(
-      await screen.findByText("You’re on your way"),
-    ).toBeInTheDocument();
+      await screen.findByTestId("feedback-toast-success"),
+    ).toHaveTextContent("You’re on your way.");
   });
 
-  it("displays an action error using the current alert UI", async () => {
+  it("surfaces RPC errors via toast feedback", async () => {
     const user = userEvent.setup();
     claimSpotMock.mockResolvedValue({
-      error: "This parking spot was already claimed.",
+      error: "This parking spot is no longer available.",
+      errorCode: "SPOT_UNAVAILABLE",
     });
 
-    render(<ClaimSpotButton spotId={spotId} />);
+    renderClaimButton();
     await user.click(screen.getByRole("button", { name: "I’m on my way" }));
 
-    expect(
-      await screen.findByRole("alert"),
-    ).toHaveTextContent("This parking spot was already claimed.");
+    expect(await screen.findByTestId("feedback-toast-error")).toHaveTextContent(
+      "This parking spot is no longer available.",
+    );
     expect(
       screen.getByRole("button", { name: "I’m on my way" }),
     ).toBeInTheDocument();
   });
 
-  it("shows the success status after a successful claim action", async () => {
+  it("shows toast success after a successful claim action", async () => {
     const user = userEvent.setup();
     claimSpotMock.mockResolvedValue({
       success: true,
@@ -108,15 +119,13 @@ describe("ClaimSpotButton", () => {
       claimExpiresAt: "2026-08-03T12:30:00.000Z",
     });
 
-    render(<ClaimSpotButton spotId={spotId} />);
+    renderClaimButton();
     await user.click(screen.getByRole("button", { name: "I’m on my way" }));
 
-    expect(
-      await screen.findByText("You’re on your way"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Hold this spot until/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("Opening your trip…")).toBeInTheDocument();
+    expect(screen.getByTestId("feedback-toast-success")).toHaveTextContent(
+      "You’re on your way.",
+    );
     expect(
       screen.queryByRole("button", { name: "I’m on my way" }),
     ).not.toBeInTheDocument();

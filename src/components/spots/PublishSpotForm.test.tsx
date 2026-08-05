@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { PublishSpotForm } from "@/components/spots/PublishSpotForm";
 import { publishSpotSchema } from "@/lib/validations/spot";
 
@@ -118,16 +119,14 @@ describe("PublishSpotForm", () => {
   });
 
   it("renders the location section, leave-time choices, and primary action", async () => {
-    render(<PublishSpotForm />);
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
-    expect(screen.getByText("Your parking spot")).toBeInTheDocument();
-    expect(
-      screen.getByText("Check that the marker is in the right place."),
-    ).toBeInTheDocument();
     expect(screen.getByRole("radiogroup")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Share this spot" }),
+      screen.getByRole("button", { name: "Share spot" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
+    expect(screen.queryByText("Your parking spot")).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText("Location found")).toBeInTheDocument();
@@ -141,14 +140,14 @@ describe("PublishSpotForm", () => {
 
   it("updates hidden coordinates from the map picker callback", async () => {
     const user = userEvent.setup();
-    render(<PublishSpotForm />);
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
       expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
     });
 
     await user.click(screen.getByRole("button", { name: "Simulate map move" }));
-    await user.click(screen.getByRole("button", { name: "Share this spot" }));
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
 
     await waitFor(() => {
       expect(publishSpotMock).toHaveBeenCalledTimes(1);
@@ -161,14 +160,14 @@ describe("PublishSpotForm", () => {
 
   it("submits coordinates from automatic geolocation", async () => {
     const user = userEvent.setup();
-    render(<PublishSpotForm />);
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
       expect(screen.getByText("Location found")).toBeInTheDocument();
     });
 
     await user.click(screen.getByRole("radio", { name: "10 min" }));
-    await user.click(screen.getByRole("button", { name: "Share this spot" }));
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
 
     await waitFor(() => {
       expect(publishSpotMock).toHaveBeenCalledTimes(1);
@@ -182,7 +181,7 @@ describe("PublishSpotForm", () => {
 
   it("shows validation feedback for invalid coordinates via manual entry", async () => {
     const user = userEvent.setup();
-    render(<PublishSpotForm />);
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
       expect(screen.getByText("Location found")).toBeInTheDocument();
@@ -195,11 +194,11 @@ describe("PublishSpotForm", () => {
     await user.type(screen.getByLabelText("Longitude"), "181");
 
     const form = screen
-      .getByRole("button", { name: "Share this spot" })
+      .getByRole("button", { name: "Share spot" })
       .closest("form");
     form!.noValidate = true;
 
-    await user.click(screen.getByRole("button", { name: "Share this spot" }));
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
 
     expect(
       await screen.findByText("Latitude must be between -90 and 90."),
@@ -226,7 +225,7 @@ describe("PublishSpotForm", () => {
     });
 
     stubGeolocation(getCurrentPosition);
-    render(<PublishSpotForm />);
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
       expect(getCurrentPosition).toHaveBeenCalledTimes(1);
@@ -245,11 +244,12 @@ describe("PublishSpotForm", () => {
       } as GeolocationPositionError);
     });
 
-    render(<PublishSpotForm />);
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     expect(
-      await screen.findByText("We couldn’t access your location."),
+      await screen.findByText("Location unavailable"),
     ).toBeInTheDocument();
+    expect(screen.getByTestId("location-unavailable")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Choose on map" }));
 
@@ -267,7 +267,7 @@ describe("PublishSpotForm", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Latitude")).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Share this spot" }));
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
 
     await waitFor(() => {
       expect(publishSpotMock).toHaveBeenCalledTimes(1);
@@ -276,7 +276,7 @@ describe("PublishSpotForm", () => {
 
   it("shows recenter after geolocation success and hides it for choose-on-map", async () => {
     const user = userEvent.setup();
-    const { unmount } = render(<PublishSpotForm />);
+    const { unmount } = render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
       expect(screen.getByText("Location found")).toBeInTheDocument();
@@ -296,7 +296,7 @@ describe("PublishSpotForm", () => {
       } as GeolocationPositionError);
     });
 
-    render(<PublishSpotForm />);
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
     await user.click(
       await screen.findByRole("button", { name: "Choose on map" }),
     );
@@ -315,13 +315,13 @@ describe("PublishSpotForm", () => {
         }),
     );
 
-    render(<PublishSpotForm />);
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
       expect(screen.getByText("Location found")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: "Share this spot" }));
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
 
     const pendingButton = await screen.findByRole("button", {
       name: "Sharing…",
@@ -331,7 +331,7 @@ describe("PublishSpotForm", () => {
     resolvePublish({});
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "Share this spot" }),
+        screen.getByRole("button", { name: "Share spot" }),
       ).toBeEnabled();
     });
   });

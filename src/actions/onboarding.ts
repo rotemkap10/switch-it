@@ -4,25 +4,16 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
+import { mapAppError } from "@/lib/feedback/error-map";
+import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
+import { withFeedbackQuery } from "@/lib/feedback/success-keys";
 import { updateVehicleSchema } from "@/lib/validations/vehicle";
 
 export type OnboardingVehicleActionState = {
   error?: string;
+  errorCode?: string;
   fieldErrors?: Record<string, string[]>;
 };
-
-function flattenFieldErrors(
-  error: import("zod").ZodError,
-): Record<string, string[]> {
-  const fieldErrors: Record<string, string[]> = {};
-  for (const issue of error.issues) {
-    const key = issue.path[0];
-    if (typeof key !== "string") continue;
-    fieldErrors[key] ??= [];
-    fieldErrors[key].push(issue.message);
-  }
-  return fieldErrors;
-}
 
 export async function completeVehicleOnboarding(
   _prevState: OnboardingVehicleActionState,
@@ -57,7 +48,8 @@ export async function completeVehicleOnboarding(
     .eq("id", user.id);
 
   if (error) {
-    return { error: "Could not save your vehicle details." };
+    const mapped = mapAppError(error, "Could not save your vehicle details.");
+    return { error: mapped.message, errorCode: mapped.code };
   }
 
   revalidatePath("/onboarding/vehicle");
@@ -65,5 +57,5 @@ export async function completeVehicleOnboarding(
   revalidatePath("/map");
   revalidatePath("/spots/new");
 
-  redirect("/map");
+  redirect(withFeedbackQuery("/map", "vehicle-added"));
 }

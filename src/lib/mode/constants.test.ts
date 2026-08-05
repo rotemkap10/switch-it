@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   isAppMode,
   MODE_HOME,
+  MODE_LABELS,
   MODE_STORAGE_PREFIX,
+  modeFromPathname,
   modeStorageKey,
 } from "@/lib/mode/constants";
 
@@ -15,9 +17,17 @@ describe("mode constants helpers", () => {
     expect(modeStorageKey("user-a")).not.toBe(modeStorageKey("user-b"));
   });
 
-  it("exposes mode home routes", () => {
+  it("exposes mode home routes and canonical labels", () => {
     expect(MODE_HOME.seeker).toBe("/map");
     expect(MODE_HOME.leaver).toBe("/spots/new");
+    expect(MODE_LABELS.seeker).toBe("Find parking");
+    expect(MODE_LABELS.leaver).toBe("Share a spot");
+  });
+
+  it("derives mode from the pathname", () => {
+    expect(modeFromPathname("/map")).toBe("seeker");
+    expect(modeFromPathname("/spots/new")).toBe("leaver");
+    expect(modeFromPathname("/profile")).toBeNull();
   });
 
   it("recognizes valid app modes only", () => {

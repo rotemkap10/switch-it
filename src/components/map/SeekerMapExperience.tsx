@@ -47,37 +47,29 @@ export function SeekerMapExperience({
     !activeClaim;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col bg-bg-strong/50">
-      {/* Map surface + exclusive loader until onVisuallyReady */}
-      <div className="relative min-h-0 flex-1">
+    <div
+      data-testid="seeker-map-stage"
+      className="relative min-h-0 flex-1"
+    >
+      {/* Absolute fill: concrete height from flex parent, not content/min-height. */}
+      <div className="absolute inset-0" data-testid="seeker-map-surface">
         {!spotsError ? (
           <ParkingMapLoader
             spots={spots}
             destination={destination}
             onVisuallyReady={handleVisuallyReady}
+            showDiscoveryCarousel={!activeClaim}
           />
         ) : (
-          <div className="flex h-full min-h-[18rem] items-center justify-center p-4">
+          <div className="flex h-full w-full items-center justify-center p-4">
             <Alert tone="error">Map unavailable until spots can load.</Alert>
           </div>
         )}
       </div>
 
-      {/* Overlays only after the map is visually ready */}
+      {/* Overlays only after the map is visually ready — absolute, out of flow */}
       {mapVisuallyReady ? (
         <>
-          {/* Desktop-only compact title; mobile relies on bottom nav. */}
-          {!activeClaim ? (
-            <div
-              data-testid="map-title-pill"
-              className="pointer-events-none absolute left-3 top-3 z-20 hidden md:block"
-            >
-              <div className="pointer-events-auto rounded-full border border-border/80 bg-surface/95 px-3 py-1.5 text-xs font-semibold text-foreground shadow-[var(--shadow-card)] backdrop-blur-sm">
-                Find parking
-              </div>
-            </div>
-          ) : null}
-
           {spotsError || activeClaimError || ownedSpotError ? (
             <div className="pointer-events-none absolute inset-x-0 top-3 z-30 flex flex-col gap-2 px-3 md:left-auto md:right-3 md:w-80">
               {spotsError ? (
@@ -105,7 +97,7 @@ export function SeekerMapExperience({
               className={[
                 "pointer-events-none absolute z-20 px-3",
                 showEmptyOverlay
-                  ? "left-3 top-[7.25rem] sm:left-auto sm:right-3 sm:top-3"
+                  ? "left-3 top-[6.5rem] sm:left-auto sm:right-3 sm:top-3"
                   : "right-3 top-3",
               ].join(" ")}
             >
@@ -130,8 +122,7 @@ export function SeekerMapExperience({
             <div
               className={[
                 "pointer-events-none absolute z-20 px-3",
-                // Mobile: below header edge. Desktop: upper-left, not centered.
-                "left-0 top-3 md:left-3 md:top-12",
+                "left-0 top-3 md:left-3",
               ].join(" ")}
             >
               <div

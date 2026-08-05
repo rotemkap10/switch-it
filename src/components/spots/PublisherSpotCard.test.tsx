@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/spots/CancelSpotButton", () => ({
   CancelSpotButton: ({ spotId }: { spotId: string }) => (
@@ -41,6 +41,7 @@ import {
   PublisherSpotCard,
   publisherSpotTitleLabel,
 } from "@/components/spots/PublisherSpotCard";
+import { resetSessionHandoffAnimationForTests } from "@/components/vehicle/useSessionHandoffAnimation";
 
 const baseSpot = {
   id: "550e8400-e29b-41d4-a716-446655440000",
@@ -67,6 +68,36 @@ describe("publisherSpotTitleLabel", () => {
 });
 
 describe("PublisherSpotCard", () => {
+  const sessionStore = new Map<string, string>();
+
+  beforeEach(() => {
+    sessionStore.clear();
+    resetSessionHandoffAnimationForTests();
+    vi.stubGlobal("sessionStorage", {
+      getItem: (key: string) => sessionStore.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        sessionStore.set(key, value);
+      },
+      removeItem: (key: string) => {
+        sessionStore.delete(key);
+      },
+      clear: () => {
+        sessionStore.clear();
+      },
+      key: () => null,
+      length: 0,
+    });
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+  });
+
   it("shows waiting copy for an available spot", () => {
     render(
       <PublisherSpotCard
@@ -155,13 +186,32 @@ describe("PublisherSpotCard", () => {
     );
 
     expect(screen.getByText("Arriving vehicle")).toBeInTheDocument();
+    expect(
+      screen.getByText("This is the driver coming to your spot."),
+    ).toBeInTheDocument();
     expect(screen.getByText("Red Hatchback")).toBeInTheDocument();
     expect(screen.getByText("Mazda 3")).toBeInTheDocument();
     expect(screen.getByText("76-543-21")).toBeInTheDocument();
+    expect(screen.getByTestId("handoff-vehicle-animation")).toBeInTheDocument();
     expect(screen.getByText("Handoff code")).toBeInTheDocument();
     expect(screen.getByTestId("handoff-code-value")).toHaveTextContent("48291");
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
     expect(screen.queryByText(baseSpot.id)).not.toBeInTheDocument();
+  });
+
+  it("does not show the approach animation while waiting for a driver", () => {
+    render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "available" }}
+        layout="page"
+        counterpartVehicle={seekerVehicle}
+        handoffCode="48291"
+      />,
+    );
+
+    expect(
+      screen.queryByTestId("handoff-vehicle-animation"),
+    ).not.toBeInTheDocument();
   });
 
   it("does not show vehicle or code sections for available spots", () => {
