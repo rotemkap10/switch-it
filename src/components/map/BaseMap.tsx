@@ -15,6 +15,10 @@ import {
   sanitizeMapTilerUrl,
 } from "@/lib/map/maptiler-transform-request";
 import {
+  isIgnorableMapError,
+  logMapLibreError,
+} from "@/lib/map/is-ignorable-map-error";
+import {
   MAP_MAX_ZOOM,
   MAP_MIN_ZOOM,
   MAP_SUPPORTED_MAX_BOUNDS,
@@ -33,37 +37,6 @@ type BaseMapProps = {
   onVisuallyReady?: () => void;
   onMapUnavailable?: () => void;
 };
-
-function logMapError(error: unknown) {
-  if (process.env.NODE_ENV !== "development") {
-    return;
-  }
-
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : "Unknown map error";
-
-  // Missing-image noise is handled (deduped) by the styleimagemissing listener.
-  if (/could not be loaded|Image "/i.test(message)) {
-    return;
-  }
-
-  // Never log style URLs or API keys.
-  console.error("[map] MapLibre error:", message);
-}
-
-function isIgnorableMapError(error: unknown): boolean {
-  const message =
-    error instanceof Error
-      ? error.message
-      : typeof error === "string"
-        ? error
-        : "";
-  return /could not be loaded|Image "/i.test(message);
-}
 
 const loggedMissingStyleImageIds = new Set<string>();
 
@@ -256,7 +229,7 @@ export function BaseMap({
       mapRef.current = map;
 
       map.on("error", (event) => {
-        logMapError(event.error ?? event);
+        logMapLibreError(event.error ?? event);
         // Before style load, escalate genuine init/style failures.
         // After load, ignore tile noise so the loader is not stuck forever.
         if (styleLoaded || isIgnorableMapError(event.error ?? event)) {
@@ -320,7 +293,7 @@ export function BaseMap({
         }
       };
     } catch (error) {
-      logMapError(error);
+      logMapLibreError(error);
       if (!cancelled) {
         onMapUnavailableRef.current?.();
       }
