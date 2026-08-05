@@ -9,34 +9,44 @@ type AppNavProps = {
   displayName?: string | null;
 };
 
+/**
+ * Authenticated header.
+ * Phones: two rows — brand + profile, then full-width ModeSwitch.
+ * Desktop (md+): one row — brand, ModeSwitch, profile.
+ */
 export function AppNav({ compact = false, displayName = null }: AppNavProps) {
   return (
     <header
       className={[
-        "z-40 border-b border-border/80 bg-surface/95 shadow-[var(--shadow-card)] backdrop-blur-sm",
+        "app-shell-header z-40 border-b border-border/80 bg-surface/95 shadow-[var(--shadow-card)] backdrop-blur-sm",
         compact ? "shrink-0" : "",
       ].join(" ")}
       data-testid="app-nav"
     >
       <div
         className={[
-          "mx-auto flex w-full flex-col gap-2.5 px-4 sm:px-6",
-          compact ? "max-w-none py-2.5" : "max-w-5xl py-3",
+          "app-shell-header-inner",
+          compact
+            ? "app-shell-header-inner--wide"
+            : "app-shell-header-inner--contained",
         ].join(" ")}
       >
-        <div className="flex items-center justify-between gap-3">
+        <div
+          className="flex items-center justify-between gap-3"
+          data-testid="app-nav-row-brand"
+        >
           <div className="flex min-w-0 items-center gap-3">
             <ModeHomeLink className="shrink-0 text-lg font-semibold tracking-tight text-foreground transition-colors duration-[var(--motion-fast)] hover:text-accent-hover">
               Switch It
             </ModeHomeLink>
-            <div className="hidden md:block">
+            <div className="hidden md:block" data-testid="app-nav-mode-desktop">
               <ModeSwitch />
             </div>
           </div>
           <ProfileMenu displayName={displayName} />
         </div>
 
-        <div className="md:hidden">
+        <div className="md:hidden" data-testid="app-nav-row-mode">
           <ModeSwitch fullWidth />
         </div>
       </div>

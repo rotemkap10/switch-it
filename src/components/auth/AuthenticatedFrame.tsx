@@ -43,19 +43,17 @@ export function AuthenticatedFrame({
     <ModeProvider userId={userId}>
       <ModeGate>
         <div
-          className={[
-            "flex min-h-full flex-1 flex-col",
-            isMap ? "h-dvh max-h-dvh min-h-0 overflow-hidden" : "",
-          ].join(" ")}
+          className={["app-shell", isMap ? "app-shell--map" : ""].join(" ")}
+          data-testid="authenticated-shell"
+          data-layout={isMap ? "map" : "page"}
         >
           <AppNav compact={isMap} displayName={displayName} />
           <main
             className={[
-              "mx-auto flex w-full flex-1 flex-col",
-              isMap
-                ? "relative min-h-0 max-w-none overflow-hidden p-0"
-                : "max-w-5xl gap-6 px-4 py-8 sm:px-6",
+              "app-shell-main",
+              isMap ? "app-shell-main--map" : "app-shell-main--page",
             ].join(" ")}
+            data-testid="authenticated-main"
           >
             <ModeContent>
               {isMap ? null : (

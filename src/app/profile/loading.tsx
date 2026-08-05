@@ -1,16 +1,22 @@
 export default function ProfileLoading() {
   return (
-    <div className="flex min-h-full flex-1 flex-col">
-      <div className="border-b border-border bg-surface px-4 py-4 sm:px-6">
-        <div className="mx-auto h-6 w-28 animate-pulse rounded bg-accent-soft" />
+    <div className="app-shell" data-testid="profile-loading-shell">
+      <div className="app-shell-header border-b border-border bg-surface">
+        <div className="app-shell-header-inner app-shell-header-inner--contained">
+          <div className="flex items-center justify-between gap-3">
+            <div className="h-6 w-28 animate-pulse rounded bg-accent-soft" />
+            <div className="h-8 w-8 animate-pulse rounded-full bg-accent-soft" />
+          </div>
+          <div className="h-11 w-full animate-pulse rounded-[var(--radius-card)] bg-accent-soft md:hidden" />
+        </div>
       </div>
-      <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-8 sm:px-6">
+      <main className="app-shell-main app-shell-main--page">
         <div className="space-y-3">
           <div className="h-8 w-40 animate-pulse rounded bg-accent-soft" />
-          <div className="h-4 w-64 animate-pulse rounded bg-accent-soft" />
+          <div className="h-4 w-64 max-w-full animate-pulse rounded bg-accent-soft" />
         </div>
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 sm:gap-5">
-          <div className="grid gap-3 sm:grid-cols-3 sm:gap-4">
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-[var(--app-card-gap)]">
+          <div className="grid gap-[var(--app-card-gap)] sm:grid-cols-3">
             <div className="h-[9.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
             <div className="h-[9.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
             <div className="h-[9.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />

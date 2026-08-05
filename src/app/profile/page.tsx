@@ -48,7 +48,7 @@ export default async function ProfilePage() {
       vehicleAccess="allow-incomplete"
     >
       <div
-        className="mx-auto flex w-full max-w-3xl flex-col gap-4 sm:gap-5"
+        className="mx-auto flex w-full max-w-3xl flex-col gap-[var(--app-section-gap)]"
         data-testid="profile-layout"
       >
         <ProfileSummaryRow

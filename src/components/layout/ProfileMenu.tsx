@@ -48,8 +48,8 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
       <button
         type="button"
         className={[
-          "inline-flex max-w-[10rem] items-center gap-2 rounded-[var(--radius-card)] border border-border bg-surface px-2.5 py-1.5",
-          "text-sm font-medium text-foreground motion-interactive-press",
+          "inline-flex max-w-[10rem] items-center gap-2 rounded-[var(--radius-card)] border border-border bg-surface px-2.5",
+          "min-h-[var(--app-tap-min)] text-sm font-medium text-foreground motion-interactive-press",
           "hover:bg-accent-soft transition-colors duration-[var(--motion-fast)]",
         ].join(" ")}
         aria-haspopup="menu"

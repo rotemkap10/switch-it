@@ -41,11 +41,33 @@ describe("AppNav", () => {
     modeState.setMode.mockReset();
   });
 
-  it("shows one mode switch with Find parking and Share a spot", () => {
+  it("uses a two-row phone header: brand+profile, then ModeSwitch", () => {
     render(<AppNav displayName="Alex" />);
 
-    const switches = screen.getAllByTestId("mode-switch");
-    expect(switches.length).toBeGreaterThanOrEqual(1);
+    const brandRow = screen.getByTestId("app-nav-row-brand");
+    const modeRow = screen.getByTestId("app-nav-row-mode");
+    expect(brandRow).toBeInTheDocument();
+    expect(modeRow).toBeInTheDocument();
+    expect(modeRow.className).toContain("md:hidden");
+
+    expect(brandRow).toHaveTextContent("Switch It");
+    expect(
+      screen.getByRole("button", { name: "Profile menu for Alex" }),
+    ).toBeInTheDocument();
+    expect(modeRow.querySelector('[data-testid="mode-switch"]')).not.toBeNull();
+  });
+
+  it("keeps desktop ModeSwitch in the brand row", () => {
+    render(<AppNav />);
+    const desktop = screen.getByTestId("app-nav-mode-desktop");
+    expect(desktop.className).toContain("hidden");
+    expect(desktop.className).toContain("md:block");
+    expect(desktop.querySelector('[data-testid="mode-switch"]')).not.toBeNull();
+  });
+
+  it("shows Find parking and Share a spot without legacy labels or tabs", () => {
+    render(<AppNav displayName="Alex" />);
+
     expect(
       screen.getAllByRole("tab", { name: "Find parking" }).length,
     ).toBeGreaterThan(0);
@@ -61,6 +83,11 @@ describe("AppNav", () => {
     expect(
       screen.queryByRole("navigation", { name: "Mobile" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("applies safe-area top padding via the shell header class", () => {
+    render(<AppNav />);
+    expect(screen.getByTestId("app-nav").className).toContain("app-shell-header");
   });
 
   it("selects Find parking on /map and Share a spot on /spots/new", () => {

@@ -28,9 +28,10 @@ export function SelectedSpotCard({ spot, onClose }: SelectedSpotCardProps) {
   return (
     <div
       className={[
-        "pointer-events-none absolute z-[1000] p-3",
-        // Within the map shell (already above bottom nav). Desktop: lower-left.
-        "inset-x-0 bottom-0 md:inset-x-auto md:bottom-4 md:left-4 md:right-auto md:w-full md:max-w-sm md:p-0",
+        "pointer-events-none absolute z-[1000]",
+        "inset-x-0 bottom-0 px-[var(--app-phone-gutter)] pt-3 app-overlay-pad-bottom",
+        // Desktop: lower-left.
+        "md:inset-x-auto md:bottom-4 md:left-4 md:right-auto md:w-full md:max-w-sm md:p-0 md:px-0",
       ].join(" ")}
     >
       <div

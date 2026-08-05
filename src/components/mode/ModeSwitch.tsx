@@ -71,9 +71,11 @@ export function ModeSwitch({ fullWidth = false }: ModeSwitchProps) {
             aria-current={active ? "page" : undefined}
             onClick={() => switchTo(option.mode, option.href)}
             className={[
-              "relative z-[1] flex-1 whitespace-nowrap rounded-[calc(var(--radius-card)-2px)] px-2.5 py-1.5 text-xs font-semibold sm:px-3 sm:text-sm",
+              "relative z-[1] flex flex-1 items-center justify-center whitespace-nowrap rounded-[calc(var(--radius-card)-2px)] px-2.5 text-xs font-semibold sm:px-3 sm:text-sm",
               "motion-interactive-press transition-colors duration-[var(--motion-standard)]",
-              fullWidth ? "min-w-0" : "min-w-[6.75rem]",
+              fullWidth
+                ? "min-h-[var(--app-tap-min)] min-w-0 py-2"
+                : "min-h-9 min-w-[6.75rem] py-1.5",
               active ? "text-foreground" : "text-muted hover:text-foreground",
             ].join(" ")}
           >

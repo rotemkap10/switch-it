@@ -64,10 +64,11 @@ export function FeedbackViewport() {
     <div
       data-testid="feedback-viewport"
       className={[
-        "pointer-events-none fixed z-[45] flex w-full max-w-sm flex-col gap-2 px-3",
-        // Mobile: above safe area. Desktop: top-right under header.
+        "pointer-events-none fixed z-[45] flex w-full max-w-sm flex-col gap-2",
+        "app-phone-gutter-x",
+        // Mobile: above safe area + overlay gap. Desktop: top-right.
         "bottom-[var(--app-toast-offset)]",
-        "md:bottom-auto md:right-4 md:top-[calc(var(--app-header-height)+0.75rem)] md:left-auto md:px-0",
+        "md:bottom-auto md:right-4 md:top-[max(1rem,calc(var(--app-safe-top)+var(--app-desktop-header-offset)))] md:left-auto md:px-0",
       ].join(" ")}
     >
       {items.map((item) => (

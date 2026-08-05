@@ -278,7 +278,7 @@ export function ActiveClaimPanel({
 
   if (variant === "overlay") {
     return (
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[30] p-3 md:left-4 md:right-auto md:w-full md:max-w-sm md:p-4">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[30] px-[var(--app-phone-gutter)] pt-3 app-overlay-pad-bottom md:left-4 md:right-auto md:w-full md:max-w-sm md:px-4">
         <section
           className="pointer-events-auto"
           role="region"

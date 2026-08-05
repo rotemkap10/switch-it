@@ -28,8 +28,27 @@
   --motion-celebrate: 1000ms;
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
-  --app-header-height: 3.5rem;
-  --app-toast-offset: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+
+  /* Safe areas — use max() so non-notched phones still get normal spacing. */
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Mobile spacing rhythm (phone-first). */
+  --app-phone-gutter: 1rem; /* 16px */
+  --app-card-gap: 0.75rem; /* 12px */
+  --app-section-gap: 1.25rem; /* 20px */
+  --app-card-padding: 1rem; /* 16px */
+  --app-tap-min: 2.75rem; /* 44px */
+
+  /* Overlay / toast clearance above the home indicator. */
+  --app-overlay-bottom-gap: max(0.75rem, var(--app-safe-bottom));
+  --app-toast-offset: max(0.75rem, calc(0.75rem + var(--app-safe-bottom)));
+
+  /*
+   * Desktop-only estimate for single-row header toast placement.
+   * Do not use for flex layout — header height is content-driven.
+   */
+  --app-desktop-header-offset: 4.75rem;
 }
 
 @theme inline {
@@ -75,6 +94,89 @@ body {
 *:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+/* Authenticated shell layout utilities (Phase 1 mobile foundation) */
+
+.app-shell {
+  display: flex;
+  min-height: 100dvh;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.app-shell--map {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-shell-header {
+  flex: none;
+  padding-top: var(--app-safe-top);
+}
+
+.app-shell-header-inner {
+  margin-inline: auto;
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding-inline: var(--app-phone-gutter);
+  padding-block: 0.625rem;
+}
+
+@media (min-width: 640px) {
+  .app-shell-header-inner {
+    padding-inline: 1.5rem;
+  }
+}
+
+.app-shell-header-inner--wide {
+  max-width: none;
+}
+
+.app-shell-header-inner--contained {
+  max-width: 64rem; /* max-w-5xl */
+}
+
+.app-shell-main {
+  margin-inline: auto;
+  display: flex;
+  width: 100%;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-shell-main--map {
+  position: relative;
+  max-width: none;
+  overflow: hidden;
+  padding: 0;
+}
+
+.app-shell-main--page {
+  max-width: 64rem;
+  gap: var(--app-section-gap);
+  padding-inline: var(--app-phone-gutter);
+  padding-block: 1.5rem;
+}
+
+@media (min-width: 640px) {
+  .app-shell-main--page {
+    padding-inline: 1.5rem;
+    padding-block: 2rem;
+  }
+}
+
+.app-overlay-pad-bottom {
+  padding-bottom: var(--app-overlay-bottom-gap);
+}
+
+.app-phone-gutter-x {
+  padding-inline: var(--app-phone-gutter);
 }
 
 /* Motion utilities */

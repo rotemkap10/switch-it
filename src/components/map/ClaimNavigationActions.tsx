@@ -130,7 +130,7 @@ export function ClaimNavigationActions({
             aria-labelledby={titleId}
             className={[
               "z-50 border border-border bg-surface shadow-lg motion-fade-slide-up",
-              "fixed inset-x-0 bottom-0 rounded-t-[var(--radius-card)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))]",
+              "fixed inset-x-0 bottom-0 rounded-t-[var(--radius-card)] p-4 app-overlay-pad-bottom",
               "md:absolute md:inset-x-auto md:bottom-auto md:left-0 md:top-[calc(100%+0.5rem)] md:w-72 md:rounded-[var(--radius-card)] md:pb-4",
             ].join(" ")}
           >
