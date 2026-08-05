@@ -1,5 +1,5 @@
-import { act, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type Handler = (...args: unknown[]) => void;
 
@@ -87,7 +87,6 @@ vi.mock("@/lib/map/seekerMapConfig", () => ({
 }));
 
 import { BaseMap } from "@/components/map/BaseMap";
-import { MAP_READY_FADE_MS } from "@/components/map/MapLoadingState";
 
 describe("BaseMap loading lifecycle", () => {
   beforeEach(() => {
@@ -95,9 +94,20 @@ describe("BaseMap loading lifecycle", () => {
     mapInstance.__reset();
     MapMock.mockClear();
     vi.useRealTimers();
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      cb(0);
+      return 0;
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("shows the branded loader before the map is visually ready", async () => {
+    // Keep rAF from immediately completing readiness during this assertion.
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+
     render(
       <BaseMap
         styleUrl="https://example.test/style.json"
@@ -113,8 +123,7 @@ describe("BaseMap loading lifecycle", () => {
     expect(MapMock).toHaveBeenCalledTimes(1);
   });
 
-  it("hides the loader after load + idle", () => {
-    vi.useFakeTimers();
+  it("becomes usable after load + first paint without waiting for idle", async () => {
     const onMapReady = vi.fn();
     const onVisuallyReady = vi.fn();
 
@@ -134,23 +143,61 @@ describe("BaseMap loading lifecycle", () => {
       mapInstance.__emitOnce("load");
     });
     expect(onMapReady).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(onVisuallyReady).not.toHaveBeenCalled();
-
-    act(() => {
-      mapInstance.__emitOnce("idle");
-    });
+    // Sync rAF stub from beforeEach advances the paint path immediately.
     expect(onVisuallyReady).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole("status")).toBeInTheDocument();
 
-    act(() => {
-      vi.advanceTimersByTime(MAP_READY_FADE_MS);
+    await waitFor(() => {
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
+  });
 
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  it("does not recreate the map when center props change", () => {
+    const { rerender } = render(
+      <BaseMap
+        styleUrl="https://example.test/style.json"
+        center={[34.78, 32.08]}
+        zoom={14}
+        onMapReady={vi.fn()}
+      />,
+    );
+
+    expect(MapMock).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <BaseMap
+        styleUrl="https://example.test/style.json"
+        center={[34.9, 32.2]}
+        zoom={16}
+        onMapReady={vi.fn()}
+      />,
+    );
+
+    expect(MapMock).toHaveBeenCalledTimes(1);
+    expect(mapInstance.remove).not.toHaveBeenCalled();
+  });
+
+  it("constructs with pitch/rotate constraints for parking UX", () => {
+    render(
+      <BaseMap
+        styleUrl="https://example.test/style.json"
+        center={[34.78, 32.08]}
+        zoom={14}
+        onMapReady={vi.fn()}
+      />,
+    );
+
+    expect(MapMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dragRotate: false,
+        touchPitch: false,
+        pitchWithRotate: false,
+        maxPitch: 0,
+      }),
+    );
   });
 
   it("replaces the loading path with unavailable when init fails before load", async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 0);
     const onMapUnavailable = vi.fn();
 
     render(

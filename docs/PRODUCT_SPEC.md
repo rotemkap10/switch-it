@@ -121,6 +121,12 @@ The header mode switch is the single primary way to move between these
 experiences. Profile and Log out live in a compact profile menu. There is no
 separate “My spot”, “Looking”, or “Leaving” navigation item.
 
+During an active handoff (and while browsing available spots), open map and
+publisher screens update live when the other party claims, cancels, or
+completes — without requiring a manual refresh. Live updates use Supabase
+Realtime as a refresh signal only; authorization and handoff codes still go
+through existing server queries and RPCs.
+
 ### 9.1 Registration and login
 
 1. User opens the app and chooses register or login.

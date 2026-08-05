@@ -3,12 +3,15 @@
 import dynamic from "next/dynamic";
 
 import { MapLoadingState } from "@/components/map/MapLoadingState";
+import { loadMapLibreModule } from "@/lib/map/load-maplibre-module";
 import type { MapSpot } from "@/types/map-spot";
 
 const ParkingMap = dynamic(
   () =>
-    import("@/components/map/ParkingMapMapLibre").then(
-      (mod) => mod.ParkingMap,
+    loadMapLibreModule().then(() =>
+      import("@/components/map/ParkingMapMapLibre").then(
+        (mod) => mod.ParkingMap,
+      ),
     ),
   {
     ssr: false,

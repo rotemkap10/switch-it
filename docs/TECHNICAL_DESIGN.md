@@ -462,6 +462,19 @@ server-only, env-protected, and out of the MVP user path.
   `Verifying…`, etc.) + `Button` `loading`/`disabled`/`aria-busy`.
 - No automatic retries for state-changing operations.
 
+### Map readiness (presentation)
+
+- Blocking loader hides after MapLibre `load` + first paint (double
+  `requestAnimationFrame`), not after full tile `idle`.
+- Remaining tiles/labels may continue loading behind a usable map.
+- Location picker center-pin overlay uses `map-pin-fade` (opacity only) and
+  never `map-canvas-fade.is-ready`, which would steal pointer events.
+- `BaseMap` treats `center`/`zoom` as **initial camera only**; coordinate
+  updates must use `jumpTo`/`easeTo` so the map is not recreated on every
+  moveend.
+- Opt-in load marks: `localStorage.setItem("switch-it:map-perf", "1")` in
+  development (no secrets/coords in marks).
+
 ### Two-intent navigation (presentation)
 
 - Authenticated chrome exposes exactly two primary intents:
@@ -477,6 +490,29 @@ server-only, env-protected, and out of the MVP user path.
   sliding mode pill uses `motion-mode-pill` (~200ms ease-out). Respect
   `prefers-reduced-motion`.
 - Publish CTA copy is **Share spot** / **Sharing…**.
+
+### Supabase Realtime (live invalidation)
+
+- **Tables published:** `parking_spots`, `claims` only (migration
+  `20260805220000_realtime_publication_spots_claims.sql`).
+  Not published: `profiles`, `claim_handoff_secrets`, `credit_transactions`.
+- **Model:** Postgres Changes are **invalidation signals**. UI rebuilds via
+  debounced `router.refresh()` (~250ms) and existing authenticated RSC queries
+  / owner-only RPCs (`get_handoff_code`, `get_handoff_counterpart_vehicle`).
+  Do not trust payloads for codes, vehicles, or credit state.
+- **Channels (route-scoped):**
+  - `/map`: `map-spots:{userId}` on `parking_spots`; `map-claim:{claimId}`
+    while an active seeker claim exists.
+  - `/spots/new`: `publisher-spot:{userId}` filtered `owner_id`; claim channel
+    when claimed; spot-scoped claim INSERT watch while available.
+- **RLS unchanged.** INSERT/UPDATE events still require SELECT. Limitation:
+  other seekers may not receive `parking_spots` UPDATE when a row leaves
+  `status = available` (claimed). New available INSERTs and own claim/owner
+  spot events still work. Lazy expiry remains separate (no cron).
+- **Feedback:** terminal claim events may toast once; local Server Action
+  success suppresses matching Realtime toasts briefly.
+- **Degradation:** app remains usable if Realtime disconnects; actions and
+  manual refresh still work. No service-role client.
 
 ## 12. Server Actions or Route Handlers
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { CancelSpotButton } from "@/components/spots/CancelSpotButton";
 import { HandoffCodeSection } from "@/components/spots/HandoffCodeSection";
@@ -43,22 +43,35 @@ export function PublisherSpotCard({
 }: PublisherSpotCardProps) {
   const claimed = spot.status === "claimed";
   const [claimedEmphasis, setClaimedEmphasis] = useState(false);
-  const previousStatusRef = useRef(spot.status);
   const destinationLabel = publisherSpotTitleLabel(spot.address);
   const hasValidCoords =
     Number.isFinite(spot.latitude) && Number.isFinite(spot.longitude);
 
   useEffect(() => {
-    const previous = previousStatusRef.current;
-    previousStatusRef.current = spot.status;
+    if (typeof window === "undefined") {
+      return;
+    }
 
+    const statusKey = `switch-it:publisher-spot-status:${spot.id}`;
+    const previous = window.sessionStorage.getItem(statusKey);
+    window.sessionStorage.setItem(statusKey, spot.status);
+
+    // One-shot when this session observed available → claimed (incl. Realtime).
     if (previous === "available" && spot.status === "claimed") {
-      setClaimedEmphasis(true);
-      const timer = window.setTimeout(() => setClaimedEmphasis(false), 720);
-      return () => window.clearTimeout(timer);
+      const playedKey = `switch-it:publisher-claimed-emphasis:${spot.id}`;
+      if (window.sessionStorage.getItem(playedKey)) {
+        return;
+      }
+      window.sessionStorage.setItem(playedKey, "1");
+      const start = window.setTimeout(() => setClaimedEmphasis(true), 0);
+      const stop = window.setTimeout(() => setClaimedEmphasis(false), 720);
+      return () => {
+        window.clearTimeout(start);
+        window.clearTimeout(stop);
+      };
     }
     return undefined;
-  }, [spot.status]);
+  }, [spot.status, spot.id]);
 
   return (
     <div

@@ -7,11 +7,14 @@ import type { ComponentProps } from "react";
 import { MapLoadingState } from "@/components/map/MapLoadingState";
 import type { SpotLocationPicker } from "@/components/spots/SpotLocationPickerMapLibre";
 import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
+import { loadMapLibreModule } from "@/lib/map/load-maplibre-module";
 
 const SpotLocationPickerClient = dynamic(
   () =>
-    import("@/components/spots/SpotLocationPickerMapLibre").then(
-      (mod) => mod.SpotLocationPicker,
+    loadMapLibreModule().then(() =>
+      import("@/components/spots/SpotLocationPickerMapLibre").then(
+        (mod) => mod.SpotLocationPicker,
+      ),
     ),
   {
     ssr: false,

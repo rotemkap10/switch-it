@@ -4,13 +4,16 @@ import dynamic from "next/dynamic";
 
 import { MapLoadingState } from "@/components/map/MapLoadingState";
 import type { PublisherSpotPreviewMapProps } from "@/components/spots/PublisherSpotPreviewMap";
+import { loadMapLibreModule } from "@/lib/map/load-maplibre-module";
 
 const PREVIEW_HEIGHT_CLASS = "h-[220px]";
 
 const PreviewMap = dynamic(
   () =>
-    import("@/components/spots/PublisherSpotPreviewMap").then(
-      (mod) => mod.PublisherSpotPreviewMap,
+    loadMapLibreModule().then(() =>
+      import("@/components/spots/PublisherSpotPreviewMap").then(
+        (mod) => mod.PublisherSpotPreviewMap,
+      ),
     ),
   {
     ssr: false,

@@ -1,5 +1,6 @@
 import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
 import { type ActiveClaimSummary } from "@/components/map/ActiveClaimPanel";
+import { MapRealtimeSync } from "@/components/map/MapRealtimeSync";
 import { SeekerMapExperience } from "@/components/map/SeekerMapExperience";
 import { requireUser } from "@/lib/auth/require-user";
 import { fetchHandoffCounterpartVehicle } from "@/lib/vehicle/fetch-handoff-counterpart-vehicle";
@@ -260,6 +261,10 @@ export default async function MapPage() {
       description="Choose a spot nearby."
       handoffException="active-seeker"
     >
+      <MapRealtimeSync
+        userId={user.id}
+        activeClaimId={activeClaim?.claimId ?? null}
+      />
       <SeekerMapExperience
         spots={spots}
         destination={activeClaimDestination}

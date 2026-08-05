@@ -11,6 +11,10 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import {
+  realtimeFeedbackKey,
+  useSuppressRealtimeOnSuccess,
+} from "@/lib/realtime/use-suppress-realtime-on-success";
 
 const initialState: CompleteClaimActionState = {};
 
@@ -32,6 +36,11 @@ export function CompleteHandoffForm({ claimId }: CompleteHandoffFormProps) {
     // Incorrect / locked codes stay next to the input — no duplicate toast.
     toastErrors: false,
   });
+
+  useSuppressRealtimeOnSuccess(
+    state.success,
+    realtimeFeedbackKey("claim", claimId, "completed"),
+  );
 
   if (state.success) {
     return (

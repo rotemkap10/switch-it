@@ -1,6 +1,6 @@
 "use client";
 
-import type { Map as MapLibreMap } from "maplibre-gl";
+import { NavigationControl, type Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { BaseMap } from "@/components/map/BaseMap";
@@ -25,6 +25,7 @@ export type SpotLocationPickerProps = {
 export { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
 
 const COORD_EPSILON = 1e-7;
+const LOCATION_SELECTED_MS = 1600;
 
 function coordsNearlyEqual(
   aLat: number,
@@ -38,7 +39,14 @@ function coordsNearlyEqual(
   );
 }
 
-function setMapInteractionEnabled(map: MapLibreMap, enabled: boolean) {
+/**
+ * Enable pan/zoom for the center-pin picker.
+ * Rotation stays disabled so mobile gestures stay simple.
+ */
+export function setPickerMapInteractionEnabled(
+  map: MapLibreMap,
+  enabled: boolean,
+) {
   const handlers = [
     map.dragPan,
     map.scrollZoom,
@@ -54,6 +62,11 @@ function setMapInteractionEnabled(map: MapLibreMap, enabled: boolean) {
     } else {
       handler.disable();
     }
+  }
+
+  // Keep pinch zoom; suppress two-finger rotate.
+  if (enabled && typeof map.touchZoomRotate.disableRotation === "function") {
+    map.touchZoomRotate.disableRotation();
   }
 }
 
@@ -74,9 +87,17 @@ export function SpotLocationPickerMapLibre({
   const shellRef = useRef<HTMLDivElement | null>(null);
   const onLocationChangeRef = useRef(onLocationChange);
   const programmaticMoveRef = useRef(false);
+  const handlersBoundRef = useRef(false);
   const [pinLifting, setPinLifting] = useState(false);
   const [mapUnavailable, setMapUnavailable] = useState(false);
   const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
+  const [showSelectedHint, setShowSelectedHint] = useState(false);
+
+  // Stable initial camera for BaseMap — never recreate from moveend updates.
+  const [initialCenter] = useState<[number, number]>(() => [
+    longitude,
+    latitude,
+  ]);
 
   useEffect(() => {
     onLocationChangeRef.current = onLocationChange;
@@ -88,14 +109,12 @@ export function SpotLocationPickerMapLibre({
     typeof userLongitude === "number" &&
     Number.isFinite(userLongitude);
 
-  const initialCenter: [number, number] = [longitude, latitude];
-
   useEffect(() => {
     const map = mapRef.current;
     if (!map) {
       return;
     }
-    setMapInteractionEnabled(map, !disabled);
+    setPickerMapInteractionEnabled(map, !disabled);
   }, [disabled]);
 
   // Sync external coordinate changes (e.g. manual entry) into the map view.
@@ -115,6 +134,16 @@ export function SpotLocationPickerMapLibre({
     map.resize();
     programmaticMoveRef.current = false;
   }, [latitude, longitude, disabled]);
+
+  useEffect(() => {
+    if (!showSelectedHint) {
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setShowSelectedHint(false);
+    }, LOCATION_SELECTED_MS);
+    return () => window.clearTimeout(id);
+  }, [showSelectedHint]);
 
   if (styleUrl === null || mapUnavailable) {
     return (
@@ -136,6 +165,7 @@ export function SpotLocationPickerMapLibre({
         LEAVER_MAP_SHELL_HEIGHT_CLASS,
       ].join(" ")}
       aria-label="Map to adjust your parking spot location"
+      data-testid="leaver-map-picker"
     >
       {/* Explicit shell height; BaseMap fills it so the canvas is never 0×0. */}
       <BaseMap
@@ -148,17 +178,22 @@ export function SpotLocationPickerMapLibre({
         onMapReady={(map) => {
           mapRef.current = map;
           map.resize();
-          setMapInteractionEnabled(map, !disabled);
+          setPickerMapInteractionEnabled(map, !disabled);
 
-          if (process.env.NODE_ENV === "development" && shellRef.current) {
-            const rect = shellRef.current.getBoundingClientRect();
-            console.info("[map] Leaver picker ready", {
-              width: Math.round(rect.width),
-              height: Math.round(rect.height),
-              mapCreated: true,
-              mapLoadFired: true,
-            });
+          if (!map.getContainer().querySelector(".maplibregl-ctrl-zoom-in")) {
+            map.addControl(
+              new NavigationControl({
+                showCompass: false,
+                visualizePitch: false,
+              }),
+              "bottom-right",
+            );
           }
+
+          if (handlersBoundRef.current) {
+            return;
+          }
+          handlersBoundRef.current = true;
 
           map.on("movestart", () => {
             if (programmaticMoveRef.current || disabled) {
@@ -173,18 +208,21 @@ export function SpotLocationPickerMapLibre({
               return;
             }
             const center = map.getCenter();
+            // Final center only — never on every move frame.
             onLocationChangeRef.current(center.lat, center.lng);
+            setShowSelectedHint(true);
           });
         }}
       />
 
-      {/* Fixed center parking pin — above canvas; hidden until map is visually ready. */}
+      {/* Fixed center pin — decorative only; must never capture pointers. */}
       <div
         className={[
-          "pointer-events-none absolute inset-0 z-[2] flex items-center justify-center overflow-visible map-canvas-fade",
+          "pointer-events-none absolute inset-0 z-[2] flex items-center justify-center overflow-visible map-pin-fade",
           mapVisuallyReady ? "is-ready" : "",
         ].join(" ")}
         aria-hidden="true"
+        data-testid="leaver-center-pin-overlay"
       >
         <div
           className={["leaver-center-pin", pinLifting ? "is-lifting" : ""].join(
@@ -213,8 +251,17 @@ export function SpotLocationPickerMapLibre({
         </div>
       </div>
 
+      {showSelectedHint && mapVisuallyReady ? (
+        <p
+          className="pointer-events-none absolute bottom-3 left-3 z-[3] rounded-full border border-border bg-surface/95 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm motion-fade-in"
+          role="status"
+        >
+          Location selected
+        </p>
+      ) : null}
+
       {canRecenter && mapVisuallyReady ? (
-        <div className="absolute right-2 top-2 z-[3]">
+        <div className="pointer-events-auto absolute right-2 top-2 z-[3]">
           <Button
             type="button"
             variant="secondary"
@@ -240,6 +287,7 @@ export function SpotLocationPickerMapLibre({
                 programmaticMoveRef.current = false;
                 const center = map.getCenter();
                 onLocationChangeRef.current(center.lat, center.lng);
+                setShowSelectedHint(true);
               });
             }}
             aria-label="Recenter on my location"

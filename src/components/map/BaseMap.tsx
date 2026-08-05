@@ -18,6 +18,7 @@ import {
   isIgnorableMapError,
   logMapLibreError,
 } from "@/lib/map/is-ignorable-map-error";
+import { mapPerfMark, mapPerfMeasure } from "@/lib/map/map-perf";
 import {
   MAP_MAX_ZOOM,
   MAP_MIN_ZOOM,
@@ -29,11 +30,13 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 type BaseMapProps = {
   styleUrl: string;
+  /** Initial camera only — later updates must use map.jumpTo/easeTo. */
   center: [number, number]; // [lng, lat]
+  /** Initial zoom only — later updates must use map APIs. */
   zoom: number;
   className?: string;
   onMapReady: (map: MapLibreMap) => void;
-  /** Fires when the map is visually ready (load + idle). */
+  /** Fires when the map is usable (style loaded + first paint). */
   onVisuallyReady?: () => void;
   onMapUnavailable?: () => void;
 };
@@ -101,7 +104,6 @@ function logSpriteDiagnostics(map: MapLibreMap) {
     shape,
     entryCount: entries.length,
     entries,
-    // Confirm we did not run language/style rewriting.
     languageRewriteApplied: false,
   });
 }
@@ -136,6 +138,9 @@ export function BaseMap({
   const onMapReadyRef = useRef(onMapReady);
   const onVisuallyReadyRef = useRef(onVisuallyReady);
   const onMapUnavailableRef = useRef(onMapUnavailable);
+  // Capture construction camera once — do not recreate the map when parents
+  // pass new center/zoom arrays after moveend or re-render.
+  const initialViewRef = useRef({ center, zoom });
   const [visuallyReady, setVisuallyReady] = useState(false);
   const [showLoader, setShowLoader] = useState(true);
 
@@ -179,12 +184,17 @@ export function BaseMap({
     let didLogInitialResize = false;
     let styleLoaded = false;
     let visualReadyMarked = false;
+    let paintFrame = 0;
+    let idleFallbackTimer = 0;
 
-    const markVisuallyReady = () => {
+    const markVisuallyReady = (reason: string) => {
       if (cancelled || visualReadyMarked) {
         return;
       }
       visualReadyMarked = true;
+      mapPerfMark("map:usable");
+      mapPerfMeasure("map:mount-to-usable", "map:mount", "map:usable");
+      mapPerfMeasure(`map:usable-via-${reason}`, "map:load", "map:usable");
       setVisuallyReady(true);
       onVisuallyReadyRef.current?.();
     };
@@ -197,6 +207,7 @@ export function BaseMap({
     };
 
     try {
+      mapPerfMark("map:mount");
       configureMapLibreWorker();
       configureMapLibreRtlPlugin();
 
@@ -207,11 +218,14 @@ export function BaseMap({
         getMapTilerApiKey(),
       );
 
+      const { center: initialCenter, zoom: initialZoom } = initialViewRef.current;
+
+      mapPerfMark("map:constructor-start");
       const map = new MapLibreMap({
         container,
         style: styleUrl,
-        center,
-        zoom,
+        center: initialCenter,
+        zoom: initialZoom,
         minZoom: MAP_MIN_ZOOM,
         maxZoom: MAP_MAX_ZOOM,
         maxBounds: MAP_SUPPORTED_MAX_BOUNDS,
@@ -225,6 +239,12 @@ export function BaseMap({
         pitchWithRotate: false,
         maxPitch: 0,
       });
+      mapPerfMark("map:constructor-end");
+      mapPerfMeasure(
+        "map:constructor",
+        "map:constructor-start",
+        "map:constructor-end",
+      );
 
       mapRef.current = map;
 
@@ -250,22 +270,36 @@ export function BaseMap({
         mapRef.current.resize();
       };
 
-      // Style + first render: hand map to parents for layers.
-      // Visual readiness waits for the subsequent idle so tiles/paint settle.
+      // Usable after style load + first paint. Do not block on full tile idle.
       map.once("load", () => {
         if (cancelled || !mapRef.current) {
           return;
         }
 
         styleLoaded = true;
+        mapPerfMark("map:load");
+        mapPerfMeasure("map:mount-to-load", "map:mount", "map:load");
         requestResize();
         logContainerMetrics("BaseMap load", containerRef.current, true);
         logSpriteDiagnostics(mapRef.current);
         onMapReadyRef.current(mapRef.current);
 
-        map.once("idle", () => {
-          markVisuallyReady();
+        // Double rAF ≈ first painted frame after load handlers run.
+        paintFrame = window.requestAnimationFrame(() => {
+          paintFrame = window.requestAnimationFrame(() => {
+            markVisuallyReady("paint");
+          });
         });
+
+        // Safety: if paint scheduling is starved, still unlock on idle.
+        map.once("idle", () => {
+          mapPerfMark("map:idle");
+          markVisuallyReady("idle");
+        });
+
+        idleFallbackTimer = window.setTimeout(() => {
+          markVisuallyReady("timeout");
+        }, 4000);
       });
 
       if (typeof ResizeObserver === "function") {
@@ -286,6 +320,8 @@ export function BaseMap({
       return () => {
         cancelled = true;
         window.cancelAnimationFrame(rafId);
+        window.cancelAnimationFrame(paintFrame);
+        window.clearTimeout(idleFallbackTimer);
         resizeObserver?.disconnect();
         if (mapRef.current) {
           mapRef.current.remove();
@@ -302,14 +338,15 @@ export function BaseMap({
         resizeObserver?.disconnect();
       };
     }
-  }, [center, styleUrl, zoom]);
+    // styleUrl is the only recreate trigger. Center/zoom are initial-only.
+  }, [styleUrl]);
 
   return (
     <div className={["relative h-full w-full", className].join(" ")} style={style}>
       <div
         ref={containerRef}
         className={[
-          "absolute inset-0 h-full w-full map-canvas-fade",
+          "absolute inset-0 h-full w-full touch-none map-canvas-fade",
           visuallyReady ? "is-ready" : "",
         ].join(" ")}
       />

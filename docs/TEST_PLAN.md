@@ -239,6 +239,16 @@ Cosmetic form tests are P1/P2 and may be deferred.
 | **Expected** | Live regions correct; max 2 toasts; auto-dismiss success; friendly mapped copy only; unknown URL keys ignored; no raw DB text |
 | **Priority** | P0 |
 
+### C-08 — Realtime invalidation
+
+| Field | Content |
+|-------|---------|
+| **Level** | Unit / component |
+| **Preconditions** | Mocked Supabase channel + `router.refresh` |
+| **Actions** | Mount map/publisher sync; emit claim cancel; burst spot events; unmount |
+| **Expected** | Deterministic channels; debounced single refresh; claim feedback once; cleanup `removeChannel`; no secrets/profiles subscriptions |
+| **Priority** | P1 |
+
 ### C-05 — Countdown pending vs ready
 
 | Field | Content |

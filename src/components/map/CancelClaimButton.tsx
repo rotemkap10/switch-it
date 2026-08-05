@@ -9,6 +9,10 @@ import {
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import {
+  realtimeFeedbackKey,
+  useSuppressRealtimeOnSuccess,
+} from "@/lib/realtime/use-suppress-realtime-on-success";
 
 const initialState: CancelClaimActionState = {};
 
@@ -27,6 +31,11 @@ export function CancelClaimButton({ claimId }: CancelClaimButtonProps) {
     successMessage: FEEDBACK_SUCCESS_KEYS["claim-cancelled"],
     toastErrors: true,
   });
+
+  useSuppressRealtimeOnSuccess(
+    state.success,
+    realtimeFeedbackKey("claim", claimId, "cancelled"),
+  );
 
   if (state.success) {
     return (

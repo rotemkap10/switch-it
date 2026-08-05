@@ -9,6 +9,10 @@ import {
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import {
+  realtimeFeedbackKey,
+  useSuppressRealtimeOnSuccess,
+} from "@/lib/realtime/use-suppress-realtime-on-success";
 
 const initialState: CancelSpotActionState = {};
 
@@ -26,6 +30,11 @@ export function CancelSpotButton({ spotId }: CancelSpotButtonProps) {
     successMessage: FEEDBACK_SUCCESS_KEYS["spot-cancelled"],
     toastErrors: true,
   });
+
+  useSuppressRealtimeOnSuccess(
+    state.success,
+    realtimeFeedbackKey("spot", spotId, "cancelled"),
+  );
 
   if (state.success) {
     return (

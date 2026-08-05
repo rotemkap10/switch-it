@@ -47,6 +47,7 @@ The project must demonstrate:
 8. Credit transactions.
 9. User activity history.
 10. Responsive user interface.
+11. Live UI updates for active handoffs via Supabase Realtime (invalidation + refresh).
 
 ## Non-goals for the MVP
 

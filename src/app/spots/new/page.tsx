@@ -5,6 +5,7 @@ import {
   PublisherSpotCard,
   type PublisherSpotSummary,
 } from "@/components/spots/PublisherSpotCard";
+import { PublisherRealtimeSync } from "@/components/spots/PublisherRealtimeSync";
 import { Alert } from "@/components/ui/Alert";
 import { requireUser } from "@/lib/auth/require-user";
 import { fetchHandoffCode } from "@/lib/handoff/fetch-handoff-code";
@@ -61,6 +62,7 @@ export default async function NewSpotPage() {
 
   let counterpartVehicle = null;
   let handoffCode: string | null = null;
+  let activeClaimId: string | null = null;
   if (publisherSpot?.status === "claimed") {
     const { data: activeClaim } = await supabase
       .from("claims")
@@ -70,6 +72,7 @@ export default async function NewSpotPage() {
       .maybeSingle();
 
     if (activeClaim && typeof activeClaim.id === "string") {
+      activeClaimId = activeClaim.id;
       [counterpartVehicle, handoffCode] = await Promise.all([
         fetchHandoffCounterpartVehicle(supabase, activeClaim.id),
         fetchHandoffCode(supabase, activeClaim.id),
@@ -83,6 +86,11 @@ export default async function NewSpotPage() {
       description="Let nearby drivers know when you’re leaving."
       handoffException="active-publisher"
     >
+      <PublisherRealtimeSync
+        userId={user.id}
+        spotId={publisherSpot?.id ?? null}
+        claimId={activeClaimId}
+      />
       <VehicleSetupReminder />
       {error ? (
         <Alert tone="error">Could not load your parking spot.</Alert>

@@ -151,7 +151,20 @@ body {
 
 .map-canvas-fade.is-ready {
   opacity: 1;
+  /* Canvas must receive gestures once ready. */
   pointer-events: auto;
+}
+
+/* Decorative center-pin overlay — opacity only; never captures pointers. */
+.map-pin-fade {
+  opacity: 0;
+  transition: opacity 250ms var(--motion-ease);
+  pointer-events: none;
+}
+
+.map-pin-fade.is-ready {
+  opacity: 1;
+  pointer-events: none;
 }
 
 .map-loader-fade {

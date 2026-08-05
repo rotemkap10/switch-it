@@ -239,6 +239,11 @@ export function ParkingMapMapLibre({
   >(null);
   const onVisuallyReadyRef = useRef(onVisuallyReady);
 
+  // Reconcile selection when Realtime refresh removes the spot from props.
+  if (selectedId && !spots.some((spot) => spot.id === selectedId)) {
+    setSelectedId(null);
+  }
+
   useEffect(() => {
     onVisuallyReadyRef.current = onVisuallyReady;
   }, [onVisuallyReady]);
