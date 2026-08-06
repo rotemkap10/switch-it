@@ -46,6 +46,8 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain('[data-map-bottom="selected"]');
     expect(css).toContain('[data-map-bottom="claim-collapsed"]');
     expect(css).toContain('[data-map-bottom="claim-expanded"]');
+    expect(css).toContain("--map-claim-expanded-clearance");
+    expect(css).not.toContain("min(42dvh, 16rem)");
     expect(css).toContain(".map-floating-control");
     expect(css).toContain(".map-carousel");
     expect(css).toContain(".map-bottom-sheet");
@@ -69,6 +71,8 @@ describe("mobile shell CSS foundation", () => {
 
   it("defines mobile account form utilities", () => {
     expect(css).toContain(".auth-page");
+    expect(css).toContain("justify-content: flex-start");
+    expect(css).toContain("overflow-x: hidden");
     expect(css).toContain(".mobile-form-surface");
     expect(css).toContain(".mobile-form-fields");
     expect(css).toContain(".mobile-form-primary");

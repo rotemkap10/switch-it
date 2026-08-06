@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { readReverseGeocodeCache } from "@/lib/geocoding/reverse-geocode-cache";
 import { reverseGeocode } from "@/lib/geocoding/reverse-geocode";
 import type { ReverseGeocodeLookupStatus } from "@/lib/geocoding/types";
 
@@ -54,6 +55,23 @@ export function useReverseGeocode(
 
     if (!enabled || latitude === null || longitude === null) {
       return;
+    }
+
+    const cached = readReverseGeocodeCache(latitude, longitude);
+    if (cached) {
+      debounceRef.current = window.setTimeout(() => {
+        debounceRef.current = null;
+        setAddressForPublish(cached.label);
+        setLabel(cached.label);
+        setStatus(cached.label ? "success" : "unavailable");
+        setIsUpdating(false);
+      }, 0);
+      return () => {
+        if (debounceRef.current !== null) {
+          window.clearTimeout(debounceRef.current);
+          debounceRef.current = null;
+        }
+      };
     }
 
     const targetKey = coordsKey(latitude, longitude);
@@ -117,6 +135,7 @@ export function useReverseGeocode(
 
   function notifyMapMoveStart() {
     setIsUpdating(true);
+    setAddressForPublish(null);
     if (label) {
       setStatus("loading");
     }

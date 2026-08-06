@@ -62,6 +62,7 @@ export function SelectedSpotCard({
             <p
               id={titleId}
               className="truncate text-sm font-semibold text-foreground"
+              title={addressLabel}
             >
               {addressLabel}
             </p>

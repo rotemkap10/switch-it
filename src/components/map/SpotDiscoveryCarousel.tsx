@@ -143,7 +143,9 @@ export function SpotDiscoveryCarousel({
               ) : null}
               <p className="mt-1.5 flex min-w-0 items-start gap-1.5 text-xs font-medium text-foreground">
                 <LocationPinIcon />
-                <span className="min-w-0 truncate">{card.address}</span>
+                <span className="min-w-0 truncate" title={card.address}>
+                  {card.address}
+                </span>
               </p>
             </button>
           );

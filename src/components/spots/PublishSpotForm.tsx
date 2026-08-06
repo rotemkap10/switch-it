@@ -128,6 +128,7 @@ function AddressLookupSummary({
         <p
           className="publisher-location-summary__value"
           data-testid="publisher-address-label"
+          title={addressLabel ?? undefined}
         >
           {addressLabel}
         </p>

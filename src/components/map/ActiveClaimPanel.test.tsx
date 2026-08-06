@@ -121,7 +121,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(host.className).toContain("map-bottom-sheet-host--claim");
 
     expect(screen.getByTestId("active-claim-sticky-actions")).toBeInTheDocument();
-    expect(screen.getByText("Complete the handoff")).toBeInTheDocument();
+    expect(screen.getByTestId("complete-handoff-form")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Verify and complete" }),
     ).toBeInTheDocument();

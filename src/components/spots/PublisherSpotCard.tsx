@@ -107,7 +107,7 @@ export function PublisherSpotCard({
         ) : null}
       </div>
 
-      <p className="mt-3 truncate text-sm font-medium text-foreground">
+      <p className="mt-3 truncate text-sm font-medium text-foreground" title={destinationLabel}>
         {destinationLabel}
       </p>
       <p className="mt-2 text-lg">

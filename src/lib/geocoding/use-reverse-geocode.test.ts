@@ -1,7 +1,10 @@
 import { renderHook, act } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resetReverseGeocodeCacheForTests } from "@/lib/geocoding/reverse-geocode-cache";
+import {
+  resetReverseGeocodeCacheForTests,
+  writeReverseGeocodeCache,
+} from "@/lib/geocoding/reverse-geocode-cache";
 import { useReverseGeocode } from "@/lib/geocoding/use-reverse-geocode";
 
 const reverseGeocodeMock = vi.fn();
@@ -96,7 +99,7 @@ describe("useReverseGeocode", () => {
     expect(result.current.label).toBe("New Street, Tel Aviv");
   });
 
-  it("marks map interaction as updating without blocking publish value", () => {
+  it("marks map interaction as updating and clears publish address", () => {
     reverseGeocodeMock.mockResolvedValue({ label: "Stable St, Tel Aviv" });
 
     const { result } = renderHook(() => useReverseGeocode(32.1, 34.2, true));
@@ -106,5 +109,29 @@ describe("useReverseGeocode", () => {
     });
 
     expect(result.current.isUpdating).toBe(true);
+    expect(result.current.addressForPublish).toBeNull();
+  });
+
+  it("hydrates from the session cache without waiting for debounce", async () => {
+    writeReverseGeocodeCache(32.0853124, 34.7818124, {
+      label: "Cached Street, Tel Aviv",
+    });
+
+    const { result } = renderHook(() =>
+      useReverseGeocode(32.0853124, 34.7818124, true),
+    );
+
+    await act(async () => {
+      vi.advanceTimersByTime(0);
+    });
+
+    expect(result.current.label).toBe("Cached Street, Tel Aviv");
+    expect(result.current.addressForPublish).toBe("Cached Street, Tel Aviv");
+    expect(reverseGeocodeMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(750);
+    });
+    expect(reverseGeocodeMock).not.toHaveBeenCalled();
   });
 });

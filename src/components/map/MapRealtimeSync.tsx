@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
@@ -99,6 +100,20 @@ export function MapRealtimeSync({
       scheduleRefresh();
     },
   });
+
+  // Passive fallback when Realtime cannot deliver claimed-row updates (RLS).
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        scheduleRefresh();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [scheduleRefresh]);
 
   return null;
 }

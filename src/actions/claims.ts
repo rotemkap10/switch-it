@@ -10,6 +10,7 @@ import {
   mapAppError,
 } from "@/lib/feedback/error-map";
 import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
+import { shouldRevalidateMapAfterClaimFailure } from "@/lib/map/stale-discovery-errors";
 import {
   cancelClaimSchema,
   claimSpotSchema,
@@ -73,6 +74,9 @@ export async function claimSpot(
 
   if (error) {
     const mapped = mapAppError(error, "Could not claim parking spot.");
+    if (shouldRevalidateMapAfterClaimFailure(mapped.code)) {
+      revalidatePath("/map");
+    }
     return { error: mapped.message, errorCode: mapped.code };
   }
 

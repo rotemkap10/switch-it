@@ -149,6 +149,7 @@ function ActiveClaimSheetBody({
                 <p
                   id={sheetLabelId}
                   className="mt-0.5 truncate text-xs text-muted"
+                  title={destinationLabel}
                 >
                   {destinationLabel}
                 </p>
@@ -161,6 +162,7 @@ function ActiveClaimSheetBody({
                 <p
                   id={sheetLabelId}
                   className="mt-0.5 truncate text-sm font-medium text-foreground"
+                  title={destinationLabel}
                 >
                   {destinationLabel}
                 </p>
@@ -240,9 +242,6 @@ function ActiveClaimSheetBody({
               className="map-bottom-sheet-actions"
               data-testid="active-claim-sticky-actions"
             >
-              <p className="text-xs font-medium text-foreground">
-                Complete the handoff
-              </p>
               <CompleteHandoffForm claimId={claim.claimId} />
               <CancelClaimButton claimId={claim.claimId} />
             </div>

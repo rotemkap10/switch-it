@@ -574,6 +574,10 @@ blocking.
   other seekers may not receive `parking_spots` UPDATE when a row leaves
   `status = available` (claimed). New available INSERTs and own claim/owner
   spot events still work. Lazy expiry remains separate (no cron).
+- **Stale discovery fallback (Phase 6):** `claimSpot` revalidates `/map` when
+  the RPC returns `SPOT_UNAVAILABLE` / `SPOT_NOT_FOUND` / `SPOT_EXPIRED`.
+  `MapRealtimeSync` also schedules a debounced refresh when the tab becomes
+  visible again (`visibilitychange`). RLS is not weakened.
 - **Feedback:** terminal claim events may toast once; local Server Action
   success suppresses matching Realtime toasts briefly.
 - **Degradation:** app remains usable if Realtime disconnects; actions and

@@ -79,6 +79,12 @@ export function CompleteHandoffForm({ claimId }: CompleteHandoffFormProps) {
         key={state.lockout ? "lockout" : "default"}
         error={state.fieldErrors?.handoff_code?.[0]}
         className="font-mono tracking-[0.2em]"
+        onFocus={(event) => {
+          event.currentTarget.scrollIntoView?.({
+            block: "center",
+            behavior: "auto",
+          });
+        }}
       />
 
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}
