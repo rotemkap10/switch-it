@@ -81,4 +81,18 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".profile-summary-email");
     expect(css).toContain(".onboarding-vehicle-form");
   });
+
+  it("defines branded app launch and page entry motion utilities", () => {
+    expect(css).toContain("--motion-splash:");
+    expect(css).toContain("--motion-splash-fade:");
+    expect(css).toContain("--motion-route:");
+    expect(css).toContain(".app-launch-splash");
+    expect(css).toContain(".app-content-shell");
+    expect(css).toContain(".motion-page-enter");
+    expect(css).toContain(".motion-page-header");
+    expect(css).toContain(".switch-it-logo-mark");
+    expect(css).toContain(".map-route-transition");
+    expect(css).toContain("color-scheme: light");
+    expect(css).toContain("background-color: #dff4ff");
+  });
 });

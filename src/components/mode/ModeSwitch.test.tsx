@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const navigationState = vi.hoisted(() => ({
   pathname: "/map",
   push: vi.fn(),
+  prefetch: vi.fn(),
 }));
 
 const modeState = vi.hoisted(() => ({
@@ -15,7 +16,10 @@ const modeState = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigationState.pathname,
-  useRouter: () => ({ push: navigationState.push }),
+  useRouter: () => ({
+    push: navigationState.push,
+    prefetch: navigationState.prefetch,
+  }),
 }));
 
 vi.mock("@/components/mode/ModeProvider", () => ({
@@ -33,6 +37,7 @@ describe("ModeSwitch", () => {
   beforeEach(() => {
     navigationState.pathname = "/map";
     navigationState.push.mockReset();
+    navigationState.prefetch.mockReset();
     modeState.mode = "seeker";
     modeState.setMode.mockReset();
   });
@@ -52,7 +57,7 @@ describe("ModeSwitch", () => {
     );
   });
 
-  it("navigates to /map and /spots/new without Looking/Leaving labels", async () => {
+  it("navigates with client router.push and immediate pending feedback", async () => {
     const user = userEvent.setup();
     render(<ModeSwitch />);
 
@@ -62,6 +67,24 @@ describe("ModeSwitch", () => {
     await user.click(screen.getByRole("tab", { name: "Share a spot" }));
     expect(modeState.setMode).toHaveBeenCalledWith("leaver");
     expect(navigationState.push).toHaveBeenCalledWith("/spots/new");
+    expect(screen.getByTestId("mode-switch")).toHaveAttribute(
+      "data-pending",
+      "true",
+    );
+    expect(screen.getByRole("tab", { name: "Share a spot" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("does not navigate again while a transition is pending", async () => {
+    const user = userEvent.setup();
+    render(<ModeSwitch />);
+
+    await user.click(screen.getByRole("tab", { name: "Share a spot" }));
+    await user.click(screen.getByRole("tab", { name: "Share a spot" }));
+
+    expect(navigationState.push).toHaveBeenCalledTimes(1);
   });
 
   it("applies the sliding pill motion class", () => {

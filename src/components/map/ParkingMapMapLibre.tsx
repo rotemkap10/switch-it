@@ -37,6 +37,10 @@ import {
   isWithinSupportedMapBounds,
 } from "@/lib/map/seekerMapConfig";
 import {
+  readSessionMapCamera,
+  writeSessionMapCamera,
+} from "@/lib/map/session-camera";
+import {
   SEEKER_MARKER_IMAGE_IDS,
   SPOTS_ICON_IMAGE_EXPRESSION,
   registerSeekerMarkerImages,
@@ -243,10 +247,12 @@ export function ParkingMapMapLibre({
   );
 
   const styleFallback = mapTilerStyleUrl === null;
-  const initialCenter: [number, number] = [
+  const sessionCamera = readSessionMapCamera("seeker");
+  const initialCenter: [number, number] = sessionCamera?.center ?? [
     MAP_DEFAULT_CENTER_TEL_AVIV.lng,
     MAP_DEFAULT_CENTER_TEL_AVIV.lat,
   ];
+  const initialZoom = sessionCamera?.zoom ?? MAP_DEFAULT_ZOOM;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapUnavailable, setMapUnavailable] = useState(false);
@@ -692,7 +698,7 @@ export function ParkingMapMapLibre({
           <BaseMap
             styleUrl={mapTilerStyleUrl!}
             center={initialCenter}
-            zoom={MAP_DEFAULT_ZOOM}
+            zoom={initialZoom}
             className="absolute inset-0 h-full w-full"
             onMapUnavailable={() => setMapUnavailable(true)}
             onVisuallyReady={markVisuallyReady}
@@ -737,6 +743,14 @@ export function ParkingMapMapLibre({
                 map.on("dragstart", disableFollowOnUserMove);
                 map.on("touchstart", disableFollowOnUserMove);
                 map.on("zoomstart", disableFollowOnUserMove);
+
+                map.on("moveend", () => {
+                  const center = map.getCenter();
+                  writeSessionMapCamera("seeker", {
+                    center: [center.lng, center.lat],
+                    zoom: map.getZoom(),
+                  });
+                });
               }
 
               hasInitializedLayersRef.current = true;

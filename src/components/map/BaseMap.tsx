@@ -18,7 +18,7 @@ import {
   isIgnorableMapError,
   logMapLibreError,
 } from "@/lib/map/is-ignorable-map-error";
-import { mapPerfMark, mapPerfMeasure } from "@/lib/map/map-perf";
+import { mapPerfMark, mapPerfMeasure, PERF_MARKS } from "@/lib/map/map-perf";
 import {
   MAP_MAX_ZOOM,
   MAP_MIN_ZOOM,
@@ -208,6 +208,7 @@ export function BaseMap({
 
     try {
       mapPerfMark("map:mount");
+      mapPerfMark(PERF_MARKS.mapCreated);
       configureMapLibreWorker();
       configureMapLibreRtlPlugin();
 
@@ -278,7 +279,13 @@ export function BaseMap({
 
         styleLoaded = true;
         mapPerfMark("map:load");
+        mapPerfMark(PERF_MARKS.mapLoad);
         mapPerfMeasure("map:mount-to-load", "map:mount", "map:load");
+        mapPerfMeasure(
+          "switch-it:map-created-to-load",
+          PERF_MARKS.mapCreated,
+          PERF_MARKS.mapLoad,
+        );
         requestResize();
         logContainerMetrics("BaseMap load", containerRef.current, true);
         logSpriteDiagnostics(mapRef.current);
@@ -294,6 +301,12 @@ export function BaseMap({
         // Safety: if paint scheduling is starved, still unlock on idle.
         map.once("idle", () => {
           mapPerfMark("map:idle");
+          mapPerfMark(PERF_MARKS.mapIdle);
+          mapPerfMeasure(
+            "switch-it:map-load-to-idle",
+            PERF_MARKS.mapLoad,
+            PERF_MARKS.mapIdle,
+          );
           markVisuallyReady("idle");
         });
 

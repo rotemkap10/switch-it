@@ -11,6 +11,10 @@ import {
   assertMapTilerStyleUrlOrNull,
 } from "@/lib/map/seekerMapConfig";
 import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
+import {
+  readSessionMapCamera,
+  writeSessionMapCamera,
+} from "@/lib/map/session-camera";
 
 export type SpotLocationPickerProps = {
   latitude: number;
@@ -98,10 +102,21 @@ export function SpotLocationPickerMapLibre({
   const [showSelectedHint, setShowSelectedHint] = useState(false);
 
   // Stable initial camera for BaseMap — never recreate from moveend updates.
-  const [initialCenter] = useState<[number, number]>(() => [
-    longitude,
-    latitude,
-  ]);
+  // Prefer live form coords; fall back to in-memory session camera for continuity.
+  const [initialCenter] = useState<[number, number]>(() => {
+    const session = readSessionMapCamera("publisher");
+    if (
+      Number.isFinite(longitude) &&
+      Number.isFinite(latitude) &&
+      (longitude !== 0 || latitude !== 0)
+    ) {
+      return [longitude, latitude];
+    }
+    return session?.center ?? [longitude, latitude];
+  });
+  const [initialZoom] = useState(
+    () => readSessionMapCamera("publisher")?.zoom ?? MAP_SELECTED_SPOT_ZOOM,
+  );
 
   useEffect(() => {
     onLocationChangeRef.current = onLocationChange;
@@ -179,7 +194,7 @@ export function SpotLocationPickerMapLibre({
       <BaseMap
         styleUrl={styleUrl}
         center={initialCenter}
-        zoom={MAP_SELECTED_SPOT_ZOOM}
+        zoom={initialZoom}
         className="absolute inset-0 z-0 h-full w-full"
         onMapUnavailable={() => setMapUnavailable(true)}
         onVisuallyReady={() => setMapVisuallyReady(true)}
@@ -217,6 +232,10 @@ export function SpotLocationPickerMapLibre({
               return;
             }
             const center = map.getCenter();
+            writeSessionMapCamera("publisher", {
+              center: [center.lng, center.lat],
+              zoom: map.getZoom(),
+            });
             // Final center only — never on every move frame.
             onLocationChangeRef.current(center.lat, center.lng);
             setShowSelectedHint(true);

@@ -2,7 +2,8 @@ import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
 import { type ActiveClaimSummary } from "@/components/map/ActiveClaimPanel";
 import { MapRealtimeSync } from "@/components/map/MapRealtimeSync";
 import { SeekerMapExperience } from "@/components/map/SeekerMapExperience";
-import { requireUser } from "@/lib/auth/require-user";
+import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
+import type { requireUser } from "@/lib/auth/require-user";
 import { fetchHandoffCounterpartVehicle } from "@/lib/vehicle/fetch-handoff-counterpart-vehicle";
 import type { MapSpot } from "@/types/map-spot";
 
@@ -207,7 +208,11 @@ async function expireDueClaims(
 }
 
 export default async function MapPage() {
-  const { supabase, user } = await requireUser();
+  const access = await requireAuthenticatedVehicleAccess({
+    mode: "require-complete",
+    handoffException: "active-seeker",
+  });
+  const { supabase, user } = access;
   const nowIso = new Date().toISOString();
 
   await expireDueClaims(supabase, user.id, nowIso);
@@ -260,6 +265,7 @@ export default async function MapPage() {
       title="Find parking"
       description="Choose a spot nearby."
       handoffException="active-seeker"
+      access={access}
     >
       <MapRealtimeSync
         userId={user.id}

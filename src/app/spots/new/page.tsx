@@ -7,7 +7,7 @@ import {
 } from "@/components/spots/PublisherSpotCard";
 import { PublisherRealtimeSync } from "@/components/spots/PublisherRealtimeSync";
 import { Alert } from "@/components/ui/Alert";
-import { requireUser } from "@/lib/auth/require-user";
+import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
 import { fetchHandoffCode } from "@/lib/handoff/fetch-handoff-code";
 import { fetchHandoffCounterpartVehicle } from "@/lib/vehicle/fetch-handoff-counterpart-vehicle";
 
@@ -49,7 +49,11 @@ function toPublisherSpot(row: unknown): PublisherSpotSummary | null {
 }
 
 export default async function NewSpotPage() {
-  const { supabase, user } = await requireUser();
+  const access = await requireAuthenticatedVehicleAccess({
+    mode: "require-complete",
+    handoffException: "active-publisher",
+  });
+  const { supabase, user } = access;
 
   const { data, error } = await supabase
     .from("parking_spots")
@@ -85,6 +89,7 @@ export default async function NewSpotPage() {
       title="Share a spot"
       description="Let nearby drivers know when you’re leaving."
       handoffException="active-publisher"
+      access={access}
     >
       <PublisherRealtimeSync
         userId={user.id}

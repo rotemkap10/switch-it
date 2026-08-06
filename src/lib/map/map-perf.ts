@@ -1,11 +1,22 @@
 /**
- * Opt-in MapLibre load timeline marks (development only).
+ * Lightweight development performance marks.
  *
- * Enable with: localStorage.setItem("switch-it:map-perf", "1")
- * Never records API keys, style URLs with credentials, coords, or user ids.
+ * Enable console reporting with:
+ *   localStorage.setItem("switch-it:map-perf", "1")
+ *
+ * Marks are recorded in development only. Never records user IDs,
+ * coordinates, addresses, tokens, or API keys.
  */
 
 const PERF_FLAG = "switch-it:map-perf";
+
+export const PERF_MARKS = {
+  navigationStart: "switch-it:navigation-start",
+  routeShell: "switch-it:route-shell",
+  mapCreated: "switch-it:map-created",
+  mapLoad: "switch-it:map-load",
+  mapIdle: "switch-it:map-idle",
+} as const;
 
 export function isMapPerfEnabled(): boolean {
   if (process.env.NODE_ENV !== "development") {
@@ -21,8 +32,15 @@ export function isMapPerfEnabled(): boolean {
   }
 }
 
+function canMark(): boolean {
+  return (
+    process.env.NODE_ENV === "development" &&
+    typeof performance !== "undefined"
+  );
+}
+
 export function mapPerfMark(name: string): void {
-  if (!isMapPerfEnabled() || typeof performance === "undefined") {
+  if (!canMark()) {
     return;
   }
   try {
@@ -50,4 +68,21 @@ export function mapPerfMeasure(
   } catch {
     // Start mark may be missing if lifecycle aborted.
   }
+}
+
+/** Record a navigation-start mark and optionally log. */
+export function markNavigationStart(): void {
+  mapPerfMark(PERF_MARKS.navigationStart);
+  if (isMapPerfEnabled()) {
+    console.info("[map-perf]", PERF_MARKS.navigationStart);
+  }
+}
+
+export function markRouteShell(): void {
+  mapPerfMark(PERF_MARKS.routeShell);
+  mapPerfMeasure(
+    "switch-it:nav-to-shell",
+    PERF_MARKS.navigationStart,
+    PERF_MARKS.routeShell,
+  );
 }

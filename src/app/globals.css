@@ -26,6 +26,9 @@
   --motion-panel: 280ms;
   --motion-expressive: 720ms;
   --motion-celebrate: 1000ms;
+  --motion-splash: 360ms;
+  --motion-splash-fade: 280ms;
+  --motion-route: 160ms;
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
 
@@ -91,6 +94,8 @@
 
 html {
   background: var(--color-bg);
+  background-color: #dff4ff;
+  color-scheme: light;
   overflow-x: hidden;
 }
 
@@ -133,6 +138,7 @@ body {
 .app-shell-header {
   flex: none;
   padding-top: var(--app-safe-top);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
 }
 
 .app-shell-header-inner {
@@ -294,6 +300,9 @@ body {
   padding: 0.75rem;
   box-shadow: var(--shadow-card);
   backdrop-filter: blur(8px);
+  transition:
+    transform var(--motion-panel) var(--motion-ease),
+    opacity var(--motion-panel) var(--motion-ease);
 }
 
 .map-bottom-sheet--selected {
@@ -1019,17 +1028,276 @@ body {
 }
 
 .motion-mode-pill {
-  transition: transform 200ms ease-out;
+  transition: transform var(--motion-route, var(--motion-fast)) var(--motion-ease);
 }
 
 .motion-mode-content {
-  animation: motion-mode-content var(--motion-standard) ease-out both;
+  animation: motion-mode-content var(--motion-route, var(--motion-fast)) var(--motion-ease) both;
 }
 
 @keyframes motion-mode-content {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.is-mode-pending .motion-mode-pill {
+  opacity: 0.92;
+}
+
+.mode-tab-pending {
+  opacity: 0.95;
+}
+
+/* Branded map route transition */
+
+.map-route-transition {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.875rem;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      ellipse 90% 70% at 50% 20%,
+      var(--color-bg-strong),
+      transparent 65%
+    ),
+    var(--color-bg);
+  color: var(--color-accent);
+}
+
+.map-route-transition--fullscreen {
+  position: absolute;
+  inset: 0;
+  min-height: 100%;
+}
+
+.map-route-transition--compose {
+  height: 100%;
+  min-height: inherit;
+  width: 100%;
+}
+
+.map-route-transition__grid {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-border) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--color-border) 70%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 75%);
+}
+
+.map-route-transition__stage {
+  position: relative;
+  width: min(14rem, 72vw);
+  height: 5.5rem;
+}
+
+.map-route-transition__road {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
+}
+
+.map-route-transition__path {
+  animation: map-route-path-dash 1.4s linear infinite;
+}
+
+.map-route-transition__pin {
+  position: absolute;
+  left: 50%;
+  top: 0.15rem;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 6px 12px rgb(85 191 243 / 28%));
+}
+
+.map-route-transition__vehicle {
+  position: absolute;
+  left: 8%;
+  bottom: 0.35rem;
+  animation: map-route-vehicle-travel 1.6s var(--motion-ease-in-out) infinite;
+}
+
+.map-route-transition__status {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  max-width: 16rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+@keyframes map-route-path-dash {
+  to {
+    stroke-dashoffset: -28;
+  }
+}
+
+@keyframes map-route-vehicle-travel {
+  0% {
+    left: 8%;
+    opacity: 0;
+    transform: translateY(0);
+  }
+  12% {
+    opacity: 1;
+  }
+  78% {
+    opacity: 1;
+  }
+  100% {
+    left: 42%;
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+/* Branded app launch + page entry */
+
+.switch-it-logo-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.switch-it-logo-mark__tile {
+  position: absolute;
+  inset: 0;
+  background: var(--color-accent);
+  box-shadow: 0 10px 28px rgb(85 191 243 / 28%);
+}
+
+.switch-it-logo-mark__icon {
+  position: relative;
+  z-index: 1;
+}
+
+.app-launch-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.875rem;
+  background:
+    radial-gradient(
+      ellipse 120% 80% at 50% 0%,
+      var(--color-bg-strong),
+      transparent 62%
+    ),
+    var(--color-bg);
+  padding-top: var(--app-safe-top);
+  padding-bottom: var(--app-safe-bottom);
+  padding-inline: var(--app-phone-gutter);
+}
+
+.app-launch-splash.is-exiting {
+  animation: app-launch-exit var(--motion-splash-fade) var(--motion-ease) forwards;
+  pointer-events: none;
+}
+
+.app-launch-splash__wordmark {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--color-text);
+}
+
+.motion-launch-logo {
+  animation: app-launch-logo-in var(--motion-splash) var(--motion-ease) both;
+}
+
+.app-content-shell {
+  display: flex;
+  min-height: 100dvh;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.app-content-shell.is-waiting {
+  visibility: hidden;
+}
+
+.app-content-shell.is-revealing {
+  visibility: visible;
+  animation: app-content-reveal var(--motion-panel) var(--motion-ease) both;
+}
+
+.app-content-shell.is-ready {
+  visibility: visible;
+}
+
+.motion-page-enter {
+  animation: motion-page-enter var(--motion-panel) var(--motion-ease) both;
+}
+
+.motion-page-header {
+  animation: motion-page-header var(--motion-panel) var(--motion-ease) both;
+}
+
+@keyframes app-launch-logo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes app-launch-exit {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes app-content-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-page-header {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -1543,6 +1811,13 @@ body {
   .motion-feedback-enter,
   .motion-feedback-icon,
   .motion-mode-content,
+  .motion-page-enter,
+  .motion-page-header,
+  .motion-launch-logo,
+  .app-launch-splash.is-exiting,
+  .app-content-shell.is-revealing,
+  .map-route-transition__path,
+  .map-route-transition__vehicle,
   .motion-vehicle-drive-in,
   .motion-vehicle-preview-nudge,
   .motion-credits-settle,
@@ -1563,8 +1838,32 @@ body {
 
   .motion-mode-pill,
   .motion-reveal-panel,
-  .motion-chevron {
+  .motion-chevron,
+  .map-bottom-sheet {
     transition: none !important;
+  }
+
+  .app-content-shell.is-waiting,
+  .app-content-shell.is-revealing,
+  .app-content-shell.is-ready {
+    visibility: visible;
+    animation: none !important;
+  }
+
+  .app-launch-splash {
+    display: none !important;
+  }
+
+  .map-route-transition.is-reduced-motion .map-route-transition__vehicle,
+  .map-route-transition__vehicle {
+    animation: none !important;
+    left: 42%;
+    opacity: 1;
+    transform: translateY(-6px);
+  }
+
+  .map-route-transition__path {
+    animation: none !important;
   }
 
   .motion-reveal-panel.is-open,

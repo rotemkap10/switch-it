@@ -17,6 +17,14 @@ vi.mock("@/components/mode/ModeProvider", () => ({
   ModeProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 
+vi.mock("@/components/navigation/CoreRoutePrefetch", () => ({
+  CoreRoutePrefetch: () => null,
+}));
+
+vi.mock("@/components/map/MapLibreWarmup", () => ({
+  MapLibreWarmup: () => null,
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/map",
 }));

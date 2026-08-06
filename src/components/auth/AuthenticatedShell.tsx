@@ -6,6 +6,14 @@ import {
   type VehicleAccessMode,
   type VehicleHandoffException,
 } from "@/lib/auth/vehicle-access";
+import type { requireUser } from "@/lib/auth/require-user";
+import type { AuthenticatedVehicleStatus } from "@/lib/auth/vehicle-status";
+
+export type AuthenticatedAccess = {
+  supabase: Awaited<ReturnType<typeof requireUser>>["supabase"];
+  user: Awaited<ReturnType<typeof requireUser>>["user"];
+  status: AuthenticatedVehicleStatus;
+};
 
 type AuthenticatedShellProps = {
   title: string;
@@ -17,6 +25,11 @@ type AuthenticatedShellProps = {
   vehicleAccess?: VehicleAccessMode;
   /** Allow incomplete users when they have an active handoff on this route. */
   handoffException?: VehicleHandoffException;
+  /**
+   * Optional pre-resolved auth — avoids a second requireUser/vehicle check
+   * when the page already called requireAuthenticatedVehicleAccess.
+   */
+  access?: AuthenticatedAccess;
 };
 
 export async function AuthenticatedShell({
@@ -26,11 +39,16 @@ export async function AuthenticatedShell({
   layout = "default",
   vehicleAccess = "require-complete",
   handoffException = null,
+  access: accessProp,
 }: AuthenticatedShellProps) {
-  const { supabase, user } = await requireAuthenticatedVehicleAccess({
-    mode: vehicleAccess,
-    handoffException,
-  });
+  const access =
+    accessProp ??
+    (await requireAuthenticatedVehicleAccess({
+      mode: vehicleAccess,
+      handoffException,
+    }));
+
+  const { supabase, user } = access;
 
   const { data: profile } = await supabase
     .from("profiles")

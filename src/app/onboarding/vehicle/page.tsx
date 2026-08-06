@@ -15,7 +15,7 @@ export default async function VehicleOnboardingPage() {
   });
 
   return (
-    <main className="auth-page" data-testid="onboarding-vehicle-page">
+    <main className="auth-page motion-page-enter" data-testid="onboarding-vehicle-page">
       <p className="auth-brand">Switch It</p>
       <div className="auth-page-header">
         <p className="auth-step-label">Step 2 of 2</p>

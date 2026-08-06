@@ -4,8 +4,10 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { AppNav } from "@/components/layout/AppNav";
+import { MapLibreWarmup } from "@/components/map/MapLibreWarmup";
 import { ModeGate } from "@/components/mode/ModeGate";
 import { ModeProvider } from "@/components/mode/ModeProvider";
+import { CoreRoutePrefetch } from "@/components/navigation/CoreRoutePrefetch";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { modeFromPathname } from "@/lib/mode/constants";
 
@@ -62,6 +64,8 @@ export function AuthenticatedFrame({
               {children}
             </ModeContent>
           </main>
+          <CoreRoutePrefetch />
+          <MapLibreWarmup />
         </div>
       </ModeGate>
     </ModeProvider>

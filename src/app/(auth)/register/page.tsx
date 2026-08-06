@@ -4,7 +4,7 @@ import { RegisterForm } from "@/components/auth/RegisterForm";
 
 export default function RegisterPage() {
   return (
-    <main className="auth-page" data-testid="register-page">
+    <main className="auth-page motion-page-enter" data-testid="register-page">
       <p className="auth-brand">Switch It</p>
       <div className="auth-page-header">
         <p className="auth-step-label">Step 1 of 2</p>

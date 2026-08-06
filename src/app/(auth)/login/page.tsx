@@ -12,7 +12,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const next = getSafeRedirectPath(params.next);
 
   return (
-    <main className="auth-page" data-testid="login-page">
+    <main className="auth-page motion-page-enter" data-testid="login-page">
       <p className="auth-brand">Switch It</p>
       <div className="auth-page-header">
         <h1 className="auth-page-title">Welcome back</h1>
