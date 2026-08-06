@@ -98,6 +98,7 @@ export function SpotLocationPickerMapLibre({
   const handlersBoundRef = useRef(false);
   const [pinLifting, setPinLifting] = useState(false);
   const [mapUnavailable, setMapUnavailable] = useState(false);
+  const [mapInstanceKey, setMapInstanceKey] = useState(0);
   const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
   const [showSelectedHint, setShowSelectedHint] = useState(false);
 
@@ -168,13 +169,33 @@ export function SpotLocationPickerMapLibre({
     return () => window.clearTimeout(id);
   }, [showSelectedHint]);
 
-  if (styleUrl === null || mapUnavailable) {
+  if (styleUrl === null) {
     return (
       <div
         className={`motion-fade-slide-up flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border p-4 ${LEAVER_MAP_SHELL_HEIGHT_CLASS}`}
         aria-label="Map to adjust your parking spot location"
       >
-        <MapUnavailable />
+        <MapUnavailable reason="configuration" />
+      </div>
+    );
+  }
+
+  if (mapUnavailable) {
+    return (
+      <div
+        className={`motion-fade-slide-up flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border p-4 ${LEAVER_MAP_SHELL_HEIGHT_CLASS}`}
+        aria-label="Map to adjust your parking spot location"
+      >
+        <MapUnavailable
+          reason="temporary"
+          onRetry={() => {
+            handlersBoundRef.current = false;
+            mapRef.current = null;
+            setMapVisuallyReady(false);
+            setMapUnavailable(false);
+            setMapInstanceKey((key) => key + 1);
+          }}
+        />
       </div>
     );
   }
@@ -192,6 +213,7 @@ export function SpotLocationPickerMapLibre({
     >
       {/* Explicit shell height; BaseMap fills it so the canvas is never 0×0. */}
       <BaseMap
+        key={mapInstanceKey}
         styleUrl={styleUrl}
         center={initialCenter}
         zoom={initialZoom}

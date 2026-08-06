@@ -83,6 +83,8 @@ export function PublisherLiveProgressMap({
   const followRef = useRef(true);
   const didInitialFitRef = useRef(false);
   const [follow, setFollow] = useState(true);
+  const [mapUnavailable, setMapUnavailable] = useState(false);
+  const [mapInstanceKey, setMapInstanceKey] = useState(0);
   const displaySeekerRef = useRef<{ lat: number; lng: number } | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const accuracyRef = useRef(20);
@@ -221,7 +223,31 @@ export function PublisherLiveProgressMap({
         className={`flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border ${publisherPreviewShellClass("claimed")}`}
         aria-label="Live progress map"
       >
-        <MapUnavailable />
+        <MapUnavailable reason="configuration" />
+      </div>
+    );
+  }
+
+  if (mapUnavailable) {
+    return (
+      <div
+        className={[
+          "flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border p-4",
+          shellClass,
+        ].join(" ")}
+        aria-label="Live progress map"
+      >
+        <MapUnavailable
+          reason="temporary"
+          onRetry={() => {
+            initializedRef.current = false;
+            didInitialFitRef.current = false;
+            displaySeekerRef.current = null;
+            mapRef.current = null;
+            setMapUnavailable(false);
+            setMapInstanceKey((key) => key + 1);
+          }}
+        />
       </div>
     );
   }
@@ -245,10 +271,12 @@ export function PublisherLiveProgressMap({
         data-testid="publisher-live-progress-map"
       >
         <BaseMap
+          key={mapInstanceKey}
           styleUrl={styleUrl}
           center={center}
           zoom={MAP_SELECTED_SPOT_ZOOM}
           className="absolute inset-0 h-full w-full"
+          onMapUnavailable={() => setMapUnavailable(true)}
           onMapReady={(map) => {
             mapRef.current = map;
             if (initializedRef.current) {

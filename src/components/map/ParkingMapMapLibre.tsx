@@ -256,6 +256,7 @@ export function ParkingMapMapLibre({
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapUnavailable, setMapUnavailable] = useState(false);
+  const [mapInstanceKey, setMapInstanceKey] = useState(0);
   const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
   const [dismissedLocationNoticeKey, setDismissedLocationNoticeKey] = useState<
     string | null
@@ -621,10 +622,25 @@ export function ParkingMapMapLibre({
     }
   }, [userLocation, followMode, prefersReducedMotion]);
 
-  if (styleFallback || mapUnavailable) {
+  if (styleFallback) {
     return (
       <div className="relative flex h-full w-full items-center justify-center p-4">
-        <MapUnavailable />
+        <MapUnavailable reason="configuration" />
+      </div>
+    );
+  }
+
+  if (mapUnavailable) {
+    return (
+      <div className="relative flex h-full w-full items-center justify-center p-4">
+        <MapUnavailable
+          reason="temporary"
+          onRetry={() => {
+            setMapVisuallyReady(false);
+            setMapUnavailable(false);
+            setMapInstanceKey((key) => key + 1);
+          }}
+        />
       </div>
     );
   }
@@ -696,6 +712,7 @@ export function ParkingMapMapLibre({
 
       <div className="absolute inset-0 z-0 h-full w-full">
           <BaseMap
+            key={mapInstanceKey}
             styleUrl={mapTilerStyleUrl!}
             center={initialCenter}
             zoom={initialZoom}

@@ -1,7 +1,7 @@
 "use client";
 
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { BaseMap } from "@/components/map/BaseMap";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
@@ -53,6 +53,8 @@ export function PublisherSpotPreviewMap({
 }: PublisherSpotPreviewMapProps) {
   const styleUrl = useMemo(() => assertMapTilerStyleUrlOrNull(), []);
   const initializedRef = useRef(false);
+  const [mapUnavailable, setMapUnavailable] = useState(false);
+  const [mapInstanceKey, setMapInstanceKey] = useState(0);
   const center = useMemo(
     (): [number, number] => [longitude, latitude],
     [longitude, latitude],
@@ -65,7 +67,25 @@ export function PublisherSpotPreviewMap({
         className={`flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border ${shellClass}`}
         aria-label="Map preview of your parking spot"
       >
-        <MapUnavailable />
+        <MapUnavailable reason="configuration" />
+      </div>
+    );
+  }
+
+  if (mapUnavailable) {
+    return (
+      <div
+        className={`flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border p-4 ${shellClass}`}
+        aria-label="Map preview of your parking spot"
+      >
+        <MapUnavailable
+          reason="temporary"
+          onRetry={() => {
+            initializedRef.current = false;
+            setMapUnavailable(false);
+            setMapInstanceKey((key) => key + 1);
+          }}
+        />
       </div>
     );
   }
@@ -83,10 +103,12 @@ export function PublisherSpotPreviewMap({
       data-preview-variant={variant}
     >
       <BaseMap
+        key={mapInstanceKey}
         styleUrl={styleUrl}
         center={center}
         zoom={MAP_SELECTED_SPOT_ZOOM}
         className="absolute inset-0 h-full w-full"
+        onMapUnavailable={() => setMapUnavailable(true)}
         onMapReady={(map) => {
           if (initializedRef.current) {
             return;

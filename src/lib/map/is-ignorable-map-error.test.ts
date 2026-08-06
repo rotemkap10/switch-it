@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  classifyMapLibreError,
   isIgnorableMapError,
   isMapTilerMilitaryLabelMismatch,
   logMapLibreError,
   normalizeMapErrorQuotes,
   resetIgnorableMapErrorLogState,
+  shouldEscalateMapUnavailable,
 } from "@/lib/map/is-ignorable-map-error";
 
 const MILITARY_MISMATCH =
@@ -13,6 +15,9 @@ const MILITARY_MISMATCH =
 
 const MILITARY_MISMATCH_ESCAPED =
   'Source layer \\"military_label\\" does not exist on source \\"maptiler_planet_v4\\" as specified by style layer \\"Military label\\".';
+
+const OTHER_SOURCE_LAYER =
+  'Source layer "waterway_label" does not exist on source "maptiler_planet_v4" as specified by style layer "Waterway label".';
 
 describe("is-ignorable-map-error", () => {
   afterEach(() => {
@@ -23,6 +28,7 @@ describe("is-ignorable-map-error", () => {
   it("ignores the exact military_label / maptiler_planet_v4 / Military label mismatch", () => {
     expect(isMapTilerMilitaryLabelMismatch(MILITARY_MISMATCH)).toBe(true);
     expect(isIgnorableMapError(new Error(MILITARY_MISMATCH))).toBe(true);
+    expect(classifyMapLibreError(MILITARY_MISMATCH)).toBe("ignorable");
   });
 
   it("tolerates escaped quotation marks in the mismatch message", () => {
@@ -35,22 +41,38 @@ describe("is-ignorable-map-error", () => {
     expect(isIgnorableMapError(MILITARY_MISMATCH_ESCAPED)).toBe(true);
   });
 
-  it("still treats an unrelated missing source layer as non-ignorable", () => {
-    const other =
-      'Source layer "poi" does not exist on source "maptiler_planet_v4" as specified by style layer "POI label".';
-    expect(isMapTilerMilitaryLabelMismatch(other)).toBe(false);
-    expect(isIgnorableMapError(other)).toBe(false);
+  it("treats other style/source-layer mismatches as ignorable (non-fatal)", () => {
+    expect(classifyMapLibreError(OTHER_SOURCE_LAYER)).toBe("ignorable");
+    expect(shouldEscalateMapUnavailable(OTHER_SOURCE_LAYER, false)).toBe(false);
   });
 
-  it("does not ignore MapTiler authentication or network errors", () => {
-    expect(isIgnorableMapError(new Error("Unauthorized"))).toBe(false);
+  it("escalates only fatal style/auth failures before style load", () => {
     expect(
-      isIgnorableMapError(new Error("Failed to fetch style from MapTiler")),
+      shouldEscalateMapUnavailable(new Error("Failed to fetch style"), false),
+    ).toBe(true);
+    expect(
+      shouldEscalateMapUnavailable(
+        new Error("AJAXError: 403 Forbidden (MapTiler API key)"),
+        false,
+      ),
+    ).toBe(true);
+    expect(shouldEscalateMapUnavailable(new Error(MILITARY_MISMATCH), false)).toBe(
+      false,
+    );
+    expect(
+      shouldEscalateMapUnavailable(
+        new Error('Image "road_shield" could not be loaded'),
+        false,
+      ),
+    ).toBe(false);
+  });
+
+  it("never escalates after style load", () => {
+    expect(
+      shouldEscalateMapUnavailable(new Error("Failed to fetch style"), true),
     ).toBe(false);
     expect(
-      isIgnorableMapError(
-        new Error("AJAXError: 403 Forbidden (MapTiler API key)"),
-      ),
+      shouldEscalateMapUnavailable(new Error("AJAXError: 403 Forbidden"), true),
     ).toBe(false);
   });
 
@@ -71,22 +93,14 @@ describe("is-ignorable-map-error", () => {
     }
   });
 
-  it("logs unrelated missing source-layer and auth errors with console.error", () => {
+  it("logs fatal auth errors with console.error", () => {
     const previousEnv = process.env.NODE_ENV;
     process.env.NODE_ENV = "development";
-    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     try {
-      logMapLibreError(
-        new Error(
-          'Source layer "waterway_label" does not exist on source "maptiler_planet_v4" as specified by style layer "Waterway label".',
-        ),
-      );
-      logMapLibreError(new Error("Failed to fetch"));
-
-      expect(errorSpy).toHaveBeenCalledTimes(2);
-      expect(debugSpy).not.toHaveBeenCalled();
+      logMapLibreError(new Error("Failed to fetch style"));
+      expect(errorSpy).toHaveBeenCalledTimes(1);
     } finally {
       process.env.NODE_ENV = previousEnv;
     }

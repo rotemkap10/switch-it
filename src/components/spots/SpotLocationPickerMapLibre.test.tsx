@@ -41,7 +41,23 @@ vi.mock("@/components/map/BaseMap", () => ({
 }));
 
 vi.mock("@/components/map/MapUnavailable", () => ({
-  MapUnavailable: () => <div>Map is unavailable</div>,
+  MapUnavailable: ({
+    reason = "temporary",
+    onRetry,
+  }: {
+    reason?: string;
+    onRetry?: () => void;
+  }) => (
+    <div>
+      <p>Map is unavailable</p>
+      <p data-testid="map-unavailable-reason">{reason}</p>
+      {onRetry ? (
+        <button type="button" onClick={onRetry}>
+          Try again
+        </button>
+      ) : null}
+    </div>
+  ),
 }));
 
 vi.mock("maplibre-gl", () => ({

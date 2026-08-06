@@ -219,6 +219,30 @@ describe("BaseMap loading lifecycle", () => {
     expect(onMapUnavailable).toHaveBeenCalledTimes(1);
   });
 
+  it("does not destroy the map for military_label mismatch before style load", () => {
+    const onMapUnavailable = vi.fn();
+
+    render(
+      <BaseMap
+        styleUrl="https://example.test/style.json"
+        center={[34.78, 32.08]}
+        zoom={14}
+        onMapReady={vi.fn()}
+        onMapUnavailable={onMapUnavailable}
+      />,
+    );
+
+    act(() => {
+      mapInstance.__emitOn("error", {
+        error: new Error(
+          'Source layer "military_label" does not exist on source "maptiler_planet_v4" as specified by style layer "Military label".',
+        ),
+      });
+    });
+
+    expect(onMapUnavailable).not.toHaveBeenCalled();
+  });
+
   it("does not escalate tile/image errors after style load", async () => {
     const onMapUnavailable = vi.fn();
 
@@ -238,6 +262,11 @@ describe("BaseMap loading lifecycle", () => {
     act(() => {
       mapInstance.__emitOn("error", {
         error: new Error('Image "road_shield" could not be loaded'),
+      });
+    });
+    act(() => {
+      mapInstance.__emitOn("error", {
+        error: new Error("Failed to fetch style"),
       });
     });
 

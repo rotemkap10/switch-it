@@ -17,6 +17,7 @@ import {
 import {
   isIgnorableMapError,
   logMapLibreError,
+  shouldEscalateMapUnavailable,
 } from "@/lib/map/is-ignorable-map-error";
 import { mapPerfMark, mapPerfMeasure, PERF_MARKS } from "@/lib/map/map-perf";
 import {
@@ -250,10 +251,16 @@ export function BaseMap({
       mapRef.current = map;
 
       map.on("error", (event) => {
-        logMapLibreError(event.error ?? event);
-        // Before style load, escalate genuine init/style failures.
-        // After load, ignore tile noise so the loader is not stuck forever.
-        if (styleLoaded || isIgnorableMapError(event.error ?? event)) {
+        const payload = event.error ?? event;
+        logMapLibreError(payload);
+        // Before style load, only escalate genuine fatal style/auth/init failures.
+        // Source-layer mismatches (including military_label) and tile noise must
+        // not replace a loading/working map. After load, never tear down.
+        if (
+          styleLoaded ||
+          isIgnorableMapError(payload) ||
+          !shouldEscalateMapUnavailable(payload, styleLoaded)
+        ) {
           return;
         }
         signalUnavailable();
