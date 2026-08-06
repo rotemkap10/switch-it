@@ -63,6 +63,8 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".publisher-compose");
     expect(css).toContain(".publisher-compose-surface");
     expect(css).toContain(".publisher-leave-time-grid");
+    expect(css).toContain(".leave-time-range");
+    expect(css).toContain(".leave-time-slider-track");
     expect(css).toContain(".publisher-share-cta");
     expect(css).toContain(".publisher-preview-map-shell--available");
     expect(css).toContain(".publisher-preview-map-shell--claimed");

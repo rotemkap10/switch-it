@@ -1,10 +1,20 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
+}));
+
 vi.mock("@/components/spots/CancelSpotButton", () => ({
-  CancelSpotButton: ({ spotId }: { spotId: string }) => (
-    <button type="button" data-spot-id={spotId}>
-      This spot is no longer available
+  CancelSpotButton: ({
+    spotId,
+    claimed,
+  }: {
+    spotId: string;
+    claimed?: boolean;
+  }) => (
+    <button type="button" data-spot-id={spotId} data-claimed={String(!!claimed)}>
+      {claimed ? "I can’t wait any longer" : "Cancel spot"}
     </button>
   ),
 }));
@@ -30,14 +40,18 @@ vi.mock("@/components/spots/PublisherSpotPreviewMapLoader", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/Countdown", () => ({
-  Countdown: ({
-    pendingLabel,
-    readyLabel,
+vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
+  HandoffWindowCountdown: ({
+    waitingLabel,
+    windowLabel,
   }: {
-    pendingLabel?: string;
-    readyLabel?: string;
-  }) => <span>{pendingLabel ?? readyLabel}</span>,
+    waitingLabel: string;
+    windowLabel: string;
+  }) => (
+    <div data-testid="handoff-window-countdown">
+      {waitingLabel} / {windowLabel}
+    </div>
+  ),
 }));
 
 import {
@@ -49,6 +63,7 @@ import { resetSessionHandoffAnimationForTests } from "@/components/vehicle/useSe
 const baseSpot = {
   id: "550e8400-e29b-41d4-a716-446655440000",
   available_at: "2026-08-04T22:45:00.000Z",
+  expires_at: "2026-08-04T22:50:00.000Z",
   address: "Dizengoff 50" as string | null,
   latitude: 32.0853,
   longitude: 34.7818,
@@ -131,7 +146,7 @@ describe("PublisherSpotCard", () => {
 
     expect(screen.getByText("A driver is on the way")).toBeInTheDocument();
     expect(
-      screen.getByText("Please stay near the spot until the handoff."),
+      screen.getByText("The handoff window begins when you’re ready to leave."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/^Driver coming$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
@@ -161,7 +176,7 @@ describe("PublisherSpotCard", () => {
     );
 
     const cancel = screen.getByRole("button", {
-      name: "This spot is no longer available",
+      name: "I can’t wait any longer",
     });
     expect(cancel).toHaveAttribute("data-spot-id", baseSpot.id);
   });
@@ -224,9 +239,9 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("Arriving vehicle")).toBeInTheDocument();
+    expect(screen.getByText("Look for this driver")).toBeInTheDocument();
     expect(
-      screen.getByText("This is the driver coming to your spot."),
+      screen.getByText("Recognize this vehicle when the driver arrives."),
     ).toBeInTheDocument();
     expect(screen.getByText("Red Hatchback")).toBeInTheDocument();
     expect(screen.getByText("Mazda 3")).toBeInTheDocument();
@@ -263,7 +278,7 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.queryByText("Arriving vehicle")).not.toBeInTheDocument();
+    expect(screen.queryByText("Look for this driver")).not.toBeInTheDocument();
     expect(screen.queryByText("Red Hatchback")).not.toBeInTheDocument();
     expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
   });
@@ -283,7 +298,7 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("Arriving vehicle")).toBeInTheDocument();
+    expect(screen.getByText("Look for this driver")).toBeInTheDocument();
     expect(
       screen.getByText("Vehicle details not added yet"),
     ).toBeInTheDocument();

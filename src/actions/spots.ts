@@ -12,6 +12,7 @@ import {
 } from "@/lib/feedback/error-map";
 import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
 import { withFeedbackQuery } from "@/lib/feedback/success-keys";
+import { computeSpotAvailabilityWindow } from "@/lib/spots/constants";
 import { cancelSpotSchema } from "@/lib/validations/claim";
 import { publishSpotSchema } from "@/lib/validations/spot";
 
@@ -56,8 +57,13 @@ export async function publishSpot(
     };
   }
 
-  const { latitude, longitude, address, available_at, expires_at } =
-    parsed.data;
+  const { latitude, longitude, address, available_in_minutes } = parsed.data;
+
+  // Authoritative server clock — never trust a client absolute timestamp.
+  const { available_at, expires_at } = computeSpotAvailabilityWindow(
+    available_in_minutes,
+    new Date(),
+  );
 
   const { data, error } = await supabase
     .from("parking_spots")

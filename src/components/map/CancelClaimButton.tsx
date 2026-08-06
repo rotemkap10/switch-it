@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useId, useRef, useState } from "react";
 
 import {
   cancelClaim,
@@ -26,6 +26,9 @@ export function CancelClaimButton({ claimId }: CancelClaimButtonProps) {
     cancelClaim,
     initialState,
   );
+  const keepFocusRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+  const descId = useId();
 
   useActionFeedback(state, {
     successMessage: FEEDBACK_SUCCESS_KEYS["claim-cancelled"],
@@ -36,6 +39,26 @@ export function CancelClaimButton({ claimId }: CancelClaimButtonProps) {
     state.success,
     realtimeFeedbackKey("claim", claimId, "cancelled"),
   );
+  useSuppressRealtimeOnSuccess(
+    state.success,
+    realtimeFeedbackKey("claim", claimId, "expired"),
+  );
+
+  useEffect(() => {
+    if (!confirming) {
+      return;
+    }
+    keepFocusRef.current?.focus();
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setConfirming(false);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [confirming]);
 
   if (state.success) {
     return (
@@ -51,35 +74,50 @@ export function CancelClaimButton({ claimId }: CancelClaimButtonProps) {
         type="button"
         className="w-full px-0 py-1 text-center text-xs text-muted underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
         onClick={() => setConfirming(true)}
+        data-testid="cancel-claim-trigger"
       >
-        I’m no longer coming
+        Cancel handoff
       </button>
     );
   }
 
   return (
-    <form action={formAction} className="space-y-2">
-      <input type="hidden" name="claim_id" value={claimId} />
-      <p className="text-xs leading-5 text-muted">Stop heading to this spot?</p>
-      <div className="flex flex-col items-center gap-2">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={descId}
+      className="rounded-[var(--radius-card)] border border-border bg-accent-soft/60 p-3"
+      data-testid="cancel-claim-confirm"
+    >
+      <p id={titleId} className="text-sm font-semibold text-foreground">
+        Cancel this handoff?
+      </p>
+      <p id={descId} className="mt-1 text-xs leading-5 text-muted">
+        The parking owner will be notified. No credit will be charged.
+      </p>
+      <form action={formAction} className="mt-3 flex flex-col gap-2">
+        <input type="hidden" name="claim_id" value={claimId} />
+        <Button
+          ref={keepFocusRef}
+          type="button"
+          variant="secondary"
+          disabled={pending}
+          className="w-full"
+          onClick={() => setConfirming(false)}
+        >
+          Keep handoff
+        </Button>
         <Button
           type="submit"
           variant="ghost"
           loading={pending}
           disabled={pending}
-          className="min-w-[10rem] px-3 py-1.5 text-xs text-muted hover:text-foreground"
+          className="w-full px-0 py-1 text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
         >
-          {pending ? "Cancelling…" : "Yes, stop"}
+          {pending ? "Cancelling…" : "Cancel handoff"}
         </Button>
-        <button
-          type="button"
-          className="text-xs font-medium text-accent-hover underline-offset-2 hover:underline"
-          disabled={pending}
-          onClick={() => setConfirming(false)}
-        >
-          Keep going
-        </button>
-      </div>
-    </form>
+      </form>
+    </div>
   );
 }

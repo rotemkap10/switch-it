@@ -38,11 +38,11 @@ describe("claim action confirmations", () => {
     render(<FeedbackShell><CancelClaimButton claimId={claimId} /></FeedbackShell>);
 
     await user.click(
-      screen.getByRole("button", { name: "I’m no longer coming" }),
+      screen.getByRole("button", { name: "Cancel handoff" }),
     );
-    expect(screen.getByText("Stop heading to this spot?")).toBeInTheDocument();
+    expect(screen.getByText("Cancel this handoff?")).toBeInTheDocument();
 
-    const form = screen.getByText("Stop heading to this spot?").closest("form");
-    expect(form?.querySelector('input[name="claim_id"]')).toHaveValue(claimId);
+    const dialog = screen.getByTestId("cancel-claim-confirm");
+    expect(dialog.querySelector('input[name="claim_id"]')).toHaveValue(claimId);
   });
 });

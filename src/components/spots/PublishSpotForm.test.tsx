@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -147,15 +147,12 @@ describe("PublishSpotForm", () => {
     const form = screen.getByTestId("publish-spot-form");
     expect(form.className).toContain("publisher-compose");
     expect(form.querySelector(".publisher-compose-surface")).not.toBeNull();
-    expect(screen.getByTestId("leave-time-grid")).toBeInTheDocument();
-    expect(screen.getByRole("radiogroup")).toBeInTheDocument();
+    expect(screen.getByTestId("leave-time-slider")).toBeInTheDocument();
+    expect(screen.getByTestId("leave-time-range")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Share spot" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "More" })).toHaveAttribute(
-      "aria-expanded",
-      "false",
-    );
+    expect(screen.queryByRole("button", { name: "More" })).not.toBeInTheDocument();
     expect(screen.queryByText("Your parking spot")).not.toBeInTheDocument();
     expect(screen.queryByText("Share my parking spot")).not.toBeInTheDocument();
 
@@ -207,7 +204,8 @@ describe("PublishSpotForm", () => {
       );
     });
 
-    await user.click(screen.getByRole("radio", { name: "10 min" }));
+    const range = screen.getByTestId("leave-time-range");
+    fireEvent.change(range, { target: { value: "10" } });
     await user.click(screen.getByRole("button", { name: "Share spot" }));
 
     await waitFor(() => {
@@ -397,16 +395,16 @@ describe("PublishSpotForm", () => {
   });
 
   it("keeps the map picker mounted when leave time changes", async () => {
-    const user = userEvent.setup();
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
       expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("radio", { name: "10 min" }));
+    const range = screen.getByTestId("leave-time-range");
+    fireEvent.change(range, { target: { value: "10" } });
     expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
-    await user.click(screen.getByRole("radio", { name: "20 min" }));
+    fireEvent.change(range, { target: { value: "20" } });
     expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
   });
 

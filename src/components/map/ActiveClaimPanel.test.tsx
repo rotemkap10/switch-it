@@ -1,18 +1,13 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  ACTIVE_CLAIM_DESTINATION_FALLBACK,
-  ActiveClaimPanel,
-  activeClaimDestinationLabel,
-} from "@/components/map/ActiveClaimPanel";
-import { resetSessionHandoffAnimationForTests } from "@/components/vehicle/useSessionHandoffAnimation";
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
+}));
 
 vi.mock("@/components/map/CancelClaimButton", () => ({
   CancelClaimButton: ({ claimId }: { claimId: string }) => (
     <button type="button" data-claim-id={claimId}>
-      I’m no longer coming
+      Cancel handoff
     </button>
   ),
 }));
@@ -25,20 +20,35 @@ vi.mock("@/components/map/CompleteHandoffForm", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/Countdown", () => ({
-  Countdown: ({
-    pendingLabel,
-    readyLabel,
+vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
+  HandoffWindowCountdown: ({
+    waitingLabel,
+    windowLabel,
   }: {
-    pendingLabel?: string;
-    readyLabel?: string;
-  }) => <span>{pendingLabel ?? readyLabel ?? "Available in 5:00"}</span>,
+    waitingLabel: string;
+    windowLabel: string;
+  }) => (
+    <div data-testid="handoff-window-countdown">
+      {waitingLabel} / {windowLabel}
+    </div>
+  ),
 }));
+
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+import {
+  ACTIVE_CLAIM_DESTINATION_FALLBACK,
+  ActiveClaimPanel,
+  activeClaimDestinationLabel,
+} from "@/components/map/ActiveClaimPanel";
+import { resetSessionHandoffAnimationForTests } from "@/components/vehicle/useSessionHandoffAnimation";
 
 const claim = {
   claimId: "11111111-1111-4111-8111-111111111111",
   claimExpiresAt: "2026-08-04T13:00:00.000Z",
   spotAvailableAt: "2026-08-04T12:45:00.000Z",
+  spotExpiresAt: "2026-08-04T12:50:00.000Z",
   spotAddress: "Rothschild Blvd 1",
 };
 
@@ -169,7 +179,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: "Verify and complete" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "I’m no longer coming" }),
+      screen.getByRole("button", { name: "Cancel handoff" }),
     ).toBeInTheDocument();
   });
 
@@ -195,7 +205,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.queryByRole("button", { name: "Verify and complete" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "I’m no longer coming" }),
+      screen.queryByRole("button", { name: "Cancel handoff" }),
     ).not.toBeInTheDocument();
   });
 
@@ -220,7 +230,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: "Verify and complete" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "I’m no longer coming" }),
+      screen.getByRole("button", { name: "Cancel handoff" }),
     ).toBeInTheDocument();
   });
 
@@ -253,7 +263,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "I’m no longer coming" }),
+      screen.getByRole("button", { name: "Cancel handoff" }),
     ).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
@@ -268,7 +278,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "I’m no longer coming" }),
+      screen.queryByRole("button", { name: "Cancel handoff" }),
     ).not.toBeInTheDocument();
   });
 
@@ -334,7 +344,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       claim.claimId,
     );
     expect(
-      screen.getByRole("button", { name: "I’m no longer coming" }),
+      screen.getByRole("button", { name: "Cancel handoff" }),
     ).toHaveAttribute("data-claim-id", claim.claimId);
   });
 
@@ -352,7 +362,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Check the model, color, and plate before completing the handoff.",
+        "Look for the vehicle when the handoff window begins.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("White SUV")).toBeInTheDocument();

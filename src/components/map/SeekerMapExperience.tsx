@@ -23,6 +23,7 @@ type SeekerMapExperienceProps = {
   destination: ActiveClaimDestination | null;
   activeClaim: ActiveClaimSummary | null;
   counterpartVehicle?: HandoffVehicle | null;
+  ownVehicle?: HandoffVehicle | null;
   showOwnSpotNotice: boolean;
   spotsError: boolean;
   activeClaimError: boolean;
@@ -34,6 +35,7 @@ export function SeekerMapExperience({
   destination,
   activeClaim,
   counterpartVehicle = null,
+  ownVehicle = null,
   showOwnSpotNotice,
   spotsError,
   activeClaimError,
@@ -143,6 +145,7 @@ export function SeekerMapExperience({
                 claim={activeClaim}
                 destination={destination}
                 counterpartVehicle={counterpartVehicle}
+                ownVehicle={ownVehicle}
                 variant="overlay"
                 expanded={claimExpanded}
                 onExpandedChange={setClaimExpanded}

@@ -7,8 +7,10 @@ export const FEEDBACK_SUCCESS_KEYS = {
   "vehicle-updated": "Vehicle updated.",
   "spot-published": "Your parking spot is live.",
   "spot-cancelled": "Parking spot removed.",
+  "handoff-cancelled-publisher":
+    "Handoff cancelled. You can leave now. No credits were transferred.",
   "claim-created": "You’re on your way.",
-  "claim-cancelled": "Parking claim cancelled.",
+  "claim-cancelled": "Handoff cancelled. No credit was charged.",
   "handoff-completed": "Handoff complete. One credit transferred.",
   "profile-updated": "Profile updated.",
 } as const;

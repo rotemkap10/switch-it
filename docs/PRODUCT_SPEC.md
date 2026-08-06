@@ -146,20 +146,27 @@ through existing server queries and RPCs.
 4. Users cannot access the main app until vehicle onboarding is complete,
    except during an active handoff (see business rules).
 
-During an active handoff, counterpart vehicle identity is shown using generic
-type-and-color illustrations. The make, model, and license plate text are the
-authoritative recognition details; illustrations are representative only. A
-one-time approach animation may play when a handoff becomes live.
+During an active handoff, both participants see counterpart vehicle identity
+(type, color, make, model, formatted plate) via a participant-only RPC, plus a
+reciprocal line describing their own vehicle. Illustrations are representative;
+plate and text are authoritative. Live seeker location / ETA are deferred
+(Phase 9B+).
 
 ### 9.2 Publishing a parking spot
 
 1. Authenticated publisher opens **Share a spot**.
-2. Publisher confirms location on the map and leaving time, then taps **Share spot**.
+2. Publisher confirms location on the map and leaving delay with a **0–20 minute
+   slider** (1-minute steps; 0 = Now), then taps **Share spot**.
    While adjusting the map, the app may show a short automatically derived address
    (display only; coordinates remain authoritative).
-3. System validates input and creates a spot in an **available** state.
+3. The server calculates `available_at = now + delay` and
+   `expires_at = available_at + 5 minutes` (authoritative clock). The client does
+   not submit absolute timestamps.
 4. Spot appears on the map for other users; the publisher sees
    **Waiting for a driver** until claimed, cancelled, or expired.
+5. Both sides see a countdown: before `available_at` (“Leaving in” /
+   “Spot available in”), then a five-minute **handoff window**
+   (“Please stay for the handoff” / “Handoff window”).
 
 ### 9.3 Browsing available spots
 
@@ -194,34 +201,43 @@ offline screen rather than stale parking data.
 
 1. Seeker selects an available spot and requests a claim.
 2. System checks: seeker is authenticated; spot is available; seeker is not
-   the publisher; seeker has enough credits to hold a claim if required by
-   the rules; no other active claim exists.
-3. On success, spot becomes **claimed**; seeker receives a limited claim
-   window to arrive and complete the handoff.
+   the publisher; seeker has enough credits; no other active claim exists;
+   `now < spot.expires_at`. Claims **may** be created before `available_at`.
+3. On success, spot becomes **claimed**; `claim.expires_at = spot.expires_at`
+   (one shared absolute deadline — no separate 15-minute claim hold).
 4. Other users can no longer claim that spot while the claim is active.
+5. Both participants immediately see counterpart vehicle recognition cards.
 
 ### 9.5 Completing a handoff
 
 1. When a spot is claimed, the publisher receives a short **5-digit handoff
    code** visible only to them during the active claim.
 2. The seeker arrives and enters the code in the app.
-3. On a correct code, the system marks the claim and spot as **completed**
-   and transfers credits seeker → publisher **exactly once**.
+3. On a correct code **before the shared deadline**, the system marks the claim
+   and spot as **completed** and transfers credits seeker → publisher **exactly once**.
 4. Wrong codes are rejected without credit movement. After five incorrect
    attempts, verification is temporarily locked for two minutes.
 5. Both users see the event in history; balances update.
 
 QR scanning and other external verification are future enhancements only.
 
-### 9.6 Cancelling or expiring a claim
+### 9.6 Cancelling or expiring a handoff
 
-1. Seeker or publisher may cancel while rules allow, **or** the claim
-   window ends without completion.
-2. System marks the claim as **cancelled** or **expired**.
-3. Spot may return to available (if still within its availability window)
-   or become unavailable/expired.
-4. Seeker is **not permanently charged**; any hold is released. No credit
-   transfer occurs.
+**Publisher cancel**
+- Unclaimed: quiet **Cancel spot** with confirmation.
+- Claimed: **I can’t wait any longer** with confirmation; spot and any active
+  claim become cancelled. No credits move. Seeker is notified that the driver
+  had to leave.
+
+**Seeker cancel**
+- Before `spot.expires_at`: claim cancelled; spot returns to **available** with
+  original `available_at` / `expires_at` unchanged. No credits move.
+- At/after deadline: claim and spot **expired** (no reopen). No credits move.
+
+**Shared deadline expiry**
+- When `expires_at` passes without completion, claim and/or spot become
+  **expired** via lazy RPCs. Code and counterpart vehicle become inaccessible.
+- Credits never move on cancel or expiry — only on successful code verification.
 
 ### 9.7 Viewing profile, credits, and history
 

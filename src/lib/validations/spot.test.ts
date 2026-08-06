@@ -1,22 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
-  AVAILABLE_IN_MINUTES_OPTIONS,
-  SPOT_GRACE_MINUTES,
+  computeSpotAvailabilityWindow,
+  HANDOFF_WINDOW_MINUTES,
+  LEAVE_DELAY_MAX_MINUTES,
+  LEAVE_DELAY_MIN_MINUTES,
 } from "@/lib/spots/constants";
 import { publishSpotSchema } from "@/lib/validations/spot";
 
 describe("publishSpotSchema", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-03T12:00:00.000Z"));
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  it("accepts valid coordinates and builds availability window", () => {
+  it("accepts valid coordinates and delay without absolute timestamps", () => {
     const result = publishSpotSchema.safeParse({
       latitude: 32.0853,
       longitude: 34.7818,
@@ -28,38 +21,25 @@ describe("publishSpotSchema", () => {
       expect(result.data.latitude).toBe(32.0853);
       expect(result.data.longitude).toBe(34.7818);
       expect(result.data.address).toBeNull();
-      expect(result.data.available_at).toBe("2026-08-03T12:10:00.000Z");
-      expect(result.data.expires_at).toBe(
-        new Date(
-          Date.parse("2026-08-03T12:10:00.000Z") + SPOT_GRACE_MINUTES * 60_000,
-        ).toISOString(),
-      );
+      expect(result.data.available_in_minutes).toBe(10);
+      expect(result.data).not.toHaveProperty("available_at");
+      expect(result.data).not.toHaveProperty("expires_at");
     }
   });
 
-  it.each([...AVAILABLE_IN_MINUTES_OPTIONS])(
-    "accepts supported timing preset %s",
-    (minutes) => {
-      const result = publishSpotSchema.safeParse({
-        latitude: 0,
-        longitude: 0,
-        available_in_minutes: minutes,
-      });
-
-      expect(result.success).toBe(true);
-      if (result.success) {
-        const availableAt = new Date(
-          Date.parse("2026-08-03T12:00:00.000Z") + minutes * 60_000,
-        );
-        expect(result.data.available_at).toBe(availableAt.toISOString());
-        expect(result.data.expires_at).toBe(
-          new Date(
-            availableAt.getTime() + SPOT_GRACE_MINUTES * 60_000,
-          ).toISOString(),
-        );
-      }
-    },
-  );
+  it.each(
+    Array.from(
+      { length: LEAVE_DELAY_MAX_MINUTES - LEAVE_DELAY_MIN_MINUTES + 1 },
+      (_, i) => i,
+    ),
+  )("accepts leave delay %s", (minutes) => {
+    const result = publishSpotSchema.safeParse({
+      latitude: 0,
+      longitude: 0,
+      available_in_minutes: minutes,
+    });
+    expect(result.success).toBe(true);
+  });
 
   it("accepts latitude and longitude at range boundaries", () => {
     expect(
@@ -87,14 +67,6 @@ describe("publishSpotSchema", () => {
         available_in_minutes: 0,
       }).success,
     ).toBe(false);
-
-    expect(
-      publishSpotSchema.safeParse({
-        latitude: -91,
-        longitude: 0,
-        available_in_minutes: 0,
-      }).success,
-    ).toBe(false);
   });
 
   it("rejects longitude outside -180 to 180", () => {
@@ -105,32 +77,18 @@ describe("publishSpotSchema", () => {
         available_in_minutes: 0,
       }).success,
     ).toBe(false);
-
-    expect(
-      publishSpotSchema.safeParse({
-        latitude: 0,
-        longitude: -181,
-        available_in_minutes: 0,
-      }).success,
-    ).toBe(false);
   });
 
-  it("rejects unsupported timing values", () => {
-    expect(
-      publishSpotSchema.safeParse({
-        latitude: 0,
-        longitude: 0,
-        available_in_minutes: 7,
-      }).success,
-    ).toBe(false);
-
-    expect(
-      publishSpotSchema.safeParse({
-        latitude: 0,
-        longitude: 0,
-        available_in_minutes: 35,
-      }).success,
-    ).toBe(false);
+  it("rejects unsupported timing values including old presets", () => {
+    for (const minutes of [-1, 21, 25, 30, 7.5, "abc"]) {
+      expect(
+        publishSpotSchema.safeParse({
+          latitude: 0,
+          longitude: 0,
+          available_in_minutes: minutes,
+        }).success,
+      ).toBe(false);
+    }
   });
 
   it("allows empty optional address and maps it to null", () => {
@@ -143,52 +101,32 @@ describe("publishSpotSchema", () => {
     if (omitted.success) {
       expect(omitted.data.address).toBeNull();
     }
+  });
+});
 
-    const empty = publishSpotSchema.safeParse({
-      latitude: 1,
-      longitude: 2,
-      address: "",
-      available_in_minutes: 0,
-    });
-    expect(empty.success).toBe(true);
-    if (empty.success) {
-      expect(empty.data.address).toBeNull();
-    }
-
-    const whitespace = publishSpotSchema.safeParse({
-      latitude: 1,
-      longitude: 2,
-      address: "   ",
-      available_in_minutes: 0,
-    });
-    expect(whitespace.success).toBe(true);
-    if (whitespace.success) {
-      expect(whitespace.data.address).toBeNull();
-    }
+describe("computeSpotAvailabilityWindow", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-03T12:00:00.000Z"));
   });
 
-  it("trims a provided address", () => {
-    const result = publishSpotSchema.safeParse({
-      latitude: 1,
-      longitude: 2,
-      address: "  Main St  ",
-      available_in_minutes: 0,
-    });
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.address).toBe("Main St");
-    }
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
-  it("rejects address longer than 200 characters", () => {
-    const result = publishSpotSchema.safeParse({
-      latitude: 1,
-      longitude: 2,
-      address: "a".repeat(201),
-      available_in_minutes: 0,
-    });
+  it("calculates available_at from trusted now and expires_at +5 minutes", () => {
+    const window = computeSpotAvailabilityWindow(10);
+    expect(window.available_at).toBe("2026-08-03T12:10:00.000Z");
+    expect(window.expires_at).toBe(
+      new Date(
+        Date.parse("2026-08-03T12:10:00.000Z") + HANDOFF_WINDOW_MINUTES * 60_000,
+      ).toISOString(),
+    );
+  });
 
-    expect(result.success).toBe(false);
+  it("supports delay 0 as Now", () => {
+    const window = computeSpotAvailabilityWindow(0);
+    expect(window.available_at).toBe("2026-08-03T12:00:00.000Z");
+    expect(window.expires_at).toBe("2026-08-03T12:05:00.000Z");
   });
 });

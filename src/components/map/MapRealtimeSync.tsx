@@ -82,12 +82,16 @@ export function MapRealtimeSync({
       if (claimId && next === "cancelled") {
         const key = realtimeFeedbackKey("claim", claimId, "cancelled");
         if (!isRealtimeFeedbackSuppressed(key)) {
-          info("The parking handoff was cancelled.");
+          info(
+            "The driver had to leave. This parking spot is no longer available. No credit was charged.",
+          );
         }
       } else if (claimId && next === "expired") {
         const key = realtimeFeedbackKey("claim", claimId, "expired");
         if (!isRealtimeFeedbackSuppressed(key)) {
-          info("This parking handoff expired.");
+          info(
+            "The handoff ended. The waiting window has expired. No credits were transferred.",
+          );
         }
       } else if (claimId && next === "completed") {
         // Local completeClaim already toasts; suppress duplicate.

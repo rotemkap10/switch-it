@@ -7,17 +7,14 @@ import {
   type PublishSpotActionState,
 } from "@/actions/spots";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
-import { LeaveTimeChoices } from "@/components/spots/LeaveTimeChoices";
+import { LeaveTimeSlider } from "@/components/spots/LeaveTimeSlider";
 import { SpotLocationPickerLoader } from "@/components/spots/SpotLocationPickerLoader";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PUBLISHER_SPOT_ADDRESS_FALLBACK } from "@/lib/geocoding/location-display";
 import { useReverseGeocode } from "@/lib/geocoding/use-reverse-geocode";
 import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
-import {
-  type AvailableInMinutes,
-  GEOLOCATION_TIMEOUT_MS,
-} from "@/lib/spots/constants";
+import { GEOLOCATION_TIMEOUT_MS } from "@/lib/spots/constants";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
 const initialState: PublishSpotActionState = {};
@@ -253,7 +250,7 @@ export function PublishSpotForm() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [leaveInMinutes, setLeaveInMinutes] = useState<AvailableInMinutes>(0);
+  const [leaveInMinutes, setLeaveInMinutes] = useState(0);
   const [geoStatus, setGeoStatus] = useState<GeoStatus>("loading");
   const [showManualCoords, setShowManualCoords] = useState(false);
   const autoRequestedRef = useRef(false);
@@ -453,7 +450,7 @@ export function PublishSpotForm() {
         </section>
 
         <section aria-labelledby="leave-time-label">
-          <LeaveTimeChoices
+          <LeaveTimeSlider
             value={leaveInMinutes}
             onChange={setLeaveInMinutes}
             disabled={pending}

@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { CancelSpotButton } from "@/components/spots/CancelSpotButton";
 import { HandoffCodeSection } from "@/components/spots/HandoffCodeSection";
 import { PublisherSpotPreviewMapLoader } from "@/components/spots/PublisherSpotPreviewMapLoader";
 import { ParkingPinSettle } from "@/components/illustrations/ParkingPinSettle";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
-import { Countdown } from "@/components/ui/Countdown";
+import { HandoffWindowCountdown } from "@/components/ui/HandoffWindowCountdown";
 import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
-import { formatDateTime } from "@/lib/format/time";
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 
@@ -17,6 +17,7 @@ export type PublisherSpotSummary = {
   id: string;
   status: "available" | "claimed";
   available_at: string;
+  expires_at: string;
   address: string | null;
   latitude: number;
   longitude: number;
@@ -25,9 +26,8 @@ export type PublisherSpotSummary = {
 type PublisherSpotCardProps = {
   spot: PublisherSpotSummary;
   layout?: "page" | "compact";
-  /** Seeker vehicle for an active claim; omitted when unavailable. */
   counterpartVehicle?: HandoffVehicle | null;
-  /** Owner handoff code for an active claim; omitted when unavailable. */
+  ownVehicle?: HandoffVehicle | null;
   handoffCode?: string | null;
 };
 
@@ -41,8 +41,10 @@ export function PublisherSpotCard({
   spot,
   layout = "page",
   counterpartVehicle = null,
+  ownVehicle = null,
   handoffCode = null,
 }: PublisherSpotCardProps) {
+  const router = useRouter();
   const claimed = spot.status === "claimed";
   const [claimedEmphasis, setClaimedEmphasis] = useState(false);
   const destinationLabel = publisherSpotTitleLabel(spot.address);
@@ -51,6 +53,10 @@ export function PublisherSpotCard({
   const waitingPin = useOneShotAnimation(
     !claimed ? `publisher-waiting-pin:${spot.id}` : null,
   );
+
+  const onExpired = useCallback(() => {
+    router.refresh();
+  }, [router]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -61,7 +67,6 @@ export function PublisherSpotCard({
     const previous = window.sessionStorage.getItem(statusKey);
     window.sessionStorage.setItem(statusKey, spot.status);
 
-    // One-shot when this session observed available → claimed (incl. Realtime).
     if (previous === "available" && spot.status === "claimed") {
       const playedKey = `switch-it:publisher-claimed-emphasis:${spot.id}`;
       if (window.sessionStorage.getItem(playedKey)) {
@@ -95,7 +100,7 @@ export function PublisherSpotCard({
           </h2>
           <p className="mt-1 text-sm text-muted">
             {claimed
-              ? "Please stay near the spot until the handoff."
+              ? "The handoff window begins when you’re ready to leave."
               : "Your spot is visible to nearby drivers."}
           </p>
         </div>
@@ -107,28 +112,27 @@ export function PublisherSpotCard({
         ) : null}
       </div>
 
-      <p className="mt-3 truncate text-sm font-medium text-foreground" title={destinationLabel}>
+      <p
+        className="mt-3 truncate text-sm font-medium text-foreground"
+        title={destinationLabel}
+      >
         {destinationLabel}
       </p>
-      <p className="mt-2 text-lg">
-        <Countdown
-          targetIso={spot.available_at}
-          pendingLabel="Available in"
-          readyLabel="Available now"
+      <div className="mt-3">
+        <HandoffWindowCountdown
+          availableAtIso={spot.available_at}
+          expiresAtIso={spot.expires_at}
+          waitingLabel="Leaving in"
+          windowLabel="Please stay for the handoff"
+          onExpired={onExpired}
         />
-      </p>
-      <p className="mt-2 text-xs text-muted">
-        Leave time: {formatDateTime(spot.available_at)}
-      </p>
+      </div>
     </div>
   );
 
   const handoffBlock =
     claimed && handoffCode ? (
-      <div
-        className="motion-fade-in"
-        data-testid="publisher-handoff-priority"
-      >
+      <div className="motion-fade-in" data-testid="publisher-handoff-priority">
         <HandoffCodeSection code={handoffCode} />
       </div>
     ) : null;
@@ -137,27 +141,27 @@ export function PublisherSpotCard({
     claimed && counterpartVehicle ? (
       <div className="border-t border-border/60 pt-3">
         <HandoffVehicleSection
-          title="Arriving vehicle"
-          helper="This is the driver coming to your spot."
+          title="Look for this driver"
+          helper="Recognize this vehicle when the driver arrives."
           vehicle={counterpartVehicle}
+          ownVehicle={ownVehicle}
           showRepresentativeNote
           approachAnimationKey={`publisher-${spot.id}`}
         />
       </div>
     ) : null;
 
-  const mapBlock =
-    hasValidCoords ? (
-      <PublisherSpotPreviewMapLoader
-        latitude={spot.latitude}
-        longitude={spot.longitude}
-        variant={claimed ? "claimed" : "available"}
-      />
-    ) : null;
+  const mapBlock = hasValidCoords ? (
+    <PublisherSpotPreviewMapLoader
+      latitude={spot.latitude}
+      longitude={spot.longitude}
+      variant={claimed ? "claimed" : "available"}
+    />
+  ) : null;
 
   const cancelBlock = (
     <div className="publisher-spot-cancel">
-      <CancelSpotButton spotId={spot.id} />
+      <CancelSpotButton spotId={spot.id} claimed={claimed} />
     </div>
   );
 

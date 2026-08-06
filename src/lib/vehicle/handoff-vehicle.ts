@@ -34,6 +34,26 @@ export function mapHandoffVehicleRow(row: HandoffVehicleRow): HandoffVehicle {
   };
 }
 
+/** Map a profiles vehicle row (own vehicle) into handoff shape. */
+export function mapProfileVehicleToHandoff(row: {
+  license_plate?: string | null;
+  vehicle_make?: string | null;
+  vehicle_model?: string | null;
+  vehicle_color?: string | null;
+  vehicle_type?: string | null;
+} | null | undefined): HandoffVehicle | null {
+  if (!row) {
+    return null;
+  }
+  return mapHandoffVehicleRow({
+    vehicle_license_plate: row.license_plate ?? null,
+    vehicle_make: row.vehicle_make ?? null,
+    vehicle_model: row.vehicle_model ?? null,
+    vehicle_color: row.vehicle_color ?? null,
+    vehicle_type: row.vehicle_type ?? null,
+  });
+}
+
 export function isCompleteHandoffVehicle(vehicle: HandoffVehicle): boolean {
   return (
     typeof vehicle.licensePlate === "string" &&

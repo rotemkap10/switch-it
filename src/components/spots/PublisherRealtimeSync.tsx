@@ -90,12 +90,16 @@ export function PublisherRealtimeSync({
           !isRealtimeFeedbackSuppressed(claimKey) &&
           !(spotKey && isRealtimeFeedbackSuppressed(spotKey))
         ) {
-          info("The driver is no longer coming.");
+          info(
+            "The driver cancelled. The parking spot is available again until the handoff window ends.",
+          );
         }
       } else if (id && next === "expired") {
         const key = realtimeFeedbackKey("claim", id, "expired");
         if (!isRealtimeFeedbackSuppressed(key)) {
-          info("This parking handoff expired.");
+          info(
+            "The handoff ended. The waiting window has expired. No credits were transferred.",
+          );
         }
       }
 

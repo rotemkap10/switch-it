@@ -10,11 +10,13 @@ import { Alert } from "@/components/ui/Alert";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
 import { fetchHandoffCode } from "@/lib/handoff/fetch-handoff-code";
 import { fetchHandoffCounterpartVehicle } from "@/lib/vehicle/fetch-handoff-counterpart-vehicle";
+import { mapProfileVehicleToHandoff } from "@/lib/vehicle/handoff-vehicle";
 
 type OwnedSpotRow = {
   id: string;
   status: string;
   available_at: string;
+  expires_at: string;
   address: string | null;
   latitude: number;
   longitude: number;
@@ -29,6 +31,7 @@ function toPublisherSpot(row: unknown): PublisherSpotSummary | null {
   if (
     typeof spot.id !== "string" ||
     typeof spot.available_at !== "string" ||
+    typeof spot.expires_at !== "string" ||
     typeof spot.latitude !== "number" ||
     typeof spot.longitude !== "number" ||
     !Number.isFinite(spot.latitude) ||
@@ -42,6 +45,7 @@ function toPublisherSpot(row: unknown): PublisherSpotSummary | null {
     id: spot.id,
     status: spot.status,
     available_at: spot.available_at,
+    expires_at: spot.expires_at,
     address: typeof spot.address === "string" ? spot.address : null,
     latitude: spot.latitude,
     longitude: spot.longitude,
@@ -54,15 +58,56 @@ export default async function NewSpotPage() {
     handoffException: "active-publisher",
   });
   const { supabase, user } = access;
+  const nowIso = new Date().toISOString();
+
+  // Harden overdue open spots / claims before rendering.
+  const { data: openSpot } = await supabase
+    .from("parking_spots")
+    .select("id, status, expires_at")
+    .eq("owner_id", user.id)
+    .in("status", ["available", "claimed"])
+    .maybeSingle();
+
+  if (
+    openSpot &&
+    typeof openSpot.id === "string" &&
+    typeof openSpot.expires_at === "string" &&
+    openSpot.expires_at <= nowIso
+  ) {
+    if (openSpot.status === "available") {
+      await supabase.rpc("expire_spot_if_needed", { p_spot_id: openSpot.id });
+    } else if (openSpot.status === "claimed") {
+      const { data: claimOnSpot } = await supabase
+        .from("claims")
+        .select("id")
+        .eq("spot_id", openSpot.id)
+        .eq("status", "active")
+        .maybeSingle();
+      if (claimOnSpot && typeof claimOnSpot.id === "string") {
+        await supabase.rpc("expire_claim_if_needed", {
+          p_claim_id: claimOnSpot.id,
+        });
+      }
+    }
+  }
 
   const { data, error } = await supabase
     .from("parking_spots")
-    .select("id, status, available_at, address, latitude, longitude")
+    .select("id, status, available_at, expires_at, address, latitude, longitude")
     .eq("owner_id", user.id)
     .in("status", ["available", "claimed"])
     .maybeSingle();
 
   const publisherSpot = error ? null : toPublisherSpot(data);
+
+  const { data: ownProfile } = await supabase
+    .from("profiles")
+    .select(
+      "license_plate, vehicle_make, vehicle_model, vehicle_color, vehicle_type",
+    )
+    .eq("id", user.id)
+    .maybeSingle();
+  const ownVehicle = mapProfileVehicleToHandoff(ownProfile);
 
   let counterpartVehicle = null;
   let handoffCode: string | null = null;
@@ -106,6 +151,7 @@ export default async function NewSpotPage() {
           spot={publisherSpot}
           layout="page"
           counterpartVehicle={counterpartVehicle}
+          ownVehicle={ownVehicle}
           handoffCode={handoffCode}
         />
       ) : (

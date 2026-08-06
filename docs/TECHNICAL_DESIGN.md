@@ -326,9 +326,16 @@ claims 1 ── * credit_transactions      (claim_id, optional)
 | Map performance | Index on `(status, expires_at)` |
 
 Application constants (window lengths) are validated in Zod and stored as
-`available_at` / `expires_at` / claim `expires_at`. Exact durations can be
-tuned in implementation (e.g. spot window 30 minutes, claim window 15
-minutes) without schema changes.
+`available_at` / `expires_at` / claim `expires_at`.
+
+**Phase 9A timing (Model 1 — spot-anchored deadline):**
+- Publisher submits `available_in_minutes` integer **0–20** only (slider).
+- Server action computes `available_at = now + delay` and
+  `expires_at = available_at + 5 minutes` (authoritative clock).
+- Early claims are allowed while `now < spot.expires_at`.
+- `claim.expires_at = spot.expires_at` (no independent 15-minute claim hold).
+- Lazy RPCs: `expire_claim_if_needed`, `expire_spot_if_needed` (unclaimed).
+- Live location / Broadcast / routing are deferred to Phase 9B+.
 
 ## 10. Authentication flow
 
@@ -482,16 +489,22 @@ blocking.
   with PageHeader h1 “Share a spot” — no nested duplicate headings.
 - Location picker shell: `.leaver-map-picker-shell` (`clamp(210px, 38dvh, 280px)`);
   fixed center pin; coords from `map.getCenter()` on `moveend` only.
-- Leave-time choices: 3-column `.publisher-leave-time-grid`; **More** reveals 25/30.
+- Leave-time: phone-first `.leave-time-range` slider (0–20 minutes, step 1).
+  Label “When will you leave?”; value text “Now” / “In N minutes”.
+  Client submits delay only; server computes absolute timestamps.
 - Reverse geocoding enriches the publisher picker with a display-only address label
   (MapTiler Geocoding API via `NEXT_PUBLIC_MAPTILER_API_KEY`). Browser debounces
   ~750ms after `moveend`; publication stores the sanitized snapshot in
   `parking_spots.address` when available. Coordinates remain authoritative for
   claims, navigation, and distance. Seeker UI reads stored labels only — no
   per-card geocoding.
-- Active publisher card: mobile order status → handoff code → vehicle → map preview;
-  desktop may use two-column grid. Preview height varies by
+- Active publisher card mobile order: status + handoff countdown → handoff code →
+  “Look for this driver” (+ reciprocal own-vehicle line) → map preview → quiet
+  cancel. Desktop may use two-column grid. Preview height varies by
   `publisher-preview-map-shell--available|claimed`.
+- Shared handoff countdown derives from `available_at` / `expires_at`
+  (`HandoffWindowCountdown`). Publisher cancel uses confirm dialogs; claimed
+  copy “I can’t wait any longer”.
 
 ### Mobile account forms (presentation)
 

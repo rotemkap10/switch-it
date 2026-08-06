@@ -40,7 +40,7 @@ vi.mock("@/components/map/ActiveClaimPanel", () => ({
     >
       <button type="button">Navigate</button>
       <button type="button">Verify and complete</button>
-      <button type="button">I’m no longer coming</button>
+      <button type="button">Cancel handoff</button>
     </div>
   ),
 }));
@@ -57,6 +57,7 @@ const claim = {
   claimId: "11111111-1111-4111-8111-111111111111",
   claimExpiresAt: "2026-08-04T13:00:00.000Z",
   spotAvailableAt: "2026-08-04T12:45:00.000Z",
+  spotExpiresAt: "2026-08-04T12:50:00.000Z",
   spotAddress: "Rothschild Blvd 1",
 };
 

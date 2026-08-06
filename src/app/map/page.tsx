@@ -5,6 +5,7 @@ import { SeekerMapExperience } from "@/components/map/SeekerMapExperience";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
 import type { requireUser } from "@/lib/auth/require-user";
 import { fetchHandoffCounterpartVehicle } from "@/lib/vehicle/fetch-handoff-counterpart-vehicle";
+import { mapProfileVehicleToHandoff } from "@/lib/vehicle/handoff-vehicle";
 import type { MapSpot } from "@/types/map-spot";
 
 type SpotRow = {
@@ -24,12 +25,14 @@ type ActiveClaimRow = {
     | {
         address: string | null;
         available_at: string;
+        expires_at: string;
         latitude: number;
         longitude: number;
       }
     | {
         address: string | null;
         available_at: string;
+        expires_at: string;
         latitude: number;
         longitude: number;
       }[]
@@ -96,7 +99,11 @@ function toActiveClaim(row: unknown): ActiveClaimSummary | null {
     ? claim.parking_spots[0]
     : claim.parking_spots;
 
-  if (!spotRelation || typeof spotRelation.available_at !== "string") {
+  if (
+    !spotRelation ||
+    typeof spotRelation.available_at !== "string" ||
+    typeof spotRelation.expires_at !== "string"
+  ) {
     return null;
   }
 
@@ -104,6 +111,7 @@ function toActiveClaim(row: unknown): ActiveClaimSummary | null {
     claimId: claim.id,
     claimExpiresAt: claim.expires_at,
     spotAvailableAt: spotRelation.available_at,
+    spotExpiresAt: spotRelation.expires_at,
     spotAddress:
       typeof spotRelation.address === "string" ? spotRelation.address : null,
   };
@@ -156,20 +164,27 @@ async function expireDueClaims(
   userId: string,
   nowIso: string,
 ): Promise<void> {
-  const [seekerClaimResult, ownedClaimedSpotResult] = await Promise.all([
-    supabase
-      .from("claims")
-      .select("id, expires_at")
-      .eq("seeker_id", userId)
-      .eq("status", "active")
-      .maybeSingle(),
-    supabase
-      .from("parking_spots")
-      .select("id")
-      .eq("owner_id", userId)
-      .eq("status", "claimed")
-      .maybeSingle(),
-  ]);
+  const [seekerClaimResult, ownedClaimedSpotResult, ownedAvailableSpotResult] =
+    await Promise.all([
+      supabase
+        .from("claims")
+        .select("id, expires_at")
+        .eq("seeker_id", userId)
+        .eq("status", "active")
+        .maybeSingle(),
+      supabase
+        .from("parking_spots")
+        .select("id")
+        .eq("owner_id", userId)
+        .eq("status", "claimed")
+        .maybeSingle(),
+      supabase
+        .from("parking_spots")
+        .select("id, expires_at")
+        .eq("owner_id", userId)
+        .eq("status", "available")
+        .maybeSingle(),
+    ]);
 
   const claimIds = new Set<string>();
 
@@ -205,6 +220,18 @@ async function expireDueClaims(
   for (const claimId of claimIds) {
     await supabase.rpc("expire_claim_if_needed", { p_claim_id: claimId });
   }
+
+  const ownedAvailable = ownedAvailableSpotResult.data;
+  if (
+    ownedAvailable &&
+    typeof ownedAvailable.id === "string" &&
+    typeof ownedAvailable.expires_at === "string" &&
+    isPastDue(ownedAvailable.expires_at, nowIso)
+  ) {
+    await supabase.rpc("expire_spot_if_needed", {
+      p_spot_id: ownedAvailable.id,
+    });
+  }
 }
 
 export default async function MapPage() {
@@ -228,7 +255,7 @@ export default async function MapPage() {
     supabase
       .from("claims")
       .select(
-        "id, expires_at, parking_spots(address, available_at, latitude, longitude)",
+        "id, expires_at, parking_spots(address, available_at, expires_at, latitude, longitude)",
       )
       .eq("seeker_id", user.id)
       .eq("status", "active")
@@ -259,6 +286,15 @@ export default async function MapPage() {
       ? await fetchHandoffCounterpartVehicle(supabase, activeClaim.claimId)
       : null;
 
+  const { data: ownProfile } = await supabase
+    .from("profiles")
+    .select(
+      "license_plate, vehicle_make, vehicle_model, vehicle_color, vehicle_type",
+    )
+    .eq("id", user.id)
+    .maybeSingle();
+  const ownVehicle = mapProfileVehicleToHandoff(ownProfile);
+
   return (
     <AuthenticatedShell
       layout="map"
@@ -276,6 +312,7 @@ export default async function MapPage() {
         destination={activeClaimDestination}
         activeClaim={activeClaim}
         counterpartVehicle={counterpartVehicle}
+        ownVehicle={ownVehicle}
         showOwnSpotNotice={showOwnSpotNotice}
         spotsError={Boolean(spotsResult.error)}
         activeClaimError={Boolean(activeClaimResult.error)}
