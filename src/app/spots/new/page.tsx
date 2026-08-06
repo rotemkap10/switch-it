@@ -153,6 +153,7 @@ export default async function NewSpotPage() {
           counterpartVehicle={counterpartVehicle}
           ownVehicle={ownVehicle}
           handoffCode={handoffCode}
+          activeClaimId={activeClaimId}
         />
       ) : (
         <PublishSpotForm />

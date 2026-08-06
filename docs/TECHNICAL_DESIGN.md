@@ -335,7 +335,21 @@ Application constants (window lengths) are validated in Zod and stored as
 - Early claims are allowed while `now < spot.expires_at`.
 - `claim.expires_at = spot.expires_at` (no independent 15-minute claim hold).
 - Lazy RPCs: `expire_claim_if_needed`, `expire_spot_if_needed` (unclaimed).
-- Live location / Broadcast / routing are deferred to Phase 9B+.
+
+**Phase 9B live location (foreground private Broadcast):**
+- Topic: `claim-location:<claim_uuid>` with `config.private = true`.
+- Authorization: RLS on `realtime.messages` — seeker INSERT only, publisher
+  SELECT only, for the active claimed handoff before `spot.expires_at`.
+- Helpers: `claim_location_topic_claim_id(text)` parses topics safely;
+  `can_send_claim_location` / `can_receive_claim_location` are SECURITY DEFINER
+  booleans (needed because parking_spots RLS hides claimed spots from non-owners,
+  which would break an inline seeker EXISTS join).
+- Payload: `{ latitude, longitude, accuracyMeters, headingDegrees, sequence, sentAt }`
+  (no user/vehicle/address). Optional `seeker-location-status` paused/stopped.
+- No location tables, history, localStorage, IndexedDB, or SW cache of coords.
+- Keep Realtime “Allow public access” enabled so existing public
+  `postgres_changes` channels continue; location channels remain private.
+- Routing / ETA deferred to Phase 9C.
 
 ## 10. Authentication flow
 

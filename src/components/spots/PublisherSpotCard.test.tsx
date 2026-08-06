@@ -40,6 +40,30 @@ vi.mock("@/components/spots/PublisherSpotPreviewMapLoader", () => ({
   ),
 }));
 
+vi.mock("@/components/spots/PublisherLiveProgressMapLoader", () => ({
+  PublisherLiveProgressMapLoader: ({
+    statusLabel,
+  }: {
+    statusLabel: string;
+  }) => (
+    <div data-testid="publisher-live-progress">
+      <p>{statusLabel}</p>
+    </div>
+  ),
+}));
+
+vi.mock("@/lib/location/use-publisher-live-location", () => ({
+  usePublisherLiveLocation: () => ({
+    freshness: "waiting",
+    statusLabel: "Waiting for live location",
+    updatedLabel:
+      "The driver can choose to share their progress while Switch It is open.",
+    location: null,
+    lastReceivedAtMs: null,
+    clear: vi.fn(),
+  }),
+}));
+
 vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
   HandoffWindowCountdown: ({
     waitingLabel,
@@ -192,13 +216,14 @@ describe("PublisherSpotCard", () => {
     expect(screen.getByText("Location selected on the map")).toBeInTheDocument();
   });
 
-  it("prioritizes handoff code before map preview in claimed state", () => {
+  it("prioritizes handoff code before live progress map in claimed state", () => {
     render(
       <PublisherSpotCard
         spot={{ ...baseSpot, status: "claimed" }}
         layout="page"
         counterpartVehicle={seekerVehicle}
         handoffCode="48291"
+        activeClaimId="11111111-1111-4111-8111-111111111111"
       />,
     );
 
@@ -207,12 +232,10 @@ describe("PublisherSpotCard", () => {
       (element) => element.getAttribute("data-testid"),
     );
     expect(testIds.indexOf("handoff-code-section")).toBeLessThan(
-      testIds.indexOf("publisher-spot-preview-map"),
+      testIds.indexOf("publisher-live-progress"),
     );
-    expect(screen.getByTestId("publisher-spot-preview-map")).toHaveAttribute(
-      "data-preview-variant",
-      "claimed",
-    );
+    expect(screen.getByText("Waiting for live location")).toBeInTheDocument();
+    expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
   });
 
   it("uses a larger preview variant while waiting for a driver", () => {
@@ -236,6 +259,7 @@ describe("PublisherSpotCard", () => {
         layout="page"
         counterpartVehicle={seekerVehicle}
         handoffCode="48291"
+        activeClaimId="11111111-1111-4111-8111-111111111111"
       />,
     );
 
@@ -288,6 +312,7 @@ describe("PublisherSpotCard", () => {
       <PublisherSpotCard
         spot={{ ...baseSpot, status: "claimed" }}
         layout="page"
+        activeClaimId="11111111-1111-4111-8111-111111111111"
         counterpartVehicle={{
           licensePlate: null,
           make: null,

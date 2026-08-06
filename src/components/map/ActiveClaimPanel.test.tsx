@@ -34,6 +34,16 @@ vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
   ),
 }));
 
+vi.mock("@/lib/location/use-seeker-live-location-share", () => ({
+  useSeekerLiveLocationShare: () => ({
+    uiState: "prompt",
+    resumedOnce: false,
+    startSharing: vi.fn(),
+    stopSharing: vi.fn(),
+    forceStop: vi.fn(),
+  }),
+}));
+
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
@@ -117,18 +127,27 @@ describe("ActiveClaimPanel sheet UX", () => {
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
+        counterpartVehicle={ownerVehicle}
         variant="overlay"
+        expanded
       />,
     );
 
     const sheet = screen.getByTestId("active-claim-sheet");
     expect(sheet.className).toContain("map-bottom-sheet");
     expect(sheet.className).toContain("map-bottom-sheet--claim-expanded");
+    expect(sheet.className).toContain("active-claim-sheet-expanded");
     expect(sheet.className).not.toContain("bottom-28");
 
     const host = screen.getByTestId("active-claim-overlay-host");
     expect(host.className).toContain("map-bottom-sheet-host");
     expect(host.className).toContain("map-bottom-sheet-host--claim");
+
+    expect(screen.getByTestId("seeker-share-location")).toBeInTheDocument();
+    expect(screen.getByText("Share your live location")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Share live location" }),
+    ).toBeInTheDocument();
 
     expect(screen.getByTestId("active-claim-sticky-actions")).toBeInTheDocument();
     expect(screen.getByTestId("complete-handoff-form")).toBeInTheDocument();

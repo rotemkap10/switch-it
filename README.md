@@ -46,3 +46,10 @@ Switch It is installable as a PWA on HTTPS deployments.
 
 Production QA: verify manifest, icons, and service worker in Chrome DevTools →
 Application. No Supabase or MapTiler responses should appear in Cache Storage.
+
+Phase 9B live location (two-phone): after claim, seeker taps **Share live location**
+and grants permission; publisher should see Waiting → Live location on the
+compact progress map. Background the seeker app and confirm the publisher moves
+to delayed/paused by age. Complete/cancel/expire must remove the marker and stop
+sharing. Live location must never appear in Cache Storage or any DB table.
+Do not expect routing or ETA (Phase 9C).

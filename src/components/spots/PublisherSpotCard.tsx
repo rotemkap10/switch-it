@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 
 import { CancelSpotButton } from "@/components/spots/CancelSpotButton";
 import { HandoffCodeSection } from "@/components/spots/HandoffCodeSection";
+import { PublisherLiveProgressMapLoader } from "@/components/spots/PublisherLiveProgressMapLoader";
 import { PublisherSpotPreviewMapLoader } from "@/components/spots/PublisherSpotPreviewMapLoader";
 import { ParkingPinSettle } from "@/components/illustrations/ParkingPinSettle";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import { HandoffWindowCountdown } from "@/components/ui/HandoffWindowCountdown";
 import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
+import { usePublisherLiveLocation } from "@/lib/location/use-publisher-live-location";
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 
@@ -29,6 +31,8 @@ type PublisherSpotCardProps = {
   counterpartVehicle?: HandoffVehicle | null;
   ownVehicle?: HandoffVehicle | null;
   handoffCode?: string | null;
+  /** Active claim id when status is claimed — required for live location. */
+  activeClaimId?: string | null;
 };
 
 export function publisherSpotTitleLabel(
@@ -43,20 +47,28 @@ export function PublisherSpotCard({
   counterpartVehicle = null,
   ownVehicle = null,
   handoffCode = null,
+  activeClaimId = null,
 }: PublisherSpotCardProps) {
   const router = useRouter();
   const claimed = spot.status === "claimed";
   const [claimedEmphasis, setClaimedEmphasis] = useState(false);
+  const [liveMapExpanded, setLiveMapExpanded] = useState(false);
   const destinationLabel = publisherSpotTitleLabel(spot.address);
   const hasValidCoords =
     Number.isFinite(spot.latitude) && Number.isFinite(spot.longitude);
   const waitingPin = useOneShotAnimation(
     !claimed ? `publisher-waiting-pin:${spot.id}` : null,
   );
+  const liveLocation = usePublisherLiveLocation({
+    claimId: claimed ? activeClaimId : null,
+    enabled: claimed && !!activeClaimId,
+  });
+  const clearLiveLocation = liveLocation.clear;
 
   const onExpired = useCallback(() => {
+    clearLiveLocation();
     router.refresh();
-  }, [router]);
+  }, [clearLiveLocation, router]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -152,11 +164,25 @@ export function PublisherSpotCard({
     ) : null;
 
   const mapBlock = hasValidCoords ? (
-    <PublisherSpotPreviewMapLoader
-      latitude={spot.latitude}
-      longitude={spot.longitude}
-      variant={claimed ? "claimed" : "available"}
-    />
+    claimed && activeClaimId ? (
+      <div className="border-t border-border/60 pt-3">
+        <PublisherLiveProgressMapLoader
+          parkingLatitude={spot.latitude}
+          parkingLongitude={spot.longitude}
+          seekerLocation={liveLocation.location}
+          statusLabel={liveLocation.statusLabel}
+          updatedLabel={liveLocation.updatedLabel}
+          expanded={liveMapExpanded}
+          onExpandedChange={setLiveMapExpanded}
+        />
+      </div>
+    ) : (
+      <PublisherSpotPreviewMapLoader
+        latitude={spot.latitude}
+        longitude={spot.longitude}
+        variant={claimed ? "claimed" : "available"}
+      />
+    )
   ) : null;
 
   const cancelBlock = (

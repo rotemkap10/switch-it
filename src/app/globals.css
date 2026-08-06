@@ -451,6 +451,19 @@ body {
   height: clamp(140px, 22dvh, 180px);
 }
 
+.publisher-live-map-shell {
+  width: 100%;
+  overflow: hidden;
+}
+
+.publisher-live-map-shell--collapsed {
+  height: clamp(140px, 22dvh, 180px);
+}
+
+.publisher-live-map-shell--expanded {
+  height: clamp(220px, 42dvh, 320px);
+}
+
 .publisher-compose {
   display: flex;
   flex-direction: column;
@@ -633,6 +646,14 @@ body {
 
   .publisher-preview-map-shell--claimed {
     height: clamp(100px, 20dvh, 140px);
+  }
+
+  .publisher-live-map-shell--collapsed {
+    height: clamp(100px, 20dvh, 140px);
+  }
+
+  .publisher-live-map-shell--expanded {
+    height: clamp(160px, 36dvh, 240px);
   }
 }
 

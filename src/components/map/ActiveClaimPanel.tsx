@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CancelClaimButton } from "@/components/map/CancelClaimButton";
 import { ClaimNavigationActions } from "@/components/map/ClaimNavigationActions";
 import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
+import { SeekerShareLocationCard } from "@/components/map/SeekerShareLocationCard";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import { HandoffWindowCountdown } from "@/components/ui/HandoffWindowCountdown";
 import {
@@ -13,6 +14,7 @@ import {
   MAP_SHEET_HOST_CLASS,
 } from "@/lib/map/bottom-stack";
 import { seekerSpotAddressLabel } from "@/lib/geocoding/location-display";
+import { useSeekerLiveLocationShare } from "@/lib/location/use-seeker-live-location-share";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
 import {
@@ -85,9 +87,17 @@ function ActiveClaimSheetBody({
   sheetLabelId: string;
 }) {
   const router = useRouter();
+  const liveShare = useSeekerLiveLocationShare({
+    claimId: claim.claimId,
+    spotExpiresAtIso: claim.spotExpiresAt,
+    enabled: true,
+  });
+  const forceStopLiveShare = liveShare.forceStop;
+
   const onExpired = useCallback(() => {
+    forceStopLiveShare();
     router.refresh();
-  }, [router]);
+  }, [forceStopLiveShare, router]);
 
   const destinationLabel = activeClaimDestinationLabel(claim.spotAddress);
   const canNavigate =
@@ -155,6 +165,17 @@ function ActiveClaimSheetBody({
         waitingLabel="Spot available in"
         windowLabel="Handoff window"
         onExpired={onExpired}
+      />
+
+      <SeekerShareLocationCard
+        uiState={liveShare.uiState}
+        resumedOnce={liveShare.resumedOnce}
+        onShare={() => {
+          void liveShare.startSharing();
+        }}
+        onStop={() => {
+          void liveShare.stopSharing();
+        }}
       />
 
       {!expanded && compactVehicleLabel ? (

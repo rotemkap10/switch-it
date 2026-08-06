@@ -149,8 +149,15 @@ through existing server queries and RPCs.
 During an active handoff, both participants see counterpart vehicle identity
 (type, color, make, model, formatted plate) via a participant-only RPC, plus a
 reciprocal line describing their own vehicle. Illustrations are representative;
-plate and text are authoritative. Live seeker location / ETA are deferred
-(Phase 9B+).
+plate and text are authoritative.
+
+**Live location (Phase 9B — optional, foreground-only):** After claiming, the
+seeker may tap **Share live location**. While Switch It is open and visible, a
+throttled private Broadcast updates the publisher’s compact progress map. Sharing
+is not required to Navigate, complete, or cancel. Consent is per claim and not
+remembered after reload. Coordinates are never stored in the database, local
+storage, caches, or analytics. Background/app-switch may pause updates.
+Routing/ETA remain deferred (Phase 9C).
 
 ### 9.2 Publishing a parking spot
 
