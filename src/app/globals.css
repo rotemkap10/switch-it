@@ -1616,3 +1616,96 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ---- PWA offline + install sheet (Phase 7) ---- */
+
+.offline-page {
+  display: flex;
+  min-height: 100dvh;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--app-phone-gutter);
+  padding-top: max(1.5rem, var(--app-safe-top));
+  padding-bottom: max(1.5rem, var(--app-safe-bottom));
+}
+
+.offline-page__card {
+  width: 100%;
+  max-width: 24rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.offline-page__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.offline-page__body {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.install-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(18 50 74 / 28%);
+  padding-inline: var(--app-phone-gutter);
+  padding-bottom: max(1rem, var(--app-safe-bottom));
+}
+
+.install-sheet {
+  width: 100%;
+  max-width: 24rem;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.install-sheet__title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--color-text);
+}
+
+.install-sheet__steps {
+  margin: 0.75rem 0 0;
+  padding-left: 1.25rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--color-text);
+}
+
+.install-sheet__steps li + li {
+  margin-top: 0.375rem;
+}
+
+.install-sheet__note {
+  margin-top: 0.75rem;
+}
+
+.install-sheet__close {
+  margin-top: 1rem;
+}
+
+@media (display-mode: standalone) {
+  .install-sheet-backdrop {
+    /* No browser chrome adjustments needed beyond existing safe-area tokens. */
+  }
+}

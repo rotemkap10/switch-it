@@ -1,0 +1,90 @@
+/** Switch It conservative PWA service worker — offline fallback only. */
+
+const CACHE_VERSION = "switch-it-pwa-v1";
+
+/** Narrow allowlist — no authenticated or third-party resources. */
+const PRECACHE_URLS = [
+  "/offline",
+  "/pwa/icon-192",
+  "/pwa/icon-512",
+  "/pwa/icon-512-maskable",
+];
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE_VERSION).then((cache) => cache.addAll(PRECACHE_URLS)),
+  );
+});
+
+self.addEventListener("activate", (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(
+        keys
+          .filter(
+            (key) =>
+              key.startsWith("switch-it-pwa-") && key !== CACHE_VERSION,
+          )
+          .map((key) => caches.delete(key)),
+      ),
+    ),
+  );
+});
+
+function isSameOrigin(url) {
+  return url.origin === self.location.origin;
+}
+
+function isPrecacheCandidate(pathname) {
+  return (
+    pathname === "/offline" ||
+    pathname === "/pwa/icon-192" ||
+    pathname === "/pwa/icon-512" ||
+    pathname === "/pwa/icon-512-maskable"
+  );
+}
+
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+
+  if (request.method !== "GET") {
+    return;
+  }
+
+  const url = new URL(request.url);
+
+  if (!isSameOrigin(url)) {
+    return;
+  }
+
+  if (url.pathname.startsWith("/_next/")) {
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/")) {
+    return;
+  }
+
+  if (request.mode === "navigate") {
+    event.respondWith(
+      fetch(request).catch(async () => {
+        const offline = await caches.match("/offline");
+        if (offline) {
+          return offline;
+        }
+        return Response.error();
+      }),
+    );
+    return;
+  }
+
+  if (request.destination === "document") {
+    return;
+  }
+
+  if (isPrecacheCandidate(url.pathname)) {
+    event.respondWith(
+      caches.match(request).then((cached) => cached ?? fetch(request)),
+    );
+  }
+});

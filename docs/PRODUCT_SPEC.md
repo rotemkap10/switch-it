@@ -177,6 +177,19 @@ one-time approach animation may play when a handoff becomes live.
    vehicle + handoff completion).
 6. User may proceed to claim if eligible.
 
+### 9.3a Installing Switch It (mobile)
+
+On supported phones, users can install Switch It from **Profile → Install app**:
+
+- **Android / Chromium:** native install prompt after the user chooses Install app.
+- **iPhone / iPad (Safari):** step-by-step **Add to Home Screen** instructions
+  (Share → Add to Home Screen → Add).
+
+Installed Switch It opens in standalone mode from the home screen icon, preserves
+safe-area spacing, and continues using the same login/session rules as the browser.
+Live parking still requires a network connection; offline launch shows a friendly
+offline screen rather than stale parking data.
+
 ### 9.4 Claiming a parking spot
 
 1. Seeker selects an available spot and requests a claim.

@@ -887,6 +887,26 @@ Supabase project
 - **Failure-safe:** publication succeeds with `address = null` when lookup is
   pending, offline, quota-limited, or otherwise unavailable.
 
+### Progressive Web App (Phase 7)
+
+- **Manifest:** `src/app/manifest.ts` → `/manifest.webmanifest` (public, no auth).
+  `display: standalone`, `start_url: /map`, shortcuts to `/map` and `/spots/new`.
+- **Icons:** ImageResponse routes (`/icon`, `/apple-icon`, `/pwa/icon-192`,
+  `/pwa/icon-512`, `/pwa/icon-512-maskable`) using shared `AppIconMarkup`.
+  Brand background `#55bff3`, splash background `#dff4ff`.
+- **Install UX:** ProfileMenu → **Install app** when Chromium `beforeinstallprompt`
+  is available or on iOS Safari (Add to Home Screen instruction sheet). Hidden in
+  standalone mode and during SSR unknown state. No automatic install banners.
+- **Service worker:** `public/sw.js`, scope `/`, registered in production only
+  (`updateViaCache: none`). Precache allowlist: `/offline` + local PWA icon routes
+  only. Navigation network failure → cached `/offline`. Does **not** cache auth
+  HTML, RSC, Supabase, MapTiler, or POST requests.
+- **Offline limitations:** no parking data, maps, or forms offline — reconnect
+  required for live handoffs.
+- **Proxy exclusions:** `sw.js`, `manifest.webmanifest`, `/offline`, `/pwa/*` bypass
+  session middleware matcher; protected routes remain protected.
+- **Push notifications:** not implemented in Phase 7.
+
 - Apply schema via migration files (not manual-only dashboard edits for
   final state).
 - Preview/production Vercel projects point at the appropriate Supabase

@@ -2,6 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { AppFeedbackRoot } from "@/components/feedback/AppFeedbackRoot";
+import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
+import {
+  PWA_THEME_COLOR,
+} from "@/lib/pwa/brand-colors";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,15 +19,29 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Switch It",
+  applicationName: "Switch It",
+  title: {
+    default: "Switch It",
+    template: "%s — Switch It",
+  },
   description:
-    "Coordinate public street parking handoffs between drivers.",
+    "Find and share public street parking handoffs nearby.",
+  appleWebApp: {
+    capable: true,
+    title: "Switch It",
+    statusBarStyle: "default",
+  },
+  formatDetection: {
+    telephone: false,
+  },
 };
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  themeColor: PWA_THEME_COLOR,
+  colorScheme: "light",
 };
 
 export default function RootLayout({
@@ -38,6 +56,7 @@ export default function RootLayout({
     >
       <body className="flex min-h-dvh flex-col bg-background text-foreground">
         <AppFeedbackRoot>{children}</AppFeedbackRoot>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   );

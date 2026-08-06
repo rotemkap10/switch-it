@@ -34,3 +34,15 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Progressive Web App (production)
+
+Switch It is installable as a PWA on HTTPS deployments.
+
+- Manifest: `/manifest.webmanifest`
+- Service worker: `/sw.js` (production only; set `NEXT_PUBLIC_PWA_DEV=true` to test locally)
+- Offline fallback: `/offline`
+- Install entry: Profile menu → **Install app** (when supported)
+
+Production QA: verify manifest, icons, and service worker in Chrome DevTools →
+Application. No Supabase or MapTiler responses should appear in Cache Storage.
