@@ -102,6 +102,53 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
   });
 
+  it("uses keyboard-safe expanded sheet classes with sticky completion actions", () => {
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        variant="overlay"
+      />,
+    );
+
+    const sheet = screen.getByTestId("active-claim-sheet");
+    expect(sheet.className).toContain("map-bottom-sheet");
+    expect(sheet.className).toContain("map-bottom-sheet--claim-expanded");
+    expect(sheet.className).not.toContain("bottom-28");
+
+    const host = screen.getByTestId("active-claim-overlay-host");
+    expect(host.className).toContain("map-bottom-sheet-host");
+    expect(host.className).toContain("map-bottom-sheet-host--claim");
+
+    expect(screen.getByTestId("active-claim-sticky-actions")).toBeInTheDocument();
+    expect(screen.getByText("Complete the handoff")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Verify and complete" }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses collapsed sheet class without verification UI", async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        variant="overlay"
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Collapse claim details/i }),
+    );
+
+    expect(screen.getByTestId("active-claim-sheet").className).toContain(
+      "map-bottom-sheet--claim-collapsed",
+    );
+    expect(
+      screen.queryByTestId("active-claim-sticky-actions"),
+    ).not.toBeInTheDocument();
+  });
+
   it("starts expanded with complete and cancel actions", () => {
     render(
       <ActiveClaimPanel

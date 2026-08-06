@@ -26,7 +26,7 @@ describe("ProfileSummaryRow", () => {
     });
   });
 
-  it("renders three equal summary cards without duplicating the large vehicle art", () => {
+  it("uses the mobile summary grid with credits and vehicle on the first row", () => {
     render(
       <ProfileSummaryRow
         email="driver@example.com"
@@ -37,15 +37,27 @@ describe("ProfileSummaryRow", () => {
     );
 
     const row = screen.getByTestId("profile-summary-row");
-    expect(row.className).toContain("sm:grid-cols-3");
+    expect(row.className).toContain("profile-summary-grid");
+    expect(row.querySelector(".profile-summary-email")).not.toBeNull();
     expect(screen.getByText("Vehicle ready")).toBeInTheDocument();
     expect(screen.getByTestId("vehicle-top-summary")).toHaveTextContent(
       "White SUV",
     );
-    expect(screen.getByTestId("vehicle-top-summary")).toHaveTextContent(
-      "12-345-67",
-    );
     expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
-    expect(screen.getByTestId("check-mark-icon")).toBeInTheDocument();
+  });
+
+  it("wraps long email safely without horizontal overflow classes", () => {
+    render(
+      <ProfileSummaryRow
+        email="very.long.email.address.for.testing@example.com"
+        credits={2}
+        vehicleComplete={false}
+        vehicle={vehicle}
+      />,
+    );
+
+    const email = screen.getByTestId("profile-email-value");
+    expect(email.className).toContain("break-all");
+    expect(email).toHaveTextContent("very.long.email.address.for.testing@example.com");
   });
 });

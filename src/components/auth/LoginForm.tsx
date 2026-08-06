@@ -1,9 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 import { login, type AuthActionState } from "@/actions/auth";
-import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 
@@ -16,8 +15,18 @@ type LoginFormProps = {
 export function LoginForm({ next }: LoginFormProps) {
   const [state, formAction, pending] = useActionState(login, initialState);
 
+  useEffect(() => {
+    if (state.fieldErrors?.email?.[0]) {
+      document.getElementById("email")?.focus();
+      return;
+    }
+    if (state.fieldErrors?.password?.[0]) {
+      document.getElementById("password")?.focus();
+    }
+  }, [state.fieldErrors]);
+
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form action={formAction} className="mobile-form-fields" data-testid="login-form">
       <input type="hidden" name="next" value={next} />
 
       <Input
@@ -26,6 +35,9 @@ export function LoginForm({ next }: LoginFormProps) {
         label="Email"
         type="email"
         autoComplete="email"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         required
         error={state.fieldErrors?.email?.[0]}
       />
@@ -36,13 +48,26 @@ export function LoginForm({ next }: LoginFormProps) {
         label="Password"
         type="password"
         autoComplete="current-password"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
         required
         error={state.fieldErrors?.password?.[0]}
       />
 
-      {state.error ? <Alert tone="error">{state.error}</Alert> : null}
+      {state.error ? (
+        <p className="text-sm text-danger" role="alert">
+          {state.error}
+        </p>
+      ) : null}
 
-      <Button type="submit" loading={pending} disabled={pending}>
+      <Button
+        type="submit"
+        loading={pending}
+        disabled={pending}
+        aria-busy={pending}
+        className="mobile-form-primary"
+      >
         {pending ? "Signing in…" : "Sign in"}
       </Button>
     </form>

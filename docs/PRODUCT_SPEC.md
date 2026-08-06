@@ -154,7 +154,9 @@ one-time approach animation may play when a handoff becomes live.
 ### 9.2 Publishing a parking spot
 
 1. Authenticated publisher opens **Share a spot**.
-2. Publisher confirms location and leaving time, then taps **Share spot**.
+2. Publisher confirms location on the map and leaving time, then taps **Share spot**.
+   While adjusting the map, the app may show a short automatically derived address
+   (display only; coordinates remain authoritative).
 3. System validates input and creates a spot in an **available** state.
 4. Spot appears on the map for other users; the publisher sees
    **Waiting for a driver** until claimed, cancelled, or expired.
@@ -166,11 +168,13 @@ one-time approach animation may play when a handoff becomes live.
 3. When spots exist, a compact horizontal **discovery carousel** lists them
    near the bottom of the map. Cards show availability, approximate
    straight-line distance (when location is available), and a short address.
-4. Selecting a map marker or a carousel card keeps a single selected spot:
-   the matching card is emphasized, the map eases to keep the marker visible,
-   and the detailed SelectedSpotCard provides claim actions.
-5. During an active claim, the discovery carousel is hidden; the claim sheet
-   takes priority.
+4. Selecting a map marker or a carousel card keeps a single selected spot as
+   source of truth: the map focuses the marker, the discovery carousel yields
+   to a phone-native SelectedSpotCard bottom sheet (Claim action), then returns
+   to the carousel when closed.
+5. During an active claim, discovery UI (carousel, empty state, selected sheet)
+   is hidden; the claim sheet takes priority (collapsed Navigate; expanded
+   vehicle + handoff completion).
 6. User may proceed to claim if eligible.
 
 ### 9.4 Claiming a parking spot

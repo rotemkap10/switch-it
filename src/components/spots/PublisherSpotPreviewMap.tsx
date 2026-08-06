@@ -6,6 +6,10 @@ import { useMemo, useRef } from "react";
 import { BaseMap } from "@/components/map/BaseMap";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
 import {
+  publisherPreviewShellClass,
+  type PublisherPreviewVariant,
+} from "@/lib/map/leaverMapShell";
+import {
   MAP_SELECTED_SPOT_ZOOM,
   assertMapTilerStyleUrlOrNull,
 } from "@/lib/map/seekerMapConfig";
@@ -16,11 +20,11 @@ import {
 
 const PREVIEW_SOURCE = "publisher-preview-src";
 const PREVIEW_LAYER = "publisher-preview-layer";
-export const PUBLISHER_PREVIEW_HEIGHT_CLASS = "h-[220px]";
 
 export type PublisherSpotPreviewMapProps = {
   latitude: number;
   longitude: number;
+  variant?: PublisherPreviewVariant;
 };
 
 function disableMapChrome(map: MapLibreMap) {
@@ -45,6 +49,7 @@ function disableMapChrome(map: MapLibreMap) {
 export function PublisherSpotPreviewMap({
   latitude,
   longitude,
+  variant = "available",
 }: PublisherSpotPreviewMapProps) {
   const styleUrl = useMemo(() => assertMapTilerStyleUrlOrNull(), []);
   const initializedRef = useRef(false);
@@ -52,11 +57,12 @@ export function PublisherSpotPreviewMap({
     (): [number, number] => [longitude, latitude],
     [longitude, latitude],
   );
+  const shellClass = publisherPreviewShellClass(variant);
 
   if (styleUrl === null) {
     return (
       <div
-        className={`flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border ${PUBLISHER_PREVIEW_HEIGHT_CLASS}`}
+        className={`flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border ${shellClass}`}
         aria-label="Map preview of your parking spot"
       >
         <MapUnavailable />
@@ -68,12 +74,13 @@ export function PublisherSpotPreviewMap({
     <div
       className={[
         "relative w-full overflow-hidden rounded-[var(--radius-card)] border border-border motion-fade-in",
-        PUBLISHER_PREVIEW_HEIGHT_CLASS,
+        shellClass,
       ].join(" ")}
       aria-label="Map preview of your parking spot"
       data-testid="publisher-spot-preview-map"
       data-latitude={String(latitude)}
       data-longitude={String(longitude)}
+      data-preview-variant={variant}
     >
       <BaseMap
         styleUrl={styleUrl}

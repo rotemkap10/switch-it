@@ -1,26 +1,27 @@
 import Link from "next/link";
 
 import { RegisterForm } from "@/components/auth/RegisterForm";
-import { Card } from "@/components/ui/Card";
 
 export default function RegisterPage() {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12 sm:px-6">
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-accent-hover">Step 1 of 2</p>
-        <h1 className="text-2xl font-semibold text-foreground">
-          Create your account
-        </h1>
-        <p className="text-sm text-muted">
+    <main className="auth-page" data-testid="register-page">
+      <p className="auth-brand">Switch It</p>
+      <div className="auth-page-header">
+        <p className="auth-step-label">Step 1 of 2</p>
+        <h1 className="auth-page-title">Create your account</h1>
+        <p className="auth-page-helper">
           You&apos;ll add your vehicle in the next step.
         </p>
       </div>
-      <Card>
+      <div className="mobile-form-surface">
         <RegisterForm />
-      </Card>
-      <p className="text-sm text-muted">
+      </div>
+      <p className="auth-secondary-link">
         Already registered?{" "}
-        <Link href="/login" className="font-medium text-accent-hover underline">
+        <Link
+          href="/login"
+          className="font-medium text-accent-hover underline-offset-2 hover:underline"
+        >
           Sign in
         </Link>
       </p>

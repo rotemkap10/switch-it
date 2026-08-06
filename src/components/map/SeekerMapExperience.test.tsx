@@ -6,13 +6,16 @@ vi.mock("@/components/map/ParkingMapLoader", () => ({
   ParkingMapLoader: ({
     onVisuallyReady,
     showDiscoveryCarousel,
+    bottomStackOverride,
   }: {
     onVisuallyReady?: () => void;
     showDiscoveryCarousel?: boolean;
+    bottomStackOverride?: string | null;
   }) => (
     <div
       data-testid="parking-map"
       data-discovery={showDiscoveryCarousel === false ? "off" : "on"}
+      data-bottom-stack={bottomStackOverride ?? "none"}
     >
       <button type="button" onClick={() => onVisuallyReady?.()}>
         Simulate map ready
@@ -25,10 +28,16 @@ vi.mock("@/components/map/ParkingMapLoader", () => ({
 vi.mock("@/components/map/ActiveClaimPanel", () => ({
   ActiveClaimPanel: ({
     variant,
+    expanded,
   }: {
     variant?: string;
+    expanded?: boolean;
   }) => (
-    <div data-testid="active-claim-panel" data-variant={variant}>
+    <div
+      data-testid="active-claim-panel"
+      data-variant={variant}
+      data-expanded={expanded === false ? "false" : "true"}
+    >
       <button type="button">Navigate</button>
       <button type="button">Verify and complete</button>
       <button type="button">I’m no longer coming</button>
@@ -129,15 +138,49 @@ describe("SeekerMapExperience overlay hierarchy", () => {
 
     const empty = screen.getByTestId("map-empty-overlay");
     expect(empty).toHaveTextContent("No spots nearby yet");
-    expect(empty).toHaveTextContent("New spots will appear automatically.");
+    expect(empty).toHaveTextContent(
+      "New spots will appear here automatically.",
+    );
     expect(empty).toHaveTextContent("Share a spot");
-    expect(empty.className).toContain("max-w-[20rem]");
+    expect(empty.className).toContain("map-empty-notice");
     const emptyHost = empty.closest(".absolute");
     expect(emptyHost).not.toBeNull();
     expect(emptyHost?.className).toContain("top-3");
     expect(emptyHost?.className).not.toContain("md:top-14");
     expect(emptyHost?.className).not.toContain("inset-0");
     expect(emptyHost?.className).not.toContain("items-center");
+  });
+
+  it("hides own-spot notice while an active claim has priority", () => {
+    renderExperience({
+      destination: { latitude: 32.08, longitude: 34.78 },
+      activeClaim: claim,
+      showOwnSpotNotice: true,
+    });
+
+    act(() => {
+      screen.getByRole("button", { name: "Simulate map ready" }).click();
+    });
+
+    expect(screen.getByTestId("active-claim-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("own-spot-notice")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("map-empty-overlay")).not.toBeInTheDocument();
+  });
+
+  it("passes claim bottom-stack override into the map loader", () => {
+    renderExperience({
+      destination: { latitude: 32.08, longitude: 34.78 },
+      activeClaim: claim,
+    });
+
+    expect(screen.getByTestId("parking-map")).toHaveAttribute(
+      "data-bottom-stack",
+      "claim-expanded",
+    );
+    expect(screen.getByTestId("seeker-map-stage")).toHaveAttribute(
+      "data-map-bottom",
+      "claim-expanded",
+    );
   });
 
   it("does not show a redundant Find parking title pill", () => {

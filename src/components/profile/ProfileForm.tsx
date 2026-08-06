@@ -78,7 +78,7 @@ export function ProfileForm({ initialDisplayName }: ProfileFormProps) {
           type="button"
           variant="secondary"
           onClick={startEditing}
-          className="shrink-0"
+          className="shrink-0 min-h-[var(--app-tap-min)]"
           aria-expanded={false}
           aria-controls="display-name-edit-panel"
         >
@@ -103,6 +103,9 @@ export function ProfileForm({ initialDisplayName }: ProfileFormProps) {
             name="display_name"
             label="Display name"
             type="text"
+            autoComplete="name"
+            autoCapitalize="words"
+            autoCorrect="off"
             required
             minLength={2}
             maxLength={50}
@@ -111,7 +114,7 @@ export function ProfileForm({ initialDisplayName }: ProfileFormProps) {
             error={state.fieldErrors?.display_name?.[0]}
           />
 
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+          <div className="mobile-form-actions">
             <Button
               type="button"
               variant="ghost"
@@ -120,7 +123,13 @@ export function ProfileForm({ initialDisplayName }: ProfileFormProps) {
             >
               Cancel
             </Button>
-            <Button type="submit" loading={pending} disabled={pending}>
+            <Button
+              type="submit"
+              loading={pending}
+              disabled={pending}
+              aria-busy={pending}
+              className="mobile-form-primary sm:!w-auto"
+            >
               {pending ? "Saving…" : "Save changes"}
             </Button>
           </div>

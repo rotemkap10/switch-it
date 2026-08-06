@@ -34,8 +34,8 @@ function TimeChip({
       disabled={disabled}
       onClick={() => onSelect(minutes)}
       className={[
-        "rounded-full border px-3.5 py-2 text-sm font-medium motion-interactive-press",
-        "transition-[color,background-color,border-color,transform,box-shadow] duration-[var(--motion-standard)]",
+        "publisher-leave-time-chip motion-interactive-press",
+        "transition-[color,background-color,border-color,transform,box-shadow] duration-[var(--motion-fast)]",
         "disabled:cursor-not-allowed disabled:opacity-60 disabled:transform-none",
         selected
           ? "motion-chip-selected border-accent bg-accent text-foreground shadow-sm"
@@ -62,35 +62,34 @@ export function LeaveTimeChoices({
       <p id="leave-time-label" className="text-sm font-semibold text-foreground">
         When are you leaving?
       </p>
-      <div className="flex flex-wrap items-center gap-2">
-        <div
-          role="radiogroup"
-          aria-labelledby="leave-time-label"
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? "leave-time-error" : undefined}
-          className="flex flex-wrap gap-2"
-        >
-          {PRIMARY_MINUTES.map((minutes) => (
-            <TimeChip
-              key={minutes}
-              minutes={minutes}
-              selected={value === minutes}
-              disabled={disabled}
-              onSelect={onChange}
-            />
-          ))}
-          {showMore
-            ? MORE_MINUTES.map((minutes) => (
-                <TimeChip
-                  key={minutes}
-                  minutes={minutes}
-                  selected={value === minutes}
-                  disabled={disabled}
-                  onSelect={onChange}
-                />
-              ))
-            : null}
-        </div>
+      <div
+        role="radiogroup"
+        aria-labelledby="leave-time-label"
+        aria-invalid={Boolean(error)}
+        aria-describedby={error ? "leave-time-error" : undefined}
+        className="publisher-leave-time-grid"
+        data-testid="leave-time-grid"
+      >
+        {PRIMARY_MINUTES.map((minutes) => (
+          <TimeChip
+            key={minutes}
+            minutes={minutes}
+            selected={value === minutes}
+            disabled={disabled}
+            onSelect={onChange}
+          />
+        ))}
+        {showMore
+          ? MORE_MINUTES.map((minutes) => (
+              <TimeChip
+                key={minutes}
+                minutes={minutes}
+                selected={value === minutes}
+                disabled={disabled}
+                onSelect={onChange}
+              />
+            ))
+          : null}
         <button
           type="button"
           aria-expanded={showMore}
@@ -105,8 +104,8 @@ export function LeaveTimeChoices({
             setManuallyExpanded(true);
           }}
           className={[
-            "rounded-full border px-3.5 py-2 text-sm font-medium motion-interactive-press",
-            "transition-[color,background-color,border-color] duration-[var(--motion-standard)]",
+            "publisher-leave-time-chip motion-interactive-press",
+            "transition-[color,background-color,border-color] duration-[var(--motion-fast)]",
             "disabled:cursor-not-allowed disabled:opacity-60",
             showMore
               ? "border-accent bg-accent-soft text-foreground"

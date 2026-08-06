@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 
 import { MapLoadingState } from "@/components/map/MapLoadingState";
+import type { MapBottomStack } from "@/lib/map/bottom-stack";
 import { loadMapLibreModule } from "@/lib/map/load-maplibre-module";
 import type { MapSpot } from "@/types/map-spot";
 
@@ -31,6 +32,7 @@ type ParkingMapLoaderProps = {
   destination?: { latitude: number; longitude: number } | null;
   onVisuallyReady?: () => void;
   showDiscoveryCarousel?: boolean;
+  bottomStackOverride?: MapBottomStack | null;
 };
 
 export function ParkingMapLoader({
@@ -38,6 +40,7 @@ export function ParkingMapLoader({
   destination,
   onVisuallyReady,
   showDiscoveryCarousel = true,
+  bottomStackOverride = null,
 }: ParkingMapLoaderProps) {
   return (
     <div
@@ -49,6 +52,7 @@ export function ParkingMapLoader({
         destination={destination ?? null}
         onVisuallyReady={onVisuallyReady}
         showDiscoveryCarousel={showDiscoveryCarousel}
+        bottomStackOverride={bottomStackOverride}
       />
     </div>
   );

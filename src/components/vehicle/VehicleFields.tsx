@@ -29,6 +29,8 @@ type VehicleFieldsProps = {
   disabled?: boolean;
   showSummary?: boolean;
   showPreview?: boolean;
+  /** Show a neutral hero illustration before type/color are chosen. */
+  placeholderPreview?: boolean;
   /** Size for the live type/color preview illustration. */
   previewSize?: "default" | "compact" | "hero";
   /** Short nudge when opening the editor (not a full drive-in). */
@@ -41,6 +43,7 @@ export function VehicleFields({
   disabled = false,
   showSummary = false,
   showPreview = true,
+  placeholderPreview = false,
   previewSize = "default",
   previewEmphasis = false,
   state,
@@ -95,14 +98,30 @@ export function VehicleFields({
   return (
     <>
       {showPreview && previewType && previewColor ? (
-        <VehicleIllustration
-          vehicleType={previewType}
-          vehicleColor={previewColor}
-          size={previewSize}
-          animate={false}
-          className={previewEmphasis ? "motion-vehicle-preview-nudge" : ""}
-          label={`${VEHICLE_COLOR_LABELS[previewColor]} ${VEHICLE_TYPE_LABELS[previewType]}`}
-        />
+        <div className="vehicle-illustration-shell">
+          <VehicleIllustration
+            vehicleType={previewType}
+            vehicleColor={previewColor}
+            size={previewSize}
+            animate={false}
+            className={previewEmphasis ? "motion-vehicle-preview-nudge" : ""}
+            label={`${VEHICLE_COLOR_LABELS[previewColor]} ${VEHICLE_TYPE_LABELS[previewType]}`}
+          />
+        </div>
+      ) : showPreview && placeholderPreview ? (
+        <div
+          className="vehicle-illustration-shell"
+          data-testid="vehicle-illustration-placeholder"
+        >
+          <VehicleIllustration
+            vehicleType="sedan"
+            vehicleColor="silver"
+            size={previewSize}
+            animate={false}
+            label="Vehicle preview"
+            className="opacity-80"
+          />
+        </div>
       ) : null}
 
       {showSummary &&
@@ -148,6 +167,8 @@ export function VehicleFields({
         name="vehicle_make"
         label="Make"
         type="text"
+        autoComplete="off"
+        autoCapitalize="words"
         maxLength={40}
         defaultValue={initialVehicle.vehicle_make ?? ""}
         key={`make-${initialVehicle.vehicle_make ?? "empty"}`}
@@ -161,6 +182,8 @@ export function VehicleFields({
         name="vehicle_model"
         label="Model"
         type="text"
+        autoComplete="off"
+        autoCapitalize="words"
         maxLength={40}
         defaultValue={initialVehicle.vehicle_model ?? ""}
         key={`model-${initialVehicle.vehicle_model ?? "empty"}`}

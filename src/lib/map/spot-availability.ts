@@ -1,3 +1,4 @@
+import { seekerSpotAddressLabel } from "@/lib/geocoding/location-display";
 import type { MapSpot } from "@/types/map-spot";
 
 /** Minute-level availability copy for discovery cards (not a live second countdown). */
@@ -22,7 +23,8 @@ export function isSpotStillListed(
   return !Number.isNaN(expiresAt) && expiresAt > now;
 }
 
-export function spotCarouselAddressLabel(address: string | null | undefined): string {
-  const trimmed = address?.trim();
-  return trimmed ? trimmed : "Parking spot nearby";
+export function spotCarouselAddressLabel(
+  address: string | null | undefined,
+): string {
+  return seekerSpotAddressLabel(address);
 }

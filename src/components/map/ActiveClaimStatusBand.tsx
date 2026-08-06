@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { seekerSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { Countdown } from "@/components/ui/Countdown";
 
 type ActiveClaimStatusBandProps = {
@@ -54,9 +55,7 @@ export function ActiveClaimStatusBand({
             You’re on your way
           </p>
           <p className="truncate text-sm font-medium text-foreground">
-            {spotAddress?.trim()
-              ? spotAddress
-              : "Public street parking spot"}
+            {seekerSpotAddressLabel(spotAddress)}
           </p>
         </div>
         <p className="shrink-0 text-sm">
@@ -82,9 +81,7 @@ export function ActiveClaimStatusBand({
         You’re on your way
       </p>
       <h2 className="mt-1 text-xl font-semibold text-foreground">
-        {spotAddress?.trim()
-          ? spotAddress
-          : "Public street parking spot"}
+        {seekerSpotAddressLabel(spotAddress)}
       </h2>
       <p className="mt-3 text-lg">
         <Countdown

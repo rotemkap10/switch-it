@@ -12,6 +12,17 @@ import { MapUnavailable } from "@/components/map/MapUnavailable";
 import { SelectedSpotCard } from "@/components/map/SelectedSpotCard";
 import { SpotDiscoveryCarousel } from "@/components/map/SpotDiscoveryCarousel";
 import { Button } from "@/components/ui/Button";
+import {
+  MAP_FLOATING_CONTROL_CLASS,
+  resolveDiscoveryBottomStack,
+  syncDocumentMapBottomStack,
+  type MapBottomStack,
+} from "@/lib/map/bottom-stack";
+import {
+  formatDistanceAway,
+  haversineDistanceMeters,
+  isValidLatLng,
+} from "@/lib/map/distance";
 import { focusSelectedSpot } from "@/lib/map/focus-selected-spot";
 import type { MapSpot } from "@/types/map-spot";
 
@@ -40,6 +51,11 @@ type ParkingMapMapLibreProps = {
   onVisuallyReady?: () => void;
   /** Hide discovery carousel during an active claim experience. */
   showDiscoveryCarousel?: boolean;
+  /**
+   * When set (active claim), overrides local discovery bottom-stack for
+   * floating controls / toast clearance.
+   */
+  bottomStackOverride?: MapBottomStack | null;
 };
 
 function usePrefersReducedMotion() {
@@ -218,6 +234,7 @@ export function ParkingMapMapLibre({
   destination = null,
   onVisuallyReady,
   showDiscoveryCarousel = true,
+  bottomStackOverride = null,
 }: ParkingMapMapLibreProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
   const mapTilerStyleUrl = useMemo(
@@ -258,6 +275,30 @@ export function ParkingMapMapLibre({
     }
     return spots.find((s) => s.id === selectedId) ?? null;
   }, [selectedId, spots]);
+
+  const showCarousel =
+    mapVisuallyReady &&
+    showDiscoveryCarousel &&
+    spots.length > 0 &&
+    !selectedSpot;
+
+  const discoveryBottomStack = resolveDiscoveryBottomStack({
+    hasSpots: showDiscoveryCarousel && spots.length > 0,
+    hasSelected: Boolean(selectedSpot),
+  });
+  const bottomStack: MapBottomStack =
+    bottomStackOverride ?? discoveryBottomStack;
+
+  useEffect(() => {
+    if (bottomStackOverride) {
+      // Claim overlay owns document sync from SeekerMapExperience.
+      return;
+    }
+    syncDocumentMapBottomStack(bottomStack);
+    return () => {
+      syncDocumentMapBottomStack(null);
+    };
+  }, [bottomStack, bottomStackOverride]);
 
   const { state: userLocation } = useUserLocation({
     enableHighAccuracy: true,
@@ -583,12 +624,16 @@ export function ParkingMapMapLibre({
   }
 
   return (
-    <div className="relative h-full w-full">
+    <div
+      className="relative h-full w-full"
+      data-map-bottom={bottomStack}
+      data-testid="parking-map-stage"
+    >
       {mapVisuallyReady &&
       userLocation.status === "loading" &&
       !locationNoticeHidden ? (
         <div
-          className="pointer-events-none absolute bottom-28 right-3 z-[4] md:bottom-24"
+          className={`${MAP_FLOATING_CONTROL_CLASS} z-[4]`}
           role="status"
           aria-live="polite"
         >
@@ -603,7 +648,7 @@ export function ParkingMapMapLibre({
 
       {mapVisuallyReady && locationFailure && !locationNoticeHidden ? (
         <div
-          className="pointer-events-none absolute bottom-28 right-3 z-[4] md:bottom-24"
+          className={`${MAP_FLOATING_CONTROL_CLASS} z-[4]`}
           role="status"
           aria-live="polite"
         >
@@ -625,7 +670,7 @@ export function ParkingMapMapLibre({
       locationOutsideSupportedArea &&
       !locationNoticeHidden ? (
         <div
-          className="pointer-events-none absolute bottom-28 right-3 z-[4] md:bottom-24"
+          className={`${MAP_FLOATING_CONTROL_CLASS} z-[4]`}
           role="status"
           aria-live="polite"
         >
@@ -712,7 +757,11 @@ export function ParkingMapMapLibre({
         userLocation.longitude,
         userLocation.latitude,
       ) ? (
-        <div className="absolute bottom-28 right-3 z-[2] md:bottom-24">
+        <div
+          className={MAP_FLOATING_CONTROL_CLASS}
+          data-testid="map-recenter-control"
+          data-map-bottom={bottomStack}
+        >
           <Button
             type="button"
             variant="secondary"
@@ -744,9 +793,7 @@ export function ParkingMapMapLibre({
         </div>
       ) : null}
 
-      {mapVisuallyReady &&
-      showDiscoveryCarousel &&
-      spots.length > 0 ? (
+      {showCarousel ? (
         <SpotDiscoveryCarousel
           spots={spots}
           selectedId={selectedId}
@@ -761,14 +808,33 @@ export function ParkingMapMapLibre({
                 }
               : null
           }
-          raised={Boolean(selectedSpot)}
         />
       ) : null}
 
-      {mapVisuallyReady && selectedSpot ? (
+      {mapVisuallyReady && selectedSpot && showDiscoveryCarousel ? (
         <SelectedSpotCard
           spot={selectedSpot}
           onClose={() => setSelectedId(null)}
+          distanceLabel={
+            userLocation.status === "ready" &&
+            isValidLatLng({
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude,
+            })
+              ? formatDistanceAway(
+                  haversineDistanceMeters(
+                    {
+                      latitude: userLocation.latitude,
+                      longitude: userLocation.longitude,
+                    },
+                    {
+                      latitude: selectedSpot.latitude,
+                      longitude: selectedSpot.longitude,
+                    },
+                  ),
+                ) || null
+              : null
+          }
         />
       ) : null}
     </div>

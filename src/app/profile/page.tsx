@@ -3,7 +3,6 @@ import { ProfileForm } from "@/components/profile/ProfileForm";
 import { ProfileSummaryRow } from "@/components/profile/ProfileSummaryRow";
 import { VehicleForm } from "@/components/profile/VehicleForm";
 import { Alert } from "@/components/ui/Alert";
-import { Card } from "@/components/ui/Card";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
 import { isVehicleProfileComplete } from "@/lib/vehicle/profile-fields";
 
@@ -24,7 +23,7 @@ export default async function ProfilePage() {
     return (
       <AuthenticatedShell
         title="Profile"
-        description="Manage your Switch It account details."
+        description="Manage your account and vehicle."
         vehicleAccess="allow-incomplete"
       >
         <Alert tone="error">Your profile could not be loaded.</Alert>
@@ -44,13 +43,10 @@ export default async function ProfilePage() {
   return (
     <AuthenticatedShell
       title="Profile"
-      description="Manage your Switch It account details."
+      description="Manage your account and vehicle."
       vehicleAccess="allow-incomplete"
     >
-      <div
-        className="mx-auto flex w-full max-w-3xl flex-col gap-[var(--app-section-gap)]"
-        data-testid="profile-layout"
-      >
+      <div className="profile-page" data-testid="profile-layout">
         <ProfileSummaryRow
           email={user.email}
           credits={profile.credits}
@@ -58,32 +54,34 @@ export default async function ProfilePage() {
           vehicle={vehicle}
         />
 
-        <Card className="flex flex-col gap-3 !p-4 sm:!p-5">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Display name
-            </h2>
-            <p className="mt-0.5 text-xs text-muted sm:text-sm">
-              How you appear in the app.
-            </p>
-          </div>
+        <section
+          className="mobile-form-section"
+          aria-labelledby="profile-display-name-title"
+        >
+          <h2
+            id="profile-display-name-title"
+            className="mobile-form-section-title"
+          >
+            Display name
+          </h2>
           <ProfileForm initialDisplayName={profile.display_name} />
-        </Card>
+        </section>
 
-        <Card className="flex flex-col gap-3 !p-4 sm:!p-5">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              Your vehicle
-            </h2>
-            <p className="mt-0.5 text-xs text-muted sm:text-sm">
-              Helps drivers recognize each other during a handoff.
-            </p>
-          </div>
+        <section
+          className="mobile-form-section"
+          aria-labelledby="profile-vehicle-title"
+        >
+          <h2 id="profile-vehicle-title" className="mobile-form-section-title">
+            Your vehicle
+          </h2>
+          <p className="mobile-form-section-helper">
+            Used to recognize drivers during a handoff.
+          </p>
           <VehicleForm
             initialVehicle={vehicle}
             requiresSetup={!status.vehicleComplete}
           />
-        </Card>
+        </section>
       </div>
     </AuthenticatedShell>
   );

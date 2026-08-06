@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import {
   ActiveClaimPanel,
@@ -11,6 +11,10 @@ import {
 import { OwnSpotNotice } from "@/components/map/OwnSpotNotice";
 import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
 import { Alert } from "@/components/ui/Alert";
+import {
+  syncDocumentMapBottomStack,
+  type MapBottomStack,
+} from "@/lib/map/bottom-stack";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 import type { MapSpot } from "@/types/map-spot";
 
@@ -36,9 +40,37 @@ export function SeekerMapExperience({
   ownedSpotError,
 }: SeekerMapExperienceProps) {
   const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
+  const [claimExpanded, setClaimExpanded] = useState(true);
+  const [expandedForClaimId, setExpandedForClaimId] = useState<string | null>(
+    null,
+  );
   const handleVisuallyReady = useCallback(() => {
     setMapVisuallyReady(true);
   }, []);
+
+  const activeClaimId = activeClaim?.claimId ?? null;
+  if (activeClaimId !== expandedForClaimId) {
+    setExpandedForClaimId(activeClaimId);
+    if (activeClaimId) {
+      setClaimExpanded(true);
+    }
+  }
+
+  const claimBottomStack: MapBottomStack | null = activeClaim
+    ? claimExpanded
+      ? "claim-expanded"
+      : "claim-collapsed"
+    : null;
+
+  useEffect(() => {
+    if (!claimBottomStack) {
+      return;
+    }
+    syncDocumentMapBottomStack(claimBottomStack);
+    return () => {
+      syncDocumentMapBottomStack(null);
+    };
+  }, [claimBottomStack]);
 
   const showEmptyOverlay =
     mapVisuallyReady &&
@@ -46,10 +78,14 @@ export function SeekerMapExperience({
     spots.length === 0 &&
     !activeClaim;
 
+  const showOwnSpot =
+    mapVisuallyReady && showOwnSpotNotice && !activeClaim;
+
   return (
     <div
       data-testid="seeker-map-stage"
       className="relative min-h-0 flex-1"
+      data-map-bottom={claimBottomStack ?? undefined}
     >
       {/* Absolute fill: concrete height from flex parent, not content/min-height. */}
       <div className="absolute inset-0" data-testid="seeker-map-surface">
@@ -59,6 +95,7 @@ export function SeekerMapExperience({
             destination={destination}
             onVisuallyReady={handleVisuallyReady}
             showDiscoveryCarousel={!activeClaim}
+            bottomStackOverride={claimBottomStack}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center p-4">
@@ -71,7 +108,7 @@ export function SeekerMapExperience({
       {mapVisuallyReady ? (
         <>
           {spotsError || activeClaimError || ownedSpotError ? (
-            <div className="pointer-events-none absolute inset-x-0 top-3 z-30 flex flex-col gap-2 px-3 md:left-auto md:right-3 md:w-80">
+            <div className="pointer-events-none absolute inset-x-0 top-3 z-30 flex flex-col gap-2 px-[var(--app-phone-gutter)] md:left-auto md:right-3 md:w-80">
               {spotsError ? (
                 <div className="pointer-events-auto">
                   <Alert tone="error">Could not load parking spots.</Alert>
@@ -92,15 +129,8 @@ export function SeekerMapExperience({
             </div>
           ) : null}
 
-          {showOwnSpotNotice ? (
-            <div
-              className={[
-                "pointer-events-none absolute z-20 px-3",
-                showEmptyOverlay
-                  ? "left-3 top-[6.5rem] sm:left-auto sm:right-3 sm:top-3"
-                  : "right-3 top-3",
-              ].join(" ")}
-            >
+          {showOwnSpot ? (
+            <div className="pointer-events-none absolute right-3 top-3 z-20">
               <div className="pointer-events-auto">
                 <OwnSpotNotice />
               </div>
@@ -114,6 +144,8 @@ export function SeekerMapExperience({
                 destination={destination}
                 counterpartVehicle={counterpartVehicle}
                 variant="overlay"
+                expanded={claimExpanded}
+                onExpandedChange={setClaimExpanded}
               />
             </div>
           ) : null}
@@ -121,19 +153,19 @@ export function SeekerMapExperience({
           {showEmptyOverlay ? (
             <div
               className={[
-                "pointer-events-none absolute z-20 px-3",
-                "left-0 top-3 md:left-3",
+                "pointer-events-none absolute z-20",
+                "left-[var(--app-phone-gutter)] top-3",
               ].join(" ")}
             >
               <div
                 data-testid="map-empty-overlay"
-                className="pointer-events-auto w-[min(100%,20rem)] max-w-[20rem] rounded-[var(--radius-card)] border border-border bg-surface px-3.5 py-2.5 text-left shadow-[var(--shadow-card)] motion-fade-in"
+                className="map-empty-notice pointer-events-auto rounded-[var(--radius-card)] border border-border bg-surface px-3.5 py-2.5 text-left shadow-[var(--shadow-card)] motion-fade-in"
               >
                 <p className="text-sm font-semibold text-foreground">
                   No spots nearby yet
                 </p>
                 <p className="mt-1 text-xs leading-5 text-muted">
-                  New spots will appear automatically.
+                  New spots will appear here automatically.
                 </p>
                 <Link
                   href="/spots/new"

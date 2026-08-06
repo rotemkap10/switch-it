@@ -16,9 +16,6 @@ type ProfileSummaryRowProps = {
   vehicle: VehicleProfileFields;
 };
 
-const summaryCardClass =
-  "flex h-full min-h-[9.5rem] flex-col gap-2.5 !p-4 sm:!p-5";
-
 export function ProfileSummaryRow({
   email,
   credits,
@@ -31,27 +28,12 @@ export function ProfileSummaryRow({
   const summary = getVehicleSummaryLines(vehicle);
 
   return (
-    <div
-      className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4"
-      data-testid="profile-summary-row"
-    >
-      <Card className={summaryCardClass}>
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            Email
-          </p>
-          <EmailMarkIcon className="h-5 w-5 shrink-0" />
-        </div>
-        <p className="mt-auto break-all text-sm leading-snug text-foreground sm:text-[0.9375rem]">
-          {email?.trim() ? email : "—"}
-        </p>
-      </Card>
-
-      <Card className={summaryCardClass}>
+    <div className="profile-summary-grid" data-testid="profile-summary-row">
+      <Card className="profile-summary-card">
         <CreditsSummaryCard credits={credits} />
       </Card>
 
-      <Card className={summaryCardClass}>
+      <Card className="profile-summary-card">
         <div className="flex items-start justify-between gap-2">
           <p className="text-xs font-medium uppercase tracking-wide text-muted">
             Vehicle
@@ -77,13 +59,30 @@ export function ProfileSummaryRow({
                 {summary.colorType}
               </p>
               <p className="mt-1 truncate text-xs text-muted sm:text-sm">
-                <span className="vehicle-plate-display !text-xs">{summary.plate}</span>
+                <span className="vehicle-plate-display !text-xs">
+                  {summary.plate}
+                </span>
               </p>
             </>
           ) : (
             <p className="text-sm text-muted">No vehicle details yet</p>
           )}
         </div>
+      </Card>
+
+      <Card className="profile-summary-card profile-summary-email">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+            Email
+          </p>
+          <EmailMarkIcon className="h-5 w-5 shrink-0" />
+        </div>
+        <p
+          className="mt-auto break-all text-sm leading-snug text-foreground sm:text-[0.9375rem]"
+          data-testid="profile-email-value"
+        >
+          {email?.trim() ? email : "—"}
+        </p>
       </Card>
     </div>
   );

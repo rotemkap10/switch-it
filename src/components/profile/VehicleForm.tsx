@@ -92,7 +92,7 @@ export function VehicleForm({
             type="button"
             variant="secondary"
             onClick={startEditing}
-            className="mx-auto w-fit sm:mx-0"
+            className="mobile-form-primary sm:!mx-0 sm:!w-auto"
             aria-expanded={false}
             aria-controls="vehicle-edit-panel"
           >
@@ -108,7 +108,7 @@ export function VehicleForm({
           aria-label="Edit vehicle details"
         >
           <div className="motion-reveal-panel-inner">
-            <form action={dispatch} className="flex flex-col gap-4">
+            <form action={dispatch} className="mobile-form-fields" key={formKey}>
               <VehicleFields
                 key={formKey}
                 initialVehicle={saved}
@@ -120,22 +120,18 @@ export function VehicleForm({
                 state={state}
               />
 
-              <p className="text-xs leading-5 text-muted">
-                Vehicle details will be used during active parking handoffs.
-              </p>
-
               {requiresSetup ? (
                 <input type="hidden" name="complete_setup" value="1" />
               ) : null}
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+              <div className="mobile-form-actions">
                 {savedComplete ? (
                   <Button
                     type="button"
                     variant="ghost"
                     onClick={cancelEditing}
                     disabled={pending}
-                    className="w-fit"
+                    className="min-h-[var(--app-tap-min)]"
                     aria-expanded={true}
                     aria-controls="vehicle-edit-panel"
                   >
@@ -148,7 +144,8 @@ export function VehicleForm({
                   type="submit"
                   loading={pending}
                   disabled={pending}
-                  className="ml-auto w-fit"
+                  aria-busy={pending}
+                  className="mobile-form-primary sm:!w-auto"
                 >
                   {pending
                     ? "Saving…"

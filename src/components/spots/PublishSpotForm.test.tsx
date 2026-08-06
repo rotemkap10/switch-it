@@ -14,6 +14,24 @@ vi.mock("@/actions/spots", () => ({
   publishSpot: publishSpotMock,
 }));
 
+const reverseGeocodeState = vi.hoisted(() => ({
+  status: "idle" as "idle" | "loading" | "success" | "unavailable",
+  label: null as string | null,
+  addressForPublish: null as string | null,
+  isUpdating: false,
+  notifyMapMoveStart: vi.fn(),
+}));
+
+vi.mock("@/lib/geocoding/use-reverse-geocode", () => ({
+  useReverseGeocode: () => ({
+    status: reverseGeocodeState.status,
+    label: reverseGeocodeState.label,
+    addressForPublish: reverseGeocodeState.addressForPublish,
+    isUpdating: reverseGeocodeState.isUpdating,
+    notifyMapMoveStart: reverseGeocodeState.notifyMapMoveStart,
+  }),
+}));
+
 vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
   SpotLocationPickerLoader: ({
     latitude,
@@ -98,6 +116,11 @@ describe("PublishSpotForm", () => {
   beforeEach(() => {
     publishSpotMock.mockReset();
     mockPublishWithSchemaValidation();
+    reverseGeocodeState.status = "idle";
+    reverseGeocodeState.label = null;
+    reverseGeocodeState.addressForPublish = null;
+    reverseGeocodeState.isUpdating = false;
+    reverseGeocodeState.notifyMapMoveStart.mockReset();
     stubGeolocation((success) => {
       success({
         coords: {
@@ -118,24 +141,40 @@ describe("PublishSpotForm", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the location section, leave-time choices, and primary action", async () => {
+  it("renders the compact compose layout with leave-time grid and primary action", async () => {
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
+    const form = screen.getByTestId("publish-spot-form");
+    expect(form.className).toContain("publisher-compose");
+    expect(form.querySelector(".publisher-compose-surface")).not.toBeNull();
+    expect(screen.getByTestId("leave-time-grid")).toBeInTheDocument();
     expect(screen.getByRole("radiogroup")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Share spot" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "More" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "More" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
     expect(screen.queryByText("Your parking spot")).not.toBeInTheDocument();
+    expect(screen.queryByText("Share my parking spot")).not.toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText("Location found")).toBeInTheDocument();
+      expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
+        "Location selected",
+      );
     });
+    expect(
+      screen.getByText("You can move the map to adjust the spot."),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Enter coordinates manually" }),
-    ).toBeInTheDocument();
+    ).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByLabelText("Latitude")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("This coordinates a handoff; it does not reserve the spot."),
+    ).toBeInTheDocument();
   });
 
   it("updates hidden coordinates from the map picker callback", async () => {
@@ -163,7 +202,9 @@ describe("PublishSpotForm", () => {
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
-      expect(screen.getByText("Location found")).toBeInTheDocument();
+      expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
+        "Location selected",
+      );
     });
 
     await user.click(screen.getByRole("radio", { name: "10 min" }));
@@ -184,7 +225,9 @@ describe("PublishSpotForm", () => {
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
-      expect(screen.getByText("Location found")).toBeInTheDocument();
+      expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
+        "Location selected",
+      );
     });
 
     await user.click(screen.getByRole("button", { name: "Enter coordinates manually" }));
@@ -279,7 +322,9 @@ describe("PublishSpotForm", () => {
     const { unmount } = render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
-      expect(screen.getByText("Location found")).toBeInTheDocument();
+      expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
+        "Location selected",
+      );
     });
     expect(
       screen.getByRole("button", { name: "Recenter on my location" }),
@@ -305,6 +350,66 @@ describe("PublishSpotForm", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("submits optional address when reverse geocoding resolves", async () => {
+    const user = userEvent.setup();
+    reverseGeocodeState.status = "success";
+    reverseGeocodeState.label = "Dizengoff Street 120, Tel Aviv";
+    reverseGeocodeState.addressForPublish = "Dizengoff Street 120, Tel Aviv";
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("publisher-address-label")).toHaveTextContent(
+        "Dizengoff Street 120, Tel Aviv",
+      );
+    });
+
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
+
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+
+    const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
+    expect(formData.get("address")).toBe("Dizengoff Street 120, Tel Aviv");
+  });
+
+  it("publishes with null address while lookup is still pending", async () => {
+    const user = userEvent.setup();
+    reverseGeocodeState.status = "loading";
+    reverseGeocodeState.label = null;
+    reverseGeocodeState.addressForPublish = null;
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
+
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+
+    const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
+    expect(formData.get("address")).toBe("");
+  });
+
+  it("keeps the map picker mounted when leave time changes", async () => {
+    const user = userEvent.setup();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("radio", { name: "10 min" }));
+    expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    await user.click(screen.getByRole("radio", { name: "20 min" }));
+    expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+  });
+
   it("shows a pending disabled submit state while publishing", async () => {
     const user = userEvent.setup();
     let resolvePublish: (value: Record<string, never>) => void = () => {};
@@ -318,7 +423,9 @@ describe("PublishSpotForm", () => {
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
-      expect(screen.getByText("Location found")).toBeInTheDocument();
+      expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
+        "Location selected",
+      );
     });
 
     await user.click(screen.getByRole("button", { name: "Share spot" }));

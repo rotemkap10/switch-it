@@ -8,6 +8,11 @@ import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import { Countdown } from "@/components/ui/Countdown";
 import { formatDateTime } from "@/lib/format/time";
+import {
+  MAP_SHEET_CLASS,
+  MAP_SHEET_HOST_CLASS,
+} from "@/lib/map/bottom-stack";
+import { seekerSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
 import {
@@ -29,13 +34,12 @@ export type ActiveClaimDestination = {
   longitude: number;
 };
 
-export const ACTIVE_CLAIM_DESTINATION_FALLBACK = "Parking spot destination";
+export const ACTIVE_CLAIM_DESTINATION_FALLBACK = "Parking spot on the map";
 
 export function activeClaimDestinationLabel(
   spotAddress: string | null | undefined,
 ): string {
-  const trimmed = spotAddress?.trim();
-  return trimmed ? trimmed : ACTIVE_CLAIM_DESTINATION_FALLBACK;
+  return seekerSpotAddressLabel(spotAddress);
 }
 
 type ActiveClaimPanelProps = {
@@ -46,6 +50,9 @@ type ActiveClaimPanelProps = {
   counterpartVehicle?: HandoffVehicle | null;
   /** Overlay sits on the map; default is a stacked page card. */
   variant?: "card" | "overlay";
+  /** Controlled expand state (map bottom-stack coordination). */
+  expanded?: boolean;
+  onExpandedChange?: (expanded: boolean) => void;
 };
 
 function useAvailability(spotAvailableAt: string) {
@@ -116,10 +123,13 @@ function ActiveClaimSheetBody({
   return (
     <div
       className={[
-        "flex flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface/95 p-3 shadow-[var(--shadow-card)] backdrop-blur-sm",
+        MAP_SHEET_CLASS,
+        expanded
+          ? "map-bottom-sheet--claim-expanded active-claim-sheet-expanded"
+          : "map-bottom-sheet--claim-collapsed active-claim-sheet-collapsed",
         "motion-fade-slide-up",
-        expanded ? "active-claim-sheet-expanded" : "active-claim-sheet-collapsed",
       ].join(" ")}
+      data-testid="active-claim-sheet"
     >
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
@@ -175,10 +185,7 @@ function ActiveClaimSheetBody({
           onClick={onToggleExpanded}
         >
           <span className="sr-only">{expanded ? "Collapse" : "Expand"}</span>
-          <span
-            className="mx-auto mb-1 block h-1 w-8 rounded-full bg-border"
-            aria-hidden="true"
-          />
+          <span className="map-sheet-handle" aria-hidden="true" />
           <ExpandChevron expanded={expanded} />
         </button>
       </div>
@@ -204,7 +211,11 @@ function ActiveClaimSheetBody({
       <div
         id="active-claim-details"
         hidden={!expanded}
-        className={expanded ? "flex flex-col gap-3 motion-fade-in" : undefined}
+        className={
+          expanded
+            ? "map-bottom-sheet-scroll flex min-h-0 flex-1 flex-col gap-3 motion-fade-in"
+            : undefined
+        }
       >
         {expanded ? (
           <>
@@ -225,8 +236,16 @@ function ActiveClaimSheetBody({
               When the countdown reaches zero, the spot should be free for you
               to take.
             </p>
-            <CompleteHandoffForm claimId={claim.claimId} />
-            <CancelClaimButton claimId={claim.claimId} />
+            <div
+              className="map-bottom-sheet-actions"
+              data-testid="active-claim-sticky-actions"
+            >
+              <p className="text-xs font-medium text-foreground">
+                Complete the handoff
+              </p>
+              <CompleteHandoffForm claimId={claim.claimId} />
+              <CancelClaimButton claimId={claim.claimId} />
+            </div>
           </>
         ) : null}
       </div>
@@ -239,9 +258,24 @@ export function ActiveClaimPanel({
   destination = null,
   counterpartVehicle = null,
   variant = "card",
+  expanded: expandedProp,
+  onExpandedChange,
 }: ActiveClaimPanelProps) {
   // Start expanded so actions are discoverable; session-only preference.
-  const [expanded, setExpanded] = useState(true);
+  const [uncontrolledExpanded, setUncontrolledExpanded] = useState(true);
+  const expanded = expandedProp ?? uncontrolledExpanded;
+  const onExpandedChangeRef = useRef(onExpandedChange);
+
+  useEffect(() => {
+    onExpandedChangeRef.current = onExpandedChange;
+  }, [onExpandedChange]);
+
+  const setExpanded = (next: boolean) => {
+    if (expandedProp === undefined) {
+      setUncontrolledExpanded(next);
+    }
+    onExpandedChangeRef.current?.(next);
+  };
   const sheetLabelId = useId();
 
   useEffect(() => {
@@ -258,12 +292,15 @@ export function ActiveClaimPanel({
         return;
       }
       event.preventDefault();
-      setExpanded(false);
+      if (expandedProp === undefined) {
+        setUncontrolledExpanded(false);
+      }
+      onExpandedChangeRef.current?.(false);
     };
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [expanded]);
+  }, [expanded, expandedProp]);
 
   const body = (
     <ActiveClaimSheetBody
@@ -271,14 +308,17 @@ export function ActiveClaimPanel({
       destination={destination}
       counterpartVehicle={counterpartVehicle}
       expanded={expanded}
-      onToggleExpanded={() => setExpanded((value) => !value)}
+      onToggleExpanded={() => setExpanded(!expanded)}
       sheetLabelId={sheetLabelId}
     />
   );
 
   if (variant === "overlay") {
     return (
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[30] px-[var(--app-phone-gutter)] pt-3 app-overlay-pad-bottom md:left-4 md:right-auto md:w-full md:max-w-sm md:px-4">
+      <div
+        className={`${MAP_SHEET_HOST_CLASS} map-bottom-sheet-host--claim md:left-4 md:right-auto md:w-full md:max-w-sm md:px-4`}
+        data-testid="active-claim-overlay-host"
+      >
         <section
           className="pointer-events-auto"
           role="region"

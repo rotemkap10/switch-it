@@ -16,6 +16,8 @@ export type SpotLocationPickerProps = {
   latitude: number;
   longitude: number;
   onLocationChange: (latitude: number, longitude: number) => void;
+  /** Fired when the user begins panning/zooming (before moveend). */
+  onMapInteractionStart?: () => void;
   disabled?: boolean;
   /** Optional detected user location for the compact Recenter control. */
   userLatitude?: number | null;
@@ -78,6 +80,7 @@ export function SpotLocationPickerMapLibre({
   latitude,
   longitude,
   onLocationChange,
+  onMapInteractionStart,
   disabled = false,
   userLatitude = null,
   userLongitude = null,
@@ -86,6 +89,7 @@ export function SpotLocationPickerMapLibre({
   const mapRef = useRef<MapLibreMap | null>(null);
   const shellRef = useRef<HTMLDivElement | null>(null);
   const onLocationChangeRef = useRef(onLocationChange);
+  const onMapInteractionStartRef = useRef(onMapInteractionStart);
   const programmaticMoveRef = useRef(false);
   const handlersBoundRef = useRef(false);
   const [pinLifting, setPinLifting] = useState(false);
@@ -102,6 +106,10 @@ export function SpotLocationPickerMapLibre({
   useEffect(() => {
     onLocationChangeRef.current = onLocationChange;
   }, [onLocationChange]);
+
+  useEffect(() => {
+    onMapInteractionStartRef.current = onMapInteractionStart;
+  }, [onMapInteractionStart]);
 
   const canRecenter =
     typeof userLatitude === "number" &&
@@ -200,6 +208,7 @@ export function SpotLocationPickerMapLibre({
               return;
             }
             setPinLifting(true);
+            onMapInteractionStartRef.current?.();
           });
 
           map.on("moveend", () => {

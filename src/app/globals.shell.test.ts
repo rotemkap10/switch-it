@@ -35,4 +35,46 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain("padding-inline: var(--app-phone-gutter)");
     expect(css).toContain(".app-overlay-pad-bottom");
   });
+
+  it("defines seeker map bottom-stack tokens and utilities", () => {
+    expect(css).toContain("--map-edge-gap:");
+    expect(css).toContain("--map-attribution-clearance:");
+    expect(css).toContain("--map-bottom-sheet-gap:");
+    expect(css).toContain("--map-floating-control-bottom:");
+    expect(css).toContain("--map-carousel-bottom:");
+    expect(css).toContain('[data-map-bottom="carousel"]');
+    expect(css).toContain('[data-map-bottom="selected"]');
+    expect(css).toContain('[data-map-bottom="claim-collapsed"]');
+    expect(css).toContain('[data-map-bottom="claim-expanded"]');
+    expect(css).toContain(".map-floating-control");
+    expect(css).toContain(".map-carousel");
+    expect(css).toContain(".map-bottom-sheet");
+    expect(css).toContain(".map-bottom-sheet-scroll");
+    expect(css).toContain("70dvh");
+    expect(css).not.toContain("bottom-28");
+    expect(css).not.toContain("46vh");
+  });
+
+  it("defines publisher compose and leaver picker shell utilities", () => {
+    expect(css).toContain(".leaver-map-picker-shell");
+    expect(css).toContain("clamp(210px, 38dvh, 280px)");
+    expect(css).toContain(".publisher-compose");
+    expect(css).toContain(".publisher-compose-surface");
+    expect(css).toContain(".publisher-leave-time-grid");
+    expect(css).toContain(".publisher-share-cta");
+    expect(css).toContain(".publisher-preview-map-shell--available");
+    expect(css).toContain(".publisher-preview-map-shell--claimed");
+    expect(css).toContain(".publisher-spot-card");
+  });
+
+  it("defines mobile account form utilities", () => {
+    expect(css).toContain(".auth-page");
+    expect(css).toContain(".mobile-form-surface");
+    expect(css).toContain(".mobile-form-fields");
+    expect(css).toContain(".mobile-form-primary");
+    expect(css).toContain(".mobile-form-section");
+    expect(css).toContain(".profile-summary-grid");
+    expect(css).toContain(".profile-summary-email");
+    expect(css).toContain(".onboarding-vehicle-form");
+  });
 });

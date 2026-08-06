@@ -199,7 +199,7 @@ Constants used in logic (application + SQL):
 | `owner_id` | `uuid` | NO | FK → `profiles(id)` |
 | `latitude` | `double precision` | NO | Required |
 | `longitude` | `double precision` | NO | Required |
-| `address` | `text` | YES | Optional label |
+| `address` | `text` | YES | Optional display-only human-readable label (coordinates remain authoritative) |
 | `available_at` | `timestamptz` | NO | When spot is expected free |
 | `expires_at` | `timestamptz` | NO | End of availability window |
 | `status` | `text` | NO | CHECK in allowed spot statuses |
@@ -459,7 +459,49 @@ blocking.
 - Distance is approximate Haversine only (not ETA); omitted when location is unknown.
 - Availability labels update on a shared minute-level tick; SelectedSpotCard keeps
   the precise countdown and claim CTA.
+- When a spot is selected, the carousel hides and yields to the selected-spot
+  bottom sheet (no competing detail cards).
 - Hidden while an active claim overlay is shown.
+
+### Seeker map bottom-stack (presentation)
+
+- Shared CSS contract via `data-map-bottom` (`none` | `carousel` | `selected` |
+  `claim-collapsed` | `claim-expanded`) and tokens in `globals.css`
+  (`--map-floating-control-bottom`, `--map-carousel-bottom`, attribution /
+  safe-area clearance). Helper: `src/lib/map/bottom-stack.ts`.
+- Floating recenter / location pills use `.map-floating-control`; sheets use
+  `.map-bottom-sheet-host` / `.map-bottom-sheet`. No `bottom-28` / `46vh` magic.
+- Document-level `data-map-bottom` syncs toast `--app-toast-offset` so feedback
+  does not cover primary sheet actions.
+- Desktop keeps lower-left floating cards; mobile uses phone-native bottom sheets
+  with dvh max-height + internal scroll when the claim sheet is expanded.
+
+### Publisher share-a-spot compose (presentation)
+
+- `/spots/new` uses a single compact compose surface (`.publisher-compose-surface`)
+  with PageHeader h1 “Share a spot” — no nested duplicate headings.
+- Location picker shell: `.leaver-map-picker-shell` (`clamp(210px, 38dvh, 280px)`);
+  fixed center pin; coords from `map.getCenter()` on `moveend` only.
+- Leave-time choices: 3-column `.publisher-leave-time-grid`; **More** reveals 25/30.
+- Reverse geocoding enriches the publisher picker with a display-only address label
+  (MapTiler Geocoding API via `NEXT_PUBLIC_MAPTILER_API_KEY`). Browser debounces
+  ~750ms after `moveend`; publication stores the sanitized snapshot in
+  `parking_spots.address` when available. Coordinates remain authoritative for
+  claims, navigation, and distance. Seeker UI reads stored labels only — no
+  per-card geocoding.
+- Active publisher card: mobile order status → handoff code → vehicle → map preview;
+  desktop may use two-column grid. Preview height varies by
+  `publisher-preview-map-shell--available|claimed`.
+
+### Mobile account forms (presentation)
+
+- Login, register, onboarding, and profile editing share `.auth-page`,
+  `.mobile-form-surface`, `.mobile-form-fields`, `.mobile-form-primary`, and
+  `.mobile-form-section` utilities in `globals.css`.
+- Profile summary uses `.profile-summary-grid` (credits + vehicle row, full-width
+  email on phones; three-column desktop).
+- Onboarding vehicle form shows a hero illustration via `placeholderPreview` until
+  type/color are selected; profile vehicle editor keeps one hero preview only.
 
 ### Application feedback (presentation)
 
@@ -813,6 +855,7 @@ idempotency, cancel/expire credit neutrality.
 Vercel (Next.js)
   env: NEXT_PUBLIC_SUPABASE_URL
        NEXT_PUBLIC_SUPABASE_ANON_KEY
+       NEXT_PUBLIC_MAPTILER_API_KEY
        (no service role in frontend env)
 
 Supabase project
@@ -820,6 +863,25 @@ Supabase project
   Postgres + migrations from supabase/migrations
   RLS + RPCs
 ```
+
+### MapTiler reverse geocoding (Phase 5)
+
+- **Endpoint:** `GET https://api.maptiler.com/geocoding/{longitude},{latitude}.json`
+  with `NEXT_PUBLIC_MAPTILER_API_KEY` (same public key as the MapLibre basemap).
+- **Accounting:** direct REST calls count as Geocoding API **requests** (not SDK
+  sessions). Free-plan limits are defined on MapTiler Cloud pricing; this MVP
+  debounces picker lookups (~750ms after `moveend`) and caches rounded coordinates
+  in memory to keep volume reasonable.
+- **Persistence:** MapTiler Cloud Terms §6.4 (*Export Results Of Search Services*)
+  allows Geocoding API results for use outside the service, including storing a
+  short sanitized label snapshot in `parking_spots.address`. The separate
+  client-js library caution applies to redistributing raw Cloud API datasets, not
+  this single display label per published spot.
+- **Attribution:** existing MapLibre map attribution (MapTiler + OpenStreetMap)
+  remains sufficient; stored address strings are not shown with additional
+  per-card attribution.
+- **Failure-safe:** publication succeeds with `address = null` when lookup is
+  pending, offline, quota-limited, or otherwise unavailable.
 
 - Apply schema via migration files (not manual-only dashboard edits for
   final state).

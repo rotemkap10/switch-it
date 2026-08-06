@@ -14,9 +14,15 @@ type ProfileMenuProps = {
 export function ProfileMenu({ displayName }: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
   const trimmedName = displayName?.trim() || null;
   const avatarEntrance = useOneShotAnimation("nav-avatar-entrance");
+
+  function closeMenu() {
+    setOpen(false);
+    queueMicrotask(() => triggerRef.current?.focus());
+  }
 
   useEffect(() => {
     if (!open) {
@@ -25,13 +31,13 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
 
     function onPointerDown(event: MouseEvent) {
       if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
+        closeMenu();
       }
     }
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
-        setOpen(false);
+        closeMenu();
       }
     }
 
@@ -46,6 +52,7 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
   return (
     <div ref={rootRef} className="relative" data-testid="profile-menu">
       <button
+        ref={triggerRef}
         type="button"
         className={[
           "inline-flex max-w-[10rem] items-center gap-2 rounded-[var(--radius-card)] border border-border bg-surface px-2.5",
@@ -82,8 +89,8 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
           <Link
             href="/profile"
             role="menuitem"
-            className="block px-3 py-2.5 text-sm text-foreground hover:bg-accent-soft"
-            onClick={() => setOpen(false)}
+            className="block min-h-[var(--app-tap-min)] px-3 py-2.5 text-sm text-foreground hover:bg-accent-soft"
+            onClick={() => closeMenu()}
           >
             Profile
           </Link>
@@ -91,7 +98,7 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
             <button
               type="submit"
               role="menuitem"
-              className="block w-full px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent-soft"
+              className="block min-h-[var(--app-tap-min)] w-full px-3 py-2.5 text-left text-sm text-foreground hover:bg-accent-soft"
             >
               Log out
             </button>

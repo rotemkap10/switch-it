@@ -38,7 +38,7 @@ export function CreditsSummaryCard({ credits }: CreditsSummaryCardProps) {
 
   return (
     <div
-      className="flex h-full min-h-[9.5rem] flex-col gap-2"
+      className="flex h-full flex-col gap-2"
       data-testid="credits-summary-card"
     >
       <p className="text-xs font-medium uppercase tracking-wide text-muted">

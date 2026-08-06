@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { sanitizeLocationLabel } from "@/lib/geocoding/sanitize-location-label";
 import {
   AVAILABLE_IN_MINUTES_OPTIONS,
   SPOT_GRACE_MINUTES,
@@ -25,10 +26,9 @@ export const publishSpotSchema = z
       .max(180, "Longitude must be between -180 and 180."),
     address: z
       .string()
-      .trim()
       .max(200, "Address must be at most 200 characters.")
       .optional()
-      .transform((value) => (value && value.length > 0 ? value : null)),
+      .transform((value) => sanitizeLocationLabel(value ?? null)),
     available_in_minutes: availableInMinutesSchema,
   })
   .transform((data) => {

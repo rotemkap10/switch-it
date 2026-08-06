@@ -1,21 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 
 import { ClaimSpotButton } from "@/components/map/ClaimSpotButton";
 import { Button } from "@/components/ui/Button";
 import { Countdown } from "@/components/ui/Countdown";
+import { seekerSpotAddressLabel } from "@/lib/geocoding/location-display";
+import {
+  MAP_SHEET_CLASS,
+  MAP_SHEET_HOST_CLASS,
+} from "@/lib/map/bottom-stack";
 import type { MapSpot } from "@/types/map-spot";
 
-const PANEL_EXIT_MS = 160;
+const PANEL_EXIT_MS = 200;
 
 type SelectedSpotCardProps = {
   spot: MapSpot;
   onClose: () => void;
+  /** Straight-line distance label when user location is known. */
+  distanceLabel?: string | null;
 };
 
-export function SelectedSpotCard({ spot, onClose }: SelectedSpotCardProps) {
+export function SelectedSpotCard({
+  spot,
+  onClose,
+  distanceLabel = null,
+}: SelectedSpotCardProps) {
   const [closing, setClosing] = useState(false);
+  const titleId = useId();
 
   function handleClose() {
     if (closing) {
@@ -25,27 +37,33 @@ export function SelectedSpotCard({ spot, onClose }: SelectedSpotCardProps) {
     window.setTimeout(onClose, PANEL_EXIT_MS);
   }
 
+  const addressLabel = seekerSpotAddressLabel(spot.address);
+
   return (
     <div
-      className={[
-        "pointer-events-none absolute z-[1000]",
-        "inset-x-0 bottom-0 px-[var(--app-phone-gutter)] pt-3 app-overlay-pad-bottom",
-        // Desktop: lower-left.
-        "md:inset-x-auto md:bottom-4 md:left-4 md:right-auto md:w-full md:max-w-sm md:p-0 md:px-0",
-      ].join(" ")}
+      className={MAP_SHEET_HOST_CLASS}
+      data-testid="selected-spot-sheet-host"
     >
-      <div
+      <section
+        role="region"
+        aria-labelledby={titleId}
+        data-testid="selected-spot-sheet"
         className={[
-          "pointer-events-auto flex w-full flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-card)]",
+          "pointer-events-auto",
+          MAP_SHEET_CLASS,
+          "map-bottom-sheet--selected",
           closing ? "motion-panel-exit" : "motion-fade-slide-up",
         ].join(" ")}
       >
+        <div className="map-sheet-handle" aria-hidden="true" />
+
         <div className="flex items-start justify-between gap-3">
           <div className="status-band min-w-0 flex-1 px-3 py-2">
-            <p className="text-sm font-semibold text-foreground">
-              {spot.address?.trim()
-                ? spot.address
-                : "Public street parking spot"}
+            <p
+              id={titleId}
+              className="truncate text-sm font-semibold text-foreground"
+            >
+              {addressLabel}
             </p>
             <p className="mt-2 text-base">
               <Countdown
@@ -54,6 +72,9 @@ export function SelectedSpotCard({ spot, onClose }: SelectedSpotCardProps) {
                 readyLabel="Available now"
               />
             </p>
+            {distanceLabel ? (
+              <p className="mt-1 truncate text-xs text-muted">{distanceLabel}</p>
+            ) : null}
           </div>
           <Button
             type="button"
@@ -67,11 +88,13 @@ export function SelectedSpotCard({ spot, onClose }: SelectedSpotCardProps) {
         </div>
 
         {spot.canClaim ? (
-          <ClaimSpotButton spotId={spot.id} />
+          <div data-testid="selected-spot-claim-action">
+            <ClaimSpotButton spotId={spot.id} />
+          </div>
         ) : (
           <p className="text-sm text-muted">This is your published spot.</p>
         )}
-      </div>
+      </section>
     </div>
   );
 }

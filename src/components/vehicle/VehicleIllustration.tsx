@@ -35,8 +35,8 @@ const SIZE_CLASSES = {
     "max-w-full bg-accent-soft/70 p-2 [&_svg]:h-auto [&_svg]:w-[4.5rem]",
   hero: [
     "w-full bg-accent-soft",
-    "px-4 py-5 sm:px-8 sm:py-8",
-    "[&_svg]:h-auto [&_svg]:w-[min(100%,14.5rem)] sm:[&_svg]:w-[min(100%,20rem)]",
+    "px-4 py-[clamp(0.75rem,2.5dvh,1.5rem)] sm:px-8 sm:py-8",
+    "[&_svg]:h-auto [&_svg]:w-[min(100%,clamp(11rem,42vw,14.5rem))] sm:[&_svg]:w-[min(100%,20rem)]",
   ].join(" "),
 } as const;
 

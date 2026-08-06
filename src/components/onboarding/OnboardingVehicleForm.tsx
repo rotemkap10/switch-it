@@ -30,11 +30,17 @@ export function OnboardingVehicleForm({
   });
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form
+      action={formAction}
+      className="mobile-form-fields onboarding-vehicle-form"
+      data-testid="onboarding-vehicle-form"
+    >
       <VehicleFields
         initialVehicle={initialVehicle}
         disabled={pending}
         showPreview
+        previewSize="hero"
+        placeholderPreview
         state={state}
       />
 
@@ -42,7 +48,8 @@ export function OnboardingVehicleForm({
         type="submit"
         loading={pending}
         disabled={pending}
-        className="w-full sm:w-fit"
+        aria-busy={pending}
+        className="mobile-form-primary"
       >
         {pending ? "Saving…" : "Continue to the map"}
       </Button>

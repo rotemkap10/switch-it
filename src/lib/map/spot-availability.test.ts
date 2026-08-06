@@ -37,7 +37,7 @@ describe("spot availability helpers", () => {
     expect(spotCarouselAddressLabel("Arlozorov Street")).toBe(
       "Arlozorov Street",
     );
-    expect(spotCarouselAddressLabel("  ")).toBe("Parking spot nearby");
-    expect(spotCarouselAddressLabel(null)).toBe("Parking spot nearby");
+    expect(spotCarouselAddressLabel("  ")).toBe("Parking spot on the map");
+    expect(spotCarouselAddressLabel(null)).toBe("Parking spot on the map");
   });
 });

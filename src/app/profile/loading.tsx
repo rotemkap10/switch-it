@@ -11,20 +11,36 @@ export default function ProfileLoading() {
         </div>
       </div>
       <main className="app-shell-main app-shell-main--page">
-        <div className="space-y-3">
-          <div className="h-8 w-40 animate-pulse rounded bg-accent-soft" />
-          <div className="h-4 w-64 max-w-full animate-pulse rounded bg-accent-soft" />
+        <div className="space-y-2">
+          <div className="h-7 w-32 animate-pulse rounded bg-accent-soft sm:h-8" />
+          <div className="h-4 w-full max-w-md animate-pulse rounded bg-accent-soft" />
         </div>
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-[var(--app-card-gap)]">
-          <div className="grid gap-[var(--app-card-gap)] sm:grid-cols-3">
-            <div className="h-[9.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
-            <div className="h-[9.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
-            <div className="h-[9.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
+
+        <div className="profile-page" data-testid="profile-compose-skeleton">
+          <div className="profile-summary-grid">
+            <div className="profile-summary-card animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
+            <div className="profile-summary-card animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
+            <div className="profile-summary-card profile-summary-email animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
           </div>
-          <div className="h-[5.5rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
-          <div className="h-[22rem] animate-pulse rounded-[var(--radius-card)] bg-accent-soft sm:h-[24rem]" />
+
+          <div className="mobile-form-section">
+            <div className="h-4 w-28 animate-pulse rounded bg-accent-soft" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="h-10 w-10 animate-pulse rounded-full bg-accent-soft" />
+                <div className="h-4 w-24 animate-pulse rounded bg-accent-soft" />
+              </div>
+              <div className="h-10 w-16 animate-pulse rounded bg-accent-soft" />
+            </div>
+          </div>
+
+          <div className="mobile-form-section">
+            <div className="h-4 w-24 animate-pulse rounded bg-accent-soft" />
+            <div className="h-3 w-48 max-w-full animate-pulse rounded bg-accent-soft" />
+            <div className="h-[clamp(10rem,28dvh,14rem)] animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
+            <div className="mobile-form-primary h-12 animate-pulse rounded-[var(--radius-card)] bg-accent-soft" />
+          </div>
         </div>
-        <p className="text-sm text-muted">Loading profile…</p>
       </main>
     </div>
   );

@@ -197,4 +197,18 @@ describe("SpotLocationPickerMapLibre", () => {
       screen.queryByRole("button", { name: "Recenter on my location" }),
     ).not.toBeInTheDocument();
   });
+
+  it("uses the responsive leaver picker shell height class", async () => {
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    const picker = await screen.findByTestId("leaver-map-picker");
+    expect(picker.className).toContain("leaver-map-picker-shell");
+    expect(picker.className).not.toContain("h-[260px]");
+  });
 });

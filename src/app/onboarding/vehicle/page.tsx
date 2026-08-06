@@ -1,5 +1,4 @@
 import { OnboardingVehicleForm } from "@/components/onboarding/OnboardingVehicleForm";
-import { Card } from "@/components/ui/Card";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
 
 const emptyVehicle = {
@@ -16,21 +15,20 @@ export default async function VehicleOnboardingPage() {
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center gap-6 px-4 py-12 sm:px-6">
-      <div className="space-y-2">
-        <p className="text-sm font-medium text-accent-hover">Step 2 of 2</p>
-        <h1 className="text-2xl font-semibold text-foreground">Add your vehicle</h1>
-        <p className="text-sm text-muted">
-          Drivers use these details to recognize each other during a parking
-          handoff.
+    <main className="auth-page" data-testid="onboarding-vehicle-page">
+      <p className="auth-brand">Switch It</p>
+      <div className="auth-page-header">
+        <p className="auth-step-label">Step 2 of 2</p>
+        <h1 className="auth-page-title">Add your vehicle</h1>
+        <p className="auth-page-helper">
+          Drivers use these details to recognize each other during a handoff.
         </p>
       </div>
-
-      <Card>
+      <div className="mobile-form-surface">
         <OnboardingVehicleForm
           initialVehicle={status.vehicle ?? emptyVehicle}
         />
-      </Card>
+      </div>
     </main>
   );
 }

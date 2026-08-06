@@ -8,6 +8,7 @@ import { PublisherSpotPreviewMapLoader } from "@/components/spots/PublisherSpotP
 import { ParkingPinSettle } from "@/components/illustrations/ParkingPinSettle";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import { Countdown } from "@/components/ui/Countdown";
+import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { formatDateTime } from "@/lib/format/time";
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
@@ -33,8 +34,7 @@ type PublisherSpotCardProps = {
 export function publisherSpotTitleLabel(
   address: string | null | undefined,
 ): string {
-  const trimmed = address?.trim();
-  return trimmed ? trimmed : "Your parking spot";
+  return publisherSpotAddressLabel(address);
 }
 
 export function PublisherSpotCard({
@@ -78,93 +78,121 @@ export function PublisherSpotCard({
     return undefined;
   }, [spot.status, spot.id]);
 
-  return (
+  const statusBlock = (
     <div
       className={[
-        "flex w-full flex-col gap-4 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] motion-fade-slide-up sm:p-5",
-        layout === "page" ? "mx-auto max-w-lg md:max-w-2xl" : "",
+        "publisher-spot-status",
+        claimed ? "bg-success-bg" : "bg-accent-soft",
+        claimedEmphasis ? "motion-soft-scale-in" : "",
       ].join(" ")}
-      data-testid="publisher-spot-card"
-      data-status={spot.status}
+      aria-live="polite"
+      data-testid="publisher-spot-status"
     >
-      <div
-        className={[
-          "grid gap-4",
-          layout === "page" ? "md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:items-start" : "",
-        ].join(" ")}
-      >
-        <div
-          className={[
-            "rounded-[calc(var(--radius-card)-4px)] px-4 py-3",
-            claimed ? "bg-success-bg" : "bg-accent-soft",
-            claimedEmphasis ? "motion-soft-scale-in" : "",
-          ].join(" ")}
-          aria-live="polite"
-        >
-          <p className="text-xs font-semibold text-muted">
-            {claimed ? "Driver coming" : "Live"}
-          </p>
-          <div className="mt-1 flex items-start justify-between gap-3">
-            <h2 className="text-xl font-semibold text-foreground">
-              {claimed ? "A driver is on the way" : "Waiting for a driver"}
-            </h2>
-            {!claimed ? (
-              <ParkingPinSettle
-                className="mt-0.5 h-10 w-14 shrink-0"
-                animate={waitingPin}
-              />
-            ) : null}
-          </div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold text-foreground sm:text-xl">
+            {claimed ? "A driver is on the way" : "Waiting for a driver"}
+          </h2>
           <p className="mt-1 text-sm text-muted">
             {claimed
               ? "Please stay near the spot until the handoff."
               : "Your spot is visible to nearby drivers."}
           </p>
-
-          <p className="mt-3 truncate text-sm font-medium text-foreground">
-            {destinationLabel}
-          </p>
-          <p className="mt-2 text-lg">
-            <Countdown
-              targetIso={spot.available_at}
-              pendingLabel="Available in"
-              readyLabel="The spot should be available now"
-            />
-          </p>
-          <p className="mt-2 text-xs text-muted">
-            Leave time: {formatDateTime(spot.available_at)}
-          </p>
         </div>
-
-        {hasValidCoords ? (
-          <PublisherSpotPreviewMapLoader
-            latitude={spot.latitude}
-            longitude={spot.longitude}
+        {!claimed ? (
+          <ParkingPinSettle
+            className="mt-0.5 h-9 w-12 shrink-0 sm:h-10 sm:w-14"
+            animate={waitingPin}
           />
         ) : null}
       </div>
 
-      {claimed && counterpartVehicle ? (
-        <div className="border-t border-border/70 pt-3">
-          <HandoffVehicleSection
-            title="Arriving vehicle"
-            helper="This is the driver coming to your spot."
-            vehicle={counterpartVehicle}
-            showRepresentativeNote
-            approachAnimationKey={`publisher-${spot.id}`}
-          />
-        </div>
-      ) : null}
+      <p className="mt-3 truncate text-sm font-medium text-foreground">
+        {destinationLabel}
+      </p>
+      <p className="mt-2 text-lg">
+        <Countdown
+          targetIso={spot.available_at}
+          pendingLabel="Available in"
+          readyLabel="Available now"
+        />
+      </p>
+      <p className="mt-2 text-xs text-muted">
+        Leave time: {formatDateTime(spot.available_at)}
+      </p>
+    </div>
+  );
 
-      {claimed && handoffCode ? (
-        <div className="border-t border-border/70 pt-3">
-          <HandoffCodeSection code={handoffCode} />
-        </div>
-      ) : null}
-
-      <div className="border-t border-border/70 pt-3">
-        <CancelSpotButton spotId={spot.id} />
+  const handoffBlock =
+    claimed && handoffCode ? (
+      <div
+        className="motion-fade-in"
+        data-testid="publisher-handoff-priority"
+      >
+        <HandoffCodeSection code={handoffCode} />
       </div>
+    ) : null;
+
+  const vehicleBlock =
+    claimed && counterpartVehicle ? (
+      <div className="border-t border-border/60 pt-3">
+        <HandoffVehicleSection
+          title="Arriving vehicle"
+          helper="This is the driver coming to your spot."
+          vehicle={counterpartVehicle}
+          showRepresentativeNote
+          approachAnimationKey={`publisher-${spot.id}`}
+        />
+      </div>
+    ) : null;
+
+  const mapBlock =
+    hasValidCoords ? (
+      <PublisherSpotPreviewMapLoader
+        latitude={spot.latitude}
+        longitude={spot.longitude}
+        variant={claimed ? "claimed" : "available"}
+      />
+    ) : null;
+
+  const cancelBlock = (
+    <div className="publisher-spot-cancel">
+      <CancelSpotButton spotId={spot.id} />
+    </div>
+  );
+
+  const usePageGrid = layout === "page";
+
+  return (
+    <div
+      className={[
+        "publisher-spot-card flex w-full flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] motion-fade-slide-up sm:gap-4 sm:p-5",
+        usePageGrid ? "mx-auto max-w-lg md:max-w-2xl" : "",
+      ].join(" ")}
+      data-testid="publisher-spot-card"
+      data-status={spot.status}
+    >
+      {usePageGrid ? (
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:items-start md:gap-4">
+          <div className="flex flex-col gap-3 md:col-start-1">
+            {statusBlock}
+            {handoffBlock}
+            {vehicleBlock}
+          </div>
+          {mapBlock ? (
+            <div className="md:col-start-2 md:row-start-1">{mapBlock}</div>
+          ) : null}
+          <div className="md:col-span-2">{cancelBlock}</div>
+        </div>
+      ) : (
+        <>
+          {statusBlock}
+          {handoffBlock}
+          {vehicleBlock}
+          {mapBlock}
+          {cancelBlock}
+        </>
+      )}
     </div>
   );
 }

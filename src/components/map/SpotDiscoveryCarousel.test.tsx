@@ -48,14 +48,22 @@ describe("SpotDiscoveryCarousel", () => {
       />,
     );
 
+    const carousel = screen.getByTestId("spot-discovery-carousel");
+    expect(carousel.className).toContain("map-carousel");
+    expect(carousel.className).not.toContain("bottom-28");
+    expect(carousel.className).not.toContain("46vh");
+
     expect(
       screen.getByRole("listbox", { name: "Available parking spots" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Available in 7 min")).toBeInTheDocument();
     expect(screen.getByText("Available now")).toBeInTheDocument();
     expect(screen.getByText("Arlozorov Street")).toBeInTheDocument();
-    expect(screen.getByText("Parking spot nearby")).toBeInTheDocument();
+    expect(screen.getByText("Parking spot on the map")).toBeInTheDocument();
     expect(screen.getAllByText(/m away|km away/).length).toBeGreaterThan(0);
+    expect(
+      screen.queryByRole("button", { name: /I’m on my way|Claim/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("omits distance when location is unavailable", () => {

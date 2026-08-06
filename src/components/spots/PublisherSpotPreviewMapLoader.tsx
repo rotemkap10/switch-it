@@ -4,9 +4,8 @@ import dynamic from "next/dynamic";
 
 import { MapLoadingState } from "@/components/map/MapLoadingState";
 import type { PublisherSpotPreviewMapProps } from "@/components/spots/PublisherSpotPreviewMap";
+import { publisherPreviewShellClass } from "@/lib/map/leaverMapShell";
 import { loadMapLibreModule } from "@/lib/map/load-maplibre-module";
-
-const PREVIEW_HEIGHT_CLASS = "h-[220px]";
 
 const PreviewMap = dynamic(
   () =>
@@ -19,7 +18,7 @@ const PreviewMap = dynamic(
     ssr: false,
     loading: () => (
       <div
-        className={`overflow-hidden rounded-[var(--radius-card)] border border-border ${PREVIEW_HEIGHT_CLASS}`}
+        className={`overflow-hidden rounded-[var(--radius-card)] border border-border ${publisherPreviewShellClass("available")}`}
         aria-label="Map preview of your parking spot"
       >
         <MapLoadingState />

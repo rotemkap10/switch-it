@@ -8,6 +8,7 @@ import {
   isValidLatLng,
   type LatLng,
 } from "@/lib/map/distance";
+import { MAP_CAROUSEL_CLASS } from "@/lib/map/bottom-stack";
 import {
   formatSpotAvailabilityLabel,
   isSpotStillListed,
@@ -21,8 +22,6 @@ export type SpotDiscoveryCarouselProps = {
   selectedId: string | null;
   onSelect: (spotId: string) => void;
   userLocation?: LatLng | null;
-  /** Lift above SelectedSpotCard when detail sheet is open. */
-  raised?: boolean;
 };
 
 type CarouselCardModel = {
@@ -52,7 +51,6 @@ export function SpotDiscoveryCarousel({
   selectedId,
   onSelect,
   userLocation = null,
-  raised = false,
 }: SpotDiscoveryCarouselProps) {
   const now = useCoarseNow(60_000);
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -103,12 +101,7 @@ export function SpotDiscoveryCarousel({
   return (
     <div
       data-testid="spot-discovery-carousel"
-      className={[
-        "pointer-events-none absolute inset-x-0 z-[5] px-0",
-        raised
-          ? "bottom-[min(46vh,17.5rem)] md:bottom-[13.5rem]"
-          : "bottom-10 md:bottom-8",
-      ].join(" ")}
+      className={MAP_CAROUSEL_CLASS}
     >
       <div
         ref={listRef}
@@ -134,20 +127,21 @@ export function SpotDiscoveryCarousel({
               onClick={() => onSelect(card.id)}
               className={[
                 "snap-center shrink-0 rounded-[var(--radius-card)] border bg-surface text-left",
-                "w-[min(82vw,20rem)] max-w-[20rem] px-3.5 py-3 md:w-[17.5rem] md:max-w-[18.75rem]",
+                "flex h-[5.25rem] w-[min(82vw,20rem)] max-w-[20rem] flex-col justify-center px-3.5 py-3",
+                "md:h-auto md:w-[17.5rem] md:max-w-[18.75rem]",
                 "transition-[border-color,box-shadow,transform] duration-[var(--motion-fast)] ease-[var(--motion-ease)]",
                 selected
                   ? "border-accent-hover shadow-[var(--shadow-card-hover)] ring-2 ring-accent/40 -translate-y-0.5 motion-spot-select"
                   : "border-border shadow-[var(--shadow-card)]",
               ].join(" ")}
             >
-              <p className="text-sm font-semibold text-foreground">
+              <p className="truncate text-sm font-semibold text-foreground">
                 {card.availability}
               </p>
               {card.distance ? (
-                <p className="mt-1 text-xs text-muted">{card.distance}</p>
+                <p className="mt-0.5 truncate text-xs text-muted">{card.distance}</p>
               ) : null}
-              <p className="mt-1.5 flex items-start gap-1.5 text-xs font-medium text-foreground">
+              <p className="mt-1.5 flex min-w-0 items-start gap-1.5 text-xs font-medium text-foreground">
                 <LocationPinIcon />
                 <span className="min-w-0 truncate">{card.address}</span>
               </p>

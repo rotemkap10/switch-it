@@ -13,14 +13,17 @@ vi.mock("@/components/spots/PublisherSpotPreviewMapLoader", () => ({
   PublisherSpotPreviewMapLoader: ({
     latitude,
     longitude,
+    variant = "available",
   }: {
     latitude: number;
     longitude: number;
+    variant?: "available" | "claimed";
   }) => (
     <div
       data-testid="publisher-spot-preview-map"
       data-latitude={String(latitude)}
       data-longitude={String(longitude)}
+      data-preview-variant={variant}
     >
       Map preview
     </div>
@@ -61,8 +64,8 @@ const seekerVehicle = {
 
 describe("publisherSpotTitleLabel", () => {
   it("falls back when address is missing", () => {
-    expect(publisherSpotTitleLabel(null)).toBe("Your parking spot");
-    expect(publisherSpotTitleLabel("  ")).toBe("Your parking spot");
+    expect(publisherSpotTitleLabel(null)).toBe("Location selected on the map");
+    expect(publisherSpotTitleLabel("  ")).toBe("Location selected on the map");
     expect(publisherSpotTitleLabel("Dizengoff 50")).toBe("Dizengoff 50");
   });
 });
@@ -114,8 +117,7 @@ describe("PublisherSpotCard", () => {
     expect(
       screen.getByText("Your spot is visible to nearby drivers."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Live")).toBeInTheDocument();
-    expect(screen.queryByText(/^available$/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Live$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^claimed$/i)).not.toBeInTheDocument();
   });
 
@@ -131,7 +133,7 @@ describe("PublisherSpotCard", () => {
     expect(
       screen.getByText("Please stay near the spot until the handoff."),
     ).toBeInTheDocument();
-    expect(screen.getByText("Driver coming")).toBeInTheDocument();
+    expect(screen.queryByText(/^Driver coming$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
     expect(screen.queryByText(/seeker/i)).not.toBeInTheDocument();
     expect(screen.queryByText(baseSpot.id)).not.toBeInTheDocument();
@@ -172,7 +174,44 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("Your parking spot")).toBeInTheDocument();
+    expect(screen.getByText("Location selected on the map")).toBeInTheDocument();
+  });
+
+  it("prioritizes handoff code before map preview in claimed state", () => {
+    render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        layout="page"
+        counterpartVehicle={seekerVehicle}
+        handoffCode="48291"
+      />,
+    );
+
+    const card = screen.getByTestId("publisher-spot-card");
+    const testIds = Array.from(card.querySelectorAll("[data-testid]")).map(
+      (element) => element.getAttribute("data-testid"),
+    );
+    expect(testIds.indexOf("handoff-code-section")).toBeLessThan(
+      testIds.indexOf("publisher-spot-preview-map"),
+    );
+    expect(screen.getByTestId("publisher-spot-preview-map")).toHaveAttribute(
+      "data-preview-variant",
+      "claimed",
+    );
+  });
+
+  it("uses a larger preview variant while waiting for a driver", () => {
+    render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "available" }}
+        layout="page"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-spot-preview-map")).toHaveAttribute(
+      "data-preview-variant",
+      "available",
+    );
   });
 
   it("shows seeker vehicle in claimed state", () => {
