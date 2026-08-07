@@ -11,7 +11,13 @@ import { BaseMap } from "@/components/map/BaseMap";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
 import { SelectedSpotCard } from "@/components/map/SelectedSpotCard";
 import { SpotDiscoveryCarousel } from "@/components/map/SpotDiscoveryCarousel";
-import { Button } from "@/components/ui/Button";
+import {
+  CurrentLocationControl,
+  CurrentLocationUnavailableNotice,
+} from "@/components/map/CurrentLocationControl";
+import { centerMapOnLocation } from "@/lib/map/center-on-location";
+import { useMapRecenter } from "@/lib/map/use-map-recenter";
+import { usePrefersReducedMotion } from "@/lib/motion/use-prefers-reduced-motion";
 import {
   MAP_FLOATING_CONTROL_CLASS,
   resolveDiscoveryBottomStack,
@@ -61,34 +67,6 @@ type ParkingMapMapLibreProps = {
    */
   bottomStackOverride?: MapBottomStack | null;
 };
-
-function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
-
-  useEffect(() => {
-    if (typeof window.matchMedia !== "function") {
-      window.setTimeout(() => {
-        setReduced(false);
-      }, 0);
-      return;
-    }
-
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setReduced(media.matches);
-    update();
-
-    if (typeof media.addEventListener === "function") {
-      media.addEventListener("change", update);
-      return () => media.removeEventListener("change", update);
-    }
-
-    // Safari fallback.
-    media.addListener(update);
-    return () => media.removeListener(update);
-  }, []);
-
-  return reduced;
-}
 
 function createGeoJsonSpots(
   spots: MapSpot[],
@@ -307,7 +285,7 @@ export function ParkingMapMapLibre({
     };
   }, [bottomStack, bottomStackOverride]);
 
-  const { state: userLocation } = useUserLocation({
+  const { state: userLocation, applyFreshFix } = useUserLocation({
     enableHighAccuracy: true,
     watch: true,
     timeoutMs: 10_000,
@@ -316,6 +294,7 @@ export function ParkingMapMapLibre({
 
   const [followMode, setFollowMode] = useState(false);
   const hasCenteredOnUserOnceRef = useRef(false);
+  const [recenterNoticeVisible, setRecenterNoticeVisible] = useState(false);
 
   const mapRef = useRef<MapLibreMap | null>(null);
   const hasInitializedLayersRef = useRef(false);
@@ -327,6 +306,36 @@ export function ParkingMapMapLibre({
   const disableFollowOnUserMove = () => {
     setFollowMode(false);
   };
+
+  const { recenter: recenterOnDeviceLocation, pending: recenterPending } =
+    useMapRecenter({
+      onFix: (fix) => {
+        setRecenterNoticeVisible(false);
+        applyFreshFix(fix);
+        const map = mapRef.current;
+        if (!map) {
+          return;
+        }
+        // One-shot camera move — does not enable continuous follow.
+        setFollowMode(false);
+        centerMapOnLocation(map, fix.longitude, fix.latitude, {
+          reducedMotion: prefersReducedMotion,
+        });
+      },
+      onError: () => {
+        setRecenterNoticeVisible(true);
+      },
+    });
+
+  useEffect(() => {
+    if (!recenterNoticeVisible) {
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setRecenterNoticeVisible(false);
+    }, 6000);
+    return () => window.clearTimeout(id);
+  }, [recenterNoticeVisible]);
 
   const locationFailure =
     userLocation.status === "denied" ||
@@ -782,46 +791,21 @@ export function ParkingMapMapLibre({
         />
       </div>
 
-      {mapVisuallyReady &&
-      userLocation.status === "ready" &&
-      isWithinSupportedMapBounds(
-        userLocation.longitude,
-        userLocation.latitude,
-      ) ? (
-        <div
-          className={MAP_FLOATING_CONTROL_CLASS}
+      {mapVisuallyReady ? (
+        <CurrentLocationControl
+          variant="floating"
           data-testid="map-recenter-control"
-          data-map-bottom={bottomStack}
-        >
-          <Button
-            type="button"
-            variant="secondary"
-            className="rounded-full border border-border bg-surface px-3.5 py-2.5 shadow-[var(--shadow-card)]"
-            onClick={() => {
-              const map = mapRef.current;
-              if (
-                !map ||
-                userLocation.status !== "ready" ||
-                !isWithinSupportedMapBounds(
-                  userLocation.longitude,
-                  userLocation.latitude,
-                )
-              ) {
-                return;
-              }
-              setFollowMode(true);
-              map.easeTo({
-                center: [userLocation.longitude, userLocation.latitude],
-                zoom: map.getZoom(),
-                duration: prefersReducedMotion ? 0 : 550,
-                essential: true,
-              });
-            }}
-            aria-label="Recenter on my location"
-          >
-            Recenter
-          </Button>
-        </div>
+          pending={recenterPending}
+          onClick={() => {
+            void recenterOnDeviceLocation();
+          }}
+        />
+      ) : null}
+
+      {mapVisuallyReady && recenterNoticeVisible ? (
+        <CurrentLocationUnavailableNotice
+          onDismiss={() => setRecenterNoticeVisible(false)}
+        />
       ) : null}
 
       {showCarousel ? (

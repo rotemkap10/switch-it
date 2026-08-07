@@ -97,8 +97,10 @@ export function CreditsSummaryCard({ credits }: CreditsSummaryCardProps) {
         >
           <div className="motion-reveal-panel-inner">
             <p className="pt-2 text-xs leading-5 text-muted">
-              Use one credit when you receive a spot. Earn one when another driver
-              receives yours.
+              You start with credits for this course MVP. Use one credit when you
+              receive a spot. Earn one when another driver receives yours. Credits
+              are virtual points—not money—and transfer only when a handoff is
+              completed.
             </p>
           </div>
         </div>

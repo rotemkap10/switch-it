@@ -114,6 +114,10 @@ describe("AppNav", () => {
       "href",
       "/profile",
     );
+    expect(screen.getByRole("menuitem", { name: "History" })).toHaveAttribute(
+      "href",
+      "/history",
+    );
     expect(
       screen.getByRole("menuitem", { name: "Log out" }),
     ).toBeInTheDocument();

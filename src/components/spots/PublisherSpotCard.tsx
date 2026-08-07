@@ -131,13 +131,12 @@ export function PublisherSpotCard({
         {destinationLabel}
       </p>
       <div className="mt-3">
-        <HandoffWindowCountdown
-          availableAtIso={spot.available_at}
-          expiresAtIso={spot.expires_at}
-          waitingLabel="Leaving in"
-          windowLabel="Please stay for the handoff"
-          onExpired={onExpired}
-        />
+          <HandoffWindowCountdown
+            availableAtIso={spot.available_at}
+            expiresAtIso={spot.expires_at}
+            role="publisher"
+            onExpired={onExpired}
+          />
       </div>
     </div>
   );

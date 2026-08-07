@@ -165,9 +165,28 @@ export function useUserLocation({
     };
   }, [stopWatch]);
 
+  const applyFreshFix = useCallback(
+    (fix: {
+      latitude: number;
+      longitude: number;
+      accuracy: number | null;
+      timestamp: number;
+    }) => {
+      setState({
+        status: "ready",
+        latitude: fix.latitude,
+        longitude: fix.longitude,
+        accuracy: fix.accuracy,
+        timestamp: fix.timestamp,
+      });
+    },
+    [],
+  );
+
   return {
     state,
     requestLocation: request,
+    applyFreshFix,
   };
 }
 

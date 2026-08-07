@@ -1,24 +1,26 @@
 import Link from "next/link";
 
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 
 export default function HomePage() {
   return (
-    <main className="relative mx-auto flex w-full max-w-5xl flex-1 flex-col justify-center gap-10 px-4 py-16 sm:px-6">
+    <main className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-10 px-4 py-16 sm:px-6">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-[radial-gradient(circle_at_top,_#cdeeff,_transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-[radial-gradient(ellipse_at_top,_#cdeeff,_transparent_70%)]"
       />
 
-      <div className="flex max-w-2xl flex-col gap-5">
+      <div className="flex max-w-xl flex-col gap-5 motion-page-enter">
         <h1 className="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
           Switch It
         </h1>
-        <p className="max-w-xl text-base leading-7 text-muted sm:text-lg">
-          Find a parking spot someone is leaving, or share yours when you head
-          out. Credits are virtual points for this course MVP—not real money—and
-          the app never sells or guarantees a public parking spot.
+        <p className="text-lg font-medium leading-7 text-foreground sm:text-xl">
+          Find a spot someone is leaving—or share yours when you head out.
+        </p>
+        <p className="max-w-lg text-base leading-7 text-muted">
+          Switch It coordinates a quick public parking handoff between drivers.
+          Credits are virtual points for this course MVP—not money—and the app
+          never sells or guarantees a parking spot.
         </p>
       </div>
 
@@ -31,29 +33,23 @@ export default function HomePage() {
         </Link>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
-        {[
-          {
-            title: "Find",
-            body: "See nearby spots that are about to free up.",
-          },
-          {
-            title: "Share",
-            body: "Tell others when you are leaving your spot.",
-          },
-          {
-            title: "Confirm",
-            body: "Say you got the spot and keep the credit loop fair.",
-          },
-        ].map((item) => (
-          <Card key={item.title} className="gap-2">
-            <h2 className="text-base font-semibold text-foreground">
-              {item.title}
-            </h2>
-            <p className="text-sm leading-6 text-muted">{item.body}</p>
-          </Card>
-        ))}
-      </div>
+      <ul className="flex max-w-lg flex-col gap-3 text-sm leading-6 text-muted">
+        <li>
+          <span className="font-semibold text-foreground">Find parking</span>
+          {" — "}
+          claim a nearby spot and navigate there.
+        </li>
+        <li>
+          <span className="font-semibold text-foreground">Share a spot</span>
+          {" — "}
+          let drivers know when you are leaving.
+        </li>
+        <li>
+          <span className="font-semibold text-foreground">Confirm the handoff</span>
+          {" — "}
+          verify with a code and keep the credit loop fair.
+        </li>
+      </ul>
     </main>
   );
 }

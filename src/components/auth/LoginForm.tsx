@@ -38,6 +38,8 @@ export function LoginForm({ next }: LoginFormProps) {
         autoCapitalize="none"
         autoCorrect="off"
         spellCheck={false}
+        inputMode="email"
+        autoFocus
         required
         error={state.fieldErrors?.email?.[0]}
       />

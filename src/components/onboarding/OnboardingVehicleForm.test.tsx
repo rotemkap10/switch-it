@@ -32,7 +32,7 @@ describe("OnboardingVehicleForm", () => {
       "onboarding-vehicle-form",
     );
     expect(screen.getByTestId("vehicle-illustration-placeholder")).toBeInTheDocument();
-    expect(screen.getByText("Continue to the map")).toBeInTheDocument();
+    expect(screen.getByText("Start finding parking")).toBeInTheDocument();
     expect(screen.getByLabelText("Vehicle type")).toBeInTheDocument();
     expect(screen.getByLabelText("License plate")).toHaveAttribute(
       "inputmode",

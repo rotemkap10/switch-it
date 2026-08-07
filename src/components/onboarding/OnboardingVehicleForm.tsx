@@ -51,7 +51,7 @@ export function OnboardingVehicleForm({
         aria-busy={pending}
         className="mobile-form-primary"
       >
-        {pending ? "Saving…" : "Continue to the map"}
+        {pending ? "Saving…" : "Start finding parking"}
       </Button>
     </form>
   );

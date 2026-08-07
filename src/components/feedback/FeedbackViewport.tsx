@@ -84,7 +84,14 @@ export function FeedbackViewport() {
           aria-atomic="true"
         >
           <StatusIcon tone={item.tone} />
-          <p className="min-w-0 flex-1 leading-5">{item.message}</p>
+          <div className="min-w-0 flex-1 leading-5">
+            {item.title ? (
+              <p className="font-semibold text-foreground">{item.title}</p>
+            ) : null}
+            <p className={item.title ? "mt-0.5 text-muted" : ""}>
+              {item.message}
+            </p>
+          </div>
           <button
             type="button"
             className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium text-muted hover:bg-accent-soft hover:text-foreground"

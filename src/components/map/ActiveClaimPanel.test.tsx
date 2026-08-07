@@ -21,16 +21,8 @@ vi.mock("@/components/map/CompleteHandoffForm", () => ({
 }));
 
 vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
-  HandoffWindowCountdown: ({
-    waitingLabel,
-    windowLabel,
-  }: {
-    waitingLabel: string;
-    windowLabel: string;
-  }) => (
-    <div data-testid="handoff-window-countdown">
-      {waitingLabel} / {windowLabel}
-    </div>
+  HandoffWindowCountdown: ({ role }: { role: string }) => (
+    <div data-testid="handoff-window-countdown">{role}</div>
   ),
 }));
 

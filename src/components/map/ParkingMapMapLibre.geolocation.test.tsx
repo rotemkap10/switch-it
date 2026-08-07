@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React, { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -41,6 +42,36 @@ const mockBaseMapProps: {
   zoom?: unknown;
 } = {};
 
+const recenterMock = vi.fn();
+let recenterPending = false;
+let recenterOnFix: ((fix: {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  timestamp: number;
+}) => void) | null = null;
+let recenterOnError: (() => void) | null = null;
+const applyFreshFixMock = vi.fn();
+
+vi.mock("@/lib/map/use-map-recenter", () => ({
+  useMapRecenter: (options: {
+    onFix?: (fix: {
+      latitude: number;
+      longitude: number;
+      accuracy: number | null;
+      timestamp: number;
+    }) => void;
+    onError?: () => void;
+  }) => {
+    recenterOnFix = options.onFix ?? null;
+    recenterOnError = options.onError ?? null;
+    return {
+      recenter: recenterMock,
+      pending: recenterPending,
+    };
+  },
+}));
+
 vi.mock("@/components/map/BaseMap", () => {
   return {
     BaseMap: (props: {
@@ -77,6 +108,7 @@ vi.mock("@/lib/map/use-user-location", () => {
   return {
     useUserLocation: () => ({
       state: { status: mockedStatus },
+      applyFreshFix: applyFreshFixMock,
     }),
   };
 });
@@ -123,6 +155,11 @@ describe("ParkingMapMapLibre geolocation", () => {
     };
 
     mockedStatus = "denied";
+    recenterMock.mockReset();
+    recenterPending = false;
+    recenterOnFix = null;
+    recenterOnError = null;
+    applyFreshFixMock.mockReset();
     mockBaseMapProps.center = undefined;
     mockBaseMapProps.zoom = undefined;
   });
@@ -217,5 +254,60 @@ describe("ParkingMapMapLibre geolocation", () => {
       return firstArg?.id;
     });
     expect(layerIds).not.toContain(MAP_LAYERS.destination);
+  });
+
+  it("shows current-location control even when geolocation is unavailable", async () => {
+    mockedStatus = "denied";
+    render(<ParkingMapMapLibre spots={[spot]} destination={destination} />);
+
+    expect(
+      await screen.findByRole("button", { name: "Center on my location" }),
+    ).toBeInTheDocument();
+  });
+
+  it("recenters the existing map on a fresh fix without recreating the map", async () => {
+    mockedStatus = "ready";
+    const user = userEvent.setup();
+
+    render(<ParkingMapMapLibre spots={[spot]} destination={destination} />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Center on my location" }),
+    );
+
+    expect(recenterMock).toHaveBeenCalledTimes(1);
+
+    recenterOnFix?.({
+      latitude: 32.08,
+      longitude: 34.78,
+      accuracy: 10,
+      timestamp: Date.now(),
+    });
+
+    expect(applyFreshFixMock).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: 32.08, longitude: 34.78 }),
+    );
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: [34.78, 32.08],
+      }),
+    );
+    expect(screen.getByTestId("base-map")).toBeInTheDocument();
+  });
+
+  it("shows friendly feedback when recenter geolocation fails", async () => {
+    mockedStatus = "denied";
+    render(<ParkingMapMapLibre spots={[spot]} destination={destination} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("map-recenter-control")).toBeInTheDocument();
+    });
+
+    recenterOnError?.();
+
+    expect(
+      await screen.findByTestId("current-location-unavailable-notice"),
+    ).toHaveTextContent("Current location is unavailable.");
+    expect(screen.getByTestId("base-map")).toBeInTheDocument();
   });
 });

@@ -37,8 +37,6 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
     latitude,
     longitude,
     onLocationChange,
-    userLatitude,
-    userLongitude,
   }: {
     latitude: number;
     longitude: number;
@@ -58,15 +56,13 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
       >
         Simulate map move
       </button>
-      {typeof userLatitude === "number" && typeof userLongitude === "number" ? (
-        <button
-          type="button"
-          aria-label="Recenter on my location"
-          onClick={() => onLocationChange?.(userLatitude, userLongitude)}
-        >
-          Recenter
-        </button>
-      ) : null}
+      <button
+        type="button"
+        aria-label="Center on my location"
+        onClick={() => onLocationChange?.(32.085312, 34.781812)}
+      >
+        Center
+      </button>
     </div>
   ),
 }));
@@ -304,8 +300,8 @@ describe("PublishSpotForm", () => {
     });
 
     expect(
-      screen.queryByRole("button", { name: "Recenter on my location" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Center on my location" }),
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText("Latitude")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Share spot" }));
@@ -315,7 +311,7 @@ describe("PublishSpotForm", () => {
     });
   });
 
-  it("shows recenter after geolocation success and hides it for choose-on-map", async () => {
+  it("shows current-location control after geolocation success and in choose-on-map mode", async () => {
     const user = userEvent.setup();
     const { unmount } = render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
@@ -325,7 +321,7 @@ describe("PublishSpotForm", () => {
       );
     });
     expect(
-      screen.getByRole("button", { name: "Recenter on my location" }),
+      screen.getByRole("button", { name: "Center on my location" }),
     ).toBeInTheDocument();
     unmount();
 
@@ -344,8 +340,8 @@ describe("PublishSpotForm", () => {
       await screen.findByRole("button", { name: "Choose on map" }),
     );
     expect(
-      screen.queryByRole("button", { name: "Recenter on my location" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Center on my location" }),
+    ).toBeInTheDocument();
   });
 
   it("submits optional address when reverse geocoding resolves", async () => {

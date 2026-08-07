@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { logout } from "@/actions/auth";
@@ -14,6 +15,7 @@ type ProfileMenuProps = {
 };
 
 export function ProfileMenu({ displayName }: ProfileMenuProps) {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -57,6 +59,9 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
     };
   }, [open]);
 
+  const onProfile = pathname === "/profile";
+  const onHistory = pathname === "/history";
+
   return (
     <>
       <div ref={rootRef} className="relative" data-testid="profile-menu">
@@ -67,10 +72,12 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
             "inline-flex max-w-[10rem] items-center gap-2 rounded-[var(--radius-card)] border border-border bg-surface px-2.5",
             "min-h-[var(--app-tap-min)] text-sm font-medium text-foreground motion-interactive-press",
             "hover:bg-accent-soft transition-colors duration-[var(--motion-fast)]",
+            onProfile || onHistory ? "border-accent bg-accent-soft" : "",
           ].join(" ")}
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={menuId}
+          aria-current={onProfile || onHistory ? "page" : undefined}
           aria-label={
             trimmedName ? `Profile menu for ${trimmedName}` : "Profile menu"
           }
@@ -92,16 +99,32 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
           <div
             id={menuId}
             role="menu"
-            aria-label="Profile"
+            aria-label="Account"
             className="absolute right-0 z-50 mt-2 min-w-[10.5rem] overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface py-1 shadow-[var(--shadow-card)] motion-fade-slide-down"
           >
             <Link
               href="/profile"
               role="menuitem"
-              className="block min-h-[var(--app-tap-min)] px-3 py-2.5 text-sm text-foreground hover:bg-accent-soft"
+              aria-current={onProfile ? "page" : undefined}
+              className={[
+                "block min-h-[var(--app-tap-min)] px-3 py-2.5 text-sm text-foreground hover:bg-accent-soft",
+                onProfile ? "bg-accent-soft font-semibold" : "",
+              ].join(" ")}
               onClick={() => closeMenu()}
             >
               Profile
+            </Link>
+            <Link
+              href="/history"
+              role="menuitem"
+              aria-current={onHistory ? "page" : undefined}
+              className={[
+                "block min-h-[var(--app-tap-min)] px-3 py-2.5 text-sm text-foreground hover:bg-accent-soft",
+                onHistory ? "bg-accent-soft font-semibold" : "",
+              ].join(" ")}
+              onClick={() => closeMenu()}
+            >
+              History
             </Link>
             {showInstallEntry ? (
               <button

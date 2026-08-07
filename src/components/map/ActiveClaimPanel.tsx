@@ -162,8 +162,7 @@ function ActiveClaimSheetBody({
       <HandoffWindowCountdown
         availableAtIso={claim.spotAvailableAt}
         expiresAtIso={claim.spotExpiresAt}
-        waitingLabel="Spot available in"
-        windowLabel="Handoff window"
+        role="seeker"
         onExpired={onExpired}
       />
 

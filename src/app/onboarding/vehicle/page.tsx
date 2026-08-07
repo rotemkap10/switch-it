@@ -19,9 +19,10 @@ export default async function VehicleOnboardingPage() {
       <p className="auth-brand">Switch It</p>
       <div className="auth-page-header">
         <p className="auth-step-label">Step 2 of 2</p>
-        <h1 className="auth-page-title">Add your vehicle</h1>
+        <h1 className="auth-page-title">Tell drivers what to look for</h1>
         <p className="auth-page-helper">
-          Drivers use these details to recognize each other during a handoff.
+          Your vehicle details help the other driver recognize you during a
+          handoff.
         </p>
       </div>
       <div className="mobile-form-surface">

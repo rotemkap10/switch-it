@@ -4,8 +4,14 @@ import { NavigationControl, type Map as MapLibreMap } from "maplibre-gl";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { BaseMap } from "@/components/map/BaseMap";
+import {
+  CurrentLocationControl,
+  CurrentLocationUnavailableNotice,
+} from "@/components/map/CurrentLocationControl";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
-import { Button } from "@/components/ui/Button";
+import { centerMapOnLocation } from "@/lib/map/center-on-location";
+import { useMapRecenter } from "@/lib/map/use-map-recenter";
+import { usePrefersReducedMotion } from "@/lib/motion/use-prefers-reduced-motion";
 import {
   MAP_SELECTED_SPOT_ZOOM,
   assertMapTilerStyleUrlOrNull,
@@ -23,9 +29,11 @@ export type SpotLocationPickerProps = {
   /** Fired when the user begins panning/zooming (before moveend). */
   onMapInteractionStart?: () => void;
   disabled?: boolean;
-  /** Optional detected user location for the compact Recenter control. */
+  /** Optional detected user location for legacy callers — recenter uses fresh GPS. */
   userLatitude?: number | null;
   userLongitude?: number | null;
+  /** Called when recenter obtains a fresh device fix (updates parent cache). */
+  onCurrentLocationResolved?: (latitude: number, longitude: number) => void;
 };
 
 export { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
@@ -88,6 +96,7 @@ export function SpotLocationPickerMapLibre({
   disabled = false,
   userLatitude = null,
   userLongitude = null,
+  onCurrentLocationResolved,
 }: SpotLocationPickerProps) {
   const styleUrl = useMemo(() => assertMapTilerStyleUrlOrNull(), []);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -101,6 +110,8 @@ export function SpotLocationPickerMapLibre({
   const [mapInstanceKey, setMapInstanceKey] = useState(0);
   const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
   const [showSelectedHint, setShowSelectedHint] = useState(false);
+  const [recenterNoticeVisible, setRecenterNoticeVisible] = useState(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   // Stable initial camera for BaseMap — never recreate from moveend updates.
   // Prefer live form coords; fall back to in-memory session camera for continuity.
@@ -127,11 +138,48 @@ export function SpotLocationPickerMapLibre({
     onMapInteractionStartRef.current = onMapInteractionStart;
   }, [onMapInteractionStart]);
 
-  const canRecenter =
-    typeof userLatitude === "number" &&
-    Number.isFinite(userLatitude) &&
-    typeof userLongitude === "number" &&
-    Number.isFinite(userLongitude);
+  const { recenter: recenterOnDeviceLocation, pending: recenterPending } =
+    useMapRecenter({
+      onFix: (fix) => {
+        setRecenterNoticeVisible(false);
+        onCurrentLocationResolved?.(fix.latitude, fix.longitude);
+
+        const map = mapRef.current;
+        if (!map || disabled) {
+          return;
+        }
+
+        // Center-pin model: move the map; selected coords come from getCenter().
+        programmaticMoveRef.current = true;
+        centerMapOnLocation(map, fix.longitude, fix.latitude, {
+          minStreetZoom: true,
+          reducedMotion: prefersReducedMotion,
+        });
+        map.once("moveend", () => {
+          programmaticMoveRef.current = false;
+          const center = map.getCenter();
+          onLocationChangeRef.current(center.lat, center.lng);
+          setShowSelectedHint(true);
+        });
+      },
+      onError: () => {
+        setRecenterNoticeVisible(true);
+      },
+    });
+
+  useEffect(() => {
+    if (!recenterNoticeVisible) {
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setRecenterNoticeVisible(false);
+    }, 6000);
+    return () => window.clearTimeout(id);
+  }, [recenterNoticeVisible]);
+
+  // Legacy props retained for callers; control visibility no longer depends on them.
+  void userLatitude;
+  void userLongitude;
 
   useEffect(() => {
     const map = mapRef.current;
@@ -310,40 +358,21 @@ export function SpotLocationPickerMapLibre({
         </p>
       ) : null}
 
-      {canRecenter && mapVisuallyReady ? (
-        <div className="pointer-events-auto absolute right-2 top-2 z-[3]">
-          <Button
-            type="button"
-            variant="secondary"
-            className="px-2.5 py-1.5 text-xs shadow-sm"
-            disabled={disabled}
-            onClick={() => {
-              const map = mapRef.current;
-              if (
-                !map ||
-                typeof userLatitude !== "number" ||
-                typeof userLongitude !== "number"
-              ) {
-                return;
-              }
-              programmaticMoveRef.current = true;
-              map.easeTo({
-                center: [userLongitude, userLatitude],
-                zoom: Math.max(map.getZoom(), MAP_SELECTED_SPOT_ZOOM),
-                duration: 450,
-                essential: true,
-              });
-              map.once("moveend", () => {
-                programmaticMoveRef.current = false;
-                const center = map.getCenter();
-                onLocationChangeRef.current(center.lat, center.lng);
-                setShowSelectedHint(true);
-              });
-            }}
-            aria-label="Recenter on my location"
-          >
-            Recenter
-          </Button>
+      {mapVisuallyReady ? (
+        <CurrentLocationControl
+          variant="embedded"
+          data-testid="picker-current-location-control"
+          pending={recenterPending}
+          disabled={disabled}
+          onClick={() => {
+            void recenterOnDeviceLocation();
+          }}
+        />
+      ) : null}
+
+      {mapVisuallyReady && recenterNoticeVisible ? (
+        <div className="pointer-events-none absolute right-2 top-2 z-[3]">
+          <CurrentLocationUnavailableNotice />
         </div>
       ) : null}
     </div>

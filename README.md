@@ -1,55 +1,114 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Switch It
 
-## Getting Started
+Phone-first web app that helps drivers coordinate a **public street parking handoff**.
 
-First, run the development server:
+A driver about to leave can share when their spot will free up. Another driver can claim it for a short window, navigate there, optionally share live location while Switch It is open, verify with a 5-digit code, and complete the handoff. Credits (virtual points for this course MVP—not money) transfer only on successful completion.
+
+Switch It does **not** sell, reserve, or guarantee a parking spot.
+
+## Key features
+
+- Find parking / Share a spot modes
+- Shared 5-minute handoff deadline (Phase 9A)
+- Handoff verification code + mutual vehicle recognition
+- Optional foreground live-location sharing (Phase 9B)
+- Credits, History, Profile, PWA install
+- Branded parking-pin loading for routes and maps
+
+## Stack
+
+- **Next.js** App Router (React)
+- **Supabase** Auth, Postgres, RLS/RPC, Realtime
+- **MapLibre** + **MapTiler** (basemap / style / geocoding)
+- Progressive Web App (production)
+
+## Architecture (summary)
+
+```
+Browser / PWA
+  → Next.js App Router + Server Actions
+  → Supabase Auth + Postgres (RLS/RPC)
+  → Supabase Realtime (postgres_changes + private Broadcast for live location)
+  → MapLibre rendering + MapTiler style/geocoding
+```
+
+Live seeker location is ephemeral (memory + private Broadcast only). No location/route history is stored.
+
+## Local setup
+
+```bash
+npm install
+cp .env.example .env.local   # if present; otherwise create .env.local
+npm run dev
+```
+
+Apply Supabase migrations with your usual linked workflow (`supabase db push` / dashboard). Do not commit secrets.
+
+### Environment variables (names only)
+
+| Name | Where |
+|------|--------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Client + server |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client + server |
+| `NEXT_PUBLIC_MAPTILER_API_KEY` | Client map/geocoding |
+
+Optional: `NEXT_PUBLIC_PWA_DEV=true` to exercise the service worker locally.
+
+There is **no** Google Routes / ETA key in this MVP.
+
+## npm commands
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run test:run
+npm run lint
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Production
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Deploy on Vercel (or equivalent) with the env vars above. PWA: `/manifest.webmanifest`, `/sw.js`, `/offline`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 2-device demo flow (~2–4 minutes)
 
-## Learn More
+Use two real accounts (no fake demo mode).
 
-To learn more about Next.js, take a look at the following resources:
+**User A (publisher)**  
+1. Sign in → **Share a spot**  
+2. Set leave time to about **2 minutes** → Share  
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+**User B (seeker)**  
+3. Sign in → **Find parking**  
+4. Claim User A’s spot  
+5. Tap **Share live location** and allow permission  
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+**User A**  
+6. Confirm live marker + counterpart vehicle  
+7. Show the 5-digit handoff code  
 
-## Deploy on Vercel
+**User B**  
+8. Enter the code → complete handoff  
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Then show: credits moved by exactly one, and a **History** entry.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Demo checklist / failure modes
 
-## Progressive Web App (production)
+- Grant geolocation outdoors when possible (weak GPS indoors)
+- Confirm MapTiler key and network before presenting
+- Confirm Realtime is healthy (publisher sees claim quickly)
+- Prefer a 2-minute leave delay so the window is not rushed
+- Have both accounts ready (avoid email-confirm friction mid-demo)
+- Do not expect routing/ETA overlays
 
-Switch It is installable as a PWA on HTTPS deployments.
+## Known limitations
 
-- Manifest: `/manifest.webmanifest`
-- Service worker: `/sw.js` (production only; set `NEXT_PUBLIC_PWA_DEV=true` to test locally)
-- Offline fallback: `/offline`
-- Install entry: Profile menu → **Install app** (when supported)
+- Parking is never guaranteed
+- Live location is foreground-first (may pause in background)
+- No ETA / turn-by-turn routing in-app (external Navigate still opens maps)
+- No payments, chat, push notifications, or ratings
+- Course MVP credits are not real money
 
-Production QA: verify manifest, icons, and service worker in Chrome DevTools →
-Application. No Supabase or MapTiler responses should appear in Cache Storage.
+## Docs
 
-Phase 9B live location (two-phone): after claim, seeker taps **Share live location**
-and grants permission; publisher should see Waiting → Live location on the
-compact progress map. Background the seeker app and confirm the publisher moves
-to delayed/paused by age. Complete/cancel/expire must remove the marker and stop
-sharing. Live location must never appear in Cache Storage or any DB table.
-Do not expect routing or ETA (Phase 9C).
+- [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)
+- [`docs/TECHNICAL_DESIGN.md`](docs/TECHNICAL_DESIGN.md)

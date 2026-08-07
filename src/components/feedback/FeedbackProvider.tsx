@@ -17,6 +17,7 @@ export type FeedbackItem = {
   id: string;
   tone: FeedbackTone;
   message: string;
+  title?: string;
 };
 
 type FeedbackContextValue = {
@@ -61,9 +62,25 @@ export function FeedbackProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const [rawTitle, ...rest] = trimmed.split("\n");
+      const title = rest.length > 0 ? rawTitle.trim() : undefined;
+      const body =
+        rest.length > 0 ? rest.join("\n").trim() : rawTitle.trim();
+      if (!body && !title) {
+        return;
+      }
+
       const id = nextId();
       setItems((prev) => {
-        const next = [...prev, { id, tone, message: trimmed }];
+        const next = [
+          ...prev,
+          {
+            id,
+            tone,
+            title,
+            message: body || title || trimmed,
+          },
+        ];
         return next.slice(-MAX_ITEMS);
       });
 

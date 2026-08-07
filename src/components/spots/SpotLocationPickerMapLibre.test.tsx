@@ -7,7 +7,9 @@ const mockMap = {
   getCenter: vi.fn(() => ({ lat: 32.085312, lng: 34.781812 })),
   jumpTo: vi.fn(),
   easeTo: vi.fn(),
-  once: vi.fn(),
+  once: vi.fn((_event: string, handler: () => void) => {
+    handler();
+  }),
   on: vi.fn(),
   resize: vi.fn(),
   getZoom: vi.fn(() => 16),
@@ -24,6 +26,35 @@ const mockMap = {
   },
   keyboard: { enable: vi.fn(), disable: vi.fn() },
 };
+
+const recenterMock = vi.fn();
+let recenterPending = false;
+let recenterOnFix: ((fix: {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  timestamp: number;
+}) => void) | null = null;
+let recenterOnError: (() => void) | null = null;
+
+vi.mock("@/lib/map/use-map-recenter", () => ({
+  useMapRecenter: (options: {
+    onFix?: (fix: {
+      latitude: number;
+      longitude: number;
+      accuracy: number | null;
+      timestamp: number;
+    }) => void;
+    onError?: () => void;
+  }) => {
+    recenterOnFix = options.onFix ?? null;
+    recenterOnError = options.onError ?? null;
+    return {
+      recenter: recenterMock,
+      pending: recenterPending,
+    };
+  },
+}));
 
 vi.mock("@/components/map/BaseMap", () => ({
   BaseMap: (props: {
@@ -74,11 +105,18 @@ import {
 describe("SpotLocationPickerMapLibre", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_MAPTILER_API_KEY = "test-key";
+    recenterMock.mockReset();
+    recenterPending = false;
+    recenterOnFix = null;
+    recenterOnError = null;
     mockMap.getCenter.mockReset();
     mockMap.getCenter.mockReturnValue({ lat: 32.085312, lng: 34.781812 });
     mockMap.jumpTo.mockReset();
     mockMap.easeTo.mockReset();
     mockMap.once.mockReset();
+    mockMap.once.mockImplementation((_event: string, handler: () => void) => {
+      handler();
+    });
     mockMap.on.mockReset();
     mockMap.resize.mockReset();
     mockMap.addControl.mockReset();
@@ -173,45 +211,78 @@ describe("SpotLocationPickerMapLibre", () => {
     expect(mockMap.dragPan.disable).toHaveBeenCalled();
   });
 
-  it("shows recenter when a user location is provided and jumps back to it", async () => {
+  it("shows current-location control even without cached user coordinates", async () => {
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.09}
+        longitude={34.79}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "Center on my location" }),
+    ).toBeInTheDocument();
+  });
+
+  it("requests fresh location and recenters the existing map instance", async () => {
     const user = userEvent.setup();
     const onLocationChange = vi.fn();
+    const onCurrentLocationResolved = vi.fn();
 
     render(
       <SpotLocationPickerMapLibre
         latitude={32.09}
         longitude={34.79}
         onLocationChange={onLocationChange}
-        userLatitude={32.085312}
-        userLongitude={34.781812}
+        onCurrentLocationResolved={onCurrentLocationResolved}
       />,
     );
 
-    const recenter = await screen.findByRole("button", {
-      name: "Recenter on my location",
+    await user.click(
+      await screen.findByRole("button", { name: "Center on my location" }),
+    );
+
+    expect(recenterMock).toHaveBeenCalledTimes(1);
+
+    recenterOnFix?.({
+      latitude: 32.085312,
+      longitude: 34.781812,
+      accuracy: 10,
+      timestamp: Date.now(),
     });
-    await user.click(recenter);
 
     expect(mockMap.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({
         center: [34.781812, 32.085312],
       }),
     );
+    expect(onCurrentLocationResolved).toHaveBeenCalledWith(
+      32.085312,
+      34.781812,
+    );
+    expect(onLocationChange).toHaveBeenCalled();
   });
 
-  it("hides recenter when no user location is available", async () => {
+  it("shows friendly feedback when recenter geolocation fails", async () => {
     render(
       <SpotLocationPickerMapLibre
-        latitude={32.167}
-        longitude={34.843}
+        latitude={32.09}
+        longitude={34.79}
         onLocationChange={vi.fn()}
       />,
     );
 
-    await screen.findByTestId("base-map");
+    await waitFor(() => {
+      expect(screen.getByTestId("picker-current-location-control")).toBeInTheDocument();
+    });
+
+    recenterOnError?.();
+
     expect(
-      screen.queryByRole("button", { name: "Recenter on my location" }),
-    ).not.toBeInTheDocument();
+      await screen.findByTestId("current-location-unavailable-notice"),
+    ).toHaveTextContent("Current location is unavailable.");
+    expect(screen.getByTestId("base-map")).toBeInTheDocument();
   });
 
   it("uses the responsive leaver picker shell height class", async () => {

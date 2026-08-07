@@ -106,6 +106,7 @@ Out of scope for the MVP:
 - complex rating or reputation systems,
 - guaranteeing that a published spot remains physically free,
 - selling or transferring legal rights to a public parking space,
+- in-app turn-by-turn routing or traffic ETA,
 - admin dashboards, multi-tenant orgs, or enterprise roles.
 
 ## 9. Main user flows
@@ -118,8 +119,8 @@ Authenticated users have two primary intents only:
 2. **Share a spot** → `/spots/new`
 
 The header mode switch is the single primary way to move between these
-experiences. Profile and Log out live in a compact profile menu. There is no
-separate “My spot”, “Looking”, or “Leaving” navigation item.
+experiences. Profile, History, and Log out live in a compact profile menu.
+There is no separate “My spot”, “Looking”, or “Leaving” navigation item.
 
 During an active handoff (and while browsing available spots), open map and
 publisher screens update live when the other party claims, cancels, or
@@ -140,7 +141,8 @@ through existing server queries and RPCs.
 ### 9.1 Registration and vehicle onboarding
 
 1. User registers with email, password, and display name only.
-2. After account creation, the user is guided to **Step 2: Add your vehicle**
+2. After account creation, the user is guided to **Step 2: Tell drivers what to
+   look for** (vehicle onboarding).
    at `/onboarding/vehicle`.
 3. Vehicle details are stored on `public.profiles` (not in auth metadata).
 4. Users cannot access the main app until vehicle onboarding is complete,
@@ -157,7 +159,14 @@ throttled private Broadcast updates the publisher’s compact progress map. Shar
 is not required to Navigate, complete, or cancel. Consent is per claim and not
 remembered after reload. Coordinates are never stored in the database, local
 storage, caches, or analytics. Background/app-switch may pause updates.
-Routing/ETA remain deferred (Phase 9C).
+Routing and ETA are **not** implemented in the current MVP (deferred).
+
+### History
+
+Authenticated users can open **History** from the profile menu. Each card shows
+role (“You shared a spot” / “You found a spot”), address when available,
+date/time, final status (Completed / Cancelled / Expired), and credit effect.
+No maps, live locations, handoff codes, or counterpart personal data.
 
 ### 9.2 Publishing a parking spot
 
@@ -171,9 +180,11 @@ Routing/ETA remain deferred (Phase 9C).
    not submit absolute timestamps.
 4. Spot appears on the map for other users; the publisher sees
    **Waiting for a driver** until claimed, cancelled, or expired.
-5. Both sides see a countdown: before `available_at` (“Leaving in” /
-   “Spot available in”), then a five-minute **handoff window**
-   (“Please stay for the handoff” / “Handoff window”).
+5. Both sides see a countdown that answers what happens next:
+   before `available_at` (“Your spot will be ready in N min” /
+   “The spot should be ready in N min”), then during the five-minute window
+   (“Driver handoff window · M:SS left” / “Complete the handoff · M:SS left”).
+   After expiry the UI transitions to a terminal state (no frozen 00:00).
 
 ### 9.3 Browsing available spots
 
@@ -312,7 +323,7 @@ No separate admin, moderator, or business roles in the MVP.
 | Map / home | Browse available spots on a map; open spot details; start a claim |
 | Publish spot | Create a new available spot with location and timing |
 | Profile | Show user summary and credit balance |
-| History | List the user’s spot and claim activity and credit changes |
+| History | List terminal handoffs with friendly status and credit effect |
 | Claim detail (optional) | Minimal status page for an active claim if not handled on the map |
 
 Shared shell: simple responsive navigation for authenticated pages.

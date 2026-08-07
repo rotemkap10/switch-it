@@ -7,6 +7,7 @@ import {
   type PublishSpotActionState,
 } from "@/actions/spots";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
+import { MapLoadingState } from "@/components/map/MapLoadingState";
 import { LeaveTimeSlider } from "@/components/spots/LeaveTimeSlider";
 import { SpotLocationPickerLoader } from "@/components/spots/SpotLocationPickerLoader";
 import { Button } from "@/components/ui/Button";
@@ -34,15 +35,13 @@ function MapShellSkeleton({ message }: { message: string }) {
   return (
     <div
       className={[
-        "flex w-full items-center justify-center",
-        "rounded-[var(--radius-card)] border border-border bg-accent-soft",
-        "text-sm text-muted",
+        "overflow-hidden rounded-[var(--radius-card)] border border-border",
         LEAVER_MAP_SHELL_HEIGHT_CLASS,
       ].join(" ")}
-      role="status"
       aria-label="Map to adjust your parking spot location"
     >
-      <span className="motion-location-indicator">{message}</span>
+      <MapLoadingState className="h-full min-h-[inherit]" />
+      <span className="sr-only">{message}</span>
     </div>
   );
 }
@@ -352,6 +351,9 @@ export function PublishSpotForm() {
               disabled={pending}
               userLatitude={detectedLocation?.latitude ?? null}
               userLongitude={detectedLocation?.longitude ?? null}
+              onCurrentLocationResolved={(lat, lng) => {
+                setDetectedLocation({ latitude: lat, longitude: lng });
+              }}
             />
           ) : null}
 

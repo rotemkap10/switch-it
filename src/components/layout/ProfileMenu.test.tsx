@@ -6,6 +6,10 @@ vi.mock("@/actions/auth", () => ({
   logout: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/map",
+}));
+
 const installState = vi.hoisted(() => ({
   showInstallEntry: false,
   requestInstallUi: vi.fn(),
@@ -43,6 +47,7 @@ describe("ProfileMenu", () => {
     await user.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("menuitem", { name: "Profile" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "History" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Log out" })).toBeInTheDocument();
 
     await user.keyboard("{Escape}");

@@ -141,7 +141,7 @@ public/
 | `/map` | Required + vehicle | Browse available spots; open details; claim |
 | `/spots/new` | Required + vehicle | Publish a parking spot |
 | `/profile` | Required | Display name, vehicle, credit balance (allowed while vehicle incomplete) |
-| `/history` | Required + vehicle | Own spots, claims, and credit transactions |
+| `/history` | Required + vehicle | Own terminal claims as publisher/seeker + credit effect |
 
 Optional later: a small claim status panel on `/map` instead of a separate
 claim detail page.
@@ -155,7 +155,7 @@ claim detail page.
 | Spots | `PublishSpotForm`, `ClaimButton`, `CancelSpotButton` | Forms / actions |
 | Claims | `CompleteHandoffForm`, `CancelClaimButton` | Seeker-only verified complete |
 | Profile | `ProfileSummary`, `CreditBalance` | Mostly server-rendered |
-| History | `HistoryList`, `TransactionRow` | Server-rendered lists |
+| History | `HistoryList` | Server-rendered terminal handoffs |
 | UI | `Button`, `Input`, `Alert`, `EmptyState` | Minimal shared primitives |
 | Shell | `AppNav`, `ModeSwitch`, `ProfileMenu` | Two-intent mode switch + profile menu |
 
@@ -349,7 +349,8 @@ Application constants (window lengths) are validated in Zod and stored as
 - No location tables, history, localStorage, IndexedDB, or SW cache of coords.
 - Keep Realtime “Allow public access” enabled so existing public
   `postgres_changes` channels continue; location channels remain private.
-- Routing / ETA deferred to Phase 9C.
+- Routing / ETA is **not implemented** (deferred; MapTiler basemap + MapLibre
+  rendering remain).
 
 ## 10. Authentication flow
 
@@ -846,7 +847,7 @@ concurrency.
 | Surface | Loading | Empty |
 |---------|---------|-------|
 | `/map` | Map skeleton / “Loading spots…” | “No available spots nearby. Publish one or check back.” |
-| `/history` | List placeholder | “No activity yet.” |
+| `/history` | History list / empty | “No activity yet.” |
 | `/profile` | Soft placeholder | N/A (profile always exists after signup) |
 | Claim/publish buttons | Disabled + pending state on submit | — |
 | Spot details | Panel spinner | Spot no longer available |
