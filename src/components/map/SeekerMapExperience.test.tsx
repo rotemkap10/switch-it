@@ -40,7 +40,7 @@ vi.mock("@/components/map/ActiveClaimPanel", () => ({
     >
       <button type="button">Navigate</button>
       <button type="button">Verify and complete</button>
-      <button type="button">Cancel handoff</button>
+      <button type="button">Release spot</button>
     </div>
   ),
 }));

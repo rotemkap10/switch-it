@@ -10,7 +10,7 @@ describe("HandoffCodeSection", () => {
     expect(screen.getByText("Handoff code")).toBeInTheDocument();
     expect(screen.getByTestId("handoff-code-value")).toHaveTextContent("48291");
     expect(
-      screen.getByText("Give this code to the driver when they arrive."),
+      screen.getByText("Give this code to the driver when you meet."),
     ).toBeInTheDocument();
   });
 });

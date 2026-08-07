@@ -137,6 +137,9 @@ export function ClaimNavigationActions({
             <p id={titleId} className="text-sm font-semibold text-foreground">
               Open destination in
             </p>
+            <p className="mt-1 text-xs text-muted">
+              Use Switch It controls only when safely stopped.
+            </p>
             <ul className="mt-3 flex flex-col gap-2">
               <li>
                 <button

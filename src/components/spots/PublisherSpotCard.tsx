@@ -4,15 +4,20 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { CancelSpotButton } from "@/components/spots/CancelSpotButton";
+import { ExtendHandoffWaitButton } from "@/components/spots/ExtendHandoffWaitButton";
 import { HandoffCodeSection } from "@/components/spots/HandoffCodeSection";
 import { PublisherLiveProgressMapLoader } from "@/components/spots/PublisherLiveProgressMapLoader";
 import { PublisherSpotPreviewMapLoader } from "@/components/spots/PublisherSpotPreviewMapLoader";
 import { ParkingPinSettle } from "@/components/illustrations/ParkingPinSettle";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
-import { HandoffWindowCountdown } from "@/components/ui/HandoffWindowCountdown";
+import {
+  getHandoffPhase,
+  HandoffWindowCountdown,
+} from "@/components/ui/HandoffWindowCountdown";
 import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { usePublisherLiveLocation } from "@/lib/location/use-publisher-live-location";
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
+import { canOfferHandoffExtension } from "@/lib/spots/constants";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 
 export type PublisherSpotSummary = {
@@ -112,7 +117,7 @@ export function PublisherSpotCard({
           </h2>
           <p className="mt-1 text-sm text-muted">
             {claimed
-              ? "The handoff window begins when you’re ready to leave."
+              ? "Waiting is optional — extend if the driver is close, or leave when you need to."
               : "Your spot is visible to nearby drivers."}
           </p>
         </div>
@@ -132,6 +137,7 @@ export function PublisherSpotCard({
       </p>
       <div className="mt-3">
           <HandoffWindowCountdown
+            key={spot.expires_at}
             availableAtIso={spot.available_at}
             expiresAtIso={spot.expires_at}
             role="publisher"
@@ -185,7 +191,21 @@ export function PublisherSpotCard({
   ) : null;
 
   const cancelBlock = (
-    <div className="publisher-spot-cancel">
+    <div className="publisher-spot-cancel flex flex-col gap-2">
+      {claimed &&
+      activeClaimId &&
+      canOfferHandoffExtension({
+        availableAtIso: spot.available_at,
+        expiresAtIso: spot.expires_at,
+        claimed: true,
+      }) &&
+      getHandoffPhase(spot.available_at, spot.expires_at) === "window" ? (
+        <ExtendHandoffWaitButton
+          claimId={activeClaimId}
+          availableAtIso={spot.available_at}
+          expiresAtIso={spot.expires_at}
+        />
+      ) : null}
       <CancelSpotButton spotId={spot.id} claimed={claimed} />
     </div>
   );

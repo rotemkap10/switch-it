@@ -154,11 +154,16 @@ reciprocal line describing their own vehicle. Illustrations are representative;
 plate and text are authoritative.
 
 **Live location (Phase 9B — optional, foreground-only):** After claiming, the
-seeker may tap **Share live location**. While Switch It is open and visible, a
-throttled private Broadcast updates the publisher’s compact progress map. Sharing
-is not required to Navigate, complete, or cancel. Consent is per claim and not
-remembered after reload. Coordinates are never stored in the database, local
-storage, caches, or analytics. Background/app-switch may pause updates.
+seeker may deliberately tap **Share live location** (opt-in only; no
+`watchPosition` before that tap). Helper copy explains that sharing helps the
+parking owner see them approaching and may make waiting more likely — without
+guaranteeing a wait. While Switch It is open and visible, a throttled private
+Broadcast updates the publisher’s progress map. Sharing is not required to
+Navigate, complete, or cancel. Declining, inaccurate GPS, backgrounding, or
+stale updates never auto-cancel the claim. Publisher UI stays neutral
+(“Waiting for live location”) and never exposes permission-denied details.
+Consent is per claim and not remembered after reload. Coordinates are never
+stored in the database, local storage, caches, or analytics.
 Routing and ETA are **not** implemented in the current MVP (deferred).
 
 ### History
@@ -171,20 +176,27 @@ No maps, live locations, handoff codes, or counterpart personal data.
 ### 9.2 Publishing a parking spot
 
 1. Authenticated publisher opens **Share a spot**.
-2. Publisher confirms location on the map and leaving delay with a **0–20 minute
+2. Publisher confirms location on the map and leaving delay with a **0–10 minute
    slider** (1-minute steps; 0 = Now), then taps **Share spot**.
    While adjusting the map, the app may show a short automatically derived address
    (display only; coordinates remain authoritative).
 3. The server calculates `available_at = now + delay` and
-   `expires_at = available_at + 5 minutes` (authoritative clock). The client does
+   `expires_at = available_at + 2 minutes` (authoritative clock). The absolute
+   hard cap for the handoff is `available_at + 5 minutes`. The client does
    not submit absolute timestamps.
 4. Spot appears on the map for other users; the publisher sees
    **Waiting for a driver** until claimed, cancelled, or expired.
 5. Both sides see a countdown that answers what happens next:
    before `available_at` (“Your spot will be ready in N min” /
-   “The spot should be ready in N min”), then during the five-minute window
-   (“Driver handoff window · M:SS left” / “Complete the handoff · M:SS left”).
+   “The spot should be ready in N min”), then during the waiting window
+   (“Waiting for driver · M:SS left” / “Complete the handoff · M:SS left”).
    After expiry the UI transitions to a terminal state (no frozen 00:00).
+6. The publisher is **not** expected to wait five minutes automatically.
+   Initial grace is **2 minutes**. During a claimed handoff after
+   `available_at`, the publisher may tap **Wait N more min** (truthful
+   remaining extension, never past the 5-minute hard cap) or **I’m leaving**
+   (existing cancel — no credits). Live seeker location helps decide whether
+   waiting longer is worthwhile. No ETA or turn-by-turn routing.
 
 ### 9.3 Browsing available spots
 
@@ -229,8 +241,10 @@ offline screen rather than stale parking data.
 ### 9.5 Completing a handoff
 
 1. When a spot is claimed, the publisher receives a short **5-digit handoff
-   code** visible only to them during the active claim.
-2. The seeker arrives and enters the code in the app.
+   code** visible only to them during the active claim. Helper: give the code
+   when you meet — code entry does not need to happen while either driver is
+   maneuvering.
+2. When safely stopped, the seeker enters the code in the app.
 3. On a correct code **before the shared deadline**, the system marks the claim
    and spot as **completed** and transfers credits seeker → publisher **exactly once**.
 4. Wrong codes are rejected without credit movement. After five incorrect
@@ -243,14 +257,18 @@ QR scanning and other external verification are future enhancements only.
 
 **Publisher cancel**
 - Unclaimed: quiet **Cancel spot** with confirmation.
-- Claimed: **I can’t wait any longer** with confirmation; spot and any active
+- Claimed: **I’m leaving** with confirmation; spot and any active
   claim become cancelled. No credits move. Seeker is notified that the driver
-  had to leave.
+  had to leave. Waiting is optional — the publisher is never required to stay
+  until the countdown ends.
 
 **Seeker cancel**
+- Clear release UX: **Can’t make it?** / **Release spot** so another driver can
+  claim it. Backend `cancel_claim` semantics unchanged.
 - Before `spot.expires_at`: claim cancelled; spot returns to **available** with
   original `available_at` / `expires_at` unchanged. No credits move.
 - At/after deadline: claim and spot **expired** (no reopen). No credits move.
+- Live-location sharing stops immediately on release.
 
 **Shared deadline expiry**
 - When `expires_at` passes without completion, claim and/or spot become
@@ -273,11 +291,15 @@ QR scanning and other external verification are future enhancements only.
    window.
 4. **Single active claim** – at most one active claim may exist for a spot.
 5. **No self-claim** – a user cannot claim a spot they published.
-6. **Starting credits** – new users receive a small initial credit balance.
+6. **Starting credits** – new users receive **5** initial credits (product
+   parameter tunable after usage testing). Solves cold start so a new user can
+   claim before they have shared a spot. No payments, packs, or credit expiry
+   in MVP.
 7. **Virtual credits** – credits are internal points, not real money and not
    withdrawable in the MVP.
 8. **Transfer on success only** – credits move from seeker to publisher only
-   after a successfully completed handoff.
+   after a successfully completed handoff. Extension / leave / cancel / expiry
+   move zero credits.
 9. **No permanent charge on failure** – cancelled or expired claims must not
    permanently deduct the seeker’s credits.
 10. **Vehicle identity required** – users must complete vehicle details during
@@ -376,13 +398,13 @@ Ideas only after a solid MVP (not planned for this submission unless time
 remains):
 
 - push or email reminders before claim expiry,
-- simple reputation or courtesy feedback,
-- realtime map updates,
-- better matching by ETA / walking distance,
+- simple reputation / courtesy feedback or no-show signals (only after real usage),
+- better matching by driving ETA / routes (not straight-line distance alone),
 - photo or note on a published spot,
 - campus- or city-scoped deployments,
 - moderation tools for abuse,
 - integrations with navigation apps.
 
 Any future work must preserve the core principle: Switch It coordinates
-handoffs; it does not own or sell public parking spots.
+handoffs; it does not own or sell public parking spots. MVP deliberately omits
+ratings, penalties, Google Routes/ETA, and payments.

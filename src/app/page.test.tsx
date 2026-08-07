@@ -32,7 +32,7 @@ describe("Phase 10 terminal feedback copy", () => {
     expect(FEEDBACK_SUCCESS_KEYS["handoff-cancelled-publisher"]).toContain(
       "Spot cancelled",
     );
-    expect(FEEDBACK_SUCCESS_KEYS["claim-cancelled"]).toContain("Claim cancelled");
+    expect(FEEDBACK_SUCCESS_KEYS["claim-cancelled"]).toContain("Spot released");
   });
 
   it("does not expose Phase 9C routing keys", () => {

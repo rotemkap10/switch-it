@@ -9,9 +9,12 @@ import {
 describe("live location stale labels", () => {
   const t0 = 1_000_000;
 
-  it("waiting before first point", () => {
+  it("waiting before first point uses neutral publisher copy", () => {
     expect(liveLocationFreshness(null, t0)).toBe("waiting");
     expect(liveLocationStatusLabel("waiting")).toBe("Waiting for live location");
+    expect(liveLocationUpdatedLabel("waiting", null, t0)).toBe(
+      "The driver can choose to share their progress.",
+    );
   });
 
   it("live within 10s", () => {

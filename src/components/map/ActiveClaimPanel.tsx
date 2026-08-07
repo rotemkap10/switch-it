@@ -156,14 +156,20 @@ function ActiveClaimSheetBody({
       </div>
 
       {canNavigate && destination ? (
-        <ClaimNavigationActions
-          latitude={destination.latitude}
-          longitude={destination.longitude}
-          fullWidth
-        />
+        <div className="flex flex-col gap-1.5">
+          <ClaimNavigationActions
+            latitude={destination.latitude}
+            longitude={destination.longitude}
+            fullWidth
+          />
+          <p className="text-center text-[0.7rem] leading-4 text-muted">
+            Use Switch It controls only when safely stopped.
+          </p>
+        </div>
       ) : null}
 
       <HandoffWindowCountdown
+        key={claim.spotExpiresAt}
         availableAtIso={claim.spotAvailableAt}
         expiresAtIso={claim.spotExpiresAt}
         role="seeker"
@@ -205,7 +211,7 @@ function ActiveClaimSheetBody({
             {counterpartVehicle ? (
               <HandoffVehicleSection
                 title="Look for this vehicle"
-                helper="Look for the vehicle when the handoff window begins."
+                helper="Meet the other driver before they pull away so you can take the spot smoothly."
                 vehicle={counterpartVehicle}
                 ownVehicle={ownVehicle}
                 showRepresentativeNote

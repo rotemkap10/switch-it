@@ -22,7 +22,7 @@ describe("claim action confirmations", () => {
 
     expect(screen.getByText("Complete the handoff")).toBeInTheDocument();
     expect(
-      screen.getByText("Ask the driver for the 5-digit handoff code."),
+      screen.getByText("Once you’re safely stopped, enter the code to complete the handoff."),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Handoff code")).toBeInTheDocument();
     expect(screen.queryByText(/^\d{5}$/)).not.toBeInTheDocument();
@@ -31,16 +31,21 @@ describe("claim action confirmations", () => {
     expect(form.querySelector('input[name="claim_id"]')).toHaveValue(claimId);
   });
 
-  it("asks for a lightweight cancel confirmation before submitting", async () => {
+  it("asks for a lightweight release confirmation before submitting", async () => {
     const user = userEvent.setup();
     cancelClaimMock.mockResolvedValue({ success: true });
 
     render(<FeedbackShell><CancelClaimButton claimId={claimId} /></FeedbackShell>);
 
+    expect(screen.getByText("Can’t make it?")).toBeInTheDocument();
+    expect(
+      screen.getByText("Release the spot so another driver can claim it."),
+    ).toBeInTheDocument();
+
     await user.click(
-      screen.getByRole("button", { name: "Cancel handoff" }),
+      screen.getByRole("button", { name: "Release spot" }),
     );
-    expect(screen.getByText("Cancel this handoff?")).toBeInTheDocument();
+    expect(screen.getByText("Release this spot?")).toBeInTheDocument();
 
     const dialog = screen.getByTestId("cancel-claim-confirm");
     expect(dialog.querySelector('input[name="claim_id"]')).toHaveValue(claimId);

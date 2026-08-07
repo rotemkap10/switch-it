@@ -82,7 +82,7 @@ export function CancelSpotButton({
         onClick={() => setConfirming(true)}
         data-testid="cancel-spot-trigger"
       >
-        {claimed ? "I can’t wait any longer" : "Cancel spot"}
+        {claimed ? "I’m leaving" : "Cancel spot"}
       </button>
     );
   }
@@ -98,7 +98,7 @@ export function CancelSpotButton({
       data-testid="cancel-spot-confirm"
     >
       <p id={titleId} className="text-sm font-semibold text-foreground">
-        {claimed ? "Cancel this handoff?" : "Cancel this parking spot?"}
+        {claimed ? "Leave this handoff?" : "Cancel this parking spot?"}
       </p>
       <p id={descId} className="mt-1 text-xs leading-5 text-muted">
         {claimed
@@ -125,9 +125,9 @@ export function CancelSpotButton({
           className="w-full px-0 py-1 text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
         >
           {pending
-            ? "Cancelling…"
+            ? "Leaving…"
             : claimed
-              ? "Cancel handoff"
+              ? "I’m leaving"
               : "Cancel spot"}
         </Button>
       </form>

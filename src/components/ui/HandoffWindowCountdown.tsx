@@ -34,7 +34,7 @@ function waitingCopy(role: "publisher" | "seeker", minutes: number): string {
 
 function windowCopy(role: "publisher" | "seeker", clock: string): string {
   if (role === "publisher") {
-    return `Driver handoff window · ${clock} left`;
+    return `Waiting for driver · ${clock} left`;
   }
   return `Complete the handoff · ${clock} left`;
 }
@@ -57,9 +57,10 @@ function resolvePhase(
 }
 
 /**
- * Dual-target countdown for Model 1 handoff window.
+ * Dual-target countdown for the shared handoff window.
  * Derives remaining time from absolute timestamps each tick (no drift counter).
- * Answers: what happens next, and in how long?
+ * Remount with `key={expiresAtIso}` when the deadline extends so near-expiry /
+ * ended announcement state resets without flashing a stale terminal UI.
  */
 export function HandoffWindowCountdown({
   availableAtIso,

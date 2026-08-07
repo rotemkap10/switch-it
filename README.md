@@ -9,7 +9,8 @@ Switch It does **not** sell, reserve, or guarantee a parking spot.
 ## Key features
 
 - Find parking / Share a spot modes
-- Shared 5-minute handoff deadline (Phase 9A)
+- Shared handoff deadline with publisher-controlled waiting (initial 2 min,
+  extend up to 5 min total after departure; Phase 9A + extend RPC)
 - Handoff verification code + mutual vehicle recognition
 - Optional foreground live-location sharing (Phase 9B)
 - Credits, History, Profile, PWA install
@@ -75,19 +76,21 @@ Use two real accounts (no fake demo mode).
 
 **User A (publisher)**  
 1. Sign in → **Share a spot**  
-2. Set leave time to about **2 minutes** → Share  
+2. Set leave time within **0–10 minutes** (about **2 minutes**) → Share  
+3. After claim: optionally **Wait N more min** (up to 5 min total after departure) or **I’m leaving**
 
 **User B (seeker)**  
 3. Sign in → **Find parking**  
 4. Claim User A’s spot  
-5. Tap **Share live location** and allow permission  
+5. Optionally **Share live location** (explicit opt-in) and allow permission  
+6. Or **Release spot** if you can’t make it (no credits move)
 
 **User A**  
-6. Confirm live marker + counterpart vehicle  
-7. Show the 5-digit handoff code  
+7. Confirm live marker + counterpart vehicle (when shared)  
+8. Show the 5-digit handoff code when you meet  
 
 **User B**  
-8. Enter the code → complete handoff  
+9. When safely stopped, enter the code → complete handoff  
 
 Then show: credits moved by exactly one, and a **History** entry.
 
@@ -96,16 +99,17 @@ Then show: credits moved by exactly one, and a **History** entry.
 - Grant geolocation outdoors when possible (weak GPS indoors)
 - Confirm MapTiler key and network before presenting
 - Confirm Realtime is healthy (publisher sees claim quickly)
-- Prefer a 2-minute leave delay so the window is not rushed
+- Prefer a 2-minute leave delay so the window is not rushed (max leave **10 min**)
 - Have both accounts ready (avoid email-confirm friction mid-demo)
 - Do not expect routing/ETA overlays
+- Signup still grants **5** starting credits (tunable product parameter)
 
 ## Known limitations
 
-- Parking is never guaranteed
-- Live location is foreground-first (may pause in background)
+- Parking is never guaranteed (public street spots)
+- Live location is foreground-first explicit opt-in (may pause in background)
 - No ETA / turn-by-turn routing in-app (external Navigate still opens maps)
-- No payments, chat, push notifications, or ratings
+- No payments, chat, push notifications, ratings, or no-show penalties
 - Course MVP credits are not real money
 
 ## Docs

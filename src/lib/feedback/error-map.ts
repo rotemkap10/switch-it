@@ -10,7 +10,7 @@ export const NETWORK_APP_ERROR =
  */
 export const APP_ERROR_MESSAGES = {
   VEHICLE_PROFILE_REQUIRED: "Add your vehicle details before continuing.",
-  SPOT_UNAVAILABLE: "This parking spot is no longer available.",
+  SPOT_UNAVAILABLE: "This spot was just claimed by another driver.",
   SPOT_NOT_FOUND: "This parking spot is no longer available.",
   SPOT_EXPIRED: "This parking spot is no longer available.",
   SELF_CLAIM: "You cannot claim your own parking spot.",
@@ -21,6 +21,7 @@ export const APP_ERROR_MESSAGES = {
   INVALID_HANDOFF_CODE: "That handoff code isn’t correct.",
   HANDOFF_TEMPORARILY_LOCKED: "Too many attempts. Try again shortly.",
   HANDOFF_UNAVAILABLE: "This handoff can no longer be completed.",
+  HANDOFF_NOT_READY: "You can extend waiting once the handoff window starts.",
   CLAIM_EXPIRED: "This handoff can no longer be completed.",
   CLAIM_NOT_ACTIVE: "This handoff can no longer be completed.",
   CLAIM_NOT_FOUND: "This handoff can no longer be completed.",

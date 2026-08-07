@@ -11,21 +11,24 @@ describe("leaveDelayValueText", () => {
     expect(leaveDelayValueText(1)).toBe("In 1 minute");
     expect(leaveDelayValueText(7)).toBe("In 7 minutes");
     expect(leaveDelayValueText(20)).toBe("In 20 minutes");
+    expect(leaveDelayValueText(10)).toBe("In 10 minutes");
   });
 });
 
 describe("LeaveTimeSlider", () => {
-  it("renders accessible range 0–20 with Now display", () => {
+  it("renders accessible range 0–10 with Now display", () => {
     render(<LeaveTimeSlider value={0} onChange={vi.fn()} />);
 
     const range = screen.getByTestId("leave-time-range");
     expect(range).toHaveAttribute("min", "0");
-    expect(range).toHaveAttribute("max", "20");
+    expect(range).toHaveAttribute("max", "10");
     expect(range).toHaveAttribute("step", "1");
     expect(range).toHaveAttribute("aria-valuetext", "Now");
     expect(screen.getByText("When will you leave?")).toBeInTheDocument();
     expect(screen.getByTestId("leave-time-value")).toHaveTextContent("Now");
     expect(screen.queryByText("More")).not.toBeInTheDocument();
+    expect(screen.getByText("10 min")).toBeInTheDocument();
+    expect(screen.queryByText("20 min")).not.toBeInTheDocument();
     expect(screen.queryByText("25 min")).not.toBeInTheDocument();
   });
 

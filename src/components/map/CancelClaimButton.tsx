@@ -81,14 +81,22 @@ export function CancelClaimButton({
 
   if (!confirming) {
     return (
-      <button
-        type="button"
-        className="w-full px-0 py-1 text-center text-xs text-muted underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
-        onClick={() => setConfirming(true)}
-        data-testid="cancel-claim-trigger"
-      >
-        Cancel handoff
-      </button>
+      <div className="flex flex-col gap-1" data-testid="cancel-claim-prompt">
+        <p className="text-center text-xs font-medium text-foreground">
+          Can’t make it?
+        </p>
+        <p className="text-center text-[0.7rem] leading-4 text-muted">
+          Release the spot so another driver can claim it.
+        </p>
+        <button
+          type="button"
+          className="w-full px-0 py-1 text-center text-xs text-muted underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
+          onClick={() => setConfirming(true)}
+          data-testid="cancel-claim-trigger"
+        >
+          Release spot
+        </button>
+      </div>
     );
   }
 
@@ -102,7 +110,7 @@ export function CancelClaimButton({
       data-testid="cancel-claim-confirm"
     >
       <p id={titleId} className="text-sm font-semibold text-foreground">
-        Cancel this handoff?
+        Release this spot?
       </p>
       <p id={descId} className="mt-1 text-xs leading-5 text-muted">
         The parking owner will be notified. No credit will be charged.
@@ -126,7 +134,7 @@ export function CancelClaimButton({
           disabled={pending}
           className="w-full px-0 py-1 text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
         >
-          {pending ? "Cancelling…" : "Cancel handoff"}
+          {pending ? "Releasing…" : "Release spot"}
         </Button>
       </form>
     </div>

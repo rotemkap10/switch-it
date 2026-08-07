@@ -14,10 +14,30 @@ vi.mock("@/components/spots/CancelSpotButton", () => ({
     claimed?: boolean;
   }) => (
     <button type="button" data-spot-id={spotId} data-claimed={String(!!claimed)}>
-      {claimed ? "I can’t wait any longer" : "Cancel spot"}
+      {claimed ? "I’m leaving" : "Cancel spot"}
     </button>
   ),
 }));
+
+vi.mock("@/components/spots/ExtendHandoffWaitButton", () => ({
+  ExtendHandoffWaitButton: ({ claimId }: { claimId: string }) => (
+    <button type="button" data-testid="extend-handoff-wait" data-claim-id={claimId}>
+      Wait 2 more min
+    </button>
+  ),
+}));
+
+vi.mock("@/components/ui/HandoffWindowCountdown", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/components/ui/HandoffWindowCountdown")
+  >("@/components/ui/HandoffWindowCountdown");
+  return {
+    ...actual,
+    HandoffWindowCountdown: ({ role }: { role: string }) => (
+      <div data-testid="handoff-window-countdown">{role}</div>
+    ),
+  };
+});
 
 vi.mock("@/components/spots/PublisherSpotPreviewMapLoader", () => ({
   PublisherSpotPreviewMapLoader: ({
@@ -57,17 +77,11 @@ vi.mock("@/lib/location/use-publisher-live-location", () => ({
     freshness: "waiting",
     statusLabel: "Waiting for live location",
     updatedLabel:
-      "The driver can choose to share their progress while Switch It is open.",
+      "The driver can choose to share their progress.",
     location: null,
     lastReceivedAtMs: null,
     clear: vi.fn(),
   }),
-}));
-
-vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
-  HandoffWindowCountdown: ({ role }: { role: string }) => (
-    <div data-testid="handoff-window-countdown">{role}</div>
-  ),
 }));
 
 import {
@@ -162,7 +176,9 @@ describe("PublisherSpotCard", () => {
 
     expect(screen.getByText("A driver is on the way")).toBeInTheDocument();
     expect(
-      screen.getByText("The handoff window begins when you’re ready to leave."),
+      screen.getByText(
+        "Waiting is optional — extend if the driver is close, or leave when you need to.",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByText(/^Driver coming$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
@@ -183,18 +199,51 @@ describe("PublisherSpotCard", () => {
     expect(preview).toHaveAttribute("data-longitude", "34.7818");
   });
 
-  it("keeps the quiet cancellation action", () => {
+  it("shows Wait 2 more min during the claimed window when headroom remains", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:46:00.000Z"),
+    });
     render(
       <PublisherSpotCard
-        spot={{ ...baseSpot, status: "claimed" }}
+        spot={{
+          ...baseSpot,
+          status: "claimed",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:47:00.000Z",
+        }}
+        activeClaimId="11111111-1111-4111-8111-111111111111"
         layout="page"
       />,
     );
 
-    const cancel = screen.getByRole("button", {
-      name: "I can’t wait any longer",
+    expect(screen.getByTestId("extend-handoff-wait")).toHaveTextContent(
+      "Wait 2 more min",
+    );
+    expect(
+      screen.getByRole("button", { name: "I’m leaving" }),
+    ).toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("hides extension when the handoff is already at the hard cap", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:46:00.000Z"),
     });
-    expect(cancel).toHaveAttribute("data-spot-id", baseSpot.id);
+    render(
+      <PublisherSpotCard
+        spot={{
+          ...baseSpot,
+          status: "claimed",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:50:00.000Z",
+        }}
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+        layout="page"
+      />,
+    );
+
+    expect(screen.queryByTestId("extend-handoff-wait")).not.toBeInTheDocument();
+    vi.useRealTimers();
   });
 
   it("uses the address fallback label", () => {

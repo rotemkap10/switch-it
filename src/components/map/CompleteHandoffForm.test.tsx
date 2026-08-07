@@ -62,7 +62,7 @@ describe("CompleteHandoffForm", () => {
 
     expect(screen.getByText("Complete the handoff")).toBeInTheDocument();
     expect(
-      screen.getByText("Ask the driver for the 5-digit handoff code."),
+      screen.getByText("Once you’re safely stopped, enter the code to complete the handoff."),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Verify and complete" }),

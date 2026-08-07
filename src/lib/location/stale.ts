@@ -48,7 +48,7 @@ export function liveLocationUpdatedLabel(
   nowMs: number = Date.now(),
 ): string {
   if (freshness === "waiting" || lastReceivedAtMs === null) {
-    return "The driver can choose to share their progress while Switch It is open.";
+    return "The driver can choose to share their progress.";
   }
   if (freshness === "live") {
     return "Updated just now";

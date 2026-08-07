@@ -91,7 +91,7 @@ export function PublisherRealtimeSync({
           !(spotKey && isRealtimeFeedbackSuppressed(spotKey))
         ) {
           info(
-            "Claim cancelled\nThe spot may become available to other drivers again. No credits were changed.",
+            "Spot released\nThe spot may become available to other drivers again. No credits were changed.",
           );
         }
       } else if (id && next === "expired") {

@@ -328,13 +328,26 @@ claims 1 ── * credit_transactions      (claim_id, optional)
 Application constants (window lengths) are validated in Zod and stored as
 `available_at` / `expires_at` / claim `expires_at`.
 
-**Phase 9A timing (Model 1 — spot-anchored deadline):**
-- Publisher submits `available_in_minutes` integer **0–20** only (slider).
+**Phase 9A timing (spot-anchored deadline) + publisher-controlled waiting:**
+- Publisher submits `available_in_minutes` integer **0–10** only (slider).
 - Server action computes `available_at = now + delay` and
-  `expires_at = available_at + 5 minutes` (authoritative clock).
+  `expires_at = available_at + 2 minutes` (initial grace; authoritative clock).
+- Absolute hard cap for **new-model extensions**: `available_at + 5 minutes`,
+  enforced transactionally by `extend_handoff_wait` (never `now()+2`).
+  There is **no** global `parking_spots` CHECK on this invariant: historical
+  rows may predate the current handoff-window model, and the MVP intentionally
+  preserves them (no backfill, no shortening). Legacy rows already at or past
+  the calculated hard cap are left unchanged (`changed = false`); the RPC never
+  writes a deadline beyond the hard cap for rows that still have headroom.
+- Existing spots already at longer windows are not shortened at deploy time.
 - Early claims are allowed while `now < spot.expires_at`.
 - `claim.expires_at = spot.expires_at` (no independent 15-minute claim hold).
-- Lazy RPCs: `expire_claim_if_needed`, `expire_spot_if_needed` (unclaimed).
+- Publisher may call `extend_handoff_wait(claim_id)` only when owner, claim
+  active, spot claimed, `now >= available_at`, `now < expires_at`, and
+  headroom remains under the hard cap. Extension math:
+  `least(expires_at + 2 minutes, available_at + 5 minutes)` — never `now()+2`.
+- “I’m leaving” reuses `cancel_spot` (no credits). Lazy RPCs:
+  `expire_claim_if_needed`, `expire_spot_if_needed` (unclaimed).
 
 **Phase 9B live location (foreground private Broadcast):**
 - Topic: `claim-location:<claim_uuid>` with `config.private = true`.
@@ -504,7 +517,7 @@ blocking.
   with PageHeader h1 “Share a spot” — no nested duplicate headings.
 - Location picker shell: `.leaver-map-picker-shell` (`clamp(210px, 38dvh, 280px)`);
   fixed center pin; coords from `map.getCenter()` on `moveend` only.
-- Leave-time: phone-first `.leave-time-range` slider (0–20 minutes, step 1).
+- Leave-time: phone-first `.leave-time-range` slider (0–10 minutes, step 1).
   Label “When will you leave?”; value text “Now” / “In N minutes”.
   Client submits delay only; server computes absolute timestamps.
 - Reverse geocoding enriches the publisher picker with a display-only address label
@@ -519,7 +532,8 @@ blocking.
   `publisher-preview-map-shell--available|claimed`.
 - Shared handoff countdown derives from `available_at` / `expires_at`
   (`HandoffWindowCountdown`). Publisher cancel uses confirm dialogs; claimed
-  copy “I can’t wait any longer”.
+  copy “I’m leaving”. Extension uses `ExtendHandoffWaitButton` +
+  `extend_handoff_wait`.
 
 ### Mobile account forms (presentation)
 
@@ -623,6 +637,7 @@ blocking.
 | `claimSpot` | Call `claim_spot` RPC |
 | `completeClaim` | Call `complete_claim` RPC (seeker only) |
 | `cancelClaim` | Call `cancel_claim` RPC (seeker only) |
+| `extendHandoffWait` | Call `extend_handoff_wait` RPC (owner; no credits) |
 | `cancelSpot` | Call `cancel_spot` RPC (owner; cancels active claim too) |
 | `updateProfile` | Update display name |
 
@@ -723,6 +738,10 @@ change only via completion — still re-check for safety).
 | **DB changes** | Claim → `cancelled` + `cancelled_at`; spot → `available` if spot not past `expires_at`, else `expired`; **no** credit txs |
 | **Errors** | Not seeker; not active; already terminal |
 | **Result** | Claim cancelled; balances unchanged |
+
+UI copy: **Can’t make it?** / **Release spot** (backend RPC name unchanged).
+Live-location Broadcast stops on release; publisher is notified via existing
+Realtime `postgres_changes`. No penalties.
 
 ### 13.8 Cancel spot (`cancel_spot` RPC)
 
@@ -965,6 +984,9 @@ Supabase project
 - Admin role + moderation tools (using existing `role` column).
 - Stronger geospatial queries (PostGIS).
 - Notifications before claim/spot expiry.
+- Driving ETA / routes (not air-distance claim blocking) after usage evidence.
+- Reputation, ratings, or no-show signals only after observing real usage.
+- Tunable starting-credit grant (MVP remains **5**).
 
 ---
 

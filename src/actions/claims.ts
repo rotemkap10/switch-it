@@ -15,6 +15,7 @@ import {
   cancelClaimSchema,
   claimSpotSchema,
   completeClaimSchema,
+  extendHandoffWaitSchema,
 } from "@/lib/validations/claim";
 
 export type ClaimSpotActionState = {
@@ -41,6 +42,16 @@ export type CancelClaimActionState = {
   errorCode?: string;
   success?: boolean;
   alreadyCancelled?: boolean;
+};
+
+export type ExtendHandoffWaitActionState = {
+  error?: string;
+  errorCode?: string;
+  success?: boolean;
+  changed?: boolean;
+  expiresAt?: string;
+  hardCapAt?: string;
+  extendedBySeconds?: number;
 };
 
 export async function claimSpot(
@@ -204,5 +215,60 @@ export async function cancelClaim(
     alreadyCancelled: Boolean(
       (row as { already_cancelled?: boolean }).already_cancelled,
     ),
+  };
+}
+
+export async function extendHandoffWait(
+  _prevState: ExtendHandoffWaitActionState,
+  formData: FormData,
+): Promise<ExtendHandoffWaitActionState> {
+  const parsed = extendHandoffWaitSchema.safeParse({
+    claim_id: formData.get("claim_id"),
+  });
+
+  if (!parsed.success) {
+    return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
+  }
+
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase.rpc("extend_handoff_wait", {
+    p_claim_id: parsed.data.claim_id,
+  });
+
+  if (error) {
+    const mapped = mapAppError(error, "Could not extend the handoff wait.");
+    return { error: mapped.message, errorCode: mapped.code };
+  }
+
+  const row = Array.isArray(data) ? data[0] : data;
+  if (
+    !row ||
+    typeof row !== "object" ||
+    typeof (row as { expires_at?: unknown }).expires_at !== "string"
+  ) {
+    return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
+  }
+
+  const result = row as {
+    claim_id: string;
+    spot_id: string;
+    expires_at: string;
+    hard_cap_at: string;
+    extended_by_seconds: number;
+    changed: boolean;
+  };
+
+  revalidatePath("/spots/new");
+  revalidatePath("/map");
+
+  return {
+    success: true,
+    changed: Boolean(result.changed),
+    expiresAt: result.expires_at,
+    hardCapAt: result.hard_cap_at,
+    extendedBySeconds:
+      typeof result.extended_by_seconds === "number"
+        ? result.extended_by_seconds
+        : 0,
   };
 }

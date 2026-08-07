@@ -10,7 +10,7 @@ import {
 
 describe("getHandoffPhase", () => {
   const available = "2026-08-04T12:10:00.000Z";
-  const expires = "2026-08-04T12:15:00.000Z";
+  const expires = "2026-08-04T12:12:00.000Z";
 
   it("is waiting before available_at", () => {
     expect(
@@ -20,14 +20,21 @@ describe("getHandoffPhase", () => {
 
   it("is window between available_at and expires_at", () => {
     expect(
-      getHandoffPhase(available, expires, Date.parse("2026-08-04T12:12:00.000Z")),
+      getHandoffPhase(available, expires, Date.parse("2026-08-04T12:11:00.000Z")),
     ).toBe("window");
   });
 
   it("is ended at or after expires_at", () => {
     expect(
-      getHandoffPhase(available, expires, Date.parse("2026-08-04T12:15:00.000Z")),
+      getHandoffPhase(available, expires, Date.parse("2026-08-04T12:12:00.000Z")),
     ).toBe("ended");
+  });
+
+  it("returns to window when expiresAt is extended past a previous end", () => {
+    const extended = "2026-08-04T12:14:00.000Z";
+    expect(
+      getHandoffPhase(available, extended, Date.parse("2026-08-04T12:12:30.000Z")),
+    ).toBe("window");
   });
 });
 
@@ -44,7 +51,7 @@ describe("handoff countdown copy", () => {
 
   it("answers what happens next during the handoff window", () => {
     expect(handoffWindowCopy("publisher", "3:42")).toBe(
-      "Driver handoff window · 3:42 left",
+      "Waiting for driver · 3:42 left",
     );
     expect(handoffWindowCopy("seeker", "3:42")).toBe(
       "Complete the handoff · 3:42 left",

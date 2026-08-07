@@ -17,7 +17,7 @@ vi.mock("@/components/map/CancelClaimButton", () => ({
       data-claim-id={claimId}
       onClick={() => onCancelled?.()}
     >
-      Cancel handoff
+      Release spot
     </button>
   ),
 }));
@@ -211,7 +211,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: "Verify and complete" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Cancel handoff" }),
+      screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
   });
 
@@ -237,7 +237,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.queryByRole("button", { name: "Verify and complete" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Cancel handoff" }),
+      screen.queryByRole("button", { name: "Release spot" }),
     ).not.toBeInTheDocument();
   });
 
@@ -262,7 +262,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: "Verify and complete" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Cancel handoff" }),
+      screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
   });
 
@@ -295,7 +295,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Cancel handoff" }),
+      screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
@@ -310,7 +310,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Cancel handoff" }),
+      screen.queryByRole("button", { name: "Release spot" }),
     ).not.toBeInTheDocument();
   });
 
@@ -376,7 +376,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       claim.claimId,
     );
     expect(
-      screen.getByRole("button", { name: "Cancel handoff" }),
+      screen.getByRole("button", { name: "Release spot" }),
     ).toHaveAttribute("data-claim-id", claim.claimId);
   });
 
@@ -394,7 +394,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Look for the vehicle when the handoff window begins.",
+        "Meet the other driver before they pull away so you can take the spot smoothly.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByText("White SUV")).toBeInTheDocument();
@@ -499,7 +499,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(forceStopMock).toHaveBeenCalled();
 
     forceStopMock.mockClear();
-    await user.click(screen.getByRole("button", { name: "Cancel handoff" }));
+    await user.click(screen.getByRole("button", { name: "Release spot" }));
     expect(forceStopMock).toHaveBeenCalled();
   });
 });

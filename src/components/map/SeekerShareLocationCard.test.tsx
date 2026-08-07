@@ -15,6 +15,11 @@ describe("SeekerShareLocationCard", () => {
     );
     expect(screen.getByText("Share your live location")).toBeInTheDocument();
     expect(
+      screen.getByText(
+        /so the parking owner can see you approaching and is more likely to wait/i,
+      ),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("button", { name: "Share live location" }),
     ).toBeInTheDocument();
     expect(

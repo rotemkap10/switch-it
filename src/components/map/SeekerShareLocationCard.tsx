@@ -36,7 +36,7 @@ export function SeekerShareLocationCard({
           Live location is unavailable
         </p>
         <p className="mt-1 text-xs text-muted">
-          You can still complete the handoff using navigation, vehicle details
+          You can still complete the handoff using navigation, vehicle details,
           and the handoff code.
         </p>
       </div>
@@ -103,7 +103,8 @@ export function SeekerShareLocationCard({
         Share your live location
       </p>
       <p className="mt-1 text-xs text-muted">
-        This lets the parking owner see your progress while Switch It is open.
+        Share your live location so the parking owner can see you approaching and
+        is more likely to wait for you.
       </p>
       <div className="mt-3 flex flex-col gap-2">
         <button

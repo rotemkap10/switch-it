@@ -10,7 +10,7 @@ type LeaveTimeSliderProps = {
 };
 
 /**
- * Phone-first leave-delay control: 0–20 minutes, one-minute steps.
+ * Phone-first leave-delay control: 0–10 minutes, one-minute steps.
  */
 export function LeaveTimeSlider({
   value,
@@ -74,7 +74,7 @@ export function LeaveTimeSlider({
 
       <div className="flex justify-between text-xs text-muted">
         <span>Now</span>
-        <span>20 min</span>
+        <span>10 min</span>
       </div>
 
       {error ? (

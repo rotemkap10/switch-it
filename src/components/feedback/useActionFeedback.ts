@@ -15,6 +15,7 @@ type ActionFeedbackState = {
   fieldErrors?: Record<string, string[]>;
   alreadyCompleted?: boolean;
   alreadyCancelled?: boolean;
+  changed?: boolean;
 };
 
 type UseActionFeedbackOptions = {

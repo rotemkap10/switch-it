@@ -32,11 +32,18 @@ describe("mapAppError", () => {
     );
   });
 
+  it("maps SPOT_UNAVAILABLE to friendly stale-claim copy", () => {
+    expect(mapAppError("SPOT_UNAVAILABLE").message).toBe(
+      "This spot was just claimed by another driver.",
+    );
+  });
+
   it("never returns raw database constraint text for known 23505 cases", () => {
     expect(
       mapAppError({
         code: "23505",
-        message: 'duplicate key value violates unique constraint "claims_one_active_per_seeker"',
+        message:
+          'duplicate key value violates unique constraint "claims_one_active_per_seeker"',
       }).message,
     ).toBe(APP_ERROR_MESSAGES.ACTIVE_CLAIM_EXISTS);
   });

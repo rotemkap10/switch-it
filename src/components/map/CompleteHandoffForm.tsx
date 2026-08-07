@@ -70,7 +70,7 @@ export function CompleteHandoffForm({
           Complete the handoff
         </h3>
         <p className="mt-1 text-xs leading-5 text-muted">
-          Ask the driver for the 5-digit handoff code.
+          Once you’re safely stopped, enter the code to complete the handoff.
         </p>
       </div>
 

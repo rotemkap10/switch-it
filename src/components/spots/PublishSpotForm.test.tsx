@@ -398,9 +398,9 @@ describe("PublishSpotForm", () => {
     });
 
     const range = screen.getByTestId("leave-time-range");
-    fireEvent.change(range, { target: { value: "10" } });
+    fireEvent.change(range, { target: { value: "5" } });
     expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
-    fireEvent.change(range, { target: { value: "20" } });
+    fireEvent.change(range, { target: { value: "10" } });
     expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
   });
 

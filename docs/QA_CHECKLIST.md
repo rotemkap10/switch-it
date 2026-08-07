@@ -20,37 +20,42 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 
 1. Open Share a spot (`/spots/new`)
 2. Recenter to current location (or pan pin)
-3. Publish available in **2 minutes**
-4. Confirm spot card + handoff countdown
-5. After claim: see claimed UI, counterpart vehicle, handoff code
-6. Observe seeker live location (if seeker shares)
-7. Give 5-digit code verbally
+3. Confirm leave slider is **0–10 min** (not 20); publish available in **2 minutes**
+4. Confirm spot card countdown (initial grace **2 minutes** after departure)
+5. After claim: see claimed UI, counterpart vehicle, handoff code (“Give this code…”)
+6. Observe seeker live location (if seeker shares) or **Waiting for live location**
+7. Optionally **Wait N more min** (truthful label; never past 5-minute hard cap)
+8. Give 5-digit code verbally when you meet
 
 **Seeker (B)**
 
 1. Open Find parking (`/map`)
 2. Recenter; confirm spots + carousel
-3. Select A’s spot → claim (“I’m on my way”)
-4. Share live location (permission granted)
-5. Enter correct code → complete
+3. Select A’s spot → claim (“I’m on my way”); note non-guarantee helper
+4. Optionally Share live location (permission granted) — or Not now (claim stays active)
+5. See safety helper (“Use Switch It controls only when safely stopped”)
+6. When safely stopped, enter correct code → complete
 
 **Verify**
 
 - [ ] Spot: available → claimed → completed
 - [ ] Claim: active → completed
+- [ ] New publish: `expires_at ≈ available_at + 2 min`
+- [ ] Extension updates both countdowns via Realtime refresh (no modal)
 - [ ] A credits **+1**; B credits **−1**
 - [ ] Exactly one History card each (shared / found) with correct ±1
+- [ ] Extension itself created **no** History row and **no** credit tx
 - [ ] Live location stops after complete (publisher map clears / ages out)
 - [ ] Code no longer fetchable after complete
 - [ ] No credit change toast implying transfer on claim alone
 
 ---
 
-## Scenario B — Seeker cancel
+## Scenario B — Seeker release
 
 1. A publishes (any short availability)
 2. B claims
-3. B cancels before deadline
+3. B sees **Can’t make it?** / **Release spot** and confirms before deadline
 
 **Verify**
 
@@ -58,14 +63,15 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 - [ ] Both see terminal / refreshed UI
 - [ ] **No** credit change for either user
 - [ ] History shows Cancelled · No credit change
-- [ ] Live share stops after cancel
+- [ ] Live share stops after release
+- [ ] Declining live location earlier did **not** auto-cancel the claim
 
 ---
 
-## Scenario C — Publisher cancel
+## Scenario C — Publisher leaves (“I’m leaving”)
 
 1. A publishes; B claims
-2. A cancels the spot / handoff
+2. A taps **I’m leaving** (cancel_spot)
 
 **Verify**
 
@@ -97,18 +103,40 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 
 **Verify**
 
-- [ ] C fails with friendly “no longer available” (not raw SQL)
+- [ ] C fails with friendly “This spot was just claimed by another driver.” (not raw SQL)
 - [ ] Map refreshes; stale card clears
 - [ ] C does not get an active claim
 - [ ] A/B handoff undisturbed
 
 ---
 
-## Credits edge
+## Scenario F — Publisher-controlled wait extension
+
+1. A publishes with short delay; B claims before `available_at`
+2. After `available_at`, A sees **Waiting for driver · M:SS left**
+3. A taps **Wait 2 more min** (first extension)
+4. Both countdowns refresh to the new deadline
+5. A taps **Wait 1 more min** (final headroom to the 5-minute hard cap)
+6. Extension control disappears at the hard cap
+7. Complete with code before the final deadline **or** leave / let expire
+
+**Verify**
+
+- [ ] First extension +2; second only remaining headroom; never past `available_at + 5`
+- [ ] Button never says “Wait 2 more min” when less than 2 minutes can be added
+- [ ] No credit movement on extension
+- [ ] No History row for extension alone
+- [ ] Live location / code / vehicle remain available through the new deadline
+- [ ] Seeker sees updated countdown without a modal
+
+---
+
+## Scenario G — Credits / idempotency edges
 
 - [ ] Seeker with **0 credits**: claim rejected with “You need at least one parking credit…”
 - [ ] Claim button may still appear (DB is source of truth) — rejection must be clear
 - [ ] Double-tap complete with correct code: second call idempotent (`already_completed`), no double ±1
+- [ ] New signup still receives **5** starting credits
 
 ---
 
@@ -170,5 +198,7 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 
 ## Pass criteria
 
-All Scenario A–E checks pass on at least one mobile + one desktop browser pair.
+All Scenario A–G checks pass on at least one mobile + one desktop browser pair.
 No raw Postgres / Supabase / MapLibre / stack traces shown to users.
+Publish leave slider max is **10 minutes** (not 20). No ETA, ratings, or
+penalties in this MVP. Signup credits remain **5**.

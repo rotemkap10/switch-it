@@ -89,7 +89,11 @@ export function SelectedSpotCard({
         </div>
 
         {spot.canClaim ? (
-          <div data-testid="selected-spot-claim-action">
+          <div className="flex flex-col gap-2" data-testid="selected-spot-claim-action">
+            <p className="text-xs leading-5 text-muted">
+              Claim this shared handoff if you can arrive in time. Parking is not
+              guaranteed against other street drivers.
+            </p>
             <ClaimSpotButton spotId={spot.id} />
           </div>
         ) : (

@@ -93,10 +93,10 @@ describe("ClaimSpotButton", () => {
     ).toHaveTextContent("You’re on your way.");
   });
 
-  it("surfaces RPC errors via toast feedback", async () => {
+  it("surfaces stale claim race with friendly toast feedback", async () => {
     const user = userEvent.setup();
     claimSpotMock.mockResolvedValue({
-      error: "This parking spot is no longer available.",
+      error: "This spot was just claimed by another driver.",
       errorCode: "SPOT_UNAVAILABLE",
     });
 
@@ -104,7 +104,7 @@ describe("ClaimSpotButton", () => {
     await user.click(screen.getByRole("button", { name: "I’m on my way" }));
 
     expect(await screen.findByTestId("feedback-toast-error")).toHaveTextContent(
-      "This parking spot is no longer available.",
+      "This spot was just claimed by another driver.",
     );
     expect(
       screen.getByRole("button", { name: "I’m on my way" }),

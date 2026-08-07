@@ -12,7 +12,7 @@ export const FEEDBACK_SUCCESS_KEYS = {
     "Spot cancelled\nThe driver has been notified. No credits were changed.",
   "claim-created": "You’re on your way.",
   "claim-cancelled":
-    "Claim cancelled\nThe spot may become available to other drivers again. No credits were changed.",
+    "Spot released\nThe parking owner was notified. No credits were changed.",
   "handoff-completed": "Parking handoff complete\n1 credit was used.",
   "handoff-completed-publisher": "Spot handed off\nYou earned 1 credit.",
   "handoff-expired":
