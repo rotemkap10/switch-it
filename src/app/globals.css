@@ -1131,7 +1131,7 @@ body {
   opacity: 0.95;
 }
 
-/* Branded map route transition */
+/* Branded map route transition (shared parking-pin via BrandedLoadingState) */
 
 .map-route-transition {
   position: relative;
@@ -1139,16 +1139,8 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.875rem;
   overflow: hidden;
-  background:
-    radial-gradient(
-      ellipse 90% 70% at 50% 20%,
-      var(--color-bg-strong),
-      transparent 65%
-    ),
-    var(--color-bg);
-  color: var(--color-accent);
+  background: transparent;
 }
 
 .map-route-transition--fullscreen {
@@ -1163,85 +1155,39 @@ body {
   width: 100%;
 }
 
-.map-route-transition__grid {
+.map-route-transition__branded {
+  min-height: inherit;
+}
+
+.branded-loading-page {
+  min-height: 12rem;
+}
+
+/* Soft client route transition — one full-page layer above content */
+.route-transition-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
-  position: absolute;
-  inset: 0;
-  opacity: 0.35;
-  background-image:
-    linear-gradient(to right, color-mix(in srgb, var(--color-border) 70%, transparent) 1px, transparent 1px),
-    linear-gradient(to bottom, color-mix(in srgb, var(--color-border) 70%, transparent) 1px, transparent 1px);
-  background-size: 28px 28px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 45%, #000 20%, transparent 75%);
+  padding-top: var(--app-safe-top);
+  padding-bottom: var(--app-safe-bottom);
+  background:
+    radial-gradient(
+      ellipse 120% 80% at 50% 0%,
+      var(--color-bg-strong),
+      transparent 62%
+    ),
+    color-mix(in srgb, var(--color-bg) 92%, transparent);
 }
 
-.map-route-transition__stage {
-  position: relative;
-  width: min(14rem, 72vw);
-  height: 5.5rem;
-}
-
-.map-route-transition__road {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  color: color-mix(in srgb, var(--color-accent) 55%, var(--color-border));
-}
-
-.map-route-transition__path {
-  animation: map-route-path-dash 1.4s linear infinite;
-}
-
-.map-route-transition__pin {
-  position: absolute;
-  left: 50%;
-  top: 0.15rem;
-  transform: translateX(-50%);
-  filter: drop-shadow(0 6px 12px rgb(85 191 243 / 28%));
-}
-
-.map-route-transition__vehicle {
-  position: absolute;
-  left: 8%;
-  bottom: 0.35rem;
-  animation: map-route-vehicle-travel 1.6s var(--motion-ease-in-out) infinite;
-}
-
-.map-route-transition__status {
-  position: relative;
-  z-index: 1;
-  margin: 0;
-  max-width: 16rem;
-  text-align: center;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text);
-}
-
-@keyframes map-route-path-dash {
-  to {
-    stroke-dashoffset: -28;
-  }
-}
-
-@keyframes map-route-vehicle-travel {
-  0% {
-    left: 8%;
-    opacity: 0;
-    transform: translateY(0);
-  }
-  12% {
-    opacity: 1;
-  }
-  78% {
-    opacity: 1;
-  }
-  100% {
-    left: 42%;
-    opacity: 0;
-    transform: translateY(-10px);
-  }
+.route-transition-overlay__inner {
+  pointer-events: none;
+  background: transparent;
+  min-height: 0;
 }
 
 /* Branded app launch + page entry */
@@ -1893,8 +1839,6 @@ body {
   .motion-launch-logo,
   .app-launch-splash.is-exiting,
   .app-content-shell.is-revealing,
-  .map-route-transition__path,
-  .map-route-transition__vehicle,
   .motion-vehicle-drive-in,
   .motion-vehicle-preview-nudge,
   .motion-credits-settle,
@@ -1929,18 +1873,6 @@ body {
 
   .app-launch-splash {
     display: none !important;
-  }
-
-  .map-route-transition.is-reduced-motion .map-route-transition__vehicle,
-  .map-route-transition__vehicle {
-    animation: none !important;
-    left: 42%;
-    opacity: 1;
-    transform: translateY(-6px);
-  }
-
-  .map-route-transition__path {
-    animation: none !important;
   }
 
   .motion-reveal-panel.is-open,

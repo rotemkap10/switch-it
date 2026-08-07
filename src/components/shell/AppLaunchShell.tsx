@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { SwitchItLogoMark } from "@/components/brand/SwitchItLogoMark";
+import { AppLaunchReadyProvider } from "@/components/shell/AppLaunchReadyContext";
 import {
   markLaunchSplashSeen,
   prefersReducedMotionMedia,
@@ -85,6 +86,7 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
   }, [phase]);
 
   const showSplash = phase === "visible" || phase === "exit";
+  const launchReady = phase === "hidden";
   const contentClass =
     phase === "hidden"
       ? "app-content-shell is-ready"
@@ -93,7 +95,7 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
         : "app-content-shell is-waiting";
 
   return (
-    <>
+    <AppLaunchReadyProvider ready={launchReady}>
       {showSplash ? (
         <div
           className={[
@@ -114,6 +116,6 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
       <div className={contentClass} data-testid="app-content-shell">
         {children}
       </div>
-    </>
+    </AppLaunchReadyProvider>
   );
 }

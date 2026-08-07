@@ -31,6 +31,16 @@ vi.mock("@/components/mode/ModeProvider", () => ({
   }),
 }));
 
+const beginRouteTransition = vi.hoisted(() => vi.fn());
+
+vi.mock("@/components/shell/RouteTransitionProvider", () => ({
+  useRouteTransition: () => ({
+    beginRouteTransition,
+    cancelRouteTransition: vi.fn(),
+    isTransitioning: false,
+  }),
+}));
+
 import { ModeSwitch } from "@/components/mode/ModeSwitch";
 
 describe("ModeSwitch", () => {
@@ -40,6 +50,7 @@ describe("ModeSwitch", () => {
     navigationState.prefetch.mockReset();
     modeState.mode = "seeker";
     modeState.setMode.mockReset();
+    beginRouteTransition.mockReset();
   });
 
   it("uses route as the source of truth for selection", () => {
@@ -66,6 +77,7 @@ describe("ModeSwitch", () => {
 
     await user.click(screen.getByRole("tab", { name: "Share a spot" }));
     expect(modeState.setMode).toHaveBeenCalledWith("leaver");
+    expect(beginRouteTransition).toHaveBeenCalledWith("/spots/new");
     expect(navigationState.push).toHaveBeenCalledWith("/spots/new");
     expect(screen.getByTestId("mode-switch")).toHaveAttribute(
       "data-pending",

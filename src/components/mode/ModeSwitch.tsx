@@ -10,6 +10,7 @@ import {
 } from "react";
 
 import { useMode } from "@/components/mode/ModeProvider";
+import { useRouteTransition } from "@/components/shell/RouteTransitionProvider";
 import {
   MODE_OPTIONS,
   modeFromPathname,
@@ -26,6 +27,7 @@ export function ModeSwitch({ fullWidth = false }: ModeSwitchProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { mode, setMode, ready } = useMode();
+  const { beginRouteTransition } = useRouteTransition();
   const [isPending, startTransition] = useTransition();
   const [pendingMode, setPendingMode] = useState<AppMode | null>(null);
 
@@ -64,6 +66,7 @@ export function ModeSwitch({ fullWidth = false }: ModeSwitchProps) {
     setMode(next);
     setPendingMode(next);
     markNavigationStart();
+    beginRouteTransition(href);
     startTransition(() => {
       router.push(href);
     });
