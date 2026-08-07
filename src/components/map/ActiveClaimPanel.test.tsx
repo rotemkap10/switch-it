@@ -5,17 +5,35 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/map/CancelClaimButton", () => ({
-  CancelClaimButton: ({ claimId }: { claimId: string }) => (
-    <button type="button" data-claim-id={claimId}>
+  CancelClaimButton: ({
+    claimId,
+    onCancelled,
+  }: {
+    claimId: string;
+    onCancelled?: () => void;
+  }) => (
+    <button
+      type="button"
+      data-claim-id={claimId}
+      onClick={() => onCancelled?.()}
+    >
       Cancel handoff
     </button>
   ),
 }));
 
 vi.mock("@/components/map/CompleteHandoffForm", () => ({
-  CompleteHandoffForm: ({ claimId }: { claimId: string }) => (
+  CompleteHandoffForm: ({
+    claimId,
+    onCompleted,
+  }: {
+    claimId: string;
+    onCompleted?: () => void;
+  }) => (
     <form data-testid="complete-handoff-form" data-claim-id={claimId}>
-      <button type="button">Verify and complete</button>
+      <button type="button" onClick={() => onCompleted?.()}>
+        Verify and complete
+      </button>
     </form>
   ),
 }));
@@ -26,13 +44,15 @@ vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
   ),
 }));
 
+const forceStopMock = vi.fn();
+
 vi.mock("@/lib/location/use-seeker-live-location-share", () => ({
   useSeekerLiveLocationShare: () => ({
     uiState: "prompt",
     resumedOnce: false,
     startSharing: vi.fn(),
     stopSharing: vi.fn(),
-    forceStop: vi.fn(),
+    forceStop: forceStopMock,
   }),
 }));
 
@@ -83,6 +103,7 @@ describe("ActiveClaimPanel sheet UX", () => {
   const sessionStore = new Map<string, string>();
 
   beforeEach(() => {
+    forceStopMock.mockReset();
     sessionStore.clear();
     resetSessionHandoffAnimationForTests();
     vi.stubGlobal("sessionStorage", {
@@ -457,6 +478,29 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
+  });
+
+  it("stops live location share when handoff completes or cancels", async () => {
+    const user = userEvent.setup();
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        counterpartVehicle={ownerVehicle}
+        variant="overlay"
+        expanded
+        onExpandedChange={() => {}}
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Verify and complete" }),
+    );
+    expect(forceStopMock).toHaveBeenCalled();
+
+    forceStopMock.mockClear();
+    await user.click(screen.getByRole("button", { name: "Cancel handoff" }));
+    expect(forceStopMock).toHaveBeenCalled();
   });
 });
 

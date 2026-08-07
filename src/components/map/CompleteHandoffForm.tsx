@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 
 import {
   completeClaim,
@@ -21,9 +21,14 @@ const initialState: CompleteClaimActionState = {};
 
 type CompleteHandoffFormProps = {
   claimId: string;
+  /** Called after a successful completion (including already-completed). */
+  onCompleted?: () => void;
 };
 
-export function CompleteHandoffForm({ claimId }: CompleteHandoffFormProps) {
+export function CompleteHandoffForm({
+  claimId,
+  onCompleted,
+}: CompleteHandoffFormProps) {
   const [state, formAction, pending] = useActionState(
     completeClaim,
     initialState,
@@ -42,6 +47,12 @@ export function CompleteHandoffForm({ claimId }: CompleteHandoffFormProps) {
     state.success,
     realtimeFeedbackKey("claim", claimId, "completed"),
   );
+
+  useEffect(() => {
+    if (state.success) {
+      onCompleted?.();
+    }
+  }, [state.success, onCompleted]);
 
   if (state.success) {
     return (

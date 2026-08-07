@@ -18,9 +18,14 @@ const initialState: CancelClaimActionState = {};
 
 type CancelClaimButtonProps = {
   claimId: string;
+  /** Called after a successful cancel / already-cancelled terminal result. */
+  onCancelled?: () => void;
 };
 
-export function CancelClaimButton({ claimId }: CancelClaimButtonProps) {
+export function CancelClaimButton({
+  claimId,
+  onCancelled,
+}: CancelClaimButtonProps) {
   const [confirming, setConfirming] = useState(false);
   const [state, formAction, pending] = useActionState(
     cancelClaim,
@@ -43,6 +48,12 @@ export function CancelClaimButton({ claimId }: CancelClaimButtonProps) {
     state.success,
     realtimeFeedbackKey("claim", claimId, "expired"),
   );
+
+  useEffect(() => {
+    if (state.success) {
+      onCancelled?.();
+    }
+  }, [state.success, onCancelled]);
 
   useEffect(() => {
     if (!confirming) {

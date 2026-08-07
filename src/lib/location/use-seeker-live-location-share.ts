@@ -303,10 +303,17 @@ export function useSeekerLiveLocationShare({
     await shutdown("prompt");
   }, [sendStatus, shutdown]);
 
+  /**
+   * Terminal handoff paths (complete / cancel / expire): best-effort
+   * "stopped" so the publisher clears live UI, then leave channel + watch.
+   */
   const forceStop = useCallback(() => {
     terminalRef.current = true;
-    void shutdown("idle");
-  }, [shutdown]);
+    void (async () => {
+      await sendStatus("stopped");
+      await shutdown("idle");
+    })();
+  }, [sendStatus, shutdown]);
 
   useEffect(() => {
     if (!enabled) {

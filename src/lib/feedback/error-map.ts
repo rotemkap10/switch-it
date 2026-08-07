@@ -26,6 +26,7 @@ export const APP_ERROR_MESSAGES = {
   CLAIM_NOT_FOUND: "This handoff can no longer be completed.",
   NOT_SEEKER: "Only the claiming driver can manage this handoff.",
   NOT_OWNER: "Only the publisher can cancel this spot.",
+  NOT_HANDOFF_PARTICIPANT: "This handoff is no longer available.",
   SPOT_NOT_CANCELLABLE: "This spot can no longer be cancelled.",
   NOT_AUTHENTICATED: "Your session has expired. Please sign in again.",
   PROFILE_NOT_FOUND: GENERIC_APP_ERROR,

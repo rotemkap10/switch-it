@@ -99,6 +99,10 @@ function ActiveClaimSheetBody({
     router.refresh();
   }, [forceStopLiveShare, router]);
 
+  const onHandoffTerminal = useCallback(() => {
+    forceStopLiveShare();
+  }, [forceStopLiveShare]);
+
   const destinationLabel = activeClaimDestinationLabel(claim.spotAddress);
   const canNavigate =
     !!destination &&
@@ -212,8 +216,14 @@ function ActiveClaimSheetBody({
               className="map-bottom-sheet-actions"
               data-testid="active-claim-sticky-actions"
             >
-              <CompleteHandoffForm claimId={claim.claimId} />
-              <CancelClaimButton claimId={claim.claimId} />
+              <CompleteHandoffForm
+                claimId={claim.claimId}
+                onCompleted={onHandoffTerminal}
+              />
+              <CancelClaimButton
+                claimId={claim.claimId}
+                onCancelled={onHandoffTerminal}
+              />
             </div>
           </>
         ) : null}

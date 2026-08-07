@@ -170,13 +170,41 @@ export function buildHistoryItems(
 /**
  * Load the current user's terminal handoffs for History.
  * Server-only helper using the cookie SSR Supabase client + existing RLS.
+ *
+ * Two participant queries avoid missing rows when ordering solely by
+ * claimed_at (e.g. an old claim that completed recently).
  */
 export async function loadHistoryItems(
   supabase: SupabaseClient,
   userId: string,
   limit = 40,
 ): Promise<LoadHistoryResult> {
-  const [claimsResult, creditResult] = await Promise.all([
+  const claimSelect = `
+    id,
+    status,
+    claimed_at,
+    completed_at,
+    cancelled_at,
+    expires_at,
+    seeker_id,
+    parking_spots (
+      id,
+      address,
+      owner_id
+    )
+  `;
+
+  const fetchLimit = Math.max(limit * 2, 80);
+
+  const [seekerClaims, ownerClaims, creditResult] = await Promise.all([
+    supabase
+      .from("claims")
+      .select(claimSelect)
+      .eq("seeker_id", userId)
+      .in("status", ["completed", "cancelled", "expired"])
+      .order("claimed_at", { ascending: false })
+      .limit(fetchLimit),
+    // Inner join: only claims on spots the current user owns (publisher role).
     supabase
       .from("claims")
       .select(
@@ -188,16 +216,17 @@ export async function loadHistoryItems(
         cancelled_at,
         expires_at,
         seeker_id,
-        parking_spots (
+        parking_spots!inner (
           id,
           address,
           owner_id
         )
       `,
       )
+      .eq("parking_spots.owner_id", userId)
       .in("status", ["completed", "cancelled", "expired"])
       .order("claimed_at", { ascending: false })
-      .limit(80),
+      .limit(fetchLimit),
     supabase
       .from("credit_transactions")
       .select("claim_id, amount, transaction_type")
@@ -205,14 +234,19 @@ export async function loadHistoryItems(
       .in("transaction_type", ["handoff_debit", "handoff_credit"]),
   ]);
 
-  if (claimsResult.error || creditResult.error) {
+  if (seekerClaims.error || ownerClaims.error || creditResult.error) {
     return { ok: false };
   }
+
+  const merged = [
+    ...((seekerClaims.data ?? []) as HistoryClaimRow[]),
+    ...((ownerClaims.data ?? []) as HistoryClaimRow[]),
+  ];
 
   return {
     ok: true,
     items: buildHistoryItems(
-      (claimsResult.data ?? []) as HistoryClaimRow[],
+      merged,
       (creditResult.data ?? []) as HistoryCreditRow[],
       userId,
       limit,

@@ -98,4 +98,35 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     unmount();
     expect(clearWatch).toHaveBeenCalled();
   });
+
+  it("forceStop best-effort broadcasts stopped then leaves", async () => {
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    await act(async () => {
+      result.current.forceStop();
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: "seeker-location-status",
+        payload: expect.objectContaining({ status: "stopped" }),
+      }),
+    );
+    expect(clearWatch).toHaveBeenCalled();
+    expect(removeChannel).toHaveBeenCalled();
+  });
 });

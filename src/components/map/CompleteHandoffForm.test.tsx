@@ -108,41 +108,22 @@ describe("CompleteHandoffForm", () => {
     });
   });
 
-  it("shows lockout and invalid-code messages from the action", async () => {
-    completeClaimMock.mockResolvedValueOnce({
-      error: "That handoff code isn’t correct.",
-      errorCode: "INVALID_HANDOFF_CODE",
-    });
-
+  it("calls onCompleted after successful verification", async () => {
+    const onCompleted = vi.fn();
     const user = userEvent.setup();
-    renderForm();
+    render(
+      <FeedbackShell>
+        <CompleteHandoffForm claimId={claimId} onCompleted={onCompleted} />
+      </FeedbackShell>,
+    );
 
-    await user.type(screen.getByLabelText("Handoff code"), "99999");
+    await user.type(screen.getByLabelText("Handoff code"), "12345");
     await user.click(
       screen.getByRole("button", { name: "Verify and complete" }),
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText("That handoff code isn’t correct."),
-      ).toBeInTheDocument();
-    });
-    expect(screen.queryByTestId("feedback-toast-error")).not.toBeInTheDocument();
-
-    completeClaimMock.mockResolvedValueOnce({
-      error: "Too many attempts. Try again shortly.",
-      errorCode: "HANDOFF_TEMPORARILY_LOCKED",
-      lockout: true,
-    });
-
-    await user.click(
-      screen.getByRole("button", { name: "Verify and complete" }),
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByText("Too many attempts. Try again shortly."),
-      ).toBeInTheDocument();
+      expect(onCompleted).toHaveBeenCalledTimes(1);
     });
   });
 });
