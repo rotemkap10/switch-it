@@ -3,7 +3,6 @@ import {
   resolveVehicleIllustration,
   silhouetteForType,
   vehiclePalette,
-  VehicleWheels,
 } from "@/lib/vehicle/illustration-silhouettes";
 import type { VehicleType } from "@/lib/vehicle/types";
 
@@ -30,13 +29,13 @@ type VehicleIllustrationProps = {
 };
 
 const SIZE_CLASSES = {
-  default: "max-w-full bg-accent-soft/70 p-2 [&_svg]:h-auto [&_svg]:w-[10rem]",
+  default: "max-w-full bg-accent-soft/70 p-2 [&_svg]:h-auto [&_svg]:w-[11rem]",
   compact:
-    "max-w-full bg-accent-soft/70 p-2 [&_svg]:h-auto [&_svg]:w-[4.5rem]",
+    "max-w-full bg-accent-soft/70 p-1.5 [&_svg]:h-auto [&_svg]:w-[6.25rem]",
   hero: [
     "w-full bg-accent-soft",
     "px-4 py-[clamp(0.75rem,2.5dvh,1.5rem)] sm:px-8 sm:py-8",
-    "[&_svg]:h-auto [&_svg]:w-[min(100%,clamp(11rem,42vw,14.5rem))] sm:[&_svg]:w-[min(100%,20rem)]",
+    "[&_svg]:h-auto [&_svg]:w-[min(100%,clamp(12rem,44vw,15.5rem))] sm:[&_svg]:w-[min(100%,21rem)]",
   ].join(" "),
 } as const;
 
@@ -72,13 +71,13 @@ export function VehicleIllustration({
       aria-hidden={label ? undefined : true}
     >
       <svg
-        viewBox="0 0 112 80"
+        viewBox="0 0 140 88"
         className="block max-h-none"
         preserveAspectRatio="xMidYMid meet"
         xmlns="http://www.w3.org/2000/svg"
+        overflow="visible"
       >
         {silhouetteForType(resolvedType, palette)}
-        <VehicleWheels />
       </svg>
     </div>
   );

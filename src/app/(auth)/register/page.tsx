@@ -1,11 +1,12 @@
 import Link from "next/link";
 
 import { RegisterForm } from "@/components/auth/RegisterForm";
+import { AuthBrand } from "@/components/brand/AuthBrand";
 
 export default function RegisterPage() {
   return (
     <main className="auth-page motion-page-enter" data-testid="register-page">
-      <p className="auth-brand">Switch It</p>
+      <AuthBrand />
       <div className="auth-page-header">
         <p className="auth-step-label">Step 1 of 2</p>
         <h1 className="auth-page-title">Create your account</h1>

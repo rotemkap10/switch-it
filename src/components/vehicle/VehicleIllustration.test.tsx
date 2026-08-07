@@ -81,6 +81,36 @@ describe("VehicleIllustration", () => {
     ).not.toBeNull();
   });
 
+  it("keeps black vehicles readable with a lighter outline", () => {
+    const { container } = render(
+      <VehicleIllustration
+        vehicleType="sedan"
+        vehicleColor="black"
+        animate={false}
+      />,
+    );
+
+    const stroke = outlineForVehicleFill(VEHICLE_COLOR_FILL.black);
+    expect(stroke).toBe("#9eb4c8");
+    expect(
+      container.querySelector(`path[stroke="${stroke}"]`),
+    ).not.toBeNull();
+  });
+
+  it("does not load external network images", () => {
+    const { container } = render(
+      <VehicleIllustration
+        vehicleType="suv"
+        vehicleColor="blue"
+        animate={false}
+      />,
+    );
+    expect(container.querySelector("img")).toBeNull();
+    expect(
+      container.querySelector("image, [href^='http'], [xlink\\:href]"),
+    ).toBeNull();
+  });
+
   it("falls back to the other silhouette for unknown illustration keys", () => {
     render(
       <VehicleIllustration

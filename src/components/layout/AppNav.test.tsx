@@ -51,6 +51,7 @@ describe("AppNav", () => {
     expect(modeRow.className).toContain("md:hidden");
 
     expect(brandRow).toHaveTextContent("Switch It");
+    expect(brandRow.querySelector(".switch-it-logo-mark")).not.toBeNull();
     expect(
       screen.getByRole("button", { name: "Profile menu for Alex" }),
     ).toBeInTheDocument();

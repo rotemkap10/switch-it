@@ -95,6 +95,7 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".motion-page-enter");
     expect(css).toContain(".motion-page-header");
     expect(css).toContain(".switch-it-logo-mark");
+    expect(css).toContain(".auth-brand__wordmark");
     expect(css).toContain(".map-route-transition");
     expect(css).toContain(".route-transition-overlay");
     expect(css).toContain(".branded-loading-page");

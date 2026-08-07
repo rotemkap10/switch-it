@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { LoginForm } from "@/components/auth/LoginForm";
+import { AuthBrand } from "@/components/brand/AuthBrand";
 import { getSafeRedirectPath } from "@/lib/auth/safe-redirect";
 
 type LoginPageProps = {
@@ -13,7 +14,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main className="auth-page motion-page-enter" data-testid="login-page">
-      <p className="auth-brand">Switch It</p>
+      <AuthBrand />
       <div className="auth-page-header">
         <h1 className="auth-page-title">Welcome back</h1>
         <p className="auth-page-helper">Sign in to continue.</p>

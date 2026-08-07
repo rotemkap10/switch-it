@@ -34,19 +34,18 @@ export function VehicleIdentityCard({
         vehicleColor={color!}
         animate={false}
         size="compact"
-        className="shrink-0 !p-1"
-        aria-hidden
+        className="shrink-0 shadow-[var(--shadow-card)]"
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-foreground">
-          {VEHICLE_COLOR_LABELS[color!]} {VEHICLE_TYPE_LABELS[type!]}
-        </p>
         <p
-          className="mt-0.5 truncate text-sm text-muted"
+          className="truncate text-sm font-semibold text-foreground"
           data-testid="vehicle-identity-make-model"
           title={`${make} ${model}`}
         >
           {make} {model}
+        </p>
+        <p className="mt-0.5 truncate text-sm text-muted">
+          {VEHICLE_COLOR_LABELS[color!]} {VEHICLE_TYPE_LABELS[type!]}
         </p>
         <p
           className="vehicle-plate-display mt-2"

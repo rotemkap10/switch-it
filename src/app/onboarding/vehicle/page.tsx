@@ -1,3 +1,4 @@
+import { AuthBrand } from "@/components/brand/AuthBrand";
 import { OnboardingVehicleForm } from "@/components/onboarding/OnboardingVehicleForm";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
 
@@ -16,7 +17,7 @@ export default async function VehicleOnboardingPage() {
 
   return (
     <main className="auth-page motion-page-enter" data-testid="onboarding-vehicle-page">
-      <p className="auth-brand">Switch It</p>
+      <AuthBrand />
       <div className="auth-page-header">
         <p className="auth-step-label">Step 2 of 2</p>
         <h1 className="auth-page-title">Tell drivers what to look for</h1>
