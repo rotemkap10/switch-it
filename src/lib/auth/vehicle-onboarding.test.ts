@@ -28,6 +28,25 @@ function status(
 describe("isVehicleProfileComplete", () => {
   it("returns true for a complete profile", () => {
     expect(isVehicleProfileComplete(completeVehicle)).toBe(true);
+    expect(
+      isVehicleProfileComplete({
+        ...completeVehicle,
+        vehicle_photo_path: null,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not require a vehicle photo", () => {
+    expect(
+      isVehicleProfileComplete({
+        license_plate: null,
+        vehicle_make: null,
+        vehicle_model: null,
+        vehicle_color: null,
+        vehicle_type: null,
+        vehicle_photo_path: "user/photo.jpg",
+      }),
+    ).toBe(false);
   });
 
   it("returns false when any field is missing", () => {

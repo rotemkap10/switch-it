@@ -182,6 +182,12 @@ Constants used in logic (application + SQL):
 | `role` | `text` | NO | Default `'user'`; CHECK `role IN ('user')` for MVP (extend later) |
 | `created_at` | `timestamptz` | NO | Default `now()` |
 | `updated_at` | `timestamptz` | NO | Default `now()` |
+| `license_plate` | `text` | YES | Digits-only plate; nullable until onboarding |
+| `vehicle_make` | `text` | YES | |
+| `vehicle_model` | `text` | YES | |
+| `vehicle_color` | `text` | YES | Controlled enum |
+| `vehicle_type` | `text` | YES | Controlled enum |
+| `vehicle_photo_path` | `text` | YES | Private Storage object path; NULL = illustrated fallback |
 
 **Constraints:** PK(`id`); FK to `auth.users`; CHECK on `credits`, `role`.
 
@@ -465,6 +471,11 @@ server-only, env-protected, and out of the MVP user path.
 
 - **Authoritative data:** make, model, color label, type label, and formatted
   license plate from `get_handoff_counterpart_vehicle` (active handoffs only).
+  Optional `vehicle_photo_path` is included for recognition; signed URLs are
+  created at read time and never stored.
+- **Photos:** private bucket `vehicle-photos`. Owners upload/replace/delete
+  their own objects. Active handoff counterpart may `SELECT` only. `VehicleImage`
+  shows the photo when a signed URL is available, otherwise `VehicleIllustration`.
 - **Illustrations:** local SVG silhouettes in `VehicleIllustration`, one shared
   architecture with per-type paths in `illustration-silhouettes.tsx`. Colors use
   the controlled palette only; no brand logos or external imagery.

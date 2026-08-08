@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -313,6 +313,9 @@ describe("PublisherSpotCard", () => {
     expect(screen.getByText("Red · 76-543-21")).toBeInTheDocument();
     expect(screen.getByText("Mazda 3")).toBeInTheDocument();
     expect(screen.getByText("76-543-21")).toBeInTheDocument();
+    const identity = screen.getByTestId("vehicle-identity-card");
+    expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(screen.getByTestId("handoff-vehicle-animation")).toBeInTheDocument();
     expect(screen.getByText("Handoff code")).toBeInTheDocument();
     expect(screen.getByTestId("handoff-code-value")).toHaveTextContent("48291");
@@ -348,6 +351,31 @@ describe("PublisherSpotCard", () => {
     expect(screen.queryByText("Look for this driver")).not.toBeInTheDocument();
     expect(screen.queryByText("Red · 76-543-21")).not.toBeInTheDocument();
     expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
+  });
+
+  it("shows the seeker photo during an active handoff when one exists", () => {
+    render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        layout="page"
+        counterpartVehicle={{
+          ...seekerVehicle,
+          photoUrl: "https://example.test/seeker-car.jpg",
+        }}
+        handoffCode="48291"
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+      />,
+    );
+
+    expect(screen.getByText("Look for this driver")).toBeInTheDocument();
+    const identity = screen.getByTestId("vehicle-identity-card");
+    expect(within(identity).getByTestId("vehicle-photo")).toBeInTheDocument();
+    expect(within(identity).getByRole("img", { name: "Mazda 3" })).toHaveAttribute(
+      "src",
+      "https://example.test/seeker-car.jpg",
+    );
+    expect(screen.getByText("Mazda 3")).toBeInTheDocument();
+    expect(within(identity).queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
   });
 
   it("shows fallback when seeker vehicle is incomplete", () => {

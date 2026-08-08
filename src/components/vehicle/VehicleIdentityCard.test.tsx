@@ -39,9 +39,31 @@ describe("VehicleIdentityCard", () => {
     expect(screen.getByText("White · 123-45-678")).toBeInTheDocument();
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
     expect(screen.getByText("123-45-678")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(screen.getByTestId("vehicle-identity-plate")).toHaveClass(
       "vehicle-plate-display",
     );
+  });
+
+  it("shows the claimant photo when a signed url is present", () => {
+    render(
+      <VehicleIdentityCard
+        vehicle={{
+          ...completeVehicle,
+          photoUrl: "https://example.test/seeker-car.jpg",
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-photo")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Hyundai Tucson" })).toHaveAttribute(
+      "src",
+      "https://example.test/seeker-car.jpg",
+    );
+    expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
+    expect(screen.getByText("White · 123-45-678")).toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
   });
 
   it("truncates long make and model text", () => {

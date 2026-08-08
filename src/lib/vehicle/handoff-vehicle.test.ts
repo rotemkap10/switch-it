@@ -26,6 +26,7 @@ describe("mapHandoffVehicleRow", () => {
       model: "Tucson",
       color: "white",
       type: "suv",
+      photoPath: null,
     });
   });
 
@@ -42,7 +43,27 @@ describe("mapHandoffVehicleRow", () => {
       model: "Tucson",
       color: null,
       type: null,
+      photoPath: null,
     });
+  });
+
+  it("maps an optional vehicle photo path without treating it as required", () => {
+    expect(
+      mapHandoffVehicleRow({
+        ...completeRow,
+        vehicle_photo_path: "seeker-id/photo.jpg",
+      }),
+    ).toMatchObject({
+      photoPath: "seeker-id/photo.jpg",
+    });
+    expect(
+      isCompleteHandoffVehicle(
+        mapHandoffVehicleRow({
+          ...completeRow,
+          vehicle_photo_path: null,
+        }),
+      ),
+    ).toBe(true);
   });
 });
 

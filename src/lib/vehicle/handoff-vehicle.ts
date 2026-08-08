@@ -8,6 +8,8 @@ export type HandoffVehicle = {
   model: string | null;
   color: VehicleColor | null;
   type: VehicleType | null;
+  photoPath?: string | null;
+  photoUrl?: string | null;
 };
 
 export type HandoffVehicleRow = {
@@ -16,6 +18,7 @@ export type HandoffVehicleRow = {
   vehicle_model: string | null;
   vehicle_color: string | null;
   vehicle_type: string | null;
+  vehicle_photo_path?: string | null;
 };
 
 export function mapHandoffVehicleRow(row: HandoffVehicleRow): HandoffVehicle {
@@ -31,6 +34,7 @@ export function mapHandoffVehicleRow(row: HandoffVehicleRow): HandoffVehicle {
       row.vehicle_type && isVehicleType(row.vehicle_type)
         ? row.vehicle_type
         : null,
+    photoPath: row.vehicle_photo_path ?? null,
   };
 }
 
@@ -41,6 +45,7 @@ export function mapProfileVehicleToHandoff(row: {
   vehicle_model?: string | null;
   vehicle_color?: string | null;
   vehicle_type?: string | null;
+  vehicle_photo_path?: string | null;
 } | null | undefined): HandoffVehicle | null {
   if (!row) {
     return null;
@@ -51,6 +56,7 @@ export function mapProfileVehicleToHandoff(row: {
     vehicle_model: row.vehicle_model ?? null,
     vehicle_color: row.vehicle_color ?? null,
     vehicle_type: row.vehicle_type ?? null,
+    vehicle_photo_path: row.vehicle_photo_path ?? null,
   });
 }
 

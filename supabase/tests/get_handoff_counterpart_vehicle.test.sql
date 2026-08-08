@@ -65,7 +65,8 @@
 --   vehicle_make,
 --   vehicle_model,
 --   vehicle_color,
---   vehicle_type
+--   vehicle_type,
+--   vehicle_photo_path
 -- from public.get_handoff_counterpart_vehicle('<active-claim-id>');
 -- Expected columns only; no profile id, email, credits, role, or timestamps.
 

@@ -151,8 +151,9 @@ through existing server queries and RPCs.
    except during an active handoff (see business rules).
 
 During an active handoff, both participants see counterpart vehicle identity
-(illustration, make, model, color, formatted plate) via a participant-only RPC.
-Plate and text are authoritative.
+(photo or illustration, make, model, color, formatted plate) via a
+participant-only RPC. Plate and text remain authoritative. A vehicle photo is
+optional; without one, the existing illustrated vehicle is shown.
 
 **Live location (Phase 9B — foreground-only):** After claiming, the seeker sees
 an **Open in** chooser (Waze / Google Maps / Apple Maps). Choosing a provider

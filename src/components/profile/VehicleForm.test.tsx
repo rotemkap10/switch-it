@@ -14,6 +14,11 @@ vi.mock("@/actions/profile", () => ({
   updateVehicle: updateVehicleMock,
 }));
 
+vi.mock("@/actions/vehicle-photo", () => ({
+  uploadVehiclePhoto: vi.fn(),
+  removeVehiclePhoto: vi.fn(),
+}));
+
 function fieldErrorsFromZod(error: import("zod").ZodError) {
   const fieldErrors: Record<string, string[]> = {};
   for (const issue of error.issues) {
@@ -106,9 +111,33 @@ describe("VehicleForm", () => {
       "hero",
     );
     expect(
+      screen.getByRole("button", { name: "Add vehicle photo" }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("button", { name: "Edit vehicle details" }),
     ).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByLabelText("Make")).not.toBeInTheDocument();
+  });
+
+  it("shows change and remove when a vehicle photo already exists", () => {
+    renderForm(
+      <VehicleForm
+        initialVehicle={{
+          ...existingVehicle,
+          vehicle_photo_path: "user/photo.jpg",
+        }}
+        initialPhotoUrl="https://example.test/car.jpg"
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-photo")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "White SUV" })).toHaveAttribute(
+      "src",
+      "https://example.test/car.jpg",
+    );
+    expect(screen.getByRole("button", { name: "Change photo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove photo" })).toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
   });
 
   it("expands the editor and populates existing vehicle values", async () => {

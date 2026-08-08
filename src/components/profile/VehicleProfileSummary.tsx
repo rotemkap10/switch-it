@@ -1,12 +1,13 @@
 "use client";
 
-import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
+import { VehicleImage } from "@/components/vehicle/VehicleImage";
 import { getVehicleSummaryLines } from "@/lib/vehicle/format-summary";
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
 import type { VehicleProfileFields } from "@/lib/vehicle/profile-fields";
 
 type VehicleProfileSummaryProps = {
   vehicle: VehicleProfileFields;
+  photoUrl?: string | null;
   /**
    * `stacked` — large full-width illustration above compact text (profile card).
    * `inline` — text-only compact block (top summary row).
@@ -19,6 +20,7 @@ type VehicleProfileSummaryProps = {
 
 export function VehicleProfileSummary({
   vehicle,
+  photoUrl = null,
   variant = "inline",
   entranceAnimation = false,
   className = "",
@@ -82,14 +84,15 @@ export function VehicleProfileSummary({
         className={["flex flex-col gap-4", className].join(" ")}
         data-testid="vehicle-summary"
       >
-        <VehicleIllustration
+        <VehicleImage
+          photoUrl={photoUrl}
           vehicleType={summary.vehicleType}
           vehicleColor={summary.vehicleColor}
           animate={false}
           size="hero"
           label={summary.colorType}
-          className={driveIn ? "motion-vehicle-drive-in" : ""}
-          dataEntrance={driveIn}
+          className={driveIn && !photoUrl ? "motion-vehicle-drive-in" : ""}
+          dataEntrance={driveIn && !photoUrl}
         />
         {details}
       </div>

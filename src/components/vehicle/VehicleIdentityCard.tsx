@@ -6,7 +6,7 @@ import {
   type HandoffVehicle,
 } from "@/lib/vehicle/handoff-vehicle";
 import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
-import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
+import { VehicleImage } from "@/components/vehicle/VehicleImage";
 
 type VehicleIdentityCardProps = {
   vehicle: HandoffVehicle;
@@ -28,11 +28,13 @@ export function VehicleIdentityCard({ vehicle }: VehicleIdentityCardProps) {
       className="flex items-start gap-3"
       data-testid="vehicle-identity-card"
     >
-      <VehicleIllustration
+      <VehicleImage
+        photoUrl={vehicle.photoUrl}
         vehicleType={type!}
         vehicleColor={color!}
         animate={false}
         size="compact"
+        label={name}
         className="shrink-0 shadow-[var(--shadow-card)]"
       />
       <div className="min-w-0 flex-1">

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
+import { VehicleImage } from "@/components/vehicle/VehicleImage";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import {
@@ -35,6 +35,8 @@ type VehicleFieldsProps = {
   previewSize?: "default" | "compact" | "hero";
   /** Short nudge when opening the editor (not a full drive-in). */
   previewEmphasis?: boolean;
+  /** Signed or local preview URL for an uploaded vehicle photo. */
+  photoUrl?: string | null;
   state?: VehicleFieldsState;
 };
 
@@ -46,6 +48,7 @@ export function VehicleFields({
   placeholderPreview = false,
   previewSize = "default",
   previewEmphasis = false,
+  photoUrl = null,
   state,
 }: VehicleFieldsProps) {
   const [vehicleType, setVehicleType] = useState(
@@ -97,29 +100,21 @@ export function VehicleFields({
 
   return (
     <>
-      {showPreview && previewType && previewColor ? (
+      {showPreview ? (
         <div className="vehicle-illustration-shell">
-          <VehicleIllustration
+          <VehicleImage
+            photoUrl={photoUrl}
             vehicleType={previewType}
             vehicleColor={previewColor}
+            placeholderPreview={placeholderPreview}
             size={previewSize}
             animate={false}
-            className={previewEmphasis ? "motion-vehicle-preview-nudge" : ""}
-            label={`${VEHICLE_COLOR_LABELS[previewColor]} ${VEHICLE_TYPE_LABELS[previewType]}`}
-          />
-        </div>
-      ) : showPreview && placeholderPreview ? (
-        <div
-          className="vehicle-illustration-shell"
-          data-testid="vehicle-illustration-placeholder"
-        >
-          <VehicleIllustration
-            vehicleType="sedan"
-            vehicleColor="silver"
-            size={previewSize}
-            animate={false}
-            label="Vehicle preview"
-            className="opacity-80"
+            className={previewEmphasis && !photoUrl ? "motion-vehicle-preview-nudge" : ""}
+            label={
+              previewType && previewColor
+                ? `${VEHICLE_COLOR_LABELS[previewColor]} ${VEHICLE_TYPE_LABELS[previewType]}`
+                : "Vehicle preview"
+            }
           />
         </div>
       ) : null}

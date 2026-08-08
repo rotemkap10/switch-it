@@ -5,6 +5,11 @@ vi.mock("@/actions/onboarding", () => ({
   completeVehicleOnboarding: vi.fn(),
 }));
 
+vi.mock("@/actions/vehicle-photo", () => ({
+  uploadVehiclePhoto: vi.fn(),
+  removeVehiclePhoto: vi.fn(),
+}));
+
 import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { OnboardingVehicleForm } from "@/components/onboarding/OnboardingVehicleForm";
 
@@ -32,6 +37,15 @@ describe("OnboardingVehicleForm", () => {
       "onboarding-vehicle-form",
     );
     expect(screen.getByTestId("vehicle-illustration-placeholder")).toBeInTheDocument();
+    expect(screen.getByText("Add a photo of your car")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Optional — helps other drivers recognize you during the handoff.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add vehicle photo" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Start finding parking")).toBeInTheDocument();
     expect(screen.getByLabelText("Vehicle type")).toHaveClass("app-form-control");
     expect(screen.getByLabelText("License plate")).toHaveAttribute(
