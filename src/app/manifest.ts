@@ -17,19 +17,19 @@ export default function manifest(): MetadataRoute.Manifest {
     dir: "ltr",
     icons: [
       {
-        src: "/pwa/icon-192",
+        src: "/pwa/icon-192.png",
         sizes: "192x192",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/pwa/icon-512",
+        src: "/pwa/icon-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "any",
       },
       {
-        src: "/pwa/icon-512-maskable",
+        src: "/pwa/icon-maskable-512.png",
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",

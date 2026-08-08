@@ -22,6 +22,24 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: "/apple-touch-icon.png",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, must-revalidate",
+          },
+        ],
+      },
+      {
+        source: "/pwa/icon-:file.png",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, must-revalidate",
+          },
+        ],
+      },
+      {
         source: "/sw.js",
         headers: [
           {

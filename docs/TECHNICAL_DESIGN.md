@@ -976,10 +976,12 @@ Supabase project
   `display: standalone`, `start_url: /map`, shortcuts to `/map` and `/spots/new`.
   `background_color` and `theme_color` are both the light brand fill `#dff4ff`
   so Chromium/iOS chrome cannot flash a dark/black frame before first paint.
-- **Icons:** ImageResponse routes (`/icon`, `/apple-icon`, `/pwa/icon-192`,
-  `/pwa/icon-512`, `/pwa/icon-512-maskable`) using the official logo
-  (`public/branding/switch-it-logo.png`, transparent cropped lockup).
-  Launch/splash background `#dff4ff`.
+- **Icons:** static square Switch It mark (not the horizontal wordmark):
+  `/apple-touch-icon.png` (180², iOS Home Screen), `/pwa/icon-192.png`,
+  `/pwa/icon-512.png` (`purpose: any`), `/pwa/icon-maskable-512.png`.
+  Generated with `npm run generate:app-icons` from the lockup’s left mark.
+  In-app `Logo` still uses `/branding/switch-it-logo.png`. After changing
+  Home Screen icons, **delete and re-add** the iOS icon so it recaches.
 - **iOS launch screen:** static `apple-touch-startup-image` PNGs in
   `public/pwa/startup/` (portrait **and** landscape sizes in
   `src/lib/pwa/ios-startup.ts`). HTML order: device-specific media queries
@@ -1008,7 +1010,8 @@ Supabase project
   standalone mode and during SSR unknown state. No automatic install banners.
 - **Service worker:** `public/sw.js`, scope `/`, registered in production only
   (`updateViaCache: none`). Precache allowlist: `/offline`, official logo PNG,
-  and local PWA icon routes. Navigation network failure → cached `/offline`.
+  launch logo, apple-touch-icon, and PWA icon PNGs. Navigation network
+  failure → cached `/offline`.
   Does **not** cache auth HTML, RSC, Supabase, MapTiler, or POST requests.
 - **Offline limitations:** no parking data, maps, or forms offline — reconnect
   required for live handoffs.

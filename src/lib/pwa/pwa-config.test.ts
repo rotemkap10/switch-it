@@ -49,6 +49,7 @@ describe("root PWA metadata", () => {
     expect(layoutSource).toContain("apple-touch-startup-image");
     expect(layoutSource).toContain("apple-mobile-web-app-capable");
     expect(layoutSource).toContain('statusBarStyle: "black-translucent"');
+    expect(layoutSource).toContain("/apple-touch-icon.png");
   });
 
   it("preserves viewport fit and light launch theme color", () => {
@@ -82,8 +83,9 @@ describe("service worker policy", () => {
 
   it("precaches only approved offline and icon resources", () => {
     expect(sw).toContain('"/offline"');
-    expect(sw).toContain('"/pwa/icon-192"');
-    expect(sw).toContain("switch-it-pwa-v5");
+    expect(sw).toContain('"/pwa/icon-192.png"');
+    expect(sw).toContain('"/apple-touch-icon.png"');
+    expect(sw).toContain("switch-it-pwa-v6");
     expect(sw).toContain("/branding/switch-it-logo.png");
     expect(sw).toContain("/branding/switch-it-logo-launch.png");
     expect(sw).not.toContain("iphone-portrait-fallback");
@@ -124,5 +126,6 @@ describe("next.config service worker headers", () => {
     expect(configSource).toContain('source: "/sw.js"');
     expect(configSource).toContain("no-cache, no-store, must-revalidate");
     expect(configSource).toContain('key: "Service-Worker-Allowed"');
+    expect(configSource).toContain('source: "/apple-touch-icon.png"');
   });
 });

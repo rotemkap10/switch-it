@@ -200,7 +200,7 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 - [ ] Attribution visible
 - [ ] Reduced motion: camera jumps without long animation
 - [ ] Offline shell / install prompts behave as before (no regression)
-- [ ] Installed iOS PWA: Home Screen launch shows Switch It branding immediately (no black frame). After launch-asset changes, **delete and re-add** the icon so iOS recaches `apple-touch-startup-image`. The in-HTML `#app-boot-splash` covers the gap after the OS splash until the app is ready.
+- [ ] Installed iOS PWA: Home Screen icon is the cyan square Switch It mark (not a gray “S”). After icon or launch-asset changes, **delete and re-add** the icon so iOS recaches `apple-touch-icon` and `apple-touch-startup-image`. Launch shows Switch It branding immediately (no black frame). The in-HTML `#app-boot-splash` covers the gap after the OS splash until the app is ready.
 - [ ] Cold launch: branded splash stays until the first real screen (not a half-loaded loading chrome). Reduced Motion still shows splash, then hides instantly.
 - [ ] iPhone Login (Safari + installed PWA): tapping Email/Password does **not** zoom the page. Pinch-to-zoom still works. Same for register, vehicle, profile, and handoff code fields.
 
