@@ -75,8 +75,9 @@ vi.mock("@/components/spots/PublisherLiveProgressMapLoader", () => ({
 vi.mock("@/lib/location/use-publisher-live-location", () => ({
   usePublisherLiveLocation: () => ({
     freshness: "waiting",
-    statusLabel: "Waiting for location",
+    statusLabel: "Waiting for driver location",
     updatedLabel: "Waiting",
+    pauseHint: null,
     location: null,
     lastReceivedAtMs: null,
     clear: vi.fn(),
@@ -272,7 +273,7 @@ describe("PublisherSpotCard", () => {
     expect(testIds.indexOf("handoff-code-section")).toBeLessThan(
       testIds.indexOf("publisher-live-progress"),
     );
-    expect(screen.getByText("Waiting for location")).toBeInTheDocument();
+    expect(screen.getByText("Waiting for driver location")).toBeInTheDocument();
     expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
   });
 

@@ -33,6 +33,14 @@ function windowCopy(_role: "publisher" | "seeker", clock: string): string {
   return `${clock} left`;
 }
 
+function seekerWindowCopy(remainingMs: number): string {
+  if (remainingMs >= 60_000) {
+    const minutes = Math.max(1, Math.ceil(remainingMs / 60_000));
+    return `${minutes} min remaining`;
+  }
+  return `${formatClock(remainingMs)} left`;
+}
+
 function resolvePhase(
   now: number,
   availableAt: number,
@@ -151,7 +159,9 @@ export function HandoffWindowCountdown({
   const line =
     phase === "waiting"
       ? waitingCopy(role, formatWaitingMinutes(remainingMs))
-      : windowCopy(role, formatClock(remainingMs));
+      : role === "seeker"
+        ? seekerWindowCopy(remainingMs)
+        : windowCopy(role, formatClock(remainingMs));
 
   return (
     <div
@@ -192,4 +202,5 @@ export {
   formatWaitingMinutes,
   waitingCopy as handoffWaitingCopy,
   windowCopy as handoffWindowCopy,
+  seekerWindowCopy as handoffSeekerWindowCopy,
 };

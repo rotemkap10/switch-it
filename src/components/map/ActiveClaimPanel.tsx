@@ -14,9 +14,10 @@ import {
   MAP_SHEET_CLASS,
   MAP_SHEET_HOST_CLASS,
 } from "@/lib/map/bottom-stack";
-import { seekerSpotAddressLabel } from "@/lib/geocoding/location-display";
+import { sanitizeLocationLabel } from "@/lib/geocoding/sanitize-location-label";
 import { registerSeekerLiveLocationStarter } from "@/lib/location/seeker-live-location-intent";
 import { useSeekerLiveLocationShare } from "@/lib/location/use-seeker-live-location-share";
+import { useDistanceToSpot } from "@/lib/map/use-distance-to-spot";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
 import {
@@ -39,12 +40,12 @@ export type ActiveClaimDestination = {
   longitude: number;
 };
 
-export const ACTIVE_CLAIM_DESTINATION_FALLBACK = "Parking spot on the map";
+export const ACTIVE_CLAIM_DESTINATION_FALLBACK = "Exact location marked on map";
 
 export function activeClaimDestinationLabel(
   spotAddress: string | null | undefined,
 ): string {
-  return seekerSpotAddressLabel(spotAddress);
+  return sanitizeLocationLabel(spotAddress) ?? ACTIVE_CLAIM_DESTINATION_FALLBACK;
 }
 
 type ActiveClaimPanelProps = {
@@ -111,6 +112,7 @@ function ActiveClaimSheetBody({
   }, [forceStopLiveShare]);
 
   const destinationLabel = activeClaimDestinationLabel(claim.spotAddress);
+  const { label: distanceLabel } = useDistanceToSpot(destination);
   const navigation = useOptionalPostClaimNavigation();
   const sessionDestination =
     navigation?.session?.claimId === claim.claimId
@@ -153,13 +155,6 @@ function ActiveClaimSheetBody({
             <p className="text-xs font-semibold text-accent-hover">
               You’re on your way
             </p>
-            <p
-              id={sheetLabelId}
-              className="mt-0.5 truncate text-sm font-medium text-foreground"
-              title={destinationLabel}
-            >
-              {destinationLabel}
-            </p>
           </div>
         </div>
 
@@ -179,14 +174,6 @@ function ActiveClaimSheetBody({
         </button>
       </div>
 
-      <HandoffWindowCountdown
-        key={claim.spotExpiresAt}
-        availableAtIso={claim.spotAvailableAt}
-        expiresAtIso={claim.spotExpiresAt}
-        role="seeker"
-        onExpired={onExpired}
-      />
-
       {canNavigate && navigateDestination ? (
         <ClaimNavigationActions
           claimId={claim.claimId}
@@ -195,12 +182,32 @@ function ActiveClaimSheetBody({
         />
       ) : null}
 
-      <SeekerShareLocationCard
-        uiState={liveShare.uiState}
-        resumedOnce={liveShare.resumedOnce}
-        onStop={() => {
-          void liveShare.stopSharing();
-        }}
+      <div data-testid="active-claim-location">
+        <p className="text-xs font-medium text-muted">Parking spot location</p>
+        <p
+          id={sheetLabelId}
+          className="truncate text-sm font-medium text-foreground"
+          title={destinationLabel}
+          data-testid="active-claim-address"
+        >
+          {destinationLabel}
+        </p>
+        {distanceLabel ? (
+          <p
+            className="mt-0.5 text-sm font-medium text-foreground"
+            data-testid="active-claim-distance"
+          >
+            {distanceLabel}
+          </p>
+        ) : null}
+      </div>
+
+      <HandoffWindowCountdown
+        key={claim.spotExpiresAt}
+        availableAtIso={claim.spotAvailableAt}
+        expiresAtIso={claim.spotExpiresAt}
+        role="seeker"
+        onExpired={onExpired}
       />
 
       {!expanded && compactVehicleLabel ? (
@@ -212,6 +219,14 @@ function ActiveClaimSheetBody({
           {compactVehicleLabel}
         </p>
       ) : null}
+
+      <SeekerShareLocationCard
+        uiState={liveShare.uiState}
+        resumedOnce={liveShare.resumedOnce}
+        onStop={() => {
+          void liveShare.stopSharing();
+        }}
+      />
 
       <div
         id="active-claim-details"

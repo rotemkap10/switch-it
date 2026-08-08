@@ -13,6 +13,7 @@ import {
   type SeekerLocationPayload,
 } from "@/lib/location/payload";
 import {
+  LIVE_LOCATION_PAUSE_WHILE_NAVIGATING,
   liveLocationFreshness,
   liveLocationStatusLabel,
   liveLocationUpdatedLabel,
@@ -25,6 +26,7 @@ export type PublisherLiveLocationState = {
   freshness: LiveLocationFreshness;
   statusLabel: string;
   updatedLabel: string;
+  pauseHint: string | null;
   location: SeekerLocationPayload | null;
   lastReceivedAtMs: number | null;
 };
@@ -38,6 +40,7 @@ type LiveSnapshot = {
   location: SeekerLocationPayload | null;
   lastReceivedAtMs: number | null;
   explicitPaused: boolean;
+  connectionFailed: boolean;
   generation: number;
 };
 
@@ -45,6 +48,7 @@ const EMPTY_SNAPSHOT: LiveSnapshot = {
   location: null,
   lastReceivedAtMs: null,
   explicitPaused: false,
+  connectionFailed: false,
   generation: 0,
 };
 
@@ -76,6 +80,7 @@ export function usePublisherLiveLocation({
       location: null,
       lastReceivedAtMs: null,
       explicitPaused: false,
+      connectionFailed: false,
       generation: generationRef.current,
     });
   }, []);
@@ -121,6 +126,7 @@ export function usePublisherLiveLocation({
         location: null,
         lastReceivedAtMs: null,
         explicitPaused: false,
+        connectionFailed: false,
         generation,
       });
 
@@ -148,6 +154,7 @@ export function usePublisherLiveLocation({
           location: parsed,
           lastReceivedAtMs: Date.now(),
           explicitPaused: false,
+          connectionFailed: false,
           generation,
         });
       });
@@ -177,7 +184,30 @@ export function usePublisherLiveLocation({
         },
       );
 
-      channel.subscribe();
+      channel.subscribe((status) => {
+        if (cancelled || terminalRef.current) {
+          return;
+        }
+        if (status === "SUBSCRIBED") {
+          setSnapshot((prev) =>
+            prev.generation === generation
+              ? { ...prev, connectionFailed: false }
+              : prev,
+          );
+          return;
+        }
+        if (
+          status === "CHANNEL_ERROR" ||
+          status === "TIMED_OUT" ||
+          status === "CLOSED"
+        ) {
+          setSnapshot((prev) =>
+            prev.generation === generation
+              ? { ...prev, connectionFailed: true }
+              : prev,
+          );
+        }
+      });
     })();
 
     return () => {
@@ -209,25 +239,37 @@ export function usePublisherLiveLocation({
       freshness: "waiting",
       statusLabel: liveLocationStatusLabel("waiting"),
       updatedLabel: liveLocationUpdatedLabel("waiting", null),
+      pauseHint: null,
       location: null,
       lastReceivedAtMs: null,
       clear,
     };
   }
 
-  let freshness = liveLocationFreshness(snapshot.lastReceivedAtMs, nowMs);
-  if (snapshot.explicitPaused && freshness !== "waiting") {
+  const ageFreshness = liveLocationFreshness(snapshot.lastReceivedAtMs, nowMs);
+  let freshness: LiveLocationFreshness = ageFreshness;
+  if (snapshot.explicitPaused && ageFreshness !== "waiting") {
     freshness = "paused";
   }
+  if (snapshot.connectionFailed) {
+    freshness = "unavailable";
+  }
+
+  const displayFreshness =
+    freshness === "unavailable" ? ageFreshness : freshness;
 
   return {
     freshness,
     statusLabel: liveLocationStatusLabel(freshness),
     updatedLabel: liveLocationUpdatedLabel(
-      freshness,
+      displayFreshness,
       snapshot.lastReceivedAtMs,
       nowMs,
     ),
+    pauseHint:
+      snapshot.explicitPaused && !snapshot.connectionFailed
+        ? LIVE_LOCATION_PAUSE_WHILE_NAVIGATING
+        : null,
     location: snapshot.location,
     lastReceivedAtMs: snapshot.lastReceivedAtMs,
     clear,

@@ -1,16 +1,18 @@
 "use client";
 
 import { useOptionalPostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
+import { Button } from "@/components/ui/Button";
 import {
   isValidNavigationCoords,
   NAVIGATION_PROVIDER_LABELS,
 } from "@/lib/map/navigation-urls";
 
+export const CLAIM_NAVIGATE_ACTION_LABEL = "Navigate to spot";
+
 type ClaimNavigationActionsProps = {
   claimId: string;
   latitude: number;
   longitude: number;
-  fullWidth?: boolean;
 };
 
 export function ClaimNavigationActions({
@@ -41,13 +43,13 @@ export function ClaimNavigationActions({
   const label =
     providerSelected && selectedProviderId
       ? `${NAVIGATION_PROVIDER_LABELS[selectedProviderId]} · Change`
-      : "Open navigation";
+      : CLAIM_NAVIGATE_ACTION_LABEL;
 
   return (
-    <button
+    <Button
       type="button"
       data-testid="claim-navigation-action"
-      className="motion-interactive-press inline-flex min-h-10 w-fit max-w-full items-center rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground"
+      className="w-full !min-h-[var(--app-tap-min)] text-base font-semibold"
       aria-haspopup="dialog"
       aria-expanded={Boolean(navigation.session?.open && sessionMatchesClaim)}
       onClick={() => {
@@ -59,6 +61,6 @@ export function ClaimNavigationActions({
       }}
     >
       {label}
-    </button>
+    </Button>
   );
 }

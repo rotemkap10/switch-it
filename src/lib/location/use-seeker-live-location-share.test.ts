@@ -77,7 +77,7 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     });
 
     expect(watchPosition).toHaveBeenCalledTimes(1);
-    expect(result.current.uiState).toBe("sharing");
+    expect(result.current.uiState).toBe("acquiring");
 
     await act(async () => {
       await result.current.stopSharing();
@@ -161,7 +161,7 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     await act(async () => {
       await result.current.startSharing();
     });
-    expect(result.current.uiState).toBe("sharing");
+    expect(result.current.uiState).toBe("acquiring");
     expect(watchPosition).toHaveBeenCalledTimes(1);
 
     await act(async () => {
@@ -174,7 +174,7 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
       visibility = "visible";
       document.dispatchEvent(new Event("visibilitychange"));
     });
-    expect(result.current.uiState).toBe("sharing");
+    expect(result.current.uiState).toBe("acquiring");
     expect(watchPosition).toHaveBeenCalledTimes(2);
   });
 
@@ -223,5 +223,87 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     );
     expect(clearWatch).toHaveBeenCalled();
     expect(removeChannel).toHaveBeenCalled();
+  });
+
+  it("stays acquiring until a usable GPS fix arrives", async () => {
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+    expect(result.current.uiState).toBe("acquiring");
+  });
+
+  it("shows weak signal when accuracy is worse than 150m", async () => {
+    watchPosition.mockImplementation((success: PositionCallback) => {
+      success({
+        coords: {
+          latitude: 32.08,
+          longitude: 34.78,
+          accuracy: 180,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      } as GeolocationPosition);
+      return 42;
+    });
+
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(result.current.uiState).toBe("weak");
+    expect(send).not.toHaveBeenCalledWith(
+      expect.objectContaining({ event: "seeker-location" }),
+    );
+  });
+
+  it("switches to sharing after a usable GPS fix", async () => {
+    watchPosition.mockImplementation((success: PositionCallback) => {
+      success({
+        coords: {
+          latitude: 32.08,
+          longitude: 34.78,
+          accuracy: 12,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      } as GeolocationPosition);
+      return 42;
+    });
+
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(result.current.uiState).toBe("sharing");
   });
 });

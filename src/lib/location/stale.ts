@@ -7,12 +7,16 @@ export type LiveLocationFreshness =
   | "waiting"
   | "live"
   | "delayed"
-  | "paused";
+  | "paused"
+  | "unavailable";
+
+export const LIVE_LOCATION_PAUSE_WHILE_NAVIGATING =
+  "Live location paused while the driver is navigating";
 
 export function liveLocationFreshness(
   lastReceivedAtMs: number | null,
   nowMs: number = Date.now(),
-): LiveLocationFreshness {
+): Exclude<LiveLocationFreshness, "unavailable"> {
   if (lastReceivedAtMs === null) {
     return "waiting";
   }
@@ -31,19 +35,21 @@ export function liveLocationStatusLabel(
 ): string {
   switch (freshness) {
     case "waiting":
-      return "Waiting for location";
+      return "Waiting for driver location";
     case "live":
-      return "Live";
+      return "Driver location live";
     case "delayed":
-      return "Delayed";
+      return "Location update delayed";
     case "paused":
-      return "Paused";
+      return "Live location paused";
+    case "unavailable":
+      return "Live location temporarily unavailable";
   }
 }
 
 /** Coarse relative age — no sub-second precision. */
 export function liveLocationUpdatedLabel(
-  freshness: LiveLocationFreshness,
+  freshness: Exclude<LiveLocationFreshness, "unavailable">,
   lastReceivedAtMs: number | null,
   nowMs: number = Date.now(),
 ): string {
@@ -57,5 +63,5 @@ export function liveLocationUpdatedLabel(
   if (freshness === "delayed") {
     return `Updated ${seconds} seconds ago`;
   }
-  return `Last updated ${seconds} seconds ago`;
+  return `Last update ${seconds} seconds ago`;
 }

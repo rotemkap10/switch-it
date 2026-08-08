@@ -378,9 +378,15 @@ Application constants (window lengths) are validated in Zod and stored as
   After a provider tap, ephemeral in-memory UI state switches the sheet CTA to a
   compact **Change** action (not DB / localStorage). The same tap starts
   foreground live location (`watchPosition` in the gesture, then Realtime
-  channel). **Dismiss** keeps a compact **Open navigation** action. Deep links
+  channel). **Dismiss** keeps a prominent **Navigate to spot** action. Deep links
   (Waze `waze.com/ul`, Apple Maps `maps.apple.com`, Google Maps `/maps/dir/?api=1`)
-  use only claimed-spot `latitude` / `longitude`. No Google Routes API, no origin,
+  use only claimed-spot `latitude` / `longitude` — never the display address.
+  Optional Haversine distance (“120 m away”) is shown when seeker location is
+  available and omitted when permission is denied. Publisher live-progress UI
+  shows status + last-update freshness (`updatedLabel`); explicit pause while the
+  seeker navigates is expected PWA foreground-only behavior. Realtime
+  `CHANNEL_ERROR` / `TIMED_OUT` / `CLOSED` surface as **Live location temporarily
+  unavailable** without dropping the last known marker. No Google Routes API, no origin,
   no stored provider preference, no background GPS while another app is
   foregrounded. Nearby users/cars are not rendered on the map (deferred; privacy
   and minimalism).
@@ -525,6 +531,15 @@ blocking.
 - When a spot is selected, the carousel hides and yields to the selected-spot
   bottom sheet (no competing detail cards).
 - Hidden while an active claim overlay is shown.
+
+### Seeker claimed / handoff sheet (presentation)
+
+- `/map` overlay `ActiveClaimPanel` order: **Navigate to spot** → parking location
+  label (stored address or “Exact location marked on map”) → optional distance →
+  shared `HandoffWindowCountdown` (`available_at` / `expires_at`) → vehicle
+  identity (`HandoffVehicleSection` / photo or illustration) → complete / cancel.
+- Background MapLibre destination pin uses the same claimed-spot coordinates.
+- Complete/cancel remain seeker-only RPCs; no credit or claim-rule changes.
 
 ### Seeker map bottom-stack (presentation)
 

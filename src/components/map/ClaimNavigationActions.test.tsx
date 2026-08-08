@@ -53,11 +53,11 @@ describe("ClaimNavigationActions", () => {
     );
   });
 
-  it("shows a compact Open navigation action without auto-opening", () => {
+  it("shows a compact Navigate to spot action without auto-opening", () => {
     renderActions();
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Open navigation" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Open in" })).not.toBeInTheDocument();
   });
@@ -66,7 +66,7 @@ describe("ClaimNavigationActions", () => {
     const user = userEvent.setup();
     renderActions();
 
-    await user.click(screen.getByRole("button", { name: "Open navigation" }));
+    await user.click(screen.getByRole("button", { name: "Navigate to spot" }));
 
     const sheet = screen.getByTestId("navigation-provider-sheet");
     expect(within(sheet).getByText("Open in")).toBeInTheDocument();
@@ -95,7 +95,7 @@ describe("ClaimNavigationActions", () => {
     const openSpy = vi.mocked(window.open);
     renderActions();
 
-    await user.click(screen.getByRole("button", { name: "Open navigation" }));
+    await user.click(screen.getByRole("button", { name: "Navigate to spot" }));
     await user.click(screen.getByRole("button", { name: "Waze" }));
     expect(openSpy).toHaveBeenCalledWith(
       buildWazeNavigateUrl(destination.latitude, destination.longitude),
@@ -131,19 +131,19 @@ describe("ClaimNavigationActions", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps Open navigation after Dismiss and can reopen the chooser", async () => {
+  it("keeps Navigate to spot after Dismiss and can reopen the chooser", async () => {
     const user = userEvent.setup();
     renderActions();
 
-    await user.click(screen.getByRole("button", { name: "Open navigation" }));
+    await user.click(screen.getByRole("button", { name: "Navigate to spot" }));
     await user.click(screen.getByRole("button", { name: "Dismiss" }));
 
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Open navigation" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Open navigation" }));
+    await user.click(screen.getByRole("button", { name: "Navigate to spot" }));
     expect(screen.getByTestId("navigation-provider-sheet")).toBeInTheDocument();
   });
 
@@ -155,7 +155,7 @@ describe("ClaimNavigationActions", () => {
     });
     renderActions();
 
-    await user.click(screen.getByRole("button", { name: "Open navigation" }));
+    await user.click(screen.getByRole("button", { name: "Navigate to spot" }));
     await user.click(screen.getByRole("button", { name: "Waze" }));
 
     expect(openSpy).toHaveBeenCalledWith(

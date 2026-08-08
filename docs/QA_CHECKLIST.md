@@ -23,7 +23,11 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 3. Confirm leave slider is **0–10 min** (not 20); publish available in **2 minutes**
 4. Confirm spot card countdown (initial grace **2 minutes** after departure)
 5. After claim: see claimed UI, counterpart vehicle, handoff code (no helper prose)
-6. Observe seeker live location (**Waiting for location** / **Live** / **Paused**)
+6. Observe seeker live location (**Waiting for driver location** /
+   **Driver location live** + **Updated just now** / **Location update delayed** /
+   **Live location paused**). Opening Waze/Google/Apple may pause sharing; this
+   is intentional foreground-only PWA behavior. Sharing resumes when Switch It
+   returns to the foreground. Last-known marker stays visible while delayed/paused.
 7. Optionally **Wait N more min** (truthful label; never past 5-minute hard cap)
 8. Give 5-digit code verbally when you meet
 
@@ -37,9 +41,10 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 5. Choosing Waze / Google / Apple starts live location (native permission if needed).
    Denied permission still opens navigation; claim stays active (**Live location off**).
 6. After a provider is chosen, the giant Open in CTA is gone; use **Waze · Change**
-   (or **Open navigation** if dismissed) to reopen the chooser.
+   (or **Navigate to spot** if dismissed) to reopen the chooser.
 7. Return from Waze; claim still active. Live location resumes if Switch It is
-   foregrounded again.
+   foregrounded again (publisher returns to **Driver location live** /
+   **Updated just now**). Pause while navigating is expected, not a defect.
 8. Reload `/map` with the active claim: chooser does **not** auto-open again
 9. When safely stopped, enter correct code → complete
 
@@ -53,6 +58,9 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 - [ ] Exactly one History card each (shared / found) with correct ±1
 - [ ] Extension itself created **no** History row and **no** credit tx
 - [ ] Live location stops after complete (publisher map clears / ages out)
+- [ ] Publisher last-update freshness is visible (**Updated just now** / seconds ago)
+- [ ] Pause while seeker is in Waze/Maps is expected; last marker remains
+- [ ] Weak GPS on seeker shows **Getting an accurate location…** / **Location signal is weak** without cancelling the claim
 - [ ] Code no longer fetchable after complete
 - [ ] No credit change toast implying transfer on claim alone
 

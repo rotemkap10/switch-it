@@ -116,7 +116,7 @@ describe("post-claim navigation flow", () => {
 
     expect(screen.getByTestId("navigation-provider-sheet")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Open navigation" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
@@ -167,11 +167,11 @@ describe("post-claim navigation flow", () => {
 
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Open navigation" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
   });
 
-  it("keeps the claim active after Dismiss and reopens from Open navigation", async () => {
+  it("keeps the claim active after Dismiss and reopens from Navigate to spot", async () => {
     const user = userEvent.setup();
     render(
       <PostClaimNavigationProvider>
@@ -186,13 +186,13 @@ describe("post-claim navigation flow", () => {
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
     expect(screen.getByTestId("active-claim-sheet")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Open navigation" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Open navigation" }));
+    await user.click(screen.getByRole("button", { name: "Navigate to spot" }));
     const reopened = screen.getByTestId("navigation-provider-sheet");
     expect(within(reopened).getByText("Open in")).toBeInTheDocument();
     expect(within(reopened).getByRole("button", { name: "Waze" })).toBeInTheDocument();

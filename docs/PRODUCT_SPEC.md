@@ -159,18 +159,22 @@ optional; without one, the existing illustrated vehicle is shown.
 an **Open in** chooser (Waze / Google Maps / Apple Maps). Choosing a provider
 opens external navigation and starts the existing foreground live-location
 share in the same tap (native geolocation permission if needed). There is no
-separate **Share live location / Not now** prompt. A one-line disclosure in the
+standalone **Share live location** button. A one-line disclosure in the
 chooser states that live location is shared during the handoff. While Switch It
 is open and visible, a throttled private Broadcast updates the publisher’s
-progress map. iOS may suspend the PWA while another maps app is foregrounded;
-sharing pauses then and resumes when Switch It is visible again. Denied
+progress map. Opening Waze / Google Maps / Apple Maps may background the PWA;
+GPS sharing **pauses by design** and resumes when Switch It returns to the
+foreground. This is intentional PWA behavior, not a defect. Denied
 permission still opens navigation; the claim stays active and the seeker sees
-**Live location off**. The seeker can **Stop sharing**. Declining, inaccurate
+**Live location off**. Weak GPS shows **Getting an accurate location…** /
+**Location signal is weak** without broadcasting inaccurate coordinates.
+The seeker can **Stop sharing**. Declining, inaccurate
 GPS, backgrounding, or stale updates never auto-cancel the claim. Publisher UI
-stays compact (**Waiting for location** / **Live** / **Paused**) and never
-exposes permission-denied details. Intent is per app session (not DB /
-localStorage). Coordinates are never stored in the database, local storage,
-caches, or analytics.
+shows freshness (**Driver location live** + **Updated just now**, delayed /
+paused with last-update age, or **Live location temporarily unavailable** on
+Realtime failure) and never exposes permission-denied details. Intent is per
+app session (not DB / localStorage). Coordinates are never stored in the
+database, local storage, caches, or analytics.
 Switch It does **not** provide turn-by-turn navigation or ETA. No Google Routes
 API. Nearby users/cars are not shown on the map — only available spots and the
 relevant counterpart during an active handoff.
@@ -224,7 +228,7 @@ No maps, live locations, handoff codes, or counterpart personal data.
    then Apple Maps) using the claimed spot’s exact latitude/longitude — not the
    display address. The user must tap a provider; **Dismiss** keeps the claim
    active. After a provider is chosen, a compact **Waze · Change** (or similar)
-   action reopens the same chooser. If dismissed, a compact **Open navigation**
+   action reopens the same chooser. If dismissed, a prominent **Navigate to spot**
    action remains. Navigation runs in the external app; returning to Switch It
    leaves the active claim unchanged.
 6. User may proceed to claim if eligible.

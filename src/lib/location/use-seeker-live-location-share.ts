@@ -20,6 +20,8 @@ import { createClient } from "@/lib/supabase/client";
 export type SeekerShareUiState =
   | "idle"
   | "prompt"
+  | "acquiring"
+  | "weak"
   | "sharing"
   | "paused"
   | "unavailable"
@@ -67,6 +69,7 @@ export function useSeekerLiveLocationShare({
     atMs: number;
   } | null>(null);
   const sharingEnabledRef = useRef(false);
+  const hasUsableFixRef = useRef(false);
   const subscribedRef = useRef(false);
   const claimIdRef = useRef(claimId);
   const expiresAtRef = useRef(spotExpiresAtIso);
@@ -191,8 +194,13 @@ export function useSeekerLiveLocationShare({
         }
         const { latitude, longitude, accuracy, heading } = position.coords;
         if (!isUsableAccuracy(accuracy)) {
+          if (!hasUsableFixRef.current) {
+            setUiState("weak");
+          }
           return;
         }
+        hasUsableFixRef.current = true;
+        setUiState("sharing");
         const headingDegrees =
           typeof heading === "number" && Number.isFinite(heading)
             ? ((heading % 360) + 360) % 360
@@ -290,7 +298,8 @@ export function useSeekerLiveLocationShare({
 
     // Start watch in this turn so iOS can still treat it as a user gesture.
     sharingEnabledRef.current = true;
-    setUiState("sharing");
+    hasUsableFixRef.current = false;
+    setUiState("acquiring");
     startWatch();
 
     const joined = await ensureChannel();
@@ -341,7 +350,7 @@ export function useSeekerLiveLocationShare({
         document.visibilityState === "visible"
       ) {
         setResumedOnce(true);
-        setUiState("sharing");
+        setUiState(hasUsableFixRef.current ? "sharing" : "acquiring");
         void (async () => {
           const ok = await ensureChannel();
           if (!ok) {
@@ -363,6 +372,7 @@ export function useSeekerLiveLocationShare({
   useEffect(() => {
     terminalRef.current = false;
     sharingEnabledRef.current = false;
+    hasUsableFixRef.current = false;
     clearWatch();
     void leaveChannel();
     const epoch = ++uiEpochRef.current;

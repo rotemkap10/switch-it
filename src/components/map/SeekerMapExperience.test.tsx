@@ -38,7 +38,7 @@ vi.mock("@/components/map/ActiveClaimPanel", () => ({
       data-variant={variant}
       data-expanded={expanded === false ? "false" : "true"}
     >
-      <button type="button">Open navigation</button>
+      <button type="button">Navigate to spot</button>
       <button type="button">Complete handoff</button>
       <button type="button">Release spot</button>
     </div>
@@ -223,7 +223,7 @@ describe("SeekerMapExperience overlay hierarchy", () => {
       "overlay",
     );
     expect(
-      screen.getByRole("button", { name: "Open navigation" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Complete handoff" }),

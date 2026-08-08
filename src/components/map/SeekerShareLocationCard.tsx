@@ -1,7 +1,9 @@
 "use client";
 
+import type { SeekerShareUiState } from "@/lib/location/use-seeker-live-location-share";
+
 type SeekerShareLocationCardProps = {
-  uiState: "idle" | "prompt" | "sharing" | "paused" | "unavailable" | "denied" | "off";
+  uiState: SeekerShareUiState;
   resumedOnce?: boolean;
   onShare?: () => void;
   onStop: () => void;
@@ -19,19 +21,27 @@ export function SeekerShareLocationCard({
     return null;
   }
 
-  const on =
-    uiState === "sharing" ? "Live location on" : null;
-  const paused = uiState === "paused" ? "Live location paused" : null;
-  const off =
-    uiState === "denied" || uiState === "unavailable" || uiState === "off"
-      ? "Live location off"
-      : null;
-  const label = on ?? paused ?? off;
+  const label =
+    uiState === "acquiring"
+      ? "Getting an accurate location…"
+      : uiState === "weak"
+        ? "Location signal is weak"
+        : uiState === "sharing"
+          ? "Live location on"
+          : uiState === "paused"
+            ? "Live location paused"
+            : uiState === "denied" || uiState === "unavailable" || uiState === "off"
+              ? "Live location off"
+              : null;
   if (!label) {
     return null;
   }
 
-  const canStop = uiState === "sharing" || uiState === "paused";
+  const canStop =
+    uiState === "acquiring" ||
+    uiState === "weak" ||
+    uiState === "sharing" ||
+    uiState === "paused";
 
   return (
     <div

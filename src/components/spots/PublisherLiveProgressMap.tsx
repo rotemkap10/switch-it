@@ -29,6 +29,7 @@ export type PublisherLiveProgressMapProps = {
   seekerLocation: SeekerLocationPayload | null;
   statusLabel: string;
   updatedLabel: string;
+  pauseHint?: string | null;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
 };
@@ -73,6 +74,8 @@ export function PublisherLiveProgressMap({
   parkingLongitude,
   seekerLocation,
   statusLabel,
+  updatedLabel,
+  pauseHint = null,
   expanded = false,
   onExpandedChange,
 }: PublisherLiveProgressMapProps) {
@@ -251,13 +254,36 @@ export function PublisherLiveProgressMap({
     );
   }
 
+  const showUpdated =
+    Boolean(seekerLocation) && updatedLabel && updatedLabel !== "Waiting";
+
   return (
     <div className="flex flex-col gap-2" data-testid="publisher-live-progress">
       <div className="min-w-0">
         <p className="text-sm font-semibold text-foreground">Driver location</p>
-        <p className="text-sm text-foreground" aria-live="polite">
+        <p
+          className="text-sm text-foreground"
+          aria-live="polite"
+          data-testid="publisher-live-status"
+        >
           {statusLabel}
         </p>
+        {pauseHint ? (
+          <p
+            className="mt-0.5 text-xs text-muted"
+            data-testid="publisher-live-pause-hint"
+          >
+            {pauseHint}
+          </p>
+        ) : null}
+        {showUpdated ? (
+          <p
+            className="mt-0.5 text-xs text-muted"
+            data-testid="publisher-live-updated"
+          >
+            {updatedLabel}
+          </p>
+        ) : null}
       </div>
 
       <div
@@ -267,6 +293,8 @@ export function PublisherLiveProgressMap({
         ].join(" ")}
         aria-label={statusLabel}
         data-testid="publisher-live-progress-map"
+        data-has-destination="true"
+        data-has-seeker={seekerLocation ? "true" : "false"}
       >
         <BaseMap
           key={mapInstanceKey}

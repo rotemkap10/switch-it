@@ -4,6 +4,7 @@ import {
   formatHandoffClock,
   formatWaitingMinutes,
   getHandoffPhase,
+  handoffSeekerWindowCopy,
   handoffWaitingCopy,
   handoffWindowCopy,
 } from "@/components/ui/HandoffWindowCountdown";
@@ -47,7 +48,12 @@ describe("handoff countdown copy", () => {
 
   it("answers what happens next during the handoff window", () => {
     expect(handoffWindowCopy("publisher", "3:42")).toBe("3:42 left");
-    expect(handoffWindowCopy("seeker", "3:42")).toBe("3:42 left");
     expect(formatHandoffClock(222_000)).toBe("3:42");
+  });
+
+  it("shows seeker remaining time from the shared expiry window", () => {
+    expect(handoffSeekerWindowCopy(8 * 60_000)).toBe("8 min remaining");
+    expect(handoffSeekerWindowCopy(90_000)).toBe("2 min remaining");
+    expect(handoffSeekerWindowCopy(45_000)).toBe("0:45 left");
   });
 });

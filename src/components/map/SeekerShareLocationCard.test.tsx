@@ -26,6 +26,24 @@ describe("SeekerShareLocationCard", () => {
     expect(screen.queryByRole("button", { name: "Not now" })).not.toBeInTheDocument();
   });
 
+  it("shows acquiring copy before a usable fix", () => {
+    render(<SeekerShareLocationCard uiState="acquiring" onStop={vi.fn()} />);
+    expect(
+      screen.getByText("Getting an accurate location…"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Stop sharing" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows weak-signal copy without cancelling the claim", () => {
+    render(<SeekerShareLocationCard uiState="weak" onStop={vi.fn()} />);
+    expect(screen.getByText("Location signal is weak")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Stop sharing" }),
+    ).toBeInTheDocument();
+  });
+
   it("shows stop sharing while active", async () => {
     const user = userEvent.setup();
     const onStop = vi.fn();

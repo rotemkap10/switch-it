@@ -82,7 +82,8 @@ Use two real accounts (no fake demo mode).
 **User B (seeker)**  
 3. Sign in → **Find parking**  
 4. Claim User A’s spot  
-5. Optionally **Share live location** (explicit opt-in) and allow permission  
+5. Choose **Waze / Google Maps / Apple Maps** (starts foreground live location;
+   sharing pauses while Switch It is in the background and resumes when you return)  
 6. Or **Release spot** if you can’t make it (no credits move)
 
 **User A**  

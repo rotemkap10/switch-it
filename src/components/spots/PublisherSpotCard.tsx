@@ -167,6 +167,7 @@ export function PublisherSpotCard({
           seekerLocation={liveLocation.location}
           statusLabel={liveLocation.statusLabel}
           updatedLabel={liveLocation.updatedLabel}
+          pauseHint={liveLocation.pauseHint}
           expanded={liveMapExpanded}
           onExpandedChange={setLiveMapExpanded}
         />
