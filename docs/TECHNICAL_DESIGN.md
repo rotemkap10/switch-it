@@ -364,14 +364,16 @@ Application constants (window lengths) are validated in Zod and stored as
   `postgres_changes` channels continue; location channels remain private.
 - Routing / ETA is **not implemented** (deferred; MapTiler basemap + MapLibre
   rendering remain). After a **successful Claim**, the seeker immediately sees
-  `NavigationProviderSheet` once (in-memory post-claim intent, not DB). Waze is
-  first, then Google Maps, then Apple Maps; the user must tap a provider.
-  Reloading / returning from Waze / an existing active claim does **not**
-  auto-open. **Open in** reopens the same sheet. Deep links (Waze `waze.com/ul`,
-  Apple Maps `maps.apple.com`, Google Maps `/maps/dir/?api=1`) use only
-  `spot.latitude` / `spot.longitude`. No Google Routes API, no origin, no stored
-  provider preference, no auto live location. Nearby users/cars are not rendered
-  on the map (deferred; privacy and minimalism).
+  `NavigationProviderSheet` once via `PostClaimNavigationProvider` (in-memory
+  client UI intent, not DB). The provider is mounted in `FeedbackShell` so it
+  survives `revalidatePath("/map")` / claim-subtree remount. Waze is first,
+  then Google Maps, then Apple Maps; the user must tap a provider. Reloading /
+  returning from Waze / an existing active claim does **not** auto-open.
+  **Open in** reopens the same sheet. Deep links (Waze `waze.com/ul`, Apple Maps
+  `maps.apple.com`, Google Maps `/maps/dir/?api=1`) use only claimed-spot
+  `latitude` / `longitude`. No Google Routes API, no origin, no stored provider
+  preference, no auto live location. Nearby users/cars are not rendered on the
+  map (deferred; privacy and minimalism).
 
 ## 10. Authentication flow
 

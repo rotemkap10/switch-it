@@ -94,7 +94,11 @@ export function SelectedSpotCard({
               Claim this shared handoff if you can arrive in time. Parking is not
               guaranteed against other street drivers.
             </p>
-            <ClaimSpotButton spotId={spot.id} />
+            <ClaimSpotButton
+              spotId={spot.id}
+              latitude={spot.latitude}
+              longitude={spot.longitude}
+            />
           </div>
         ) : (
           <p className="text-sm text-muted">This is your published spot.</p>

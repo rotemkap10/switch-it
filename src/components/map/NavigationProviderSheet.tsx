@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef } from "react";
 
+import { logPostClaimNavigationDev } from "@/lib/map/post-claim-navigation";
 import type { ExternalNavigationLinks } from "@/lib/map/navigation-urls";
 
 type NavigationProviderSheetProps = {
@@ -43,6 +44,8 @@ export function NavigationProviderSheet({
     if (!open) {
       return;
     }
+    logPostClaimNavigationDev("NavigationProviderSheet mounted");
+    logPostClaimNavigationDev("sheet visible");
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -89,7 +92,7 @@ export function NavigationProviderSheet({
   return (
     <>
       <div
-        className="fixed inset-0 z-40 bg-foreground/20 motion-fade-in md:bg-transparent"
+        className="fixed inset-0 z-[60] bg-foreground/20 motion-fade-in"
         aria-hidden="true"
       />
       <div
@@ -99,9 +102,9 @@ export function NavigationProviderSheet({
         aria-labelledby={titleId}
         data-testid="navigation-provider-sheet"
         className={[
-          "z-50 border border-border bg-surface shadow-[var(--shadow-card)] motion-fade-slide-up",
-          "fixed inset-x-0 bottom-0 rounded-t-[var(--radius-card)] p-4 app-overlay-pad-bottom",
-          "md:absolute md:inset-x-auto md:bottom-auto md:left-0 md:top-[calc(100%+0.5rem)] md:w-72 md:rounded-[var(--radius-card)] md:pb-4",
+          "fixed inset-x-0 bottom-0 z-[61] rounded-t-[var(--radius-card)] border border-border",
+          "bg-surface p-4 shadow-[var(--shadow-card)] motion-fade-slide-up app-overlay-pad-bottom",
+          "md:inset-x-auto md:left-1/2 md:w-[min(100%-2rem,24rem)] md:-translate-x-1/2 md:rounded-[var(--radius-card)]",
         ].join(" ")}
       >
         <p id={titleId} className="text-sm font-semibold text-foreground">

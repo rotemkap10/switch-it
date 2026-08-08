@@ -1,52 +1,63 @@
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 
 import {
-  clearPostClaimNavigationOffer,
-  initialPostClaimNavigationOpen,
   offerPostClaimNavigation,
   peekPostClaimNavigationPendingForTests,
+  registerClaimSpotDestination,
   resetPostClaimNavigationForTests,
+  subscribePostClaimNavigation,
+  takeClaimSpotDestination,
+  unregisterClaimSpotDestination,
 } from "@/lib/map/post-claim-navigation";
 
 const claimA = "11111111-1111-4111-8111-111111111111";
-const claimB = "22222222-2222-4222-8222-222222222222";
+const destination = { latitude: 32.085312, longitude: 34.781812 };
 
-describe("post-claim navigation intent", () => {
+describe("post-claim navigation intent bus", () => {
   beforeEach(() => {
     resetPostClaimNavigationForTests();
   });
 
-  it("offers only the just-claimed id", () => {
-    offerPostClaimNavigation(claimA);
-    expect(peekPostClaimNavigationPendingForTests()).toBe(claimA);
-    expect(initialPostClaimNavigationOpen(claimB)).toBe(false);
-    expect(initialPostClaimNavigationOpen(claimA)).toBe(true);
+  it("queues an offer until a listener subscribes", () => {
+    offerPostClaimNavigation({ claimId: claimA, ...destination });
+    expect(peekPostClaimNavigationPendingForTests()).toEqual({
+      claimId: claimA,
+      ...destination,
+    });
+
+    const received: unknown[] = [];
+    const unsubscribe = subscribePostClaimNavigation((offer) => {
+      received.push(offer);
+    });
+    expect(received).toEqual([{ claimId: claimA, ...destination }]);
     expect(peekPostClaimNavigationPendingForTests()).toBeNull();
+    unsubscribe();
   });
 
-  it("reuses the same start-open decision across remounts", () => {
-    offerPostClaimNavigation(claimA);
-    expect(initialPostClaimNavigationOpen(claimA)).toBe(true);
-    expect(initialPostClaimNavigationOpen(claimA)).toBe(true);
+  it("delivers immediately when a listener is already subscribed", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribePostClaimNavigation(listener);
+    offerPostClaimNavigation({ claimId: claimA, ...destination });
+    expect(listener).toHaveBeenCalledWith({ claimId: claimA, ...destination });
+    expect(peekPostClaimNavigationPendingForTests()).toBeNull();
+    unsubscribe();
   });
 
-  it("does not auto-open an existing claim without a fresh offer", () => {
-    expect(initialPostClaimNavigationOpen(claimA)).toBe(false);
-    expect(initialPostClaimNavigationOpen(claimA)).toBe(false);
+  it("ignores invalid coordinates", () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribePostClaimNavigation(listener);
+    offerPostClaimNavigation({ claimId: claimA, latitude: 91, longitude: 34 });
+    expect(listener).not.toHaveBeenCalled();
+    unsubscribe();
   });
 
-  it("stays closed after dismiss even if remounted", () => {
-    offerPostClaimNavigation(claimA);
-    expect(initialPostClaimNavigationOpen(claimA)).toBe(true);
-    clearPostClaimNavigationOffer(claimA);
-    expect(initialPostClaimNavigationOpen(claimA)).toBe(false);
-  });
-
-  it("treats a later offer for the same claim as a new event", () => {
-    offerPostClaimNavigation(claimA);
-    expect(initialPostClaimNavigationOpen(claimA)).toBe(true);
-    clearPostClaimNavigationOffer(claimA);
-    offerPostClaimNavigation(claimA);
-    expect(initialPostClaimNavigationOpen(claimA)).toBe(true);
+  it("registers claim destinations for the claim action wrapper", () => {
+    registerClaimSpotDestination("spot-1", 32.1, 34.2);
+    expect(takeClaimSpotDestination("spot-1")).toEqual({
+      latitude: 32.1,
+      longitude: 34.2,
+    });
+    unregisterClaimSpotDestination("spot-1");
+    expect(takeClaimSpotDestination("spot-1")).toBeNull();
   });
 });

@@ -1,53 +1,91 @@
 /**
  * One-time in-memory handoff: successful Claim → open navigation chooser.
  *
- * Survives ClaimSpotButton unmount when `/map` revalidates (same JS session).
- * Does not survive full reload, and is not written to the DB or sessionStorage.
- *
- * This is an interaction event (“I just claimed”), not active-claim state.
+ * Module bus + React provider. Survives ClaimSpotButton unmount / `/map`
+ * revalidation in the same JS session. Not written to DB, localStorage,
+ * sessionStorage, or the URL.
  */
 
-let pendingClaimId: string | null = null;
+import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 
-/** Memoized start-open decision per claim id (Strict Mode remount-safe). */
-const startOpenByClaimId = new Map<string, boolean>();
+export type PostClaimNavigationOffer = {
+  claimId: string;
+  latitude: number;
+  longitude: number;
+};
 
-export function offerPostClaimNavigation(claimId: string): void {
-  pendingClaimId = claimId;
-  startOpenByClaimId.delete(claimId);
+export type PostClaimNavigationSource = "post-claim" | "manual";
+
+type Listener = (offer: PostClaimNavigationOffer) => void;
+
+const listeners = new Set<Listener>();
+let pendingOffer: PostClaimNavigationOffer | null = null;
+const destinationsBySpotId = new Map<
+  string,
+  { latitude: number; longitude: number }
+>();
+
+export function logPostClaimNavigationDev(event: string): void {
+  if (process.env.NODE_ENV === "production") {
+    return;
+  }
+  console.info(`[switch-it:nav] ${event}`);
 }
 
-/**
- * Initial open flag for the navigation chooser on this claim.
- * First call records the decision; later remounts reuse it.
- */
-export function initialPostClaimNavigationOpen(claimId: string): boolean {
-  const existing = startOpenByClaimId.get(claimId);
-  if (existing !== undefined) {
-    return existing;
+export function subscribePostClaimNavigation(listener: Listener): () => void {
+  listeners.add(listener);
+  if (pendingOffer) {
+    const queued = pendingOffer;
+    pendingOffer = null;
+    listener(queued);
   }
-
-  const shouldOpen = pendingClaimId === claimId;
-  if (shouldOpen) {
-    pendingClaimId = null;
-  }
-  startOpenByClaimId.set(claimId, shouldOpen);
-  return shouldOpen;
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
-/** User dismissed or chose a provider — do not auto-open again. */
-export function clearPostClaimNavigationOffer(claimId: string): void {
-  if (pendingClaimId === claimId) {
-    pendingClaimId = null;
+export function offerPostClaimNavigation(
+  offer: PostClaimNavigationOffer,
+): void {
+  logPostClaimNavigationDev("offerPostClaimNavigation called");
+  if (!isValidNavigationCoords(offer.latitude, offer.longitude)) {
+    logPostClaimNavigationDev("offer ignored — invalid coordinates");
+    return;
   }
-  startOpenByClaimId.set(claimId, false);
+  if (listeners.size === 0) {
+    pendingOffer = offer;
+    return;
+  }
+  pendingOffer = null;
+  for (const listener of listeners) {
+    listener(offer);
+  }
 }
 
-export function peekPostClaimNavigationPendingForTests(): string | null {
-  return pendingClaimId;
+export function registerClaimSpotDestination(
+  spotId: string,
+  latitude: number,
+  longitude: number,
+): void {
+  destinationsBySpotId.set(spotId, { latitude, longitude });
+}
+
+export function unregisterClaimSpotDestination(spotId: string): void {
+  destinationsBySpotId.delete(spotId);
+}
+
+export function takeClaimSpotDestination(
+  spotId: string,
+): { latitude: number; longitude: number } | null {
+  return destinationsBySpotId.get(spotId) ?? null;
+}
+
+export function peekPostClaimNavigationPendingForTests(): PostClaimNavigationOffer | null {
+  return pendingOffer;
 }
 
 export function resetPostClaimNavigationForTests(): void {
-  pendingClaimId = null;
-  startOpenByClaimId.clear();
+  pendingOffer = null;
+  listeners.clear();
+  destinationsBySpotId.clear();
 }

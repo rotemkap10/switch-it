@@ -18,11 +18,16 @@ vi.mock("@/actions/claims", () => ({
 }));
 
 const spotId = "550e8400-e29b-41d4-a716-446655440000";
+const destination = { latitude: 32.085312, longitude: 34.781812 };
 
 function renderClaimButton() {
   return render(
     <FeedbackShell>
-      <ClaimSpotButton spotId={spotId} />
+      <ClaimSpotButton
+        spotId={spotId}
+        latitude={destination.latitude}
+        longitude={destination.longitude}
+      />
     </FeedbackShell>,
   );
 }
@@ -96,9 +101,8 @@ describe("ClaimSpotButton", () => {
     expect(
       await screen.findByTestId("feedback-toast-success"),
     ).toHaveTextContent("You’re on your way.");
-    expect(peekPostClaimNavigationPendingForTests()).toBe(
-      "11111111-1111-4111-8111-111111111111",
-    );
+    expect(await screen.findByTestId("navigation-provider-sheet")).toBeInTheDocument();
+    expect(peekPostClaimNavigationPendingForTests()).toBeNull();
   });
 
   it("surfaces stale claim race with friendly toast feedback", async () => {
@@ -121,7 +125,7 @@ describe("ClaimSpotButton", () => {
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
   });
 
-  it("shows toast success after a successful claim action", async () => {
+  it("opens the navigation chooser after a successful claim action", async () => {
     const user = userEvent.setup();
     claimSpotMock.mockResolvedValue({
       success: true,
@@ -139,10 +143,8 @@ describe("ClaimSpotButton", () => {
     expect(
       screen.queryByRole("button", { name: "I’m on my way" }),
     ).not.toBeInTheDocument();
-    expect(peekPostClaimNavigationPendingForTests()).toBe(
-      "11111111-1111-4111-8111-111111111111",
-    );
-    expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
+    expect(await screen.findByTestId("navigation-provider-sheet")).toBeInTheDocument();
+    expect(peekPostClaimNavigationPendingForTests()).toBeNull();
   });
 
   it("does not offer navigation when the claim action fails", async () => {

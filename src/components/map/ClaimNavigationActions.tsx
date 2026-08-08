@@ -1,18 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-
-import { NavigationProviderSheet } from "@/components/map/NavigationProviderSheet";
+import { useOptionalPostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
 import { Button } from "@/components/ui/Button";
-import {
-  buildExternalNavigationLinks,
-  isValidNavigationCoords,
-  openExternalNavigationUrl,
-} from "@/lib/map/navigation-urls";
-import {
-  clearPostClaimNavigationOffer,
-  initialPostClaimNavigationOpen,
-} from "@/lib/map/post-claim-navigation";
+import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 
 type ClaimNavigationActionsProps = {
   claimId: string;
@@ -27,66 +17,37 @@ export function ClaimNavigationActions({
   longitude,
   fullWidth = false,
 }: ClaimNavigationActionsProps) {
-  const navigateButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [open, setOpen] = useState(() =>
-    isValidNavigationCoords(latitude, longitude)
-      ? initialPostClaimNavigationOpen(claimId)
-      : false,
-  );
-  const [copyVariant, setCopyVariant] = useState<"post-claim" | "manual">(
-    open ? "post-claim" : "manual",
-  );
+  const navigation = useOptionalPostClaimNavigation();
+  const sessionMatchesClaim = navigation?.session?.claimId === claimId;
+  const coords = isValidNavigationCoords(latitude, longitude)
+    ? { latitude, longitude }
+    : sessionMatchesClaim && navigation?.session
+      ? {
+          latitude: navigation.session.latitude,
+          longitude: navigation.session.longitude,
+        }
+      : null;
 
-  const links = isValidNavigationCoords(latitude, longitude)
-    ? buildExternalNavigationLinks(latitude, longitude)
-    : null;
-
-  if (!links) {
+  if (!coords || !navigation) {
     return null;
   }
 
-  function closeChooser() {
-    clearPostClaimNavigationOffer(claimId);
-    setCopyVariant("manual");
-    setOpen(false);
-  }
-
-  function toggleChooser() {
-    if (open) {
-      closeChooser();
-      return;
-    }
-    setCopyVariant("manual");
-    setOpen(true);
-  }
-
   return (
-    <div className="relative">
-      <Button
-        ref={navigateButtonRef}
-        type="button"
-        variant="primary"
-        className={fullWidth ? "w-full min-h-12" : "w-full min-h-12 sm:w-fit"}
-        aria-haspopup="dialog"
-        aria-expanded={open}
-        onClick={toggleChooser}
-      >
-        Open in
-      </Button>
-
-      <NavigationProviderSheet
-        open={open}
-        onClose={closeChooser}
-        links={links}
-        returnFocusRef={navigateButtonRef}
-        title={copyVariant === "post-claim" ? "Spot claimed" : "Open in"}
-        description={null}
-        dismissLabel="Cancel"
-        onChoose={(url) => {
-          openExternalNavigationUrl(url);
-          closeChooser();
-        }}
-      />
-    </div>
+    <Button
+      type="button"
+      variant="primary"
+      className={fullWidth ? "w-full min-h-12" : "w-full min-h-12 sm:w-fit"}
+      aria-haspopup="dialog"
+      aria-expanded={Boolean(navigation.session?.open && sessionMatchesClaim)}
+      onClick={() => {
+        navigation.openManual({
+          claimId,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        });
+      }}
+    >
+      Open in
+    </Button>
   );
 }

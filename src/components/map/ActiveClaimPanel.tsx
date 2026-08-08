@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { CancelClaimButton } from "@/components/map/CancelClaimButton";
 import { ClaimNavigationActions } from "@/components/map/ClaimNavigationActions";
+import { useOptionalPostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
 import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 import { SeekerShareLocationCard } from "@/components/map/SeekerShareLocationCard";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
@@ -104,9 +105,26 @@ function ActiveClaimSheetBody({
   }, [forceStopLiveShare]);
 
   const destinationLabel = activeClaimDestinationLabel(claim.spotAddress);
-  const canNavigate =
-    !!destination &&
-    isValidNavigationCoords(destination.latitude, destination.longitude);
+  const navigation = useOptionalPostClaimNavigation();
+  const sessionDestination =
+    navigation?.session?.claimId === claim.claimId
+      ? {
+          latitude: navigation.session.latitude,
+          longitude: navigation.session.longitude,
+        }
+      : null;
+  const navigateDestination =
+    destination &&
+    isValidNavigationCoords(destination.latitude, destination.longitude)
+      ? destination
+      : sessionDestination &&
+          isValidNavigationCoords(
+            sessionDestination.latitude,
+            sessionDestination.longitude,
+          )
+        ? sessionDestination
+        : null;
+  const canNavigate = Boolean(navigateDestination);
   const compactVehicleLabel =
     counterpartVehicle && isCompleteHandoffVehicle(counterpartVehicle)
       ? `${VEHICLE_COLOR_LABELS[counterpartVehicle.color!]} ${VEHICLE_TYPE_LABELS[counterpartVehicle.type!]} · ${formatLicensePlateForDisplay(counterpartVehicle.licensePlate!)}`
@@ -155,12 +173,12 @@ function ActiveClaimSheetBody({
         </button>
       </div>
 
-      {canNavigate && destination ? (
+      {canNavigate && navigateDestination ? (
         <div className="flex flex-col gap-1.5">
           <ClaimNavigationActions
             claimId={claim.claimId}
-            latitude={destination.latitude}
-            longitude={destination.longitude}
+            latitude={navigateDestination.latitude}
+            longitude={navigateDestination.longitude}
             fullWidth
           />
           <p className="text-center text-[0.7rem] leading-4 text-muted">

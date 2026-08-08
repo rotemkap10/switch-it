@@ -58,12 +58,14 @@ vi.mock("@/lib/location/use-seeker-live-location-share", () => ({
 
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 
 import {
   ACTIVE_CLAIM_DESTINATION_FALLBACK,
   ActiveClaimPanel,
   activeClaimDestinationLabel,
 } from "@/components/map/ActiveClaimPanel";
+import { PostClaimNavigationProvider } from "@/components/map/PostClaimNavigationProvider";
 import { resetSessionHandoffAnimationForTests } from "@/components/vehicle/useSessionHandoffAnimation";
 import {
   offerPostClaimNavigation,
@@ -103,6 +105,19 @@ describe("activeClaimDestinationLabel", () => {
   });
 });
 
+function renderPanel(ui: ReactElement) {
+  const result = render(
+    <PostClaimNavigationProvider>{ui}</PostClaimNavigationProvider>,
+  );
+  return {
+    ...result,
+    rerender: (next: ReactElement) =>
+      result.rerender(
+        <PostClaimNavigationProvider>{next}</PostClaimNavigationProvider>,
+      ),
+  };
+}
+
 describe("ActiveClaimPanel sheet UX", () => {
   const sessionStore = new Map<string, string>();
 
@@ -141,7 +156,7 @@ describe("ActiveClaimPanel sheet UX", () => {
   });
 
   it("uses keyboard-safe expanded sheet classes with sticky completion actions", () => {
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -176,7 +191,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   it("uses collapsed sheet class without verification UI", async () => {
     const user = userEvent.setup();
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -197,7 +212,7 @@ describe("ActiveClaimPanel sheet UX", () => {
   });
 
   it("starts expanded with complete and cancel actions", () => {
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -222,7 +237,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   it("keeps Open in available when collapsed and hides complete/cancel", async () => {
     const user = userEvent.setup();
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -248,7 +263,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   it("expands again to reveal complete and cancel", async () => {
     const user = userEvent.setup();
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -272,7 +287,7 @@ describe("ActiveClaimPanel sheet UX", () => {
   });
 
   it("uses the destination fallback when address is missing", () => {
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={{ ...claim, spotAddress: null }}
         destination={destination}
@@ -291,7 +306,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   it("collapses on Escape without removing the claim experience", async () => {
     const user = userEvent.setup();
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -320,7 +335,7 @@ describe("ActiveClaimPanel sheet UX", () => {
   });
 
   it("does not auto-open navigation when an existing claim is loaded", () => {
-    render(
+    renderPanel(
       <ActiveClaimPanel claim={claim} destination={destination} />,
     );
 
@@ -333,9 +348,9 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   it("auto-opens the chooser after a fresh claim offer and Cancel keeps the claim", async () => {
     const user = userEvent.setup();
-    offerPostClaimNavigation(claim.claimId);
+    offerPostClaimNavigation({ claimId: claim.claimId, ...destination });
 
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -364,7 +379,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   it("shows Open in for a valid destination and opens the action sheet", async () => {
     const user = userEvent.setup();
-    render(
+    renderPanel(
       <ActiveClaimPanel claim={claim} destination={destination} />,
     );
 
@@ -387,7 +402,7 @@ describe("ActiveClaimPanel sheet UX", () => {
   });
 
   it("hides Open in when destination coordinates are missing or invalid", () => {
-    const { rerender } = render(
+    const { rerender } = renderPanel(
       <ActiveClaimPanel claim={claim} destination={null} />,
     );
     expect(
@@ -408,7 +423,7 @@ describe("ActiveClaimPanel sheet UX", () => {
   it("opens Waze with the claimed destination and unchanged payload semantics", async () => {
     const user = userEvent.setup();
     const openSpy = vi.mocked(window.open);
-    render(<ActiveClaimPanel claim={claim} destination={destination} />);
+    renderPanel(<ActiveClaimPanel claim={claim} destination={destination} />);
 
     await user.click(screen.getByRole("button", { name: "Open in" }));
     await user.click(screen.getByRole("button", { name: "Waze" }));
@@ -422,7 +437,7 @@ describe("ActiveClaimPanel sheet UX", () => {
   });
 
   it("preserves claim ids on complete and cancel actions", () => {
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -441,7 +456,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   it("shows owner vehicle in expanded state only", async () => {
     const user = userEvent.setup();
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -477,7 +492,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   it("does not replay the approach animation on expand and collapse", async () => {
     const user = userEvent.setup();
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -504,7 +519,7 @@ describe("ActiveClaimPanel sheet UX", () => {
   });
 
   it("shows fallback when counterpart vehicle is incomplete", () => {
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -527,7 +542,7 @@ describe("ActiveClaimPanel sheet UX", () => {
   });
 
   it("omits vehicle section when counterpart vehicle is unavailable", () => {
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
@@ -541,7 +556,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   it("stops live location share when handoff completes or cancels", async () => {
     const user = userEvent.setup();
-    render(
+    renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
