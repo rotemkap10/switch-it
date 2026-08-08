@@ -28,14 +28,12 @@ describe("LoginForm mobile layout", () => {
     const form = screen.getByTestId("login-form");
     expect(form.className).toContain("mobile-form-fields");
 
-    expect(screen.getByLabelText("Email")).toHaveAttribute(
-      "autocomplete",
-      "email",
-    );
-    expect(screen.getByLabelText("Password")).toHaveAttribute(
-      "autocomplete",
-      "current-password",
-    );
+    const email = screen.getByLabelText("Email");
+    const password = screen.getByLabelText("Password");
+    expect(email).toHaveAttribute("autocomplete", "email");
+    expect(password).toHaveAttribute("autocomplete", "current-password");
+    expect(email.className).toContain("app-form-control");
+    expect(password.className).toContain("app-form-control");
 
     const submit = screen.getByRole("button", { name: "Sign in" });
     expect(submit.className).toContain("mobile-form-primary");

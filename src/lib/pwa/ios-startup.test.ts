@@ -5,6 +5,8 @@ import { describe, expect, it } from "vitest";
 
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 import {
+  allIosStartupHrefs,
+  IOS_STARTUP_FALLBACK,
   IOS_STARTUP_IMAGES,
   iosStartupAppleWebAppImages,
 } from "@/lib/pwa/ios-startup";
@@ -45,20 +47,32 @@ describe("iOS startup images", () => {
     );
   });
 
-  it("maps to Apple web app startupImage descriptors", () => {
+  it("declares an unqualified portrait fallback with no media query", () => {
+    expect(IOS_STARTUP_FALLBACK.media).toBeNull();
+    expect(IOS_STARTUP_FALLBACK.href).toBe(
+      "/pwa/startup/iphone-portrait-fallback.png",
+    );
+    expect(IOS_STARTUP_FALLBACK.width).toBe(1290);
+    expect(IOS_STARTUP_FALLBACK.height).toBe(2796);
+  });
+
+  it("maps specifics then fallback for Apple web app descriptors", () => {
     const descriptors = iosStartupAppleWebAppImages();
-    expect(descriptors).toHaveLength(IOS_STARTUP_IMAGES.length);
+    expect(descriptors).toHaveLength(IOS_STARTUP_IMAGES.length + 1);
     expect(descriptors[0]).toEqual({
       url: IOS_STARTUP_IMAGES[0].href,
       media: IOS_STARTUP_IMAGES[0].media,
     });
+    expect(descriptors.at(-1)).toEqual({ url: IOS_STARTUP_FALLBACK.href });
+    expect(descriptors.at(-1)).not.toHaveProperty("media");
   });
 
-  it("ships static PNG assets for every declared size", () => {
+  it("ships static PNG assets for every declared size including fallback", () => {
     const pngMagic = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
-    for (const image of IOS_STARTUP_IMAGES) {
-      const path = resolve(process.cwd(), "public/pwa/startup", image.fileName);
-      expect(existsSync(path), `missing ${image.fileName}`).toBe(true);
+    for (const href of allIosStartupHrefs()) {
+      const fileName = href.replace("/pwa/startup/", "");
+      const path = resolve(process.cwd(), "public/pwa/startup", fileName);
+      expect(existsSync(path), `missing ${fileName}`).toBe(true);
       expect(pngSignature(path)).toEqual(pngMagic);
     }
   });
@@ -81,10 +95,14 @@ describe("root layout iOS launch metadata", () => {
     "utf8",
   );
 
-  it("declares apple-touch startup images and light-only color scheme", () => {
+  it("declares apple-touch startup images, fallback last, and light-only color scheme", () => {
     expect(layout).toContain('rel="apple-touch-startup-image"');
     expect(layout).toContain("IOS_STARTUP_IMAGES.map");
-    expect(layout).toContain('"color-scheme": "light only"');
+    expect(layout).toContain("IOS_STARTUP_FALLBACK.href");
+    expect(layout.indexOf("IOS_STARTUP_IMAGES.map")).toBeLessThan(
+      layout.indexOf("IOS_STARTUP_FALLBACK.href"),
+    );
+    expect(layout).toContain("color-scheme:only light");
     expect(layout).toContain('"supported-color-schemes": "light"');
     expect(layout).toContain('statusBarStyle: "default"');
   });
@@ -94,5 +112,6 @@ describe("root layout iOS launch metadata", () => {
     expect(layout).toContain('media: "(prefers-color-scheme: dark)"');
     expect(layout).toContain("color: PWA_BACKGROUND_COLOR");
     expect(PWA_BACKGROUND_COLOR).toBe("#dff4ff");
+    expect(IOS_STARTUP_FALLBACK.href).toContain("pwa/startup");
   });
 });

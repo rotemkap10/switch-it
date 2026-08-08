@@ -1,4 +1,5 @@
 import { OfflineRetryButton } from "@/components/pwa/OfflineRetryButton";
+import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMarker";
 
 export const metadata = {
   title: "Offline — Switch It",
@@ -7,6 +8,7 @@ export const metadata = {
 export default function OfflinePage() {
   return (
     <main className="offline-page motion-fade-slide-up">
+      <InitialShellReadyMarker />
       <div className="offline-page__card">
         <h1 className="offline-page__title">You&apos;re offline</h1>
         <p className="offline-page__body">

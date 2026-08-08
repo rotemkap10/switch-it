@@ -543,6 +543,9 @@ blocking.
 - Login, register, onboarding, and profile editing share `.auth-page`,
   `.mobile-form-surface`, `.mobile-form-fields`, `.mobile-form-primary`, and
   `.mobile-form-section` utilities in `globals.css`.
+- Shared `Input` / `Select` use `.app-form-control` (`font-size: max(1rem, 16px)`)
+  so iOS does not auto-zoom on focus. Pinch zoom stays enabled (no
+  `user-scalable=no` / `maximum-scale=1`).
 - Profile summary uses `.profile-summary-grid` (credits + vehicle row, full-width
   email on phones; three-column desktop).
 - Onboarding vehicle form shows a hero illustration via `placeholderPreview` until
@@ -947,12 +950,22 @@ Supabase project
   `/pwa/icon-512`, `/pwa/icon-512-maskable`) using shared `AppIconMarkup`.
   Icon tile `#55bff3`, launch/splash background `#dff4ff`.
 - **iOS launch screen:** static `apple-touch-startup-image` PNGs in
-  `public/pwa/startup/` (portrait iPhone sizes listed in `src/lib/pwa/ios-startup.ts`).
-  Same lockup as the in-app splash (centered `AppIconMarkup` + “Switch It”).
-  These are OS-cached at Add to Home Screen — they do **not** wait on JS/React.
-  Landscape is not covered (MVP); unknown devices fall back to the light html/body
-  fill. After changing startup assets, delete and re-add the Home Screen icon so
-  iOS recaches them. Regenerate with `npm run generate:ios-startup`.
+  `public/pwa/startup/` (portrait sizes in `src/lib/pwa/ios-startup.ts`).
+  HTML order: device-specific media queries **first**, then an unqualified
+  fallback `/pwa/startup/iphone-portrait-fallback.png` (**last**, no `media`).
+  iOS uses the first match; without a no-media fallback, unmatched devices
+  (new iPhones, Display Zoom) show a black frame. Same lockup as AppLaunchShell
+  (`#dff4ff`, centered icon + “Switch It”). OS-cached at Add to Home Screen —
+  not JS/React. After changing startup assets, **delete and re-add** the Home
+  Screen icon. Regenerate with `npm run generate:ios-startup`.
+- **In-app splash:** `AppLaunchShell` stays until `InitialShellReadyMarker`
+  (authenticated ModeGate ready, or auth/landing/offline page mount) — not
+  merely `document.load`. Safety max 12s. Reduced motion: splash still shows,
+  exit is instant (no fade).
+- **Dev debug:** non-production `IosStartupDebugProbe` logs matching media
+  queries and exposes `window.__switchItIosStartupDebug()`. Also inspect:
+  `screen.width/height`, `devicePixelRatio`, `innerWidth/Height`,
+  `navigator.standalone`.
 - **Install UX:** ProfileMenu → **Install app** when Chromium `beforeinstallprompt`
   is available or on iOS Safari (Add to Home Screen instruction sheet). Hidden in
   standalone mode and during SSR unknown state. No automatic install banners.

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { SwitchItLogoMark } from "@/components/brand/SwitchItLogoMark";
 import { AppLaunchReadyProvider } from "@/components/shell/AppLaunchReadyContext";
+import { IosStartupDebugProbe } from "@/components/shell/IosStartupDebugProbe";
 import {
   markLaunchSplashSeen,
   prefersReducedMotionMedia,
@@ -20,15 +21,31 @@ type AppLaunchShellProps = {
 };
 
 /**
- * Branded cold-start splash for document / PWA launches only.
- * No artificial minimum duration — exits as soon as the document is ready,
- * with a safety max timeout to prevent a stuck overlay.
- * Does not replay on soft client navigations (sessionStorage guard).
+ * Branded cold-start splash. Stays until the initial application shell reports
+ * ready (not merely hydration / document load), then fades into the first screen.
+ * Session navigations skip. Reduced motion keeps the splash, then hides instantly.
  */
 export function AppLaunchShell({ children }: AppLaunchShellProps) {
-  // Always paint branded boot on first frame (SSR + hydration match).
-  // Effect then skips/exits for warm session or reduced motion.
   const [phase, setPhase] = useState<SplashPhase>("visible");
+  const [shellReady, setShellReady] = useState(false);
+  const coldLaunchRef = useRef(false);
+  const exitStartedRef = useRef(false);
+
+  const reportInitialShellReady = useCallback(() => {
+    setShellReady(true);
+  }, []);
+
+  const beginExit = useCallback(() => {
+    if (exitStartedRef.current) {
+      return;
+    }
+    exitStartedRef.current = true;
+    if (prefersReducedMotionMedia()) {
+      setPhase("hidden");
+      return;
+    }
+    setPhase("exit");
+  }, []);
 
   useEffect(() => {
     const skip = shouldSkipLaunchSplash({
@@ -37,44 +54,23 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     });
 
     if (skip) {
+      coldLaunchRef.current = false;
       const id = window.setTimeout(() => setPhase("hidden"), 0);
       return () => window.clearTimeout(id);
     }
 
+    coldLaunchRef.current = true;
     markLaunchSplashSeen();
-
-    let cancelled = false;
-    let exitStarted = false;
-
-    function beginExit() {
-      if (cancelled || exitStarted) {
-        return;
-      }
-      exitStarted = true;
-      setPhase("exit");
-    }
-
-    // Exit as soon as the document is ready — no artificial minimum.
-    if (document.readyState === "complete") {
-      // Yield one frame so the branded first paint can show, then exit.
-      const raf = window.requestAnimationFrame(() => beginExit());
-      const maxTimer = window.setTimeout(beginExit, SPLASH_MAX_MS);
-      return () => {
-        cancelled = true;
-        window.cancelAnimationFrame(raf);
-        window.clearTimeout(maxTimer);
-      };
-    }
-
-    window.addEventListener("load", beginExit, { once: true });
     const maxTimer = window.setTimeout(beginExit, SPLASH_MAX_MS);
+    return () => window.clearTimeout(maxTimer);
+  }, [beginExit]);
 
-    return () => {
-      cancelled = true;
-      window.clearTimeout(maxTimer);
-      window.removeEventListener("load", beginExit);
-    };
-  }, []);
+  useEffect(() => {
+    if (!coldLaunchRef.current || phase !== "visible" || !shellReady) {
+      return;
+    }
+    beginExit();
+  }, [shellReady, phase, beginExit]);
 
   useEffect(() => {
     if (phase !== "exit") {
@@ -95,7 +91,11 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
         : "app-content-shell is-waiting";
 
   return (
-    <AppLaunchReadyProvider ready={launchReady}>
+    <AppLaunchReadyProvider
+      ready={launchReady}
+      reportInitialShellReady={reportInitialShellReady}
+    >
+      {process.env.NODE_ENV !== "production" ? <IosStartupDebugProbe /> : null}
       {showSplash ? (
         <div
           className={[
@@ -106,6 +106,7 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
           aria-live="polite"
           aria-label="Loading Switch It"
           data-testid="app-launch-splash"
+          data-splash-phase={phase}
         >
           <div className="app-launch-splash__logo">
             <SwitchItLogoMark size={88} />

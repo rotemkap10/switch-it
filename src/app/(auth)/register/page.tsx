@@ -2,10 +2,12 @@ import Link from "next/link";
 
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { AuthBrand } from "@/components/brand/AuthBrand";
+import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMarker";
 
 export default function RegisterPage() {
   return (
     <main className="auth-page motion-page-enter" data-testid="register-page">
+      <InitialShellReadyMarker />
       <AuthBrand />
       <div className="auth-page-header">
         <p className="auth-step-label">Step 1 of 2</p>

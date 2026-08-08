@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { LoginForm } from "@/components/auth/LoginForm";
 import { AuthBrand } from "@/components/brand/AuthBrand";
+import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMarker";
 import { getSafeRedirectPath } from "@/lib/auth/safe-redirect";
 
 type LoginPageProps = {
@@ -14,6 +15,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main className="auth-page motion-page-enter" data-testid="login-page">
+      <InitialShellReadyMarker />
       <AuthBrand />
       <div className="auth-page-header">
         <h1 className="auth-page-title">Welcome back</h1>

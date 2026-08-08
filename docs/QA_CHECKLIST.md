@@ -195,7 +195,9 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 - [ ] Attribution visible
 - [ ] Reduced motion: camera jumps without long animation
 - [ ] Offline shell / install prompts behave as before (no regression)
-- [ ] Installed iOS PWA: Home Screen launch shows Switch It branding immediately (no black frame). Re-add the icon once after launch-asset changes.
+- [ ] Installed iOS PWA: Home Screen launch shows Switch It branding immediately (no black frame). **Delete and re-add** the icon after launch-asset changes so iOS recaches `apple-touch-startup-image` (including the unqualified fallback).
+- [ ] Cold launch: branded splash stays until the first real screen (not a half-loaded loading chrome). Reduced Motion still shows splash, then hides instantly.
+- [ ] iPhone Login (Safari + installed PWA): tapping Email/Password does **not** zoom the page. Pinch-to-zoom still works. Same for register, vehicle, profile, and handoff code fields.
 
 ---
 

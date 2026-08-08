@@ -64,6 +64,7 @@ describe("CompleteHandoffForm", () => {
     expect(
       screen.getByText("Once you’re safely stopped, enter the code to complete the handoff."),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("Handoff code")).toHaveClass("app-form-control");
     expect(
       screen.getByRole("button", { name: "Verify and complete" }),
     ).toBeInTheDocument();

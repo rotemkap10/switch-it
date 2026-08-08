@@ -138,3 +138,16 @@ for (const image of IMAGES) {
   writeFileSync(resolve(outDir, fileName), buffer);
   console.log(`wrote ${fileName} (${width}×${height}, ${buffer.length} bytes)`);
 }
+
+const fallbackFileName = "iphone-portrait-fallback.png";
+const fallbackWidth = 1290;
+const fallbackHeight = 2796;
+const fallbackResponse = new ImageResponse(splashMarkup(3), {
+  width: fallbackWidth,
+  height: fallbackHeight,
+});
+const fallbackBuffer = Buffer.from(await fallbackResponse.arrayBuffer());
+writeFileSync(resolve(outDir, fallbackFileName), fallbackBuffer);
+console.log(
+  `wrote ${fallbackFileName} (${fallbackWidth}×${fallbackHeight}, ${fallbackBuffer.length} bytes)`,
+);

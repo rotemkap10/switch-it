@@ -5,15 +5,19 @@ export const SPLASH_FADE_MS = 280;
 
 /**
  * Safety timeout so a stuck boot overlay cannot block the app forever.
- * Not used as an artificial minimum duration.
+ * Not an artificial minimum. Cold launch waits for initial shell ready first.
+ * Slow networks may keep the branded splash visible until this cap.
  */
-export const SPLASH_MAX_MS = 4000;
+export const SPLASH_MAX_MS = 12_000;
 
 export function shouldSkipLaunchSplash(options: {
   reducedMotion: boolean;
   alreadySeen: boolean;
 }): boolean {
-  return options.reducedMotion || options.alreadySeen;
+  // Reduced motion still shows the cold-start splash (avoids black/half UI);
+  // it only skips the exit fade. Client navigations skip via alreadySeen.
+  void options.reducedMotion;
+  return options.alreadySeen;
 }
 
 export function prefersReducedMotionMedia(): boolean {

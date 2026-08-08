@@ -1,10 +1,12 @@
 import Link from "next/link";
 
+import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMarker";
 import { Button } from "@/components/ui/Button";
 
 export default function HomePage() {
   return (
     <main className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-10 px-4 py-16 sm:px-6">
+      <InitialShellReadyMarker />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-80 bg-[radial-gradient(ellipse_at_top,_#cdeeff,_transparent_70%)]"

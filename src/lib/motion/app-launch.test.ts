@@ -12,15 +12,16 @@ describe("app-launch", () => {
     expect(APP_LAUNCH_SPLASH_SEEN_KEY).toBe("switch-it:launch-splash-seen");
   });
 
-  it("defines fade and safety-max without an artificial minimum", () => {
+  it("defines fade and a long safety max without an artificial minimum", () => {
     expect(SPLASH_FADE_MS).toBeGreaterThan(0);
+    expect(SPLASH_MAX_MS).toBeGreaterThan(10_000);
     expect(SPLASH_MAX_MS).toBeGreaterThan(SPLASH_FADE_MS);
   });
 
-  it("skips splash when reduced motion is preferred", () => {
+  it("does not skip cold-start splash only because reduced motion is preferred", () => {
     expect(
       shouldSkipLaunchSplash({ reducedMotion: true, alreadySeen: false }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("skips splash when already seen this session", () => {

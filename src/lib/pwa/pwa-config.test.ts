@@ -54,6 +54,9 @@ describe("root PWA metadata", () => {
     expect(layoutSource).toContain("PWA_BACKGROUND_COLOR");
     expect(layoutSource).toContain('colorScheme: "light"');
     expect(layoutSource).not.toContain("userScalable: false");
+    expect(layoutSource).not.toContain("maximumScale");
+    expect(layoutSource).not.toContain("user-scalable=no");
+    expect(layoutSource).not.toContain("maximum-scale=1");
   });
 });
 
@@ -79,6 +82,8 @@ describe("service worker policy", () => {
     expect(sw).toContain('"/offline"');
     expect(sw).toContain('"/pwa/icon-192"');
     expect(sw).toContain("switch-it-pwa-v1");
+    expect(sw).not.toContain("iphone-portrait-fallback");
+    expect(sw).not.toContain("/pwa/startup/");
   });
 
   it("does not cache Supabase, MapTiler, or POST traffic", () => {

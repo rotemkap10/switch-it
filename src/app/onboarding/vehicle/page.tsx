@@ -1,5 +1,6 @@
 import { AuthBrand } from "@/components/brand/AuthBrand";
 import { OnboardingVehicleForm } from "@/components/onboarding/OnboardingVehicleForm";
+import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMarker";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
 
 const emptyVehicle = {
@@ -17,6 +18,7 @@ export default async function VehicleOnboardingPage() {
 
   return (
     <main className="auth-page motion-page-enter" data-testid="onboarding-vehicle-page">
+      <InitialShellReadyMarker />
       <AuthBrand />
       <div className="auth-page-header">
         <p className="auth-step-label">Step 2 of 2</p>

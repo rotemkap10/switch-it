@@ -34,6 +34,9 @@ describe("RegisterForm mobile layout", () => {
       "autocomplete",
       "new-password",
     );
+    expect(screen.getByLabelText("Display name")).toHaveClass("app-form-control");
+    expect(screen.getByLabelText("Email")).toHaveClass("app-form-control");
+    expect(screen.getByLabelText("Password")).toHaveClass("app-form-control");
     expect(screen.getByText("At least 8 characters.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Vehicle type")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("License plate")).not.toBeInTheDocument();

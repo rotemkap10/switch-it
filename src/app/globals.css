@@ -93,20 +93,21 @@
 }
 
 html {
-  background: var(--color-bg);
+  background: #dff4ff;
   background-color: #dff4ff;
-  color-scheme: light;
+  color-scheme: only light;
   overflow-x: hidden;
 }
 
 body {
+  background-color: #dff4ff;
   background:
     radial-gradient(
       ellipse 120% 70% at 50% -10%,
       var(--color-bg-strong),
       transparent 60%
     ),
-    var(--color-bg);
+    #dff4ff;
   color: var(--color-text);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   min-height: 100%;
@@ -772,6 +773,17 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--app-card-gap);
+}
+
+/*
+ * iOS Safari auto-zooms focused fields under 16px. Keep interactive controls
+ * at least 16px without disabling pinch zoom (no user-scalable=no).
+ * max(1rem, 16px) still honors larger accessibility text.
+ */
+.app-form-control {
+  font-size: max(1rem, 16px);
+  line-height: 1.375;
+  min-height: var(--app-tap-min);
 }
 
 .mobile-form-primary {
@@ -1883,15 +1895,10 @@ body {
     transition: none !important;
   }
 
-  .app-content-shell.is-waiting,
   .app-content-shell.is-revealing,
   .app-content-shell.is-ready {
     visibility: visible;
     animation: none !important;
-  }
-
-  .app-launch-splash {
-    display: none !important;
   }
 
   .motion-reveal-panel.is-open,

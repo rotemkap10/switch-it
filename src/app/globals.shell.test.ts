@@ -81,6 +81,8 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".mobile-form-fields");
     expect(css).toContain(".mobile-form-primary");
     expect(css).toContain(".mobile-form-section");
+    expect(css).toContain(".app-form-control");
+    expect(css).toContain("font-size: max(1rem, 16px)");
     expect(css).toContain(".profile-summary-grid");
     expect(css).toContain(".profile-summary-email");
     expect(css).toContain(".onboarding-vehicle-form");
@@ -100,7 +102,10 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".map-route-transition");
     expect(css).toContain(".route-transition-overlay");
     expect(css).toContain(".branded-loading-page");
-    expect(css).toContain("color-scheme: light");
+    expect(css).toContain("color-scheme: only light");
     expect(css).toContain("background-color: #dff4ff");
+    expect(css).not.toMatch(
+      /\.app-launch-splash\s*\{\s*display:\s*none\s*!important/,
+    );
   });
 });

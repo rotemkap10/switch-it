@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 
+import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMarker";
 import { useMode } from "@/components/mode/ModeProvider";
 
 type ModeGateProps = {
@@ -23,5 +24,10 @@ export function ModeGate({ children }: ModeGateProps) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      <InitialShellReadyMarker />
+      {children}
+    </>
+  );
 }

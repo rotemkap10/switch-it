@@ -33,11 +33,12 @@ describe("OnboardingVehicleForm", () => {
     );
     expect(screen.getByTestId("vehicle-illustration-placeholder")).toBeInTheDocument();
     expect(screen.getByText("Start finding parking")).toBeInTheDocument();
-    expect(screen.getByLabelText("Vehicle type")).toBeInTheDocument();
+    expect(screen.getByLabelText("Vehicle type")).toHaveClass("app-form-control");
     expect(screen.getByLabelText("License plate")).toHaveAttribute(
       "inputmode",
       "numeric",
     );
+    expect(screen.getByLabelText("License plate")).toHaveClass("app-form-control");
     expect(screen.queryByRole("link", { name: /skip/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Save vehicle/i)).not.toBeInTheDocument();
   });

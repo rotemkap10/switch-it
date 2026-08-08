@@ -25,7 +25,7 @@ export function Input({
         id={id}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
-        className={`min-h-[var(--app-tap-min)] rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted/70 disabled:opacity-60 ${className}`}
+        className={`app-form-control min-h-[var(--app-tap-min)] rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-foreground placeholder:text-muted/70 disabled:opacity-60 ${className}`}
         {...props}
       />
       {hint && !error ? (

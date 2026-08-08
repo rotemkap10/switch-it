@@ -4,7 +4,10 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AppFeedbackRoot } from "@/components/feedback/AppFeedbackRoot";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
-import { IOS_STARTUP_IMAGES } from "@/lib/pwa/ios-startup";
+import {
+  IOS_STARTUP_FALLBACK,
+  IOS_STARTUP_IMAGES,
+} from "@/lib/pwa/ios-startup";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -60,16 +63,19 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-      style={{ backgroundColor: PWA_BACKGROUND_COLOR, colorScheme: "light" }}
+      style={{ backgroundColor: PWA_BACKGROUND_COLOR, colorScheme: "only light" }}
     >
       <head>
-        {/* Critical first-paint color before CSS bundle applies — prevents dark/empty flash. */}
+        {/* Critical first-paint color before CSS bundle — Dark Mode must not paint black. */}
         <style
           dangerouslySetInnerHTML={{
-            __html: `html,body{background-color:${PWA_BACKGROUND_COLOR};color-scheme:light;}`,
+            __html: `html,body{background:${PWA_BACKGROUND_COLOR}!important;background-color:${PWA_BACKGROUND_COLOR}!important;color-scheme:only light;}`,
           }}
         />
-        {/* iOS standalone launch images — static PNGs, no JS. Portrait only. */}
+        {/*
+          iOS launch images: specific media queries first, unqualified fallback last.
+          iOS uses the first match; a no-media link first would shadow every size.
+        */}
         {IOS_STARTUP_IMAGES.map((image) => (
           <link
             key={image.fileName}
@@ -78,6 +84,10 @@ export default function RootLayout({
             media={image.media}
           />
         ))}
+        <link
+          rel="apple-touch-startup-image"
+          href={IOS_STARTUP_FALLBACK.href}
+        />
       </head>
       <body
         className="flex min-h-dvh flex-col bg-background text-foreground"
