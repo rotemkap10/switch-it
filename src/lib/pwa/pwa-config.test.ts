@@ -4,10 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import manifest from "@/app/manifest";
-import {
-  PWA_BACKGROUND_COLOR,
-  PWA_THEME_COLOR,
-} from "@/lib/pwa/brand-colors";
+import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 
 describe("PWA manifest", () => {
   const config = manifest();
@@ -22,7 +19,7 @@ describe("PWA manifest", () => {
   });
 
   it("uses brand theme and background colors", () => {
-    expect(config.theme_color).toBe(PWA_THEME_COLOR);
+    expect(config.theme_color).toBe(PWA_BACKGROUND_COLOR);
     expect(config.background_color).toBe(PWA_BACKGROUND_COLOR);
   });
 
@@ -49,11 +46,13 @@ describe("root PWA metadata", () => {
   it("sets application name and Apple web app configuration", () => {
     expect(layoutSource).toContain('applicationName: "Switch It"');
     expect(layoutSource).toContain("appleWebApp");
+    expect(layoutSource).toContain("apple-touch-startup-image");
   });
 
-  it("preserves viewport fit and theme color", () => {
+  it("preserves viewport fit and light launch theme color", () => {
     expect(layoutSource).toContain('viewportFit: "cover"');
-    expect(layoutSource).toContain("themeColor: PWA_THEME_COLOR");
+    expect(layoutSource).toContain("PWA_BACKGROUND_COLOR");
+    expect(layoutSource).toContain('colorScheme: "light"');
     expect(layoutSource).not.toContain("userScalable: false");
   });
 });
@@ -69,6 +68,7 @@ describe("proxy PWA exclusions", () => {
     expect(proxySource).toContain("manifest.webmanifest");
     expect(proxySource).toContain("offline");
     expect(proxySource).toContain("pwa/");
+    expect(proxySource).toContain("png");
   });
 });
 

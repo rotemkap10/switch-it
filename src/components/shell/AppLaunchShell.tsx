@@ -107,7 +107,7 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
           aria-label="Loading Switch It"
           data-testid="app-launch-splash"
         >
-          <div className="app-launch-splash__logo motion-launch-logo">
+          <div className="app-launch-splash__logo">
             <SwitchItLogoMark size={88} />
           </div>
           <p className="app-launch-splash__wordmark">Switch It</p>

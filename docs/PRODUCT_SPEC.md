@@ -106,7 +106,9 @@ Out of scope for the MVP:
 - complex rating or reputation systems,
 - guaranteeing that a published spot remains physically free,
 - selling or transferring legal rights to a public parking space,
-- in-app turn-by-turn routing or traffic ETA,
+- in-app turn-by-turn routing, Google Routes, or traffic ETA
+  (seekers may open the claimed spot coordinates in Waze, Apple Maps, or
+  Google Maps instead),
 - admin dashboards, multi-tenant orgs, or enterprise roles.
 
 ## 9. Main user flows
@@ -159,12 +161,15 @@ seeker may deliberately tap **Share live location** (opt-in only; no
 parking owner see them approaching and may make waiting more likely — without
 guaranteeing a wait. While Switch It is open and visible, a throttled private
 Broadcast updates the publisher’s progress map. Sharing is not required to
-Navigate, complete, or cancel. Declining, inaccurate GPS, backgrounding, or
+Navigate, complete, or cancel. Opening Waze / Apple Maps / Google Maps does
+**not** change live-location consent. Declining, inaccurate GPS, backgrounding, or
 stale updates never auto-cancel the claim. Publisher UI stays neutral
 (“Waiting for live location”) and never exposes permission-denied details.
 Consent is per claim and not remembered after reload. Coordinates are never
 stored in the database, local storage, caches, or analytics.
-Routing and ETA are **not** implemented in the current MVP (deferred).
+Switch It does **not** provide turn-by-turn navigation or ETA. After claiming,
+the seeker may tap **Navigate** and open the parking coordinates in Waze,
+Apple Maps, or Google Maps. No Google Routes API.
 
 ### History
 
@@ -211,7 +216,10 @@ No maps, live locations, handoff codes, or counterpart personal data.
    to the carousel when closed.
 5. During an active claim, discovery UI (carousel, empty state, selected sheet)
    is hidden; the claim sheet takes priority (collapsed Navigate; expanded
-   vehicle + handoff completion).
+   vehicle + handoff completion). **Navigate** opens a chooser (Waze first,
+   then Apple Maps, then Google Maps) using the claimed spot’s exact
+   latitude/longitude — not the display address. Navigation runs in the
+   external app; returning to Switch It leaves the active claim unchanged.
 6. User may proceed to claim if eligible.
 
 ### 9.3a Installing Switch It (mobile)
@@ -403,7 +411,7 @@ remains):
 - photo or note on a published spot,
 - campus- or city-scoped deployments,
 - moderation tools for abuse,
-- integrations with navigation apps.
+- preferred navigation-app memory after observing real usage,
 
 Any future work must preserve the core principle: Switch It coordinates
 handoffs; it does not own or sell public parking spots. MVP deliberately omits

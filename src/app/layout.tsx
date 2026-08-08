@@ -3,10 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 
 import { AppFeedbackRoot } from "@/components/feedback/AppFeedbackRoot";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
-import {
-  PWA_BACKGROUND_COLOR,
-  PWA_THEME_COLOR,
-} from "@/lib/pwa/brand-colors";
+import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
+import { IOS_STARTUP_IMAGES } from "@/lib/pwa/ios-startup";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,6 +35,7 @@ export const metadata: Metadata = {
   },
   other: {
     "color-scheme": "light only",
+    "supported-color-schemes": "light",
   },
 };
 
@@ -44,7 +43,11 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: PWA_THEME_COLOR,
+  // Light brand fill for both schemes so iOS Dark Mode cannot paint a black launch chrome.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: PWA_BACKGROUND_COLOR },
+    { media: "(prefers-color-scheme: dark)", color: PWA_BACKGROUND_COLOR },
+  ],
   colorScheme: "light",
 };
 
@@ -66,6 +69,15 @@ export default function RootLayout({
             __html: `html,body{background-color:${PWA_BACKGROUND_COLOR};color-scheme:light;}`,
           }}
         />
+        {/* iOS standalone launch images — static PNGs, no JS. Portrait only. */}
+        {IOS_STARTUP_IMAGES.map((image) => (
+          <link
+            key={image.fileName}
+            rel="apple-touch-startup-image"
+            href={image.href}
+            media={image.media}
+          />
+        ))}
       </head>
       <body
         className="flex min-h-dvh flex-col bg-background text-foreground"

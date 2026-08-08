@@ -34,7 +34,9 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 3. Select A’s spot → claim (“I’m on my way”); note non-guarantee helper
 4. Optionally Share live location (permission granted) — or Not now (claim stays active)
 5. See safety helper (“Use Switch It controls only when safely stopped”)
-6. When safely stopped, enter correct code → complete
+6. Tap **Navigate** → chooser (Waze / Apple Maps / Google Maps) → open Waze to
+   the exact spot, then return; claim still active
+7. When safely stopped, enter correct code → complete
 
 **Verify**
 
@@ -193,6 +195,7 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 - [ ] Attribution visible
 - [ ] Reduced motion: camera jumps without long animation
 - [ ] Offline shell / install prompts behave as before (no regression)
+- [ ] Installed iOS PWA: Home Screen launch shows Switch It branding immediately (no black frame). Re-add the icon once after launch-asset changes.
 
 ---
 

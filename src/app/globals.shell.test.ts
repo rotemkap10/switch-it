@@ -91,6 +91,7 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain("--motion-splash-fade:");
     expect(css).toContain("--motion-route:");
     expect(css).toContain(".app-launch-splash");
+    expect(css).toContain("background: var(--color-bg)");
     expect(css).toContain(".app-content-shell");
     expect(css).toContain(".motion-page-enter");
     expect(css).toContain(".motion-page-header");

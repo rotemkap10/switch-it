@@ -363,7 +363,10 @@ Application constants (window lengths) are validated in Zod and stored as
 - Keep Realtime “Allow public access” enabled so existing public
   `postgres_changes` channels continue; location channels remain private.
 - Routing / ETA is **not implemented** (deferred; MapTiler basemap + MapLibre
-  rendering remain).
+  rendering remain). After claim, seekers can open external HTTPS deep links
+  (Waze `waze.com/ul`, Apple Maps `maps.apple.com`, Google Maps universal
+  `/maps/dir/?api=1`) built only from `spot.latitude` / `spot.longitude`.
+  No Google Routes API, no origin, no stored provider preference.
 
 ## 10. Authentication flow
 
@@ -938,9 +941,18 @@ Supabase project
 
 - **Manifest:** `src/app/manifest.ts` → `/manifest.webmanifest` (public, no auth).
   `display: standalone`, `start_url: /map`, shortcuts to `/map` and `/spots/new`.
+  `background_color` and `theme_color` are both the light brand fill `#dff4ff`
+  so Chromium/iOS chrome cannot flash a dark/black frame before first paint.
 - **Icons:** ImageResponse routes (`/icon`, `/apple-icon`, `/pwa/icon-192`,
   `/pwa/icon-512`, `/pwa/icon-512-maskable`) using shared `AppIconMarkup`.
-  Brand background `#55bff3`, splash background `#dff4ff`.
+  Icon tile `#55bff3`, launch/splash background `#dff4ff`.
+- **iOS launch screen:** static `apple-touch-startup-image` PNGs in
+  `public/pwa/startup/` (portrait iPhone sizes listed in `src/lib/pwa/ios-startup.ts`).
+  Same lockup as the in-app splash (centered `AppIconMarkup` + “Switch It”).
+  These are OS-cached at Add to Home Screen — they do **not** wait on JS/React.
+  Landscape is not covered (MVP); unknown devices fall back to the light html/body
+  fill. After changing startup assets, delete and re-add the Home Screen icon so
+  iOS recaches them. Regenerate with `npm run generate:ios-startup`.
 - **Install UX:** ProfileMenu → **Install app** when Chromium `beforeinstallprompt`
   is available or on iOS Safari (Add to Home Screen instruction sheet). Hidden in
   standalone mode and during SSR unknown state. No automatic install banners.

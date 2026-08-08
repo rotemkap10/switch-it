@@ -46,6 +46,12 @@ describe("AppLaunchShell", () => {
 
     expect(screen.getByTestId("app-launch-splash")).toBeInTheDocument();
     expect(screen.getByText("Switch It")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("app-launch-splash").querySelector(".switch-it-logo-mark"),
+    ).not.toBeNull();
+    expect(
+      screen.getByTestId("app-launch-splash").querySelector(".motion-launch-logo"),
+    ).toBeNull();
   });
 
   it("skips splash when already seen this session", () => {

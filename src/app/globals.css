@@ -1243,13 +1243,8 @@ body {
   align-items: center;
   justify-content: center;
   gap: 0.875rem;
-  background:
-    radial-gradient(
-      ellipse 120% 80% at 50% 0%,
-      var(--color-bg-strong),
-      transparent 62%
-    ),
-    var(--color-bg);
+  /* Solid brand fill — must match iOS apple-touch-startup-image (#dff4ff). */
+  background: var(--color-bg);
   padding-top: var(--app-safe-top);
   padding-bottom: var(--app-safe-bottom);
   padding-inline: var(--app-phone-gutter);

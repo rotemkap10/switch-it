@@ -1,6 +1,6 @@
 /**
- * Pure helpers for external navigation deep links (Waze / Google / Apple Maps).
- * Destination coordinates only — no user identity or tracking params.
+ * Pure helpers for external navigation deep links (Waze / Apple Maps / Google Maps).
+ * Destination coordinates only — no origin, no ETA, no Routes API.
  */
 
 export type NavigationCoords = {
@@ -40,8 +40,11 @@ export function buildWazeNavigateUrl(
   if (!isValidNavigationCoords(latitude, longitude)) {
     return null;
   }
-  const ll = destinationPair(latitude, longitude);
-  return `https://waze.com/ul?ll=${encodeURIComponent(ll)}&navigate=yes`;
+  const url = new URL("https://waze.com/ul");
+  url.searchParams.set("ll", destinationPair(latitude, longitude));
+  url.searchParams.set("navigate", "yes");
+  url.searchParams.set("utm_source", "switch_it");
+  return url.toString();
 }
 
 export function buildGoogleMapsDirectionsUrl(
@@ -51,8 +54,12 @@ export function buildGoogleMapsDirectionsUrl(
   if (!isValidNavigationCoords(latitude, longitude)) {
     return null;
   }
-  const destination = destinationPair(latitude, longitude);
-  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+  const url = new URL("https://www.google.com/maps/dir/");
+  url.searchParams.set("api", "1");
+  url.searchParams.set("destination", destinationPair(latitude, longitude));
+  url.searchParams.set("travelmode", "driving");
+  url.searchParams.set("dir_action", "navigate");
+  return url.toString();
 }
 
 export function buildAppleMapsDirectionsUrl(
@@ -62,42 +69,69 @@ export function buildAppleMapsDirectionsUrl(
   if (!isValidNavigationCoords(latitude, longitude)) {
     return null;
   }
-  const daddr = destinationPair(latitude, longitude);
-  return `https://maps.apple.com/?daddr=${encodeURIComponent(daddr)}`;
-}
-
-/**
- * Offer Apple Maps only on clearly identifiable Apple phones/tablets.
- * Ambiguous desktop/Mac UAs are omitted rather than guessed.
- */
-export function shouldOfferAppleMaps(
-  userAgent: string = typeof navigator !== "undefined" ? navigator.userAgent : "",
-): boolean {
-  return /iPhone|iPad|iPod/i.test(userAgent);
+  const url = new URL("https://maps.apple.com/");
+  url.searchParams.set("daddr", destinationPair(latitude, longitude));
+  url.searchParams.set("dirflg", "d");
+  return url.toString();
 }
 
 export type ExternalNavigationLinks = {
   waze: string;
+  appleMaps: string;
   googleMaps: string;
-  appleMaps: string | null;
 };
 
 export function buildExternalNavigationLinks(
   latitude: number,
   longitude: number,
-  options?: { includeAppleMaps?: boolean },
 ): ExternalNavigationLinks | null {
   const waze = buildWazeNavigateUrl(latitude, longitude);
+  const appleMaps = buildAppleMapsDirectionsUrl(latitude, longitude);
   const googleMaps = buildGoogleMapsDirectionsUrl(latitude, longitude);
-  if (!waze || !googleMaps) {
+  if (!waze || !appleMaps || !googleMaps) {
     return null;
   }
+  return { waze, appleMaps, googleMaps };
+}
 
-  const includeApple =
-    options?.includeAppleMaps ?? shouldOfferAppleMaps();
-  const appleMaps = includeApple
-    ? buildAppleMapsDirectionsUrl(latitude, longitude)
-    : null;
+function isStandaloneDisplay(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const mediaStandalone = window.matchMedia?.("(display-mode: standalone)")
+    ?.matches;
+  const iosStandalone = Boolean(
+    "standalone" in navigator &&
+      (navigator as Navigator & { standalone?: boolean }).standalone,
+  );
+  return Boolean(mediaStandalone || iosStandalone);
+}
 
-  return { waze, googleMaps, appleMaps };
+function clickExternalAnchor(url: string) {
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+/**
+ * Open an HTTPS navigation deep link outside Switch It.
+ * Standalone iOS PWAs prefer a user-gesture <a target="_blank"> so Universal
+ * Links can hand off to Waze / Maps without unloading the PWA.
+ */
+export function openExternalNavigationUrl(url: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  if (isStandaloneDisplay()) {
+    clickExternalAnchor(url);
+    return;
+  }
+  const opened = window.open(url, "_blank", "noopener,noreferrer");
+  if (!opened) {
+    clickExternalAnchor(url);
+  }
 }

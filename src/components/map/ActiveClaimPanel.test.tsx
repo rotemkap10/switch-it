@@ -322,9 +322,13 @@ describe("ActiveClaimPanel sheet UX", () => {
 
     await user.click(screen.getByRole("button", { name: "Navigate" }));
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("Open destination in")).toBeInTheDocument();
+    expect(within(dialog).getByText("Navigate to spot")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Waze" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Open in Waze" }),
+      within(dialog).getByRole("button", { name: "Apple Maps" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Google Maps" }),
     ).toBeInTheDocument();
   });
 
@@ -353,13 +357,14 @@ describe("ActiveClaimPanel sheet UX", () => {
     render(<ActiveClaimPanel claim={claim} destination={destination} />);
 
     await user.click(screen.getByRole("button", { name: "Navigate" }));
-    await user.click(screen.getByRole("button", { name: "Open in Waze" }));
+    await user.click(screen.getByRole("button", { name: "Waze" }));
 
     expect(openSpy).toHaveBeenCalledWith(
-      "https://waze.com/ul?ll=32.085312%2C34.781812&navigate=yes",
+      "https://waze.com/ul?ll=32.085312%2C34.781812&navigate=yes&utm_source=switch_it",
       "_blank",
       "noopener,noreferrer",
     );
+    expect(forceStopMock).not.toHaveBeenCalled();
   });
 
   it("preserves claim ids on complete and cancel actions", () => {

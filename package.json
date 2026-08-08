@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest",
     "test:run": "vitest run",
+    "generate:ios-startup": "node scripts/generate-ios-startup-images.mjs",
     "test:watch": "vitest",
     "sync:maplibre-worker": "mkdir -p public/maplibre && cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs public/maplibre/ && cp node_modules/@mapbox/mapbox-gl-rtl-text/dist/mapbox-gl-rtl-text.js public/maplibre/"
   },

@@ -7,7 +7,6 @@ import {
   buildWazeNavigateUrl,
   formatNavigationCoordinate,
   isValidNavigationCoords,
-  shouldOfferAppleMaps,
 } from "@/lib/map/navigation-urls";
 
 describe("navigation-urls", () => {
@@ -20,6 +19,7 @@ describe("navigation-urls", () => {
     expect(isValidNavigationCoords(0, 181)).toBe(false);
     expect(isValidNavigationCoords(Number.NaN, 34)).toBe(false);
     expect(isValidNavigationCoords(32, Number.POSITIVE_INFINITY)).toBe(false);
+    expect(isValidNavigationCoords(undefined, 34)).toBe(false);
   });
 
   it("formats coordinates consistently", () => {
@@ -27,78 +27,49 @@ describe("navigation-urls", () => {
     expect(formatNavigationCoordinate(-34.7818)).toBe("-34.781800");
   });
 
-  it("builds a Waze navigate URL for valid coordinates", () => {
-    expect(buildWazeNavigateUrl(32.085312, 34.781812)).toBe(
-      "https://waze.com/ul?ll=32.085312%2C34.781812&navigate=yes",
+  it("builds a Waze HTTPS deep link with exact destination and navigate=yes", () => {
+    const url = buildWazeNavigateUrl(32.085312, 34.781812);
+    expect(url).toBe(
+      "https://waze.com/ul?ll=32.085312%2C34.781812&navigate=yes&utm_source=switch_it",
     );
+    expect(url).toContain("ll=32.085312%2C34.781812");
+    expect(url).toContain("navigate=yes");
+    expect(url).toContain("utm_source=switch_it");
   });
 
-  it("builds a Google Maps directions URL for valid coordinates", () => {
-    expect(buildGoogleMapsDirectionsUrl(32.085312, 34.781812)).toBe(
-      "https://www.google.com/maps/dir/?api=1&destination=32.085312%2C34.781812",
+  it("builds a Google Maps URL with api=1, driving mode, and navigate action", () => {
+    const url = buildGoogleMapsDirectionsUrl(32.085312, 34.781812);
+    expect(url).toBe(
+      "https://www.google.com/maps/dir/?api=1&destination=32.085312%2C34.781812&travelmode=driving&dir_action=navigate",
     );
+    expect(url).toContain("api=1");
+    expect(url).toContain("destination=32.085312%2C34.781812");
+    expect(url).toContain("travelmode=driving");
+    expect(url).toContain("dir_action=navigate");
+    expect(url).not.toContain("origin=");
   });
 
-  it("builds an Apple Maps directions URL for valid coordinates", () => {
-    expect(buildAppleMapsDirectionsUrl(32.085312, -34.781812)).toBe(
-      "https://maps.apple.com/?daddr=32.085312%2C-34.781812",
+  it("builds an Apple Maps driving link with exact destination", () => {
+    const url = buildAppleMapsDirectionsUrl(32.085312, -34.781812);
+    expect(url).toBe(
+      "https://maps.apple.com/?daddr=32.085312%2C-34.781812&dirflg=d",
     );
+    expect(url).toContain("daddr=32.085312%2C-34.781812");
+    expect(url).toContain("dirflg=d");
+    expect(url).not.toContain("saddr=");
   });
 
   it("returns null URL builders for invalid latitude or longitude", () => {
     expect(buildWazeNavigateUrl(91, 34)).toBeNull();
     expect(buildGoogleMapsDirectionsUrl(32, 200)).toBeNull();
     expect(buildAppleMapsDirectionsUrl(Number.NaN, 34)).toBeNull();
-  });
-
-  it("does not add accidental extra parameters", () => {
-    const waze = buildWazeNavigateUrl(32.1, 34.8)!;
-    const google = buildGoogleMapsDirectionsUrl(32.1, 34.8)!;
-    const apple = buildAppleMapsDirectionsUrl(32.1, 34.8)!;
-
-    expect(waze.startsWith("https://waze.com/ul?")).toBe(true);
-    expect(waze).toContain("navigate=yes");
-    expect(waze).not.toContain("utm_");
-    expect(waze).not.toContain("user");
-
-    expect(google.startsWith("https://www.google.com/maps/dir/?")).toBe(true);
-    expect(google).toContain("api=1");
-    expect(google).not.toContain("origin=");
-
-    expect(apple.startsWith("https://maps.apple.com/?")).toBe(true);
-    expect(apple).not.toContain("dirflg=");
-  });
-
-  it("offers Apple Maps only on clear iPhone/iPad/iPod user agents", () => {
-    expect(shouldOfferAppleMaps("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0)")).toBe(
-      true,
-    );
-    expect(shouldOfferAppleMaps("Mozilla/5.0 (iPad; CPU OS 17_0)")).toBe(true);
-    expect(
-      shouldOfferAppleMaps(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0",
-      ),
-    ).toBe(false);
-    expect(
-      shouldOfferAppleMaps(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0) Safari/605.1.15",
-      ),
-    ).toBe(false);
-  });
-
-  it("builds the full link set and omits Apple Maps when not requested", () => {
-    const withApple = buildExternalNavigationLinks(32.1, 34.8, {
-      includeAppleMaps: true,
-    });
-    expect(withApple?.appleMaps).toContain("maps.apple.com");
-
-    const withoutApple = buildExternalNavigationLinks(32.1, 34.8, {
-      includeAppleMaps: false,
-    });
-    expect(withoutApple?.appleMaps).toBeNull();
-    expect(withoutApple?.waze).toContain("waze.com");
-    expect(withoutApple?.googleMaps).toContain("google.com/maps");
-
     expect(buildExternalNavigationLinks(999, 34)).toBeNull();
+  });
+
+  it("always includes Waze, Apple Maps, and Google Maps for valid coordinates", () => {
+    const links = buildExternalNavigationLinks(32.1, 34.8);
+    expect(links?.waze).toContain("waze.com/ul");
+    expect(links?.appleMaps).toContain("maps.apple.com");
+    expect(links?.googleMaps).toContain("google.com/maps/dir");
   });
 });

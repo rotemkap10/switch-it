@@ -68,7 +68,7 @@ npm run build
 
 ## Production
 
-Deploy on Vercel (or equivalent) with the env vars above. PWA: `/manifest.webmanifest`, `/sw.js`, `/offline`.
+Deploy on Vercel (or equivalent) with the env vars above. PWA: `/manifest.webmanifest`, `/sw.js`, `/offline`. iOS Home Screen launch uses static `apple-touch-startup-image` assets (`public/pwa/startup/`). After changing those, delete and re-add the icon so iOS recaches them.
 
 ## 2-device demo flow (~2–4 minutes)
 
@@ -108,7 +108,7 @@ Then show: credits moved by exactly one, and a **History** entry.
 
 - Parking is never guaranteed (public street spots)
 - Live location is foreground-first explicit opt-in (may pause in background)
-- No ETA / turn-by-turn routing in-app (external Navigate still opens maps)
+- No ETA / turn-by-turn routing in-app (Navigate opens Waze, Apple Maps, or Google Maps)
 - No payments, chat, push notifications, ratings, or no-show penalties
 - Course MVP credits are not real money
 

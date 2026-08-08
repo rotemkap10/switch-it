@@ -21,13 +21,15 @@ describe("PWA / first-paint color continuity", () => {
     expect(layout).toContain("backgroundColor: PWA_BACKGROUND_COLOR");
     expect(layout).toContain("colorScheme: \"light\"");
     expect(layout).toContain("color-scheme:light");
+    expect(layout).toContain("supported-color-schemes");
+    expect(layout).toContain("apple-touch-startup-image");
 
     const manifest = readFileSync(
       resolve(process.cwd(), "src/app/manifest.ts"),
       "utf8",
     );
     expect(manifest).toContain("PWA_BACKGROUND_COLOR");
-    expect(manifest).toContain("PWA_THEME_COLOR");
+    expect(manifest).not.toContain("PWA_THEME_COLOR");
 
     const sw = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
     expect(sw).toContain("/offline");

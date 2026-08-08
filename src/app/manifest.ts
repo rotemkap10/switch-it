@@ -1,9 +1,6 @@
 import type { MetadataRoute } from "next";
 
-import {
-  PWA_BACKGROUND_COLOR,
-  PWA_THEME_COLOR,
-} from "@/lib/pwa/brand-colors";
+import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -15,7 +12,7 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     background_color: PWA_BACKGROUND_COLOR,
-    theme_color: PWA_THEME_COLOR,
+    theme_color: PWA_BACKGROUND_COLOR,
     lang: "en",
     dir: "ltr",
     icons: [
