@@ -9,20 +9,33 @@ import {
   isValidNavigationCoords,
   openExternalNavigationUrl,
 } from "@/lib/map/navigation-urls";
+import {
+  clearPostClaimNavigationOffer,
+  initialPostClaimNavigationOpen,
+} from "@/lib/map/post-claim-navigation";
 
 type ClaimNavigationActionsProps = {
+  claimId: string;
   latitude: number;
   longitude: number;
   fullWidth?: boolean;
 };
 
 export function ClaimNavigationActions({
+  claimId,
   latitude,
   longitude,
   fullWidth = false,
 }: ClaimNavigationActionsProps) {
   const navigateButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() =>
+    isValidNavigationCoords(latitude, longitude)
+      ? initialPostClaimNavigationOpen(claimId)
+      : false,
+  );
+  const [copyVariant, setCopyVariant] = useState<"post-claim" | "manual">(
+    open ? "post-claim" : "manual",
+  );
 
   const links = isValidNavigationCoords(latitude, longitude)
     ? buildExternalNavigationLinks(latitude, longitude)
@@ -30,6 +43,21 @@ export function ClaimNavigationActions({
 
   if (!links) {
     return null;
+  }
+
+  function closeChooser() {
+    clearPostClaimNavigationOffer(claimId);
+    setCopyVariant("manual");
+    setOpen(false);
+  }
+
+  function toggleChooser() {
+    if (open) {
+      closeChooser();
+      return;
+    }
+    setCopyVariant("manual");
+    setOpen(true);
   }
 
   return (
@@ -41,19 +69,22 @@ export function ClaimNavigationActions({
         className={fullWidth ? "w-full" : "w-full sm:w-fit"}
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={toggleChooser}
       >
         Navigate
       </Button>
 
       <NavigationProviderSheet
         open={open}
-        onClose={() => setOpen(false)}
+        onClose={closeChooser}
         links={links}
         returnFocusRef={navigateButtonRef}
+        title={copyVariant === "post-claim" ? "Spot claimed" : "Navigate to spot"}
+        description="Choose an app to navigate to the handoff."
+        dismissLabel="Not now"
         onChoose={(url) => {
           openExternalNavigationUrl(url);
-          setOpen(false);
+          closeChooser();
         }}
       />
     </div>

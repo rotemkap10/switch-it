@@ -6,15 +6,30 @@ import { claimSpot, type ClaimSpotActionState } from "@/actions/claims";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import { offerPostClaimNavigation } from "@/lib/map/post-claim-navigation";
 
 const initialState: ClaimSpotActionState = {};
+
+async function claimSpotAndOfferNavigation(
+  prev: ClaimSpotActionState,
+  formData: FormData,
+): Promise<ClaimSpotActionState> {
+  const result = await claimSpot(prev, formData);
+  if (result.success && result.claimId) {
+    offerPostClaimNavigation(result.claimId);
+  }
+  return result;
+}
 
 type ClaimSpotButtonProps = {
   spotId: string;
 };
 
 export function ClaimSpotButton({ spotId }: ClaimSpotButtonProps) {
-  const [state, formAction, pending] = useActionState(claimSpot, initialState);
+  const [state, formAction, pending] = useActionState(
+    claimSpotAndOfferNavigation,
+    initialState,
+  );
 
   useActionFeedback(state, {
     successMessage: FEEDBACK_SUCCESS_KEYS["claim-created"],

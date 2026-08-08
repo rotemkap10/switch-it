@@ -4,6 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { ClaimSpotButton } from "@/components/map/ClaimSpotButton";
+import {
+  peekPostClaimNavigationPendingForTests,
+  resetPostClaimNavigationForTests,
+} from "@/lib/map/post-claim-navigation";
 
 const { claimSpotMock } = vi.hoisted(() => ({
   claimSpotMock: vi.fn(),
@@ -26,6 +30,7 @@ function renderClaimButton() {
 describe("ClaimSpotButton", () => {
   beforeEach(() => {
     claimSpotMock.mockReset();
+    resetPostClaimNavigationForTests();
   });
 
   it("renders the friendly primary wording", () => {
@@ -91,6 +96,9 @@ describe("ClaimSpotButton", () => {
     expect(
       await screen.findByTestId("feedback-toast-success"),
     ).toHaveTextContent("You’re on your way.");
+    expect(peekPostClaimNavigationPendingForTests()).toBe(
+      "11111111-1111-4111-8111-111111111111",
+    );
   });
 
   it("surfaces stale claim race with friendly toast feedback", async () => {
@@ -109,6 +117,8 @@ describe("ClaimSpotButton", () => {
     expect(
       screen.getByRole("button", { name: "I’m on my way" }),
     ).toBeInTheDocument();
+    expect(peekPostClaimNavigationPendingForTests()).toBeNull();
+    expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
   });
 
   it("shows toast success after a successful claim action", async () => {
@@ -129,5 +139,26 @@ describe("ClaimSpotButton", () => {
     expect(
       screen.queryByRole("button", { name: "I’m on my way" }),
     ).not.toBeInTheDocument();
+    expect(peekPostClaimNavigationPendingForTests()).toBe(
+      "11111111-1111-4111-8111-111111111111",
+    );
+    expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
+  });
+
+  it("does not offer navigation when the claim action fails", async () => {
+    const user = userEvent.setup();
+    claimSpotMock.mockResolvedValue({
+      error: "Not enough credits.",
+      errorCode: "INSUFFICIENT_CREDITS",
+    });
+
+    renderClaimButton();
+    await user.click(screen.getByRole("button", { name: "I’m on my way" }));
+
+    expect(await screen.findByTestId("feedback-toast-error")).toHaveTextContent(
+      "Not enough credits.",
+    );
+    expect(peekPostClaimNavigationPendingForTests()).toBeNull();
+    expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
   });
 });

@@ -10,6 +10,9 @@ type NavigationProviderSheetProps = {
   links: ExternalNavigationLinks;
   onChoose: (url: string) => void;
   returnFocusRef?: React.RefObject<HTMLElement | null>;
+  title?: string;
+  description?: string;
+  dismissLabel?: string;
 };
 
 const PROVIDERS: Array<{
@@ -28,6 +31,9 @@ export function NavigationProviderSheet({
   links,
   onChoose,
   returnFocusRef,
+  title = "Navigate to spot",
+  description = "Choose an app to navigate to the handoff.",
+  dismissLabel = "Not now",
 }: NavigationProviderSheetProps) {
   const titleId = useId();
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -99,10 +105,10 @@ export function NavigationProviderSheet({
         ].join(" ")}
       >
         <p id={titleId} className="text-sm font-semibold text-foreground">
-          Navigate to spot
+          {title}
         </p>
         <p className="mt-1 text-xs leading-5 text-muted">
-          Choose your navigation app.
+          {description}
         </p>
         <ul className="mt-3 flex flex-col gap-2">
           {PROVIDERS.map((provider) => (
@@ -127,7 +133,7 @@ export function NavigationProviderSheet({
           className="mt-3 min-h-[2.5rem] w-full text-center text-sm text-muted underline-offset-2 hover:text-foreground hover:underline"
           onClick={onClose}
         >
-          Cancel
+          {dismissLabel}
         </button>
       </div>
     </>

@@ -65,6 +65,10 @@ import {
   activeClaimDestinationLabel,
 } from "@/components/map/ActiveClaimPanel";
 import { resetSessionHandoffAnimationForTests } from "@/components/vehicle/useSessionHandoffAnimation";
+import {
+  offerPostClaimNavigation,
+  resetPostClaimNavigationForTests,
+} from "@/lib/map/post-claim-navigation";
 
 const claim = {
   claimId: "11111111-1111-4111-8111-111111111111",
@@ -106,6 +110,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     forceStopMock.mockReset();
     sessionStore.clear();
     resetSessionHandoffAnimationForTests();
+    resetPostClaimNavigationForTests();
     vi.stubGlobal("sessionStorage", {
       getItem: (key: string) => sessionStore.get(key) ?? null,
       setItem: (key: string, value: string) => {
@@ -314,6 +319,49 @@ describe("ActiveClaimPanel sheet UX", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("does not auto-open navigation when an existing claim is loaded", () => {
+    render(
+      <ActiveClaimPanel claim={claim} destination={destination} />,
+    );
+
+    expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Release spot" }),
+    ).toBeInTheDocument();
+  });
+
+  it("auto-opens the chooser after a fresh claim offer and Not now keeps the claim", async () => {
+    const user = userEvent.setup();
+    offerPostClaimNavigation(claim.claimId);
+
+    render(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        variant="overlay"
+      />,
+    );
+
+    const sheet = screen.getByTestId("navigation-provider-sheet");
+    expect(within(sheet).getByText("Spot claimed")).toBeInTheDocument();
+    expect(within(sheet).getByRole("button", { name: "Waze" })).toBeInTheDocument();
+
+    await user.click(within(sheet).getByRole("button", { name: "Not now" }));
+
+    expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
+    expect(screen.getByTestId("active-claim-sheet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Navigate" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Release spot" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("complete-handoff-form")).toHaveAttribute(
+      "data-claim-id",
+      claim.claimId,
+    );
+    expect(forceStopMock).not.toHaveBeenCalled();
+  });
+
   it("shows Navigate for a valid destination and opens the action sheet", async () => {
     const user = userEvent.setup();
     render(
@@ -330,6 +378,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       within(dialog).getByRole("button", { name: "Google Maps" }),
     ).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Not now" })).toBeInTheDocument();
   });
 
   it("hides Navigate when destination coordinates are missing or invalid", () => {

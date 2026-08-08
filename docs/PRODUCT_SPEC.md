@@ -216,10 +216,12 @@ No maps, live locations, handoff codes, or counterpart personal data.
    to the carousel when closed.
 5. During an active claim, discovery UI (carousel, empty state, selected sheet)
    is hidden; the claim sheet takes priority (collapsed Navigate; expanded
-   vehicle + handoff completion). **Navigate** opens a chooser (Waze first,
-   then Apple Maps, then Google Maps) using the claimed spot’s exact
-   latitude/longitude — not the display address. Navigation runs in the
-   external app; returning to Switch It leaves the active claim unchanged.
+   vehicle + handoff completion). After a successful Claim, Switch It immediately
+   offers a navigation chooser once (Waze first, then Apple Maps, then Google
+   Maps) using the claimed spot’s exact latitude/longitude — not the display
+   address. The user must tap a provider; **Not now** keeps the claim active.
+   **Navigate** reopens the same chooser later. Navigation runs in the external
+   app; returning to Switch It leaves the active claim unchanged.
 6. User may proceed to claim if eligible.
 
 ### 9.3a Installing Switch It (mobile)

@@ -158,6 +158,7 @@ function ActiveClaimSheetBody({
       {canNavigate && destination ? (
         <div className="flex flex-col gap-1.5">
           <ClaimNavigationActions
+            claimId={claim.claimId}
             latitude={destination.latitude}
             longitude={destination.longitude}
             fullWidth

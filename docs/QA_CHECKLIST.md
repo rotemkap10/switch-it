@@ -32,11 +32,14 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 1. Open Find parking (`/map`)
 2. Recenter; confirm spots + carousel
 3. Select A’s spot → claim (“I’m on my way”); note non-guarantee helper
-4. Optionally Share live location (permission granted) — or Not now (claim stays active)
-5. See safety helper (“Use Switch It controls only when safely stopped”)
-6. Tap **Navigate** → chooser (Waze / Apple Maps / Google Maps) → open Waze to
-   the exact spot, then return; claim still active
-7. When safely stopped, enter correct code → complete
+4. After claim success, navigation chooser appears immediately (Waze / Apple Maps /
+   Google Maps). **Not now** keeps the claim active. Do not auto-open Waze.
+5. Optionally Share live location (permission granted) — or Not now (claim stays active)
+6. See safety helper (“Use Switch It controls only when safely stopped”)
+7. Tap **Navigate** later → same chooser → open Waze to the exact spot, then
+   return; claim still active
+8. Reload `/map` with the active claim: chooser does **not** auto-open again
+9. When safely stopped, enter correct code → complete
 
 **Verify**
 

@@ -363,10 +363,14 @@ Application constants (window lengths) are validated in Zod and stored as
 - Keep Realtime “Allow public access” enabled so existing public
   `postgres_changes` channels continue; location channels remain private.
 - Routing / ETA is **not implemented** (deferred; MapTiler basemap + MapLibre
-  rendering remain). After claim, seekers can open external HTTPS deep links
-  (Waze `waze.com/ul`, Apple Maps `maps.apple.com`, Google Maps universal
-  `/maps/dir/?api=1`) built only from `spot.latitude` / `spot.longitude`.
-  No Google Routes API, no origin, no stored provider preference.
+  rendering remain). After a **successful Claim**, the seeker immediately sees
+  `NavigationProviderSheet` once (in-memory post-claim intent, not DB). Waze is
+  first; the user must tap a provider. Reloading / returning from Waze / an
+  existing active claim does **not** auto-open. **Navigate** reopens the same
+  sheet. Deep links (Waze `waze.com/ul`, Apple Maps `maps.apple.com`, Google
+  Maps `/maps/dir/?api=1`) use only `spot.latitude` / `spot.longitude`.
+  No Google Routes API, no origin, no stored provider preference, no auto live
+  location.
 
 ## 10. Authentication flow
 
