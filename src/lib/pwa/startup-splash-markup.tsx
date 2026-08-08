@@ -2,12 +2,15 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CSSProperties, ReactElement } from "react";
 
+import { containedLogoSize } from "@/lib/branding/logo-asset";
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
-import { IOS_STARTUP_LOGO_CSS_PX } from "@/lib/pwa/ios-startup";
+import { iosStartupLogoCssPx } from "@/lib/pwa/ios-startup";
 
 type StartupSplashMarkupProps = {
   /** Device pixel ratio used to scale the lockup to match in-app CSS sizes. */
   scale: number;
+  cssWidth?: number;
+  cssHeight?: number;
 };
 
 function officialLogoDataUri(): string {
@@ -23,8 +26,14 @@ function officialLogoDataUri(): string {
  */
 export function StartupSplashMarkup({
   scale,
+  cssWidth = 390,
+  cssHeight = 844,
 }: StartupSplashMarkupProps): ReactElement {
-  const logoSize = Math.round(IOS_STARTUP_LOGO_CSS_PX * scale);
+  const cssLogoWidth = iosStartupLogoCssPx(cssWidth, cssHeight);
+  const { width, height } = containedLogoSize(
+    Math.round(cssLogoWidth * scale),
+    Math.round(cssHeight * scale * 0.45),
+  );
 
   const root: CSSProperties = {
     width: "100%",
@@ -39,7 +48,7 @@ export function StartupSplashMarkup({
     <div style={root}>
       {/* ImageResponse requires img; official PNG is not redesigned. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={officialLogoDataUri()} width={logoSize} height={logoSize} alt="" />
+      <img src={officialLogoDataUri()} width={width} height={height} alt="" />
     </div>
   );
 }

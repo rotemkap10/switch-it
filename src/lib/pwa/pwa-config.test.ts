@@ -47,6 +47,8 @@ describe("root PWA metadata", () => {
     expect(layoutSource).toContain('applicationName: "Switch It"');
     expect(layoutSource).toContain("appleWebApp");
     expect(layoutSource).toContain("apple-touch-startup-image");
+    expect(layoutSource).toContain("apple-mobile-web-app-capable");
+    expect(layoutSource).toContain('statusBarStyle: "black-translucent"');
   });
 
   it("preserves viewport fit and light launch theme color", () => {
@@ -81,7 +83,8 @@ describe("service worker policy", () => {
   it("precaches only approved offline and icon resources", () => {
     expect(sw).toContain('"/offline"');
     expect(sw).toContain('"/pwa/icon-192"');
-    expect(sw).toContain("switch-it-pwa-v2");
+    expect(sw).toContain("switch-it-pwa-v4");
+    expect(sw).toContain("/branding/switch-it-logo.png");
     expect(sw).not.toContain("iphone-portrait-fallback");
     expect(sw).not.toContain("/pwa/startup/");
   });

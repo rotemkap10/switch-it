@@ -115,6 +115,15 @@ body {
   overflow-x: hidden;
 }
 
+@media (prefers-color-scheme: dark) {
+  html,
+  body {
+    background: #dff4ff !important;
+    background-color: #dff4ff !important;
+    color-scheme: only light !important;
+  }
+}
+
 *:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
@@ -694,10 +703,16 @@ body {
   padding-bottom: max(2.5rem, calc(1.5rem + var(--app-safe-bottom)));
 }
 
-.landing-page__brand {
+.landing-page__brand,
+.auth-brand,
+.app-launch-splash__logo {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .switch-it-logo {
@@ -705,6 +720,10 @@ body {
   height: auto;
   max-width: 100%;
   object-fit: contain;
+  background: transparent;
+  background-color: transparent;
+  border: 0;
+  box-shadow: none;
 }
 
 .switch-it-logo--hero {
@@ -747,7 +766,10 @@ body {
 }
 
 .switch-it-logo--splash {
-  width: min(14rem, 72vw);
+  width: min(80vw, 22rem);
+  height: auto;
+  max-height: 28dvh;
+  object-fit: contain;
 }
 
 .landing-page__actions {
@@ -781,8 +803,6 @@ body {
 }
 
 .auth-brand {
-  display: flex;
-  justify-content: center;
   margin: 0 0 0.25rem;
 }
 
@@ -1295,8 +1315,12 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  /* Solid brand fill — must match iOS apple-touch-startup-image (#dff4ff). */
-  background: var(--color-bg);
+  width: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
+  /* Exact match to apple-touch-startup-image fill — no gradient flash. */
+  background: #dff4ff;
+  background-color: #dff4ff;
   padding-top: var(--app-safe-top);
   padding-bottom: var(--app-safe-bottom);
   padding-inline: var(--app-phone-gutter);

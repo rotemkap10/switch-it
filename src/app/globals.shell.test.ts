@@ -102,11 +102,14 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain("--motion-splash-fade:");
     expect(css).toContain("--motion-route:");
     expect(css).toContain(".app-launch-splash");
-    expect(css).toContain("background: var(--color-bg)");
+    expect(css).toContain("background: #dff4ff");
+    expect(css).toContain(".switch-it-logo--splash");
+    expect(css).toContain("min(80vw, 22rem)");
     expect(css).toContain(".app-content-shell");
     expect(css).toContain(".motion-page-enter");
     expect(css).toContain(".motion-page-header");
     expect(css).toContain(".switch-it-logo");
+    expect(css).toContain("background: transparent");
     expect(css).toContain(".switch-it-logo--hero");
     expect(css).toContain(".switch-it-logo--auth");
     expect(css).toContain(".switch-it-logo--nav");

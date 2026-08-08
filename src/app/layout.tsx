@@ -7,6 +7,7 @@ import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 import {
   IOS_STARTUP_FALLBACK,
   IOS_STARTUP_IMAGES,
+  iosStartupAppleWebAppImages,
 } from "@/lib/pwa/ios-startup";
 import "./globals.css";
 
@@ -31,13 +32,18 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Switch It",
-    statusBarStyle: "default",
+    // Translucent so Dark Mode cannot paint a black status-bar chrome over the splash.
+    statusBarStyle: "black-translucent",
+    startupImage: iosStartupAppleWebAppImages(),
   },
   formatDetection: {
     telephone: false,
   },
   other: {
-    "color-scheme": "light only",
+    "apple-mobile-web-app-capable": "yes",
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "color-scheme": "only light",
     "supported-color-schemes": "light",
   },
 };
@@ -69,12 +75,31 @@ export default function RootLayout({
         {/* Critical first-paint color before CSS bundle — Dark Mode must not paint black. */}
         <style
           dangerouslySetInnerHTML={{
-            __html: `html,body{background:${PWA_BACKGROUND_COLOR}!important;background-color:${PWA_BACKGROUND_COLOR}!important;color-scheme:only light;}`,
+            __html: `html,body,:root{background:${PWA_BACKGROUND_COLOR}!important;background-color:${PWA_BACKGROUND_COLOR}!important;color-scheme: only light!important;}@media (prefers-color-scheme:dark){html,body,:root{background:${PWA_BACKGROUND_COLOR}!important;background-color:${PWA_BACKGROUND_COLOR}!important;color-scheme: only light!important;}}`,
           }}
+        />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta
+          name="apple-mobile-web-app-status-bar-style"
+          content="black-translucent"
+        />
+        <meta name="theme-color" content={PWA_BACKGROUND_COLOR} />
+        <meta
+          name="theme-color"
+          media="(prefers-color-scheme: light)"
+          content={PWA_BACKGROUND_COLOR}
+        />
+        <meta
+          name="theme-color"
+          media="(prefers-color-scheme: dark)"
+          content={PWA_BACKGROUND_COLOR}
         />
         {/*
           iOS launch images: specific media queries first, unqualified fallback last.
           iOS uses the first match; a no-media link first would shadow every size.
+          Also declared via appleWebApp.startupImage — explicit links remain because
+          iOS snapshots these at Add to Home Screen and ignores manifest splash.
         */}
         {IOS_STARTUP_IMAGES.map((image) => (
           <link
@@ -91,7 +116,7 @@ export default function RootLayout({
       </head>
       <body
         className="flex min-h-dvh flex-col bg-background text-foreground"
-        style={{ backgroundColor: PWA_BACKGROUND_COLOR }}
+        style={{ backgroundColor: PWA_BACKGROUND_COLOR, colorScheme: "only light" }}
       >
         <AppFeedbackRoot>{children}</AppFeedbackRoot>
         <ServiceWorkerRegistration />

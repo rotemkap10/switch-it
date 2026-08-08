@@ -20,7 +20,9 @@ describe("PWA / first-paint color continuity", () => {
     expect(layout).toContain("PWA_BACKGROUND_COLOR");
     expect(layout).toContain("backgroundColor: PWA_BACKGROUND_COLOR");
     expect(layout).toContain("colorScheme: \"light\"");
-    expect(layout).toContain("color-scheme:only light");
+    expect(layout).toContain("color-scheme: only light");
+    expect(layout).toContain("apple-mobile-web-app-capable");
+    expect(layout).toContain("black-translucent");
     expect(layout).toContain("supported-color-schemes");
     expect(layout).toContain("apple-touch-startup-image");
     expect(layout).toContain("IOS_STARTUP_FALLBACK");

@@ -1,8 +1,16 @@
 import Image from "next/image";
 
-export const SWITCH_IT_LOGO_SRC = "/branding/switch-it-logo.png";
-export const SWITCH_IT_LOGO_WIDTH = 1254;
-export const SWITCH_IT_LOGO_HEIGHT = 1254;
+import {
+  SWITCH_IT_LOGO_HEIGHT,
+  SWITCH_IT_LOGO_SRC,
+  SWITCH_IT_LOGO_WIDTH,
+} from "@/lib/branding/logo-asset";
+
+export {
+  SWITCH_IT_LOGO_HEIGHT,
+  SWITCH_IT_LOGO_SRC,
+  SWITCH_IT_LOGO_WIDTH,
+} from "@/lib/branding/logo-asset";
 
 export type LogoVariant = "hero" | "auth" | "nav" | "splash";
 
@@ -17,7 +25,7 @@ const VARIANT_SIZES: Record<LogoVariant, string> = {
   hero: "(min-width: 1024px) 28rem, (min-width: 640px) 22rem, 16.5rem",
   auth: "(min-width: 640px) 16rem, 13.5rem",
   nav: "8rem",
-  splash: "14rem",
+  splash: "80vw",
 };
 
 type LogoProps = {
@@ -45,6 +53,7 @@ export function Logo({
       width={SWITCH_IT_LOGO_WIDTH}
       height={SWITCH_IT_LOGO_HEIGHT}
       priority={eager}
+      unoptimized={variant === "splash"}
       sizes={VARIANT_SIZES[variant]}
       className={[VARIANT_CLASS[variant], className].filter(Boolean).join(" ")}
     />

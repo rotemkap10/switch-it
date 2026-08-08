@@ -4,6 +4,24 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: "/pwa/startup/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/branding/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=3600, must-revalidate",
+          },
+        ],
+      },
+      {
         source: "/sw.js",
         headers: [
           {

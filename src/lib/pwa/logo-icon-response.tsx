@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
+import { containedLogoSize } from "@/lib/branding/logo-asset";
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 
 function logoDataUri(): string {
@@ -12,9 +13,13 @@ function logoDataUri(): string {
   return `data:image/png;base64,${bytes.toString("base64")}`;
 }
 
-/** Official Switch It logo, scaled into a square icon canvas. */
+/** Official Switch It lockup, contained on the light brand square. */
 export function logoIconResponse(size: number): ImageResponse {
   const src = logoDataUri();
+  const { width, height } = containedLogoSize(
+    Math.round(size * 0.86),
+    Math.round(size * 0.86),
+  );
 
   return new ImageResponse(
     (
@@ -30,7 +35,7 @@ export function logoIconResponse(size: number): ImageResponse {
       >
         {/* ImageResponse requires img; this is the official PNG, not a recreation. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} width={size} height={size} alt="" />
+        <img src={src} width={width} height={height} alt="" />
       </div>
     ),
     { width: size, height: size },

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 import {
   allIosStartupHrefs,
+  iosStartupLogoCssPx,
   IOS_STARTUP_FALLBACK,
   IOS_STARTUP_IMAGES,
   iosStartupAppleWebAppImages,
@@ -17,26 +18,46 @@ function pngSignature(path: string) {
 }
 
 describe("iOS startup images", () => {
-  it("declares portrait launch sizes with exact device media queries", () => {
-    expect(IOS_STARTUP_IMAGES.length).toBeGreaterThanOrEqual(8);
+  it("declares launch sizes with exact device media queries", () => {
+    expect(IOS_STARTUP_IMAGES.length).toBeGreaterThanOrEqual(20);
     for (const image of IOS_STARTUP_IMAGES) {
-      expect(image.width).toBe(image.cssWidth * image.scale);
-      expect(image.height).toBe(image.cssHeight * image.scale);
       expect(image.href).toBe(`/pwa/startup/${image.fileName}`);
       expect(image.media).toContain(`device-width: ${image.cssWidth}px`);
       expect(image.media).toContain(`device-height: ${image.cssHeight}px`);
       expect(image.media).toContain(`-webkit-device-pixel-ratio: ${image.scale}`);
-      expect(image.media).toContain("orientation: portrait");
+      expect(image.media).toContain(`orientation: ${image.orientation}`);
       expect(image.devices.length).toBeGreaterThan(0);
+      if (image.orientation === "portrait") {
+        expect(image.width).toBe(image.cssWidth * image.scale);
+        expect(image.height).toBe(image.cssHeight * image.scale);
+      } else {
+        expect(image.width).toBe(image.cssHeight * image.scale);
+        expect(image.height).toBe(image.cssWidth * image.scale);
+      }
     }
   });
 
-  it("covers current common iPhone CSS sizes", () => {
-    const keys = IOS_STARTUP_IMAGES.map(
+  it("sizes the logo at ~72% of the shorter viewport side", () => {
+    expect(iosStartupLogoCssPx(390, 844)).toBe(281);
+    expect(iosStartupLogoCssPx(852, 393)).toBe(283);
+  });
+
+  it("covers current common iPhone CSS sizes in portrait and landscape", () => {
+    const portrait = IOS_STARTUP_IMAGES.filter(
+      (image) => image.orientation === "portrait",
+    );
+    const landscape = IOS_STARTUP_IMAGES.filter(
+      (image) => image.orientation === "landscape",
+    );
+    expect(portrait.length).toBe(landscape.length);
+    expect(portrait.length).toBeGreaterThanOrEqual(10);
+
+    const keys = portrait.map(
       (image) => `${image.cssWidth}x${image.cssHeight}@${image.scale}`,
     );
     expect(keys).toEqual(
       expect.arrayContaining([
+        "320x568@2",
         "375x667@2",
         "390x844@3",
         "393x852@3",
@@ -45,6 +66,13 @@ describe("iOS startup images", () => {
         "440x956@3",
       ]),
     );
+
+    const landscapeSample = landscape.find(
+      (image) => image.cssWidth === 393 && image.cssHeight === 852,
+    );
+    expect(landscapeSample?.width).toBe(852 * 3);
+    expect(landscapeSample?.height).toBe(393 * 3);
+    expect(landscapeSample?.media).toContain("orientation: landscape");
   });
 
   it("declares an unqualified portrait fallback with no media query", () => {
@@ -84,6 +112,7 @@ describe("iOS startup images", () => {
     );
     expect(markup).toContain("public/branding/switch-it-logo.png");
     expect(markup).toContain("PWA_BACKGROUND_COLOR");
+    expect(markup).toContain("containedLogoSize");
     expect(markup).not.toMatch(/https?:\/\//);
   });
 });
@@ -101,9 +130,11 @@ describe("root layout iOS launch metadata", () => {
     expect(layout.indexOf("IOS_STARTUP_IMAGES.map")).toBeLessThan(
       layout.indexOf("IOS_STARTUP_FALLBACK.href"),
     );
-    expect(layout).toContain("color-scheme:only light");
+    expect(layout).toContain("color-scheme: only light");
     expect(layout).toContain('"supported-color-schemes": "light"');
-    expect(layout).toContain('statusBarStyle: "default"');
+    expect(layout).toContain('statusBarStyle: "black-translucent"');
+    expect(layout).toContain('apple-mobile-web-app-capable');
+    expect(layout).toContain('content="yes"');
   });
 
   it("uses the light brand fill for theme-color in light and dark schemes", () => {

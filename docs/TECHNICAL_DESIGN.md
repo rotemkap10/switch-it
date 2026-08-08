@@ -964,16 +964,19 @@ Supabase project
   so Chromium/iOS chrome cannot flash a dark/black frame before first paint.
 - **Icons:** ImageResponse routes (`/icon`, `/apple-icon`, `/pwa/icon-192`,
   `/pwa/icon-512`, `/pwa/icon-512-maskable`) using the official logo
-  (`public/branding/switch-it-logo.png`). Launch/splash background `#dff4ff`.
+  (`public/branding/switch-it-logo.png`, transparent cropped lockup).
+  Launch/splash background `#dff4ff`.
 - **iOS launch screen:** static `apple-touch-startup-image` PNGs in
-  `public/pwa/startup/` (portrait sizes in `src/lib/pwa/ios-startup.ts`).
-  HTML order: device-specific media queries **first**, then an unqualified
-  fallback `/pwa/startup/iphone-portrait-fallback.png` (**last**, no `media`).
-  iOS uses the first match; without a no-media fallback, unmatched devices
-  (new iPhones, Display Zoom) show a black frame. Same lockup as AppLaunchShell
-  (`#dff4ff`, centered official logo). OS-cached at Add to Home Screen —
-  not JS/React. After changing startup assets, **delete and re-add** the Home
-  Screen icon. Regenerate with `npm run generate:ios-startup`.
+  `public/pwa/startup/` (portrait **and** landscape sizes in
+  `src/lib/pwa/ios-startup.ts`). HTML order: device-specific media queries
+  **first**, then an unqualified fallback `/pwa/startup/iphone-portrait-fallback.png`
+  (**last**, no `media`). iOS uses the first match; unmatched devices (new
+  iPhones, Display Zoom) otherwise show a black frame. Same lockup as
+  AppLaunchShell (`#dff4ff`, centered official logo ~72% of the shorter side).
+  Requires `apple-mobile-web-app-capable=yes` and
+  `apple-mobile-web-app-status-bar-style=black-translucent`. OS-cached at Add
+  to Home Screen — not JS/React. After changing startup assets, **delete and
+  re-add** the Home Screen icon. Regenerate with `npm run generate:ios-startup`.
 - **In-app splash:** `AppLaunchShell` stays until `InitialShellReadyMarker`
   (authenticated ModeGate ready, or auth/landing/offline page mount) — not
   merely `document.load`. Safety max 12s. Reduced motion: splash still shows,
@@ -986,9 +989,9 @@ Supabase project
   is available or on iOS Safari (Add to Home Screen instruction sheet). Hidden in
   standalone mode and during SSR unknown state. No automatic install banners.
 - **Service worker:** `public/sw.js`, scope `/`, registered in production only
-  (`updateViaCache: none`). Precache allowlist: `/offline` + local PWA icon routes
-  only. Navigation network failure → cached `/offline`. Does **not** cache auth
-  HTML, RSC, Supabase, MapTiler, or POST requests.
+  (`updateViaCache: none`). Precache allowlist: `/offline`, official logo PNG,
+  and local PWA icon routes. Navigation network failure → cached `/offline`.
+  Does **not** cache auth HTML, RSC, Supabase, MapTiler, or POST requests.
 - **Offline limitations:** no parking data, maps, or forms offline — reconnect
   required for live handoffs.
 - **Proxy exclusions:** `sw.js`, `manifest.webmanifest`, `/offline`, `/pwa/*` bypass
