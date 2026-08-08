@@ -36,7 +36,7 @@ describe("VehicleIdentityCard", () => {
     render(<VehicleIdentityCard vehicle={completeVehicle} />);
 
     expect(screen.getByTestId("vehicle-identity-card")).toBeInTheDocument();
-    expect(screen.getByText("White SUV")).toBeInTheDocument();
+    expect(screen.getByText("White · 123-45-678")).toBeInTheDocument();
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
     expect(screen.getByText("123-45-678")).toBeInTheDocument();
     expect(screen.getByTestId("vehicle-identity-plate")).toHaveClass(
@@ -71,13 +71,27 @@ describe("VehicleIdentityCard", () => {
     ).toHaveClass("sr-only");
   });
 
-  it("shows the representative illustration note when requested", () => {
+  it("does not show representative illustration copy", () => {
+    render(<VehicleIdentityCard vehicle={completeVehicle} />);
+
+    expect(
+      screen.queryByText("Vehicle illustration is representative."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("title-cases stored make and model for display only", () => {
     render(
-      <VehicleIdentityCard vehicle={completeVehicle} showRepresentativeNote />,
+      <VehicleIdentityCard
+        vehicle={{
+          ...completeVehicle,
+          make: "toyota",
+          model: "corola",
+        }}
+      />,
     );
 
-    expect(screen.getByTestId("vehicle-representative-note")).toHaveTextContent(
-      "Vehicle illustration is representative.",
+    expect(screen.getByTestId("vehicle-identity-make-model")).toHaveTextContent(
+      "Toyota Corola",
     );
   });
 

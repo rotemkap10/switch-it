@@ -25,18 +25,12 @@ function formatWaitingMinutes(ms: number): number {
   return Math.max(1, Math.ceil(ms / 60_000));
 }
 
-function waitingCopy(role: "publisher" | "seeker", minutes: number): string {
-  if (role === "publisher") {
-    return `Your spot will be ready in ${minutes} min`;
-  }
-  return `The spot should be ready in ${minutes} min`;
+function waitingCopy(_role: "publisher" | "seeker", minutes: number): string {
+  return `Ready in ${minutes} min`;
 }
 
-function windowCopy(role: "publisher" | "seeker", clock: string): string {
-  if (role === "publisher") {
-    return `Waiting for driver · ${clock} left`;
-  }
-  return `Complete the handoff · ${clock} left`;
+function windowCopy(_role: "publisher" | "seeker", clock: string): string {
+  return `${clock} left`;
 }
 
 function resolvePhase(

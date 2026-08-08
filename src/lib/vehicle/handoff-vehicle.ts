@@ -69,6 +69,16 @@ export function isCompleteHandoffVehicle(vehicle: HandoffVehicle): boolean {
   );
 }
 
+/** Presentation-only title case. Does not mutate stored vehicle strings. */
+export function formatVehicleNameForDisplay(value: string): string {
+  return value
+    .trim()
+    .split(/\s+/)
+    .filter((part) => part.length > 0)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export function handoffVehicleAccessibleLabel(vehicle: HandoffVehicle): string {
   if (!isCompleteHandoffVehicle(vehicle)) {
     return "Vehicle details not added yet";

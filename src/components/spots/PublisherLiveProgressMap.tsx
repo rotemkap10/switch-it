@@ -73,7 +73,6 @@ export function PublisherLiveProgressMap({
   parkingLongitude,
   seekerLocation,
   statusLabel,
-  updatedLabel,
   expanded = false,
   onExpandedChange,
 }: PublisherLiveProgressMapProps) {
@@ -259,7 +258,6 @@ export function PublisherLiveProgressMap({
         <p className="text-sm text-foreground" aria-live="polite">
           {statusLabel}
         </p>
-        <p className="text-xs text-muted">{updatedLabel}</p>
       </div>
 
       <div
@@ -267,7 +265,7 @@ export function PublisherLiveProgressMap({
           "relative w-full overflow-hidden rounded-[var(--radius-card)] border border-border",
           shellClass,
         ].join(" ")}
-        aria-label={`${statusLabel}. ${updatedLabel}`}
+        aria-label={statusLabel}
         data-testid="publisher-live-progress-map"
       >
         <BaseMap

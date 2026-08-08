@@ -1,23 +1,19 @@
-import { SwitchItLogoMark } from "@/components/brand/SwitchItLogoMark";
+import { Logo } from "@/components/branding/Logo";
 
 type AuthBrandProps = {
   className?: string;
-  /** Mark size in px; wordmark scales via CSS. */
-  markSize?: number;
 };
 
 /**
- * Entry/auth brand lockup: Switch It app icon + wordmark.
- * Reuses the same vector mark as PWA icons (`SwitchItLogoMark` / `AppIconMarkup`).
+ * Auth/onboarding brand lockup: official Switch It logo above the form.
  */
-export function AuthBrand({ className = "", markSize = 40 }: AuthBrandProps) {
+export function AuthBrand({ className = "" }: AuthBrandProps) {
   return (
     <div
       className={["auth-brand", className].filter(Boolean).join(" ")}
       data-testid="auth-brand"
     >
-      <SwitchItLogoMark size={markSize} className="auth-brand__mark" />
-      <span className="auth-brand__wordmark">Switch It</span>
+      <Logo variant="auth" />
     </div>
   );
 }

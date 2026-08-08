@@ -23,7 +23,8 @@ export type SeekerShareUiState =
   | "sharing"
   | "paused"
   | "unavailable"
-  | "denied";
+  | "denied"
+  | "off";
 
 type UseSeekerLiveLocationShareOptions = {
   claimId: string;
@@ -51,9 +52,7 @@ export function useSeekerLiveLocationShare({
   spotExpiresAtIso,
   enabled,
 }: UseSeekerLiveLocationShareOptions) {
-  const [uiState, setUiState] = useState<SeekerShareUiState>(() =>
-    enabled ? "prompt" : "idle",
-  );
+  const [uiState, setUiState] = useState<SeekerShareUiState>("idle");
   const [resumedOnce, setResumedOnce] = useState(false);
 
   const watchIdRef = useRef<number | null>(null);
@@ -72,6 +71,7 @@ export function useSeekerLiveLocationShare({
   const claimIdRef = useRef(claimId);
   const expiresAtRef = useRef(spotExpiresAtIso);
   const terminalRef = useRef(false);
+  const uiEpochRef = useRef(0);
 
   useEffect(() => {
     claimIdRef.current = claimId;
@@ -96,7 +96,7 @@ export function useSeekerLiveLocationShare({
   }, []);
 
   const shutdown = useCallback(
-    async (next: SeekerShareUiState = "prompt") => {
+    async (next: SeekerShareUiState = "off") => {
       sharingEnabledRef.current = false;
       clearWatch();
       lastSentRef.current = null;
@@ -143,7 +143,7 @@ export function useSeekerLiveLocationShare({
       }
       if (new Date(expiresAtRef.current).getTime() <= Date.now()) {
         terminalRef.current = true;
-        await shutdown("prompt");
+        await shutdown("off");
         return;
       }
 
@@ -279,6 +279,7 @@ export function useSeekerLiveLocationShare({
     if (!enabled || terminalRef.current) {
       return;
     }
+    uiEpochRef.current += 1;
     if (new Date(expiresAtRef.current).getTime() <= Date.now()) {
       return;
     }
@@ -287,20 +288,23 @@ export function useSeekerLiveLocationShare({
       return;
     }
 
-    const joined = await ensureChannel();
-    if (!joined) {
-      setUiState("unavailable");
-      return;
-    }
-
+    // Start watch in this turn so iOS can still treat it as a user gesture.
     sharingEnabledRef.current = true;
     setUiState("sharing");
     startWatch();
-  }, [enabled, ensureChannel, startWatch]);
+
+    const joined = await ensureChannel();
+    if (!joined) {
+      sharingEnabledRef.current = false;
+      clearWatch();
+      setUiState("unavailable");
+    }
+  }, [clearWatch, enabled, ensureChannel, startWatch]);
 
   const stopSharing = useCallback(async () => {
+    uiEpochRef.current += 1;
     await sendStatus("stopped");
-    await shutdown("prompt");
+    await shutdown("off");
   }, [sendStatus, shutdown]);
 
   /**
@@ -309,6 +313,7 @@ export function useSeekerLiveLocationShare({
    */
   const forceStop = useCallback(() => {
     terminalRef.current = true;
+    uiEpochRef.current += 1;
     void (async () => {
       await sendStatus("stopped");
       await shutdown("idle");
@@ -360,8 +365,12 @@ export function useSeekerLiveLocationShare({
     sharingEnabledRef.current = false;
     clearWatch();
     void leaveChannel();
+    const epoch = ++uiEpochRef.current;
     const id = window.setTimeout(() => {
-      setUiState(enabled ? "prompt" : "idle");
+      if (uiEpochRef.current !== epoch) {
+        return;
+      }
+      setUiState("idle");
       setResumedOnce(false);
     }, 0);
     return () => {

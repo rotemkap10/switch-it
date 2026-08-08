@@ -31,13 +31,13 @@ export function liveLocationStatusLabel(
 ): string {
   switch (freshness) {
     case "waiting":
-      return "Waiting for live location";
+      return "Waiting for location";
     case "live":
-      return "Live location";
+      return "Live";
     case "delayed":
-      return "Location may be delayed";
+      return "Delayed";
     case "paused":
-      return "Live location paused";
+      return "Paused";
   }
 }
 
@@ -48,7 +48,7 @@ export function liveLocationUpdatedLabel(
   nowMs: number = Date.now(),
 ): string {
   if (freshness === "waiting" || lastReceivedAtMs === null) {
-    return "The driver can choose to share their progress.";
+    return "Waiting";
   }
   if (freshness === "live") {
     return "Updated just now";

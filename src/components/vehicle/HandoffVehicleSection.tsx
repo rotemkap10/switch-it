@@ -7,13 +7,11 @@ import {
   isCompleteHandoffVehicle,
   type HandoffVehicle,
 } from "@/lib/vehicle/handoff-vehicle";
-import { formatOwnVehicleReciprocalLine } from "@/lib/vehicle/reciprocal-line";
 
 type HandoffVehicleSectionProps = {
   title: string;
   helper?: string;
   vehicle: HandoffVehicle;
-  /** Viewer's own vehicle for the reciprocal recognition line. */
   ownVehicle?: HandoffVehicle | null;
   showRepresentativeNote?: boolean;
   /** When set, plays the approach animation once per browser session. */
@@ -24,16 +22,12 @@ export function HandoffVehicleSection({
   title,
   helper,
   vehicle,
-  ownVehicle = null,
-  showRepresentativeNote = false,
   approachAnimationKey,
 }: HandoffVehicleSectionProps) {
   const shouldAnimate = useSessionHandoffAnimation(approachAnimationKey ?? "");
   const complete = isCompleteHandoffVehicle(vehicle);
   const showAnimation =
     !!approachAnimationKey && complete && shouldAnimate;
-  const reciprocal =
-    ownVehicle != null ? formatOwnVehicleReciprocalLine(ownVehicle) : null;
 
   return (
     <section
@@ -54,18 +48,7 @@ export function HandoffVehicleSection({
               vehicleColor={vehicle.color!}
             />
           ) : null}
-          <VehicleIdentityCard
-            vehicle={vehicle}
-            showRepresentativeNote={showRepresentativeNote}
-          />
-          {reciprocal ? (
-            <p
-              className="text-xs leading-5 text-muted"
-              data-testid="handoff-reciprocal-line"
-            >
-              {reciprocal}
-            </p>
-          ) : null}
+          <VehicleIdentityCard vehicle={vehicle} />
         </>
       ) : (
         <p

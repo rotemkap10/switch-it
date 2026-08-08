@@ -1,12 +1,5 @@
-import { ImageResponse } from "next/og";
-
-import { AppIconMarkup } from "@/lib/pwa/app-icon-markup";
-
-export const runtime = "edge";
+import { logoIconResponse } from "@/lib/pwa/logo-icon-response";
 
 export async function GET() {
-  return new ImageResponse(<AppIconMarkup size={512} maskable />, {
-    width: 512,
-    height: 512,
-  });
+  return logoIconResponse(512);
 }

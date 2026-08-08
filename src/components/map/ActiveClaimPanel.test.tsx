@@ -32,7 +32,7 @@ vi.mock("@/components/map/CompleteHandoffForm", () => ({
   }) => (
     <form data-testid="complete-handoff-form" data-claim-id={claimId}>
       <button type="button" onClick={() => onCompleted?.()}>
-        Verify and complete
+        Complete handoff
       </button>
     </form>
   ),
@@ -44,14 +44,18 @@ vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
   ),
 }));
 
-const forceStopMock = vi.fn();
+const { forceStopMock, startSharingMock, stopSharingMock } = vi.hoisted(() => ({
+  forceStopMock: vi.fn(),
+  startSharingMock: vi.fn(),
+  stopSharingMock: vi.fn(),
+}));
 
 vi.mock("@/lib/location/use-seeker-live-location-share", () => ({
   useSeekerLiveLocationShare: () => ({
-    uiState: "prompt",
+    uiState: "idle",
     resumedOnce: false,
-    startSharing: vi.fn(),
-    stopSharing: vi.fn(),
+    startSharing: startSharingMock,
+    stopSharing: stopSharingMock,
     forceStop: forceStopMock,
   }),
 }));
@@ -67,6 +71,7 @@ import {
 } from "@/components/map/ActiveClaimPanel";
 import { PostClaimNavigationProvider } from "@/components/map/PostClaimNavigationProvider";
 import { resetSessionHandoffAnimationForTests } from "@/components/vehicle/useSessionHandoffAnimation";
+import { resetSeekerLiveLocationIntentForTests } from "@/lib/location/seeker-live-location-intent";
 import {
   offerPostClaimNavigation,
   resetPostClaimNavigationForTests,
@@ -123,9 +128,12 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   beforeEach(() => {
     forceStopMock.mockReset();
+    startSharingMock.mockReset();
+    stopSharingMock.mockReset();
     sessionStore.clear();
     resetSessionHandoffAnimationForTests();
     resetPostClaimNavigationForTests();
+    resetSeekerLiveLocationIntentForTests();
     vi.stubGlobal("sessionStorage", {
       getItem: (key: string) => sessionStore.get(key) ?? null,
       setItem: (key: string, value: string) => {
@@ -155,7 +163,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
   });
 
-  it("uses keyboard-safe expanded sheet classes with sticky completion actions", () => {
+  it("uses keyboard-safe expanded sheet classes without overlapping sticky actions", () => {
     renderPanel(
       <ActiveClaimPanel
         claim={claim}
@@ -176,17 +184,28 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(host.className).toContain("map-bottom-sheet-host");
     expect(host.className).toContain("map-bottom-sheet-host--claim");
 
-    expect(screen.getByTestId("seeker-share-location")).toBeInTheDocument();
-    expect(screen.getByText("Share your live location")).toBeInTheDocument();
+    expect(screen.queryByText("Share your live location")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Share live location" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Share live location" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Not now" })).not.toBeInTheDocument();
 
-    expect(screen.getByTestId("active-claim-sticky-actions")).toBeInTheDocument();
+    expect(screen.getByTestId("active-claim-complete-actions")).toBeInTheDocument();
     expect(screen.getByTestId("complete-handoff-form")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Verify and complete" }),
+      screen.getByRole("button", { name: "Complete handoff" }),
     ).toBeInTheDocument();
+    expect(screen.getAllByText("Look for this vehicle")).toHaveLength(1);
+    expect(
+      screen.queryByText(
+        "Meet the other driver before they pull away so you can take the spot smoothly.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        /You can still complete the handoff using navigation/i,
+      ),
+    ).not.toBeInTheDocument();
   });
 
   it("uses collapsed sheet class without verification UI", async () => {
@@ -207,7 +226,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       "map-bottom-sheet--claim-collapsed",
     );
     expect(
-      screen.queryByTestId("active-claim-sticky-actions"),
+      screen.queryByTestId("active-claim-complete-actions"),
     ).not.toBeInTheDocument();
   });
 
@@ -226,16 +245,18 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.getByRole("button", { name: /Collapse claim details/i }),
     ).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByRole("button", { name: "Open in" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Verify and complete" }),
+      screen.getByRole("button", { name: "Open navigation" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Complete handoff" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
   });
 
-  it("keeps Open in available when collapsed and hides complete/cancel", async () => {
+  it("keeps Open navigation available when collapsed and hides complete/cancel", async () => {
     const user = userEvent.setup();
     renderPanel(
       <ActiveClaimPanel
@@ -252,9 +273,11 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.getByRole("button", { name: /Expand claim details/i }),
     ).toHaveAttribute("aria-expanded", "false");
-    expect(screen.getByRole("button", { name: "Open in" })).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Verify and complete" }),
+      screen.getByRole("button", { name: "Open navigation" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Complete handoff" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Release spot" }),
@@ -279,7 +302,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Verify and complete" }),
+      screen.getByRole("button", { name: "Complete handoff" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
@@ -328,7 +351,9 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.getByRole("region", { name: "Rothschild Blvd 1" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open in" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open navigation" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Release spot" }),
     ).not.toBeInTheDocument();
@@ -340,7 +365,9 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open in" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open navigation" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
@@ -359,14 +386,21 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     const sheet = screen.getByTestId("navigation-provider-sheet");
-    expect(within(sheet).getByText("Spot claimed")).toBeInTheDocument();
+    expect(within(sheet).getByText("Open in")).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: "Waze" })).toBeInTheDocument();
+    expect(
+      within(sheet).getByText(
+        "Live location is shared with the other driver during the handoff.",
+      ),
+    ).toBeInTheDocument();
 
-    await user.click(within(sheet).getByRole("button", { name: "Cancel" }));
+    await user.click(within(sheet).getByRole("button", { name: "Dismiss" }));
 
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
     expect(screen.getByTestId("active-claim-sheet")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open in" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open navigation" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
@@ -377,13 +411,13 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(forceStopMock).not.toHaveBeenCalled();
   });
 
-  it("shows Open in for a valid destination and opens the action sheet", async () => {
+  it("shows Open navigation for a valid destination and opens the action sheet", async () => {
     const user = userEvent.setup();
     renderPanel(
       <ActiveClaimPanel claim={claim} destination={destination} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Open in" }));
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("Open in")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Waze" })).toBeInTheDocument();
@@ -393,7 +427,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       within(dialog).getByRole("button", { name: "Apple Maps" }),
     ).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
 
     const labels = within(dialog)
       .getAllByRole("button")
@@ -401,12 +435,12 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(labels.slice(0, 3)).toEqual(["Waze", "Google Maps", "Apple Maps"]);
   });
 
-  it("hides Open in when destination coordinates are missing or invalid", () => {
+  it("hides Open navigation when destination coordinates are missing or invalid", () => {
     const { rerender } = renderPanel(
       <ActiveClaimPanel claim={claim} destination={null} />,
     );
     expect(
-      screen.queryByRole("button", { name: "Open in" }),
+      screen.queryByRole("button", { name: "Open navigation" }),
     ).not.toBeInTheDocument();
 
     rerender(
@@ -416,16 +450,16 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
     expect(
-      screen.queryByRole("button", { name: "Open in" }),
+      screen.queryByRole("button", { name: "Open navigation" }),
     ).not.toBeInTheDocument();
   });
 
-  it("opens Waze with the claimed destination and unchanged payload semantics", async () => {
+  it("opens Waze, starts live location, and switches to a compact change action", async () => {
     const user = userEvent.setup();
     const openSpy = vi.mocked(window.open);
     renderPanel(<ActiveClaimPanel claim={claim} destination={destination} />);
 
-    await user.click(screen.getByRole("button", { name: "Open in" }));
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
     await user.click(screen.getByRole("button", { name: "Waze" }));
 
     expect(openSpy).toHaveBeenCalledWith(
@@ -433,7 +467,17 @@ describe("ActiveClaimPanel sheet UX", () => {
       "_blank",
       "noopener,noreferrer",
     );
+    expect(startSharingMock).toHaveBeenCalled();
     expect(forceStopMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Waze · Change" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open in" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Waze · Change" }));
+    expect(screen.getByTestId("navigation-provider-sheet")).toBeInTheDocument();
   });
 
   it("preserves claim ids on complete and cancel actions", () => {
@@ -465,13 +509,13 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
 
-    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
+    expect(screen.getAllByText("Look for this vehicle")).toHaveLength(1);
     expect(
-      screen.getByText(
+      screen.queryByText(
         "Meet the other driver before they pull away so you can take the spot smoothly.",
       ),
-    ).toBeInTheDocument();
-    expect(screen.getByText("White SUV")).toBeInTheDocument();
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("White · 12-345-67")).toBeInTheDocument();
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
     expect(screen.getByText("12-345-67")).toBeInTheDocument();
     expect(screen.getByTestId("handoff-vehicle-animation")).toBeInTheDocument();
@@ -481,9 +525,9 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
-    expect(screen.queryByText("White SUV")).not.toBeInTheDocument();
+    expect(screen.queryByText("White · 12-345-67")).not.toBeInTheDocument();
     expect(screen.getByTestId("active-claim-compact-vehicle")).toHaveTextContent(
-      "White SUV · 12-345-67",
+      "Hyundai Tucson · White · 12-345-67",
     );
     expect(
       screen.queryByTestId("handoff-vehicle-animation"),
@@ -513,8 +557,10 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.queryByTestId("handoff-vehicle-animation"),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("White SUV")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open in" })).toBeInTheDocument();
+    expect(screen.getByText("White · 12-345-67")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open navigation" }),
+    ).toBeInTheDocument();
     expect(screen.getByTestId("complete-handoff-form")).toBeInTheDocument();
   });
 
@@ -568,7 +614,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Verify and complete" }),
+      screen.getByRole("button", { name: "Complete handoff" }),
     );
     expect(forceStopMock).toHaveBeenCalled();
 
@@ -588,7 +634,7 @@ describe("active claim experience gating", () => {
       screen.queryByRole("region", { name: "Rothschild Blvd 1" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Open in" }),
+      screen.queryByRole("button", { name: "Open navigation" }),
     ).not.toBeInTheDocument();
   });
 });

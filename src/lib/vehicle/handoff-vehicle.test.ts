@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatVehicleNameForDisplay,
   handoffVehicleAccessibleLabel,
   isCompleteHandoffVehicle,
   mapHandoffVehicleRow,
@@ -95,6 +96,15 @@ describe("handoffVehicleAccessibleLabel", () => {
         type: null,
       }),
     ).toBe("Vehicle details not added yet");
+  });
+});
+
+describe("formatVehicleNameForDisplay", () => {
+  it("title-cases stored make and model without mutating input", () => {
+    expect(formatVehicleNameForDisplay("toyota corola")).toBe("Toyota Corola");
+    expect(formatVehicleNameForDisplay("  HYUNDAI   tucson ")).toBe(
+      "Hyundai Tucson",
+    );
   });
 });
 

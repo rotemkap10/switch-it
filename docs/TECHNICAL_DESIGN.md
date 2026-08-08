@@ -369,11 +369,15 @@ Application constants (window lengths) are validated in Zod and stored as
   survives `revalidatePath("/map")` / claim-subtree remount. Waze is first,
   then Google Maps, then Apple Maps; the user must tap a provider. Reloading /
   returning from Waze / an existing active claim does **not** auto-open.
-  **Open in** reopens the same sheet. Deep links (Waze `waze.com/ul`, Apple Maps
-  `maps.apple.com`, Google Maps `/maps/dir/?api=1`) use only claimed-spot
-  `latitude` / `longitude`. No Google Routes API, no origin, no stored provider
-  preference, no auto live location. Nearby users/cars are not rendered on the
-  map (deferred; privacy and minimalism).
+  After a provider tap, ephemeral in-memory UI state switches the sheet CTA to a
+  compact **Change** action (not DB / localStorage). The same tap starts
+  foreground live location (`watchPosition` in the gesture, then Realtime
+  channel). **Dismiss** keeps a compact **Open navigation** action. Deep links
+  (Waze `waze.com/ul`, Apple Maps `maps.apple.com`, Google Maps `/maps/dir/?api=1`)
+  use only claimed-spot `latitude` / `longitude`. No Google Routes API, no origin,
+  no stored provider preference, no background GPS while another app is
+  foregrounded. Nearby users/cars are not rendered on the map (deferred; privacy
+  and minimalism).
 
 ## 10. Authentication flow
 
@@ -959,15 +963,15 @@ Supabase project
   `background_color` and `theme_color` are both the light brand fill `#dff4ff`
   so Chromium/iOS chrome cannot flash a dark/black frame before first paint.
 - **Icons:** ImageResponse routes (`/icon`, `/apple-icon`, `/pwa/icon-192`,
-  `/pwa/icon-512`, `/pwa/icon-512-maskable`) using shared `AppIconMarkup`.
-  Icon tile `#55bff3`, launch/splash background `#dff4ff`.
+  `/pwa/icon-512`, `/pwa/icon-512-maskable`) using the official logo
+  (`public/branding/switch-it-logo.png`). Launch/splash background `#dff4ff`.
 - **iOS launch screen:** static `apple-touch-startup-image` PNGs in
   `public/pwa/startup/` (portrait sizes in `src/lib/pwa/ios-startup.ts`).
   HTML order: device-specific media queries **first**, then an unqualified
   fallback `/pwa/startup/iphone-portrait-fallback.png` (**last**, no `media`).
   iOS uses the first match; without a no-media fallback, unmatched devices
   (new iPhones, Display Zoom) show a black frame. Same lockup as AppLaunchShell
-  (`#dff4ff`, centered icon + “Switch It”). OS-cached at Add to Home Screen —
+  (`#dff4ff`, centered official logo). OS-cached at Add to Home Screen —
   not JS/React. After changing startup assets, **delete and re-add** the Home
   Screen icon. Regenerate with `npm run generate:ios-startup`.
 - **In-app splash:** `AppLaunchShell` stays until `InitialShellReadyMarker`

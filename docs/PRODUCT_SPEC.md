@@ -151,27 +151,28 @@ through existing server queries and RPCs.
    except during an active handoff (see business rules).
 
 During an active handoff, both participants see counterpart vehicle identity
-(type, color, make, model, formatted plate) via a participant-only RPC, plus a
-reciprocal line describing their own vehicle. Illustrations are representative;
-plate and text are authoritative.
+(illustration, make, model, color, formatted plate) via a participant-only RPC.
+Plate and text are authoritative.
 
-**Live location (Phase 9B — optional, foreground-only):** After claiming, the
-seeker may deliberately tap **Share live location** (opt-in only; no
-`watchPosition` before that tap). Helper copy explains that sharing helps the
-parking owner see them approaching and may make waiting more likely — without
-guaranteeing a wait. While Switch It is open and visible, a throttled private
-Broadcast updates the publisher’s progress map. Sharing is not required to
-**Open in**, complete, or cancel. Opening Waze / Google Maps / Apple Maps does
-**not** change live-location consent. Declining, inaccurate GPS, backgrounding, or
-stale updates never auto-cancel the claim. Publisher UI stays neutral
-(“Waiting for live location”) and never exposes permission-denied details.
-Consent is per claim and not remembered after reload. Coordinates are never
-stored in the database, local storage, caches, or analytics.
-Switch It does **not** provide turn-by-turn navigation or ETA. After claiming,
-the seeker may tap **Open in** and open the parking coordinates in Waze,
-Google Maps, or Apple Maps. No Google Routes API. Nearby users/cars are not
-shown on the map — only available spots and the relevant counterpart during
-an active handoff.
+**Live location (Phase 9B — foreground-only):** After claiming, the seeker sees
+an **Open in** chooser (Waze / Google Maps / Apple Maps). Choosing a provider
+opens external navigation and starts the existing foreground live-location
+share in the same tap (native geolocation permission if needed). There is no
+separate **Share live location / Not now** prompt. A one-line disclosure in the
+chooser states that live location is shared during the handoff. While Switch It
+is open and visible, a throttled private Broadcast updates the publisher’s
+progress map. iOS may suspend the PWA while another maps app is foregrounded;
+sharing pauses then and resumes when Switch It is visible again. Denied
+permission still opens navigation; the claim stays active and the seeker sees
+**Live location off**. The seeker can **Stop sharing**. Declining, inaccurate
+GPS, backgrounding, or stale updates never auto-cancel the claim. Publisher UI
+stays compact (**Waiting for location** / **Live** / **Paused**) and never
+exposes permission-denied details. Intent is per app session (not DB /
+localStorage). Coordinates are never stored in the database, local storage,
+caches, or analytics.
+Switch It does **not** provide turn-by-turn navigation or ETA. No Google Routes
+API. Nearby users/cars are not shown on the map — only available spots and the
+relevant counterpart during an active handoff.
 
 ### History
 
@@ -194,11 +195,10 @@ No maps, live locations, handoff codes, or counterpart personal data.
 4. Spot appears on the map for other users; the publisher sees a compact
    **Waiting for a driver** card (no map preview) until claimed, cancelled, or
    expired. After a seeker claims, the live handoff map is shown.
-5. Both sides see a countdown that answers what happens next:
-   before `available_at` (“Your spot will be ready in N min” /
-   “The spot should be ready in N min”), then during the waiting window
-   (“Waiting for driver · M:SS left” / “Complete the handoff · M:SS left”).
-   After expiry the UI transitions to a terminal state (no frozen 00:00).
+5. Both sides see a compact countdown:
+   before `available_at` (“Ready in N min”), then during the waiting window
+   (“M:SS left”). After expiry the UI transitions to a terminal state (no frozen
+   00:00).
 6. The publisher is **not** expected to wait five minutes automatically.
    Initial grace is **2 minutes**. During a claimed handoff after
    `available_at`, the publisher may tap **Wait N more min** (truthful
@@ -218,13 +218,14 @@ No maps, live locations, handoff codes, or counterpart personal data.
    to a phone-native SelectedSpotCard bottom sheet (Claim action), then returns
    to the carousel when closed.
 5. During an active claim, discovery UI (carousel, empty state, selected sheet)
-   is hidden; the claim sheet takes priority (collapsed Open in; expanded
-   vehicle + handoff completion). After a successful Claim, Switch It immediately
-   offers a navigation chooser once (Waze first, then Google Maps, then Apple
-   Maps) using the claimed spot’s exact latitude/longitude — not the display
-   address. The user must tap a provider; **Cancel** keeps the claim active.
-   **Open in** reopens the same chooser later. Navigation runs in the external
-   app; returning to Switch It leaves the active claim unchanged.
+   is hidden; the claim sheet takes priority. After a successful Claim, Switch It
+   immediately offers a navigation chooser once (Waze first, then Google Maps,
+   then Apple Maps) using the claimed spot’s exact latitude/longitude — not the
+   display address. The user must tap a provider; **Dismiss** keeps the claim
+   active. After a provider is chosen, a compact **Waze · Change** (or similar)
+   action reopens the same chooser. If dismissed, a compact **Open navigation**
+   action remains. Navigation runs in the external app; returning to Switch It
+   leaves the active claim unchanged.
 6. User may proceed to claim if eligible.
 
 ### 9.3a Installing Switch It (mobile)

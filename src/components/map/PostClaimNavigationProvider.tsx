@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { NavigationProviderSheet } from "@/components/map/NavigationProviderSheet";
+import { requestSeekerLiveLocationStart } from "@/lib/location/seeker-live-location-intent";
 import {
   logPostClaimNavigationDev,
   offerPostClaimNavigation as publishPostClaimNavigationOffer,
@@ -23,11 +24,14 @@ import {
   buildExternalNavigationLinks,
   isValidNavigationCoords,
   openExternalNavigationUrl,
+  type NavigationProviderId,
 } from "@/lib/map/navigation-urls";
 
 type NavigationSession = PostClaimNavigationOffer & {
   open: boolean;
   source: PostClaimNavigationSource;
+  providerSelected: boolean;
+  selectedProviderId: NavigationProviderId | null;
 };
 
 type PostClaimNavigationContextValue = {
@@ -57,7 +61,16 @@ export function PostClaimNavigationProvider({
           ? "navigation provider state opened"
           : "manual Open in opened",
       );
-      setSession({ ...offer, open: true, source });
+      setSession((current) => {
+        const sameClaim = current?.claimId === offer.claimId;
+        return {
+          ...offer,
+          open: true,
+          source,
+          providerSelected: sameClaim ? current.providerSelected : false,
+          selectedProviderId: sameClaim ? current.selectedProviderId : null,
+        };
+      });
     },
     [],
   );
@@ -68,12 +81,9 @@ export function PostClaimNavigationProvider({
     });
   }, [applyOffer]);
 
-  const offerFromUi = useCallback(
-    (offer: PostClaimNavigationOffer) => {
-      publishPostClaimNavigationOffer(offer);
-    },
-    [],
-  );
+  const offerFromUi = useCallback((offer: PostClaimNavigationOffer) => {
+    publishPostClaimNavigationOffer(offer);
+  }, []);
 
   const openManual = useCallback(
     (offer: PostClaimNavigationOffer) => {
@@ -86,6 +96,21 @@ export function PostClaimNavigationProvider({
     logPostClaimNavigationDev("navigation chooser closed");
     setSession((current) =>
       current ? { ...current, open: false, source: "manual" } : null,
+    );
+  }, []);
+
+  const selectProvider = useCallback((providerId: NavigationProviderId) => {
+    logPostClaimNavigationDev("provider selected");
+    setSession((current) =>
+      current
+        ? {
+            ...current,
+            open: false,
+            source: "manual",
+            providerSelected: true,
+            selectedProviderId: providerId,
+          }
+        : null,
     );
   }, []);
 
@@ -113,13 +138,13 @@ export function PostClaimNavigationProvider({
               open
               onClose={closeChooser}
               links={links}
-              title={session.source === "post-claim" ? "Spot claimed" : "Open in"}
-              description={null}
-              dismissLabel="Cancel"
-              onChoose={(url) => {
-                logPostClaimNavigationDev("provider selected");
+              title="Open in"
+              description="Live location is shared with the other driver during the handoff."
+              dismissLabel="Dismiss"
+              onChoose={(url, providerId) => {
                 openExternalNavigationUrl(url);
-                closeChooser();
+                requestSeekerLiveLocationStart();
+                selectProvider(providerId);
               }}
             />,
             document.body,

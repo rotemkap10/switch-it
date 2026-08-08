@@ -71,22 +71,21 @@ describe("HandoffVehicleSection", () => {
     expect(screen.queryByTestId("vehicle-identity-card")).not.toBeInTheDocument();
   });
 
-  it("renders the identity card and helper for complete vehicles", () => {
+  it("renders the identity card without helper prose by default", () => {
     render(
-      <HandoffVehicleSection
-        title="Arriving vehicle"
-        helper="This is the driver coming to your spot."
-        vehicle={completeVehicle}
-      />,
+      <HandoffVehicleSection title="Arriving vehicle" vehicle={completeVehicle} />,
     );
 
     expect(screen.getByText("Arriving vehicle")).toBeInTheDocument();
-    expect(
-      screen.getByText("This is the driver coming to your spot."),
-    ).toBeInTheDocument();
     expect(screen.getByTestId("vehicle-identity-card")).toBeInTheDocument();
     expect(
+      screen.queryByText("This is the driver coming to your spot."),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByTestId("handoff-vehicle-fallback"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("handoff-reciprocal-line"),
     ).not.toBeInTheDocument();
   });
 

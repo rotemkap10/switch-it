@@ -1,6 +1,6 @@
 "use client";
 
-import { SwitchItLogoMark } from "@/components/brand/SwitchItLogoMark";
+import { Logo } from "@/components/branding/Logo";
 import { ModeHomeLink, ModeSwitch } from "@/components/mode/ModeSwitch";
 import { ProfileMenu } from "@/components/layout/ProfileMenu";
 
@@ -37,9 +37,11 @@ export function AppNav({ compact = false, displayName = null }: AppNavProps) {
           data-testid="app-nav-row-brand"
         >
           <div className="flex min-w-0 items-center gap-3">
-            <ModeHomeLink className="inline-flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight text-foreground transition-colors duration-[var(--motion-fast)] hover:text-accent-hover">
-              <SwitchItLogoMark size={28} className="app-nav-brand-mark" />
-              Switch It
+            <ModeHomeLink
+              aria-label="Switch It"
+              className="inline-flex shrink-0 items-center transition-opacity duration-[var(--motion-fast)] hover:opacity-90"
+            >
+              <Logo variant="nav" decorative />
             </ModeHomeLink>
             <div className="hidden md:block" data-testid="app-nav-mode-desktop">
               <ModeSwitch />

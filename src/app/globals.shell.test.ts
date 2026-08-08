@@ -52,7 +52,13 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".map-carousel");
     expect(css).toContain(".map-bottom-sheet");
     expect(css).toContain(".map-bottom-sheet-scroll");
-    expect(css).toContain("70dvh");
+    expect(css).toContain("78dvh");
+    expect(css).toContain(
+      ".map-bottom-sheet--claim-expanded .map-bottom-sheet-actions",
+    );
+    expect(css).not.toMatch(
+      /\.map-bottom-sheet--claim-expanded[\s\S]*?\.map-bottom-sheet-actions[\s\S]*?position:\s*sticky/,
+    );
     expect(css).not.toContain("bottom-28");
     expect(css).not.toContain("46vh");
   });
@@ -100,8 +106,11 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".app-content-shell");
     expect(css).toContain(".motion-page-enter");
     expect(css).toContain(".motion-page-header");
-    expect(css).toContain(".switch-it-logo-mark");
-    expect(css).toContain(".auth-brand__wordmark");
+    expect(css).toContain(".switch-it-logo");
+    expect(css).toContain(".switch-it-logo--hero");
+    expect(css).toContain(".switch-it-logo--auth");
+    expect(css).toContain(".switch-it-logo--nav");
+    expect(css).toContain(".auth-brand");
     expect(css).toContain(".map-route-transition");
     expect(css).toContain(".route-transition-overlay");
     expect(css).toContain(".branded-loading-page");

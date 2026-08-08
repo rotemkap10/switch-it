@@ -107,7 +107,7 @@ Then show: credits moved by exactly one, and a **History** entry.
 ## Known limitations
 
 - Parking is never guaranteed (public street spots)
-- Live location is foreground-first explicit opt-in (may pause in background)
+- Live location is foreground-only and starts when a navigation provider is chosen (may pause in background)
 - No ETA / turn-by-turn routing in-app (Open in launches Waze, Google Maps, or Apple Maps)
 - No payments, chat, push notifications, ratings, or no-show penalties
 - Course MVP credits are not real money

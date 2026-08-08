@@ -2,9 +2,9 @@
  * Generates static iOS apple-touch-startup-image PNGs into public/pwa/startup/.
  * Run: node scripts/generate-ios-startup-images.mjs
  *
- * Lockup must stay aligned with AppIconMarkup + AppLaunchShell (88px icon, 20px wordmark).
+ * Lockup must stay aligned with AppLaunchShell (centered official logo PNG).
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,12 +12,11 @@ import { ImageResponse } from "next/og.js";
 import { createElement } from "react";
 
 const BACKGROUND = "#dff4ff";
-const WORDMARK_COLOR = "#12324a";
-const ICON_TILE = "#55bff3";
+const LOGO_CSS_PX = 200;
 
-const ICON_CSS_PX = 88;
-const WORDMARK_CSS_PX = 20;
-const GAP_CSS_PX = 14;
+const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const logoPng = readFileSync(resolve(rootDir, "public/branding/switch-it-logo.png"));
+const logoSrc = `data:image/png;base64,${logoPng.toString("base64")}`;
 
 /** Portrait launch sizes — keep in sync with src/lib/pwa/ios-startup.ts */
 const IMAGES = [
@@ -34,59 +33,8 @@ const IMAGES = [
   { cssWidth: 440, cssHeight: 956, scale: 3 },
 ];
 
-function pinSvg(size) {
-  const svgSize = Math.round(size * 0.58);
-  return createElement(
-    "svg",
-    {
-      width: svgSize,
-      height: svgSize,
-      viewBox: "0 0 64 64",
-      fill: "none",
-      xmlns: "http://www.w3.org/2000/svg",
-    },
-    createElement("path", {
-      d: "M32 58c0 0 11-11.2 11-20.8a11 11 0 1 0-22 0C21 46.8 32 58 32 58Z",
-      fill: "#ffffff",
-    }),
-    createElement("circle", { cx: "32", cy: "24", r: "6", fill: ICON_TILE }),
-    createElement("path", {
-      d: "M18 14h6l-3 6-3-6Zm22 0h6l-3 6-3-6Z",
-      fill: "#ffffff",
-      opacity: "0.95",
-    }),
-    createElement("path", {
-      d: "M21 12c2-2 5-2 7 0M43 12c-2-2-5-2-7 0",
-      stroke: "#ffffff",
-      strokeWidth: "2.5",
-      strokeLinecap: "round",
-    }),
-  );
-}
-
-function iconMark(size) {
-  const radius = Math.round(size * 0.22);
-  return createElement(
-    "div",
-    {
-      style: {
-        width: size,
-        height: size,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: ICON_TILE,
-        borderRadius: radius,
-      },
-    },
-    pinSvg(size),
-  );
-}
-
 function splashMarkup(scale) {
-  const iconSize = Math.round(ICON_CSS_PX * scale);
-  const wordmarkSize = Math.round(WORDMARK_CSS_PX * scale);
-  const gap = Math.round(GAP_CSS_PX * scale);
+  const logoSize = Math.round(LOGO_CSS_PX * scale);
 
   return createElement(
     "div",
@@ -95,35 +43,20 @@ function splashMarkup(scale) {
         width: "100%",
         height: "100%",
         display: "flex",
-        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: BACKGROUND,
-        gap,
       },
     },
-    iconMark(iconSize),
-    createElement(
-      "div",
-      {
-        style: {
-          display: "flex",
-          fontSize: wordmarkSize,
-          fontWeight: 600,
-          letterSpacing: "0.01em",
-          color: WORDMARK_COLOR,
-          lineHeight: 1.1,
-        },
-      },
-      "Switch It",
-    ),
+    createElement("img", {
+      src: logoSrc,
+      width: logoSize,
+      height: logoSize,
+    }),
   );
 }
 
-const outDir = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../public/pwa/startup",
-);
+const outDir = resolve(rootDir, "public/pwa/startup");
 mkdirSync(outDir, { recursive: true });
 
 for (const image of IMAGES) {

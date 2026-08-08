@@ -3,13 +3,16 @@
 import { useEffect, useId, useRef } from "react";
 
 import { logPostClaimNavigationDev } from "@/lib/map/post-claim-navigation";
-import type { ExternalNavigationLinks } from "@/lib/map/navigation-urls";
+import type {
+  ExternalNavigationLinks,
+  NavigationProviderId,
+} from "@/lib/map/navigation-urls";
 
 type NavigationProviderSheetProps = {
   open: boolean;
   onClose: () => void;
   links: ExternalNavigationLinks;
-  onChoose: (url: string) => void;
+  onChoose: (url: string, providerId: NavigationProviderId) => void;
   returnFocusRef?: React.RefObject<HTMLElement | null>;
   title?: string;
   description?: string | null;
@@ -33,8 +36,8 @@ export function NavigationProviderSheet({
   onChoose,
   returnFocusRef,
   title = "Open in",
-  description = null,
-  dismissLabel = "Cancel",
+  description = "Live location is shared with the other driver during the handoff.",
+  dismissLabel = "Dismiss",
 }: NavigationProviderSheetProps) {
   const titleId = useId();
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -124,7 +127,7 @@ export function NavigationProviderSheet({
                     ? "border-border bg-accent-soft hover:border-accent"
                     : "border-border bg-surface hover:bg-accent-soft",
                 ].join(" ")}
-                onClick={() => onChoose(links[provider.id])}
+                onClick={() => onChoose(links[provider.id], provider.id)}
               >
                 {provider.label}
               </button>

@@ -49,7 +49,6 @@ export function PublisherSpotCard({
   spot,
   layout = "page",
   counterpartVehicle = null,
-  ownVehicle = null,
   handoffCode = null,
   activeClaimId = null,
 }: PublisherSpotCardProps) {
@@ -153,10 +152,7 @@ export function PublisherSpotCard({
       <div className="border-t border-border/60 pt-3">
         <HandoffVehicleSection
           title="Look for this driver"
-          helper="Recognize this vehicle when the driver arrives."
           vehicle={counterpartVehicle}
-          ownVehicle={ownVehicle}
-          showRepresentativeNote
           approachAnimationKey={`publisher-${spot.id}`}
         />
       </div>

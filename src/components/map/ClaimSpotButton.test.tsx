@@ -137,9 +137,9 @@ describe("ClaimSpotButton", () => {
     await user.click(screen.getByRole("button", { name: "I’m on my way" }));
 
     expect(await screen.findByText("Opening your trip…")).toBeInTheDocument();
-    expect(screen.getByTestId("feedback-toast-success")).toHaveTextContent(
-      "You’re on your way.",
-    );
+    expect(
+      await screen.findByTestId("feedback-toast-success"),
+    ).toHaveTextContent("You’re on your way.");
     expect(
       screen.queryByRole("button", { name: "I’m on my way" }),
     ).not.toBeInTheDocument();

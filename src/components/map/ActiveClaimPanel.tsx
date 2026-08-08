@@ -15,15 +15,16 @@ import {
   MAP_SHEET_HOST_CLASS,
 } from "@/lib/map/bottom-stack";
 import { seekerSpotAddressLabel } from "@/lib/geocoding/location-display";
+import { registerSeekerLiveLocationStarter } from "@/lib/location/seeker-live-location-intent";
 import { useSeekerLiveLocationShare } from "@/lib/location/use-seeker-live-location-share";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
 import {
+  formatVehicleNameForDisplay,
   isCompleteHandoffVehicle,
   type HandoffVehicle,
 } from "@/lib/vehicle/handoff-vehicle";
 import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
-import { VEHICLE_TYPE_LABELS } from "@/lib/vehicle/types";
 
 export type ActiveClaimSummary = {
   claimId: string;
@@ -74,7 +75,6 @@ function ActiveClaimSheetBody({
   claim,
   destination,
   counterpartVehicle,
-  ownVehicle,
   expanded,
   onToggleExpanded,
   sheetLabelId,
@@ -82,7 +82,6 @@ function ActiveClaimSheetBody({
   claim: ActiveClaimSummary;
   destination: ActiveClaimDestination | null;
   counterpartVehicle: HandoffVehicle | null;
-  ownVehicle: HandoffVehicle | null;
   expanded: boolean;
   onToggleExpanded: () => void;
   sheetLabelId: string;
@@ -93,7 +92,14 @@ function ActiveClaimSheetBody({
     spotExpiresAtIso: claim.spotExpiresAt,
     enabled: true,
   });
+  const startSharing = liveShare.startSharing;
   const forceStopLiveShare = liveShare.forceStop;
+
+  useEffect(() => {
+    return registerSeekerLiveLocationStarter(() => {
+      void startSharing();
+    });
+  }, [startSharing]);
 
   const onExpired = useCallback(() => {
     forceStopLiveShare();
@@ -127,7 +133,7 @@ function ActiveClaimSheetBody({
   const canNavigate = Boolean(navigateDestination);
   const compactVehicleLabel =
     counterpartVehicle && isCompleteHandoffVehicle(counterpartVehicle)
-      ? `${VEHICLE_COLOR_LABELS[counterpartVehicle.color!]} ${VEHICLE_TYPE_LABELS[counterpartVehicle.type!]} · ${formatLicensePlateForDisplay(counterpartVehicle.licensePlate!)}`
+      ? `${formatVehicleNameForDisplay(`${counterpartVehicle.make} ${counterpartVehicle.model}`)} · ${VEHICLE_COLOR_LABELS[counterpartVehicle.color!]} · ${formatLicensePlateForDisplay(counterpartVehicle.licensePlate!)}`
       : null;
 
   return (
@@ -173,20 +179,6 @@ function ActiveClaimSheetBody({
         </button>
       </div>
 
-      {canNavigate && navigateDestination ? (
-        <div className="flex flex-col gap-1.5">
-          <ClaimNavigationActions
-            claimId={claim.claimId}
-            latitude={navigateDestination.latitude}
-            longitude={navigateDestination.longitude}
-            fullWidth
-          />
-          <p className="text-center text-[0.7rem] leading-4 text-muted">
-            Use Switch It controls only when safely stopped.
-          </p>
-        </div>
-      ) : null}
-
       <HandoffWindowCountdown
         key={claim.spotExpiresAt}
         availableAtIso={claim.spotAvailableAt}
@@ -195,12 +187,17 @@ function ActiveClaimSheetBody({
         onExpired={onExpired}
       />
 
+      {canNavigate && navigateDestination ? (
+        <ClaimNavigationActions
+          claimId={claim.claimId}
+          latitude={navigateDestination.latitude}
+          longitude={navigateDestination.longitude}
+        />
+      ) : null}
+
       <SeekerShareLocationCard
         uiState={liveShare.uiState}
         resumedOnce={liveShare.resumedOnce}
-        onShare={() => {
-          void liveShare.startSharing();
-        }}
         onStop={() => {
           void liveShare.stopSharing();
         }}
@@ -219,27 +216,20 @@ function ActiveClaimSheetBody({
       <div
         id="active-claim-details"
         hidden={!expanded}
-        className={
-          expanded
-            ? "map-bottom-sheet-scroll flex min-h-0 flex-1 flex-col gap-3 motion-fade-in"
-            : undefined
-        }
+        className={expanded ? "flex flex-col gap-3 motion-fade-in" : undefined}
       >
         {expanded ? (
           <>
             {counterpartVehicle ? (
               <HandoffVehicleSection
                 title="Look for this vehicle"
-                helper="Meet the other driver before they pull away so you can take the spot smoothly."
                 vehicle={counterpartVehicle}
-                ownVehicle={ownVehicle}
-                showRepresentativeNote
                 approachAnimationKey={`seeker-${claim.claimId}`}
               />
             ) : null}
             <div
               className="map-bottom-sheet-actions"
-              data-testid="active-claim-sticky-actions"
+              data-testid="active-claim-complete-actions"
             >
               <CompleteHandoffForm
                 claimId={claim.claimId}
@@ -261,7 +251,6 @@ export function ActiveClaimPanel({
   claim,
   destination = null,
   counterpartVehicle = null,
-  ownVehicle = null,
   variant = "card",
   expanded: expandedProp,
   onExpandedChange,
@@ -310,7 +299,6 @@ export function ActiveClaimPanel({
       claim={claim}
       destination={destination}
       counterpartVehicle={counterpartVehicle}
-      ownVehicle={ownVehicle}
       expanded={expanded}
       onToggleExpanded={() => setExpanded(!expanded)}
       sheetLabelId={sheetLabelId}

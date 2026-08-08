@@ -75,9 +75,8 @@ vi.mock("@/components/spots/PublisherLiveProgressMapLoader", () => ({
 vi.mock("@/lib/location/use-publisher-live-location", () => ({
   usePublisherLiveLocation: () => ({
     freshness: "waiting",
-    statusLabel: "Waiting for live location",
-    updatedLabel:
-      "The driver can choose to share their progress.",
+    statusLabel: "Waiting for location",
+    updatedLabel: "Waiting",
     location: null,
     lastReceivedAtMs: null,
     clear: vi.fn(),
@@ -273,7 +272,7 @@ describe("PublisherSpotCard", () => {
     expect(testIds.indexOf("handoff-code-section")).toBeLessThan(
       testIds.indexOf("publisher-live-progress"),
     );
-    expect(screen.getByText("Waiting for live location")).toBeInTheDocument();
+    expect(screen.getByText("Waiting for location")).toBeInTheDocument();
     expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
   });
 
@@ -303,9 +302,15 @@ describe("PublisherSpotCard", () => {
 
     expect(screen.getByText("Look for this driver")).toBeInTheDocument();
     expect(
-      screen.getByText("Recognize this vehicle when the driver arrives."),
-    ).toBeInTheDocument();
-    expect(screen.getByText("Red Hatchback")).toBeInTheDocument();
+      screen.queryByText("Recognize this vehicle when the driver arrives."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("The driver can choose to share their progress."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Give this code to the driver when you meet."),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Red · 76-543-21")).toBeInTheDocument();
     expect(screen.getByText("Mazda 3")).toBeInTheDocument();
     expect(screen.getByText("76-543-21")).toBeInTheDocument();
     expect(screen.getByTestId("handoff-vehicle-animation")).toBeInTheDocument();
@@ -341,7 +346,7 @@ describe("PublisherSpotCard", () => {
     );
 
     expect(screen.queryByText("Look for this driver")).not.toBeInTheDocument();
-    expect(screen.queryByText("Red Hatchback")).not.toBeInTheDocument();
+    expect(screen.queryByText("Red · 76-543-21")).not.toBeInTheDocument();
     expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
   });
 

@@ -65,15 +65,6 @@ export function CompleteHandoffForm({
 
   return (
     <form action={formAction} className="space-y-3" data-testid="complete-handoff-form">
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">
-          Complete the handoff
-        </h3>
-        <p className="mt-1 text-xs leading-5 text-muted">
-          Once you’re safely stopped, enter the code to complete the handoff.
-        </p>
-      </div>
-
       <input type="hidden" name="claim_id" value={claimId} />
 
       <Input
@@ -107,7 +98,7 @@ export function CompleteHandoffForm({
         disabled={pending || state.lockout}
         className="w-full min-w-[12rem] border-success/25 bg-success-bg text-foreground hover:bg-success-bg/80"
       >
-        {pending ? "Verifying…" : "Verify and complete"}
+        {pending ? "Verifying…" : "Complete handoff"}
       </Button>
     </form>
   );

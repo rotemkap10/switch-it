@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { SwitchItLogoMark } from "@/components/brand/SwitchItLogoMark";
+import { Logo } from "@/components/branding/Logo";
 import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMarker";
 import { Button } from "@/components/ui/Button";
 
@@ -14,8 +14,8 @@ export default function HomePage() {
       />
 
       <div className="landing-page__brand motion-page-enter">
-        <SwitchItLogoMark size={88} />
-        <h1 className="landing-page__title">Switch It</h1>
+        <h1 className="sr-only">Switch It</h1>
+        <Logo variant="hero" decorative />
       </div>
 
       <div className="landing-page__actions">

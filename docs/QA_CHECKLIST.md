@@ -22,8 +22,8 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 2. Recenter to current location (or pan pin)
 3. Confirm leave slider is **0–10 min** (not 20); publish available in **2 minutes**
 4. Confirm spot card countdown (initial grace **2 minutes** after departure)
-5. After claim: see claimed UI, counterpart vehicle, handoff code (“Give this code…”)
-6. Observe seeker live location (if seeker shares) or **Waiting for live location**
+5. After claim: see claimed UI, counterpart vehicle, handoff code (no helper prose)
+6. Observe seeker live location (**Waiting for location** / **Live** / **Paused**)
 7. Optionally **Wait N more min** (truthful label; never past 5-minute hard cap)
 8. Give 5-digit code verbally when you meet
 
@@ -33,11 +33,13 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 2. Recenter; confirm spots + carousel
 3. Select A’s spot → claim (“I’m on my way”); note non-guarantee helper
 4. After claim success, navigation chooser appears immediately (Waze / Google Maps /
-   Apple Maps). **Cancel** keeps the claim active. Do not auto-open Waze.
-5. Optionally Share live location (permission granted) — or Not now (claim stays active)
-6. See safety helper (“Use Switch It controls only when safely stopped”)
-7. Tap **Open in** later → same chooser → open Waze to the exact spot, then
-   return; claim still active
+   Apple Maps). **Dismiss** keeps the claim active. Do not auto-open Waze.
+5. Choosing Waze / Google / Apple starts live location (native permission if needed).
+   Denied permission still opens navigation; claim stays active (**Live location off**).
+6. After a provider is chosen, the giant Open in CTA is gone; use **Waze · Change**
+   (or **Open navigation** if dismissed) to reopen the chooser.
+7. Return from Waze; claim still active. Live location resumes if Switch It is
+   foregrounded again.
 8. Reload `/map` with the active claim: chooser does **not** auto-open again
 9. When safely stopped, enter correct code → complete
 

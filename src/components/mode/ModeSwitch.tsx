@@ -133,13 +133,15 @@ export function useModeBrandHref(): string {
 export function ModeHomeLink({
   className,
   children,
+  "aria-label": ariaLabel,
 }: {
   className?: string;
   children: ReactNode;
+  "aria-label"?: string;
 }) {
   const href = useModeBrandHref();
   return (
-    <Link href={href} className={className}>
+    <Link href={href} className={className} aria-label={ariaLabel}>
       {children}
     </Link>
   );

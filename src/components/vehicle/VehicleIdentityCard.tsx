@@ -1,11 +1,11 @@
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
 import {
+  formatVehicleNameForDisplay,
   handoffVehicleAccessibleLabel,
   isCompleteHandoffVehicle,
   type HandoffVehicle,
 } from "@/lib/vehicle/handoff-vehicle";
 import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
-import { VEHICLE_TYPE_LABELS } from "@/lib/vehicle/types";
 import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
 
 type VehicleIdentityCardProps = {
@@ -13,16 +13,15 @@ type VehicleIdentityCardProps = {
   showRepresentativeNote?: boolean;
 };
 
-export function VehicleIdentityCard({
-  vehicle,
-  showRepresentativeNote = false,
-}: VehicleIdentityCardProps) {
+export function VehicleIdentityCard({ vehicle }: VehicleIdentityCardProps) {
   if (!isCompleteHandoffVehicle(vehicle)) {
     return null;
   }
 
   const { color, type, make, model, licensePlate } = vehicle;
   const plate = formatLicensePlateForDisplay(licensePlate!);
+  const name = formatVehicleNameForDisplay(`${make} ${model}`);
+  const colorLabel = VEHICLE_COLOR_LABELS[color!];
 
   return (
     <div
@@ -40,12 +39,12 @@ export function VehicleIdentityCard({
         <p
           className="truncate text-sm font-semibold text-foreground"
           data-testid="vehicle-identity-make-model"
-          title={`${make} ${model}`}
+          title={name}
         >
-          {make} {model}
+          {name}
         </p>
         <p className="mt-0.5 truncate text-sm text-muted">
-          {VEHICLE_COLOR_LABELS[color!]} {VEHICLE_TYPE_LABELS[type!]}
+          {colorLabel} · {plate}
         </p>
         <p
           className="vehicle-plate-display mt-2"
@@ -55,14 +54,6 @@ export function VehicleIdentityCard({
           {plate}
         </p>
         <p className="sr-only">{handoffVehicleAccessibleLabel(vehicle)}</p>
-        {showRepresentativeNote ? (
-          <p
-            className="mt-1 text-xs text-muted"
-            data-testid="vehicle-representative-note"
-          >
-            Vehicle illustration is representative.
-          </p>
-        ) : null}
       </div>
     </div>
   );

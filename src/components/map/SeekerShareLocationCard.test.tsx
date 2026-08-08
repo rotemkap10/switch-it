@@ -5,69 +5,50 @@ import { describe, expect, it, vi } from "vitest";
 import { SeekerShareLocationCard } from "@/components/map/SeekerShareLocationCard";
 
 describe("SeekerShareLocationCard", () => {
-  it("shows consent before any share action", () => {
-    render(
-      <SeekerShareLocationCard
-        uiState="prompt"
-        onShare={vi.fn()}
-        onStop={vi.fn()}
-      />,
+  it("renders nothing before sharing has started", () => {
+    const { container } = render(
+      <SeekerShareLocationCard uiState="idle" onStop={vi.fn()} />,
     );
-    expect(screen.getByText("Share your live location")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /so the parking owner can see you approaching and is more likely to wait/i,
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Share live location" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Not now" }),
-    ).toBeInTheDocument();
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText("Share live location")).not.toBeInTheDocument();
+    expect(screen.queryByText("Not now")).not.toBeInTheDocument();
   });
 
-  it("does not call onShare when Not now is pressed", async () => {
+  it("does not show a separate consent prompt", () => {
+    const { container } = render(
+      <SeekerShareLocationCard uiState="prompt" onStop={vi.fn()} />,
+    );
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText("Share your live location")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Share live location" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Not now" })).not.toBeInTheDocument();
+  });
+
+  it("shows stop sharing while active", async () => {
     const user = userEvent.setup();
-    const onShare = vi.fn();
-    render(
-      <SeekerShareLocationCard
-        uiState="prompt"
-        onShare={onShare}
-        onStop={vi.fn()}
-      />,
-    );
-    await user.click(screen.getByTestId("seeker-share-not-now"));
-    expect(onShare).not.toHaveBeenCalled();
-    expect(screen.getByTestId("seeker-share-location")).toHaveAttribute(
-      "data-state",
-      "dismissed",
-    );
+    const onStop = vi.fn();
+    render(<SeekerShareLocationCard uiState="sharing" onStop={onStop} />);
+    expect(screen.getByText("Live location on")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Stop sharing" }));
+    expect(onStop).toHaveBeenCalledTimes(1);
   });
 
-  it("shows stop sharing while active", () => {
-    render(
-      <SeekerShareLocationCard
-        uiState="sharing"
-        onShare={vi.fn()}
-        onStop={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("Sharing live location")).toBeInTheDocument();
+  it("shows paused status with stop sharing", () => {
+    render(<SeekerShareLocationCard uiState="paused" onStop={vi.fn()} />);
+    expect(screen.getByText("Live location paused")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Stop sharing" }),
     ).toBeInTheDocument();
   });
 
-  it("uses friendly denied copy without browser error codes", () => {
-    render(
-      <SeekerShareLocationCard
-        uiState="denied"
-        onShare={vi.fn()}
-        onStop={vi.fn()}
-      />,
-    );
-    expect(screen.getByText("Live location is unavailable")).toBeInTheDocument();
+  it("shows compact off status without browser error codes", () => {
+    render(<SeekerShareLocationCard uiState="denied" onStop={vi.fn()} />);
+    expect(screen.getByText("Live location off")).toBeInTheDocument();
     expect(screen.queryByText(/GeolocationPositionError/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Stop sharing" }),
+    ).not.toBeInTheDocument();
   });
 });

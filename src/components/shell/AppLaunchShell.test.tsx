@@ -56,10 +56,13 @@ describe("AppLaunchShell", () => {
     );
 
     expect(screen.getByTestId("app-launch-splash")).toBeInTheDocument();
-    expect(screen.getByText("Switch It")).toBeInTheDocument();
+    expect(screen.getByTestId("app-launch-splash")).toHaveAttribute(
+      "aria-label",
+      "Loading Switch It",
+    );
     expect(
-      screen.getByTestId("app-launch-splash").querySelector(".switch-it-logo-mark"),
-    ).not.toBeNull();
+      screen.getByTestId("app-launch-splash").querySelector("img"),
+    ).toHaveAttribute("src", "/branding/switch-it-logo.png");
     expect(
       screen.getByTestId("app-launch-splash").querySelector(".motion-launch-logo"),
     ).toBeNull();

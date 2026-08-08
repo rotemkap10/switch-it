@@ -17,9 +17,8 @@
 
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 
-export const IOS_STARTUP_ICON_CSS_PX = 88;
-export const IOS_STARTUP_WORDMARK_CSS_PX = 20;
-export const IOS_STARTUP_GAP_CSS_PX = 14;
+/** CSS size of the official square logo on iOS launch images. */
+export const IOS_STARTUP_LOGO_CSS_PX = 200;
 
 export type IosStartupImage = {
   /** Filename without directory, including .png */

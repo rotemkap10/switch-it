@@ -1,6 +1,6 @@
 /** Switch It conservative PWA service worker — offline fallback only. */
 
-const CACHE_VERSION = "switch-it-pwa-v1";
+const CACHE_VERSION = "switch-it-pwa-v2";
 
 /** Narrow allowlist — no authenticated or third-party resources. */
 const PRECACHE_URLS = [

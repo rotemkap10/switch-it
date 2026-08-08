@@ -29,7 +29,7 @@ vi.mock("@/components/map/CancelClaimButton", () => ({
 
 vi.mock("@/components/map/CompleteHandoffForm", () => ({
   CompleteHandoffForm: () => (
-    <button type="button">Verify and complete</button>
+    <button type="button">Complete handoff</button>
   ),
 }));
 
@@ -39,7 +39,7 @@ vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
 
 vi.mock("@/lib/location/use-seeker-live-location-share", () => ({
   useSeekerLiveLocationShare: () => ({
-    uiState: "prompt",
+    uiState: "idle",
     resumedOnce: false,
     startSharing: vi.fn(),
     stopSharing: vi.fn(),
@@ -99,7 +99,7 @@ describe("post-claim navigation flow", () => {
     await user.click(screen.getByRole("button", { name: "I’m on my way" }));
 
     const sheet = await screen.findByTestId("navigation-provider-sheet");
-    expect(within(sheet).getByText("Spot claimed")).toBeInTheDocument();
+    expect(within(sheet).getByText("Open in")).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: "Waze" })).toBeInTheDocument();
     expect(
       within(sheet).getByRole("button", { name: "Google Maps" }),
@@ -115,7 +115,9 @@ describe("post-claim navigation flow", () => {
     );
 
     expect(screen.getByTestId("navigation-provider-sheet")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open in" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open navigation" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
@@ -164,10 +166,12 @@ describe("post-claim navigation flow", () => {
     );
 
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open in" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open navigation" }),
+    ).toBeInTheDocument();
   });
 
-  it("keeps the claim active after Cancel and reopens from Open in", async () => {
+  it("keeps the claim active after Dismiss and reopens from Open navigation", async () => {
     const user = userEvent.setup();
     render(
       <PostClaimNavigationProvider>
@@ -177,16 +181,18 @@ describe("post-claim navigation flow", () => {
 
     offerPostClaimNavigation({ claimId, ...destination });
     const sheet = await screen.findByTestId("navigation-provider-sheet");
-    await user.click(within(sheet).getByRole("button", { name: "Cancel" }));
+    await user.click(within(sheet).getByRole("button", { name: "Dismiss" }));
 
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
     expect(screen.getByTestId("active-claim-sheet")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Open in" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Open navigation" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Open in" }));
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
     const reopened = screen.getByTestId("navigation-provider-sheet");
     expect(within(reopened).getByText("Open in")).toBeInTheDocument();
     expect(within(reopened).getByRole("button", { name: "Waze" })).toBeInTheDocument();

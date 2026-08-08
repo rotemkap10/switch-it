@@ -1,6 +1,4 @@
-import { ImageResponse } from "next/og";
-
-import { AppIconMarkup } from "@/lib/pwa/app-icon-markup";
+import { logoIconResponse } from "@/lib/pwa/logo-icon-response";
 
 export const size = {
   width: 32,
@@ -10,8 +8,5 @@ export const size = {
 export const contentType = "image/png";
 
 export default function Icon() {
-  return new ImageResponse(<AppIconMarkup size={32} />, {
-    width: 32,
-    height: 32,
-  });
+  return logoIconResponse(32);
 }

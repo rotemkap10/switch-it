@@ -11,10 +11,8 @@ describe("live location stale labels", () => {
 
   it("waiting before first point uses neutral publisher copy", () => {
     expect(liveLocationFreshness(null, t0)).toBe("waiting");
-    expect(liveLocationStatusLabel("waiting")).toBe("Waiting for live location");
-    expect(liveLocationUpdatedLabel("waiting", null, t0)).toBe(
-      "The driver can choose to share their progress.",
-    );
+    expect(liveLocationStatusLabel("waiting")).toBe("Waiting for location");
+    expect(liveLocationUpdatedLabel("waiting", null, t0)).toBe("Waiting");
   });
 
   it("live within 10s", () => {
@@ -33,6 +31,6 @@ describe("live location stale labels", () => {
 
   it("paused after 25s", () => {
     expect(liveLocationFreshness(t0, t0 + 30_000)).toBe("paused");
-    expect(liveLocationStatusLabel("paused")).toBe("Live location paused");
+    expect(liveLocationStatusLabel("paused")).toBe("Paused");
   });
 });

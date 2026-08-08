@@ -15,9 +15,6 @@ export function HandoffCodeSection({ code }: HandoffCodeSectionProps) {
       >
         {code}
       </p>
-      <p className="text-sm text-muted">
-        Give this code to the driver when you meet.
-      </p>
     </section>
   );
 }

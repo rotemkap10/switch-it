@@ -82,10 +82,9 @@ describe("iOS startup images", () => {
       resolve(process.cwd(), "src/lib/pwa/startup-splash-markup.tsx"),
       "utf8",
     );
-    expect(markup).toContain("AppIconMarkup");
+    expect(markup).toContain("public/branding/switch-it-logo.png");
     expect(markup).toContain("PWA_BACKGROUND_COLOR");
     expect(markup).not.toMatch(/https?:\/\//);
-    expect(markup).not.toContain("<img");
   });
 });
 

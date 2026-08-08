@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-import { SwitchItLogoMark } from "@/components/brand/SwitchItLogoMark";
+import { Logo } from "@/components/branding/Logo";
 import { AppLaunchReadyProvider } from "@/components/shell/AppLaunchReadyContext";
 import { IosStartupDebugProbe } from "@/components/shell/IosStartupDebugProbe";
 import {
@@ -109,9 +109,8 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
           data-splash-phase={phase}
         >
           <div className="app-launch-splash__logo">
-            <SwitchItLogoMark size={88} />
+            <Logo variant="splash" decorative />
           </div>
-          <p className="app-launch-splash__wordmark">Switch It</p>
         </div>
       ) : null}
       <div className={contentClass} data-testid="app-content-shell">

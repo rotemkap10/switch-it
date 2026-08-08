@@ -20,11 +20,16 @@ describe("claim action confirmations", () => {
   it("shows the handoff code form without revealing the expected code", async () => {
     render(<FeedbackShell><CompleteHandoffForm claimId={claimId} /></FeedbackShell>);
 
-    expect(screen.getByText("Complete the handoff")).toBeInTheDocument();
-    expect(
-      screen.getByText("Once you’re safely stopped, enter the code to complete the handoff."),
-    ).toBeInTheDocument();
     expect(screen.getByLabelText("Handoff code")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Complete handoff" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Complete the handoff")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Once you’re safely stopped, enter the code to complete the handoff.",
+      ),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/^\d{5}$/)).not.toBeInTheDocument();
 
     const form = screen.getByTestId("complete-handoff-form");

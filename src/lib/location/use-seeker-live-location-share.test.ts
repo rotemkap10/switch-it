@@ -32,6 +32,9 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     watchPosition.mockReturnValue(42);
+    getSession.mockImplementation(async () => ({
+      data: { session: { access_token: "token" } },
+    }));
     vi.stubGlobal("isSecureContext", true);
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -81,6 +84,98 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     });
 
     expect(clearWatch).toHaveBeenCalled();
+    expect(result.current.uiState).toBe("off");
+  });
+
+  it("starts watchPosition before awaiting the realtime channel", async () => {
+    const order: string[] = [];
+    watchPosition.mockImplementation(() => {
+      order.push("watch");
+      return 42;
+    });
+    getSession.mockImplementation(async () => {
+      order.push("session");
+      return { data: { session: { access_token: "token" } } };
+    });
+
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(order[0]).toBe("watch");
+    expect(order).toContain("session");
+  });
+
+  it("marks denied without persisting coordinates", async () => {
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", {
+      setItem,
+      getItem: vi.fn(),
+      removeItem: vi.fn(),
+      clear: vi.fn(),
+    });
+    watchPosition.mockImplementation((_success, error) => {
+      error?.({ code: 1 } as GeolocationPositionError);
+      return 42;
+    });
+
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(result.current.uiState).toBe("denied");
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("pauses when hidden and resumes watch in the foreground", async () => {
+    let visibility: DocumentVisibilityState = "visible";
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => visibility,
+    });
+
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+    expect(result.current.uiState).toBe("sharing");
+    expect(watchPosition).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      visibility = "hidden";
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(result.current.uiState).toBe("paused");
+
+    await act(async () => {
+      visibility = "visible";
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(result.current.uiState).toBe("sharing");
+    expect(watchPosition).toHaveBeenCalledTimes(2);
   });
 
   it("clears watch on unmount", async () => {

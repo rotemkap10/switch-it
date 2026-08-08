@@ -8,6 +8,14 @@ export type NavigationCoords = {
   longitude: number;
 };
 
+export type NavigationProviderId = "waze" | "googleMaps" | "appleMaps";
+
+export const NAVIGATION_PROVIDER_LABELS: Record<NavigationProviderId, string> = {
+  waze: "Waze",
+  googleMaps: "Google Maps",
+  appleMaps: "Apple Maps",
+};
+
 export function isValidNavigationCoords(
   latitude: unknown,
   longitude: unknown,

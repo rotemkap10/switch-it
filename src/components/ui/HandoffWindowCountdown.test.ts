@@ -40,22 +40,14 @@ describe("getHandoffPhase", () => {
 
 describe("handoff countdown copy", () => {
   it("answers what happens next while waiting", () => {
-    expect(handoffWaitingCopy("publisher", 4)).toBe(
-      "Your spot will be ready in 4 min",
-    );
-    expect(handoffWaitingCopy("seeker", 4)).toBe(
-      "The spot should be ready in 4 min",
-    );
+    expect(handoffWaitingCopy("publisher", 4)).toBe("Ready in 4 min");
+    expect(handoffWaitingCopy("seeker", 4)).toBe("Ready in 4 min");
     expect(formatWaitingMinutes(3 * 60_000 + 1)).toBe(4);
   });
 
   it("answers what happens next during the handoff window", () => {
-    expect(handoffWindowCopy("publisher", "3:42")).toBe(
-      "Waiting for driver · 3:42 left",
-    );
-    expect(handoffWindowCopy("seeker", "3:42")).toBe(
-      "Complete the handoff · 3:42 left",
-    );
+    expect(handoffWindowCopy("publisher", "3:42")).toBe("3:42 left");
+    expect(handoffWindowCopy("seeker", "3:42")).toBe("3:42 left");
     expect(formatHandoffClock(222_000)).toBe("3:42");
   });
 });

@@ -60,13 +60,15 @@ describe("CompleteHandoffForm", () => {
   it("shows the verification form instead of the old direct completion button", () => {
     renderForm();
 
-    expect(screen.getByText("Complete the handoff")).toBeInTheDocument();
+    expect(screen.queryByText("Complete the handoff")).not.toBeInTheDocument();
     expect(
-      screen.getByText("Once you’re safely stopped, enter the code to complete the handoff."),
-    ).toBeInTheDocument();
+      screen.queryByText(
+        "Once you’re safely stopped, enter the code to complete the handoff.",
+      ),
+    ).not.toBeInTheDocument();
     expect(screen.getByLabelText("Handoff code")).toHaveClass("app-form-control");
     expect(
-      screen.getByRole("button", { name: "Verify and complete" }),
+      screen.getByRole("button", { name: "Complete handoff" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "I got the spot" }),
@@ -79,7 +81,7 @@ describe("CompleteHandoffForm", () => {
 
     await user.type(screen.getByLabelText("Handoff code"), "12345");
     await user.click(
-      screen.getByRole("button", { name: "Verify and complete" }),
+      screen.getByRole("button", { name: "Complete handoff" }),
     );
 
     await waitFor(() => {
@@ -99,7 +101,7 @@ describe("CompleteHandoffForm", () => {
 
     await user.type(screen.getByLabelText("Handoff code"), "1234");
     await user.click(
-      screen.getByRole("button", { name: "Verify and complete" }),
+      screen.getByRole("button", { name: "Complete handoff" }),
     );
 
     await waitFor(() => {
@@ -120,7 +122,7 @@ describe("CompleteHandoffForm", () => {
 
     await user.type(screen.getByLabelText("Handoff code"), "12345");
     await user.click(
-      screen.getByRole("button", { name: "Verify and complete" }),
+      screen.getByRole("button", { name: "Complete handoff" }),
     );
 
     await waitFor(() => {

@@ -33,14 +33,19 @@ function source(relativePath: string) {
 describe("auth and onboarding branding", () => {
   it("shows AuthBrand on login", async () => {
     render(await LoginPage({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByTestId("auth-brand")).toHaveTextContent("Switch It");
-    expect(screen.getByTestId("auth-brand").querySelector("svg")).not.toBeNull();
+    expect(screen.getByTestId("auth-brand").querySelector("img")).toHaveAttribute(
+      "src",
+      "/branding/switch-it-logo.png",
+    );
     expect(screen.getByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
   });
 
   it("shows AuthBrand on register", () => {
     render(<RegisterPage />);
-    expect(screen.getByTestId("auth-brand")).toHaveTextContent("Switch It");
+    expect(screen.getByTestId("auth-brand").querySelector("img")).toHaveAttribute(
+      "src",
+      "/branding/switch-it-logo.png",
+    );
     expect(
       screen.getByRole("heading", { name: "Create your account" }),
     ).toBeInTheDocument();
@@ -48,7 +53,10 @@ describe("auth and onboarding branding", () => {
 
   it("shows AuthBrand on vehicle onboarding", async () => {
     render(await VehicleOnboardingPage());
-    expect(screen.getByTestId("auth-brand")).toHaveTextContent("Switch It");
+    expect(screen.getByTestId("auth-brand").querySelector("img")).toHaveAttribute(
+      "src",
+      "/branding/switch-it-logo.png",
+    );
     expect(
       screen.getByRole("heading", { name: "Tell drivers what to look for" }),
     ).toBeInTheDocument();

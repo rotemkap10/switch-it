@@ -1,8 +1,10 @@
 "use client";
 
 import { useOptionalPostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
-import { Button } from "@/components/ui/Button";
-import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
+import {
+  isValidNavigationCoords,
+  NAVIGATION_PROVIDER_LABELS,
+} from "@/lib/map/navigation-urls";
 
 type ClaimNavigationActionsProps = {
   claimId: string;
@@ -15,7 +17,6 @@ export function ClaimNavigationActions({
   claimId,
   latitude,
   longitude,
-  fullWidth = false,
 }: ClaimNavigationActionsProps) {
   const navigation = useOptionalPostClaimNavigation();
   const sessionMatchesClaim = navigation?.session?.claimId === claimId;
@@ -32,11 +33,21 @@ export function ClaimNavigationActions({
     return null;
   }
 
+  const providerSelected =
+    sessionMatchesClaim && Boolean(navigation.session?.providerSelected);
+  const selectedProviderId = sessionMatchesClaim
+    ? navigation.session?.selectedProviderId
+    : null;
+  const label =
+    providerSelected && selectedProviderId
+      ? `${NAVIGATION_PROVIDER_LABELS[selectedProviderId]} · Change`
+      : "Open navigation";
+
   return (
-    <Button
+    <button
       type="button"
-      variant="primary"
-      className={fullWidth ? "w-full min-h-12" : "w-full min-h-12 sm:w-fit"}
+      data-testid="claim-navigation-action"
+      className="motion-interactive-press inline-flex min-h-10 w-fit max-w-full items-center rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground"
       aria-haspopup="dialog"
       aria-expanded={Boolean(navigation.session?.open && sessionMatchesClaim)}
       onClick={() => {
@@ -47,7 +58,7 @@ export function ClaimNavigationActions({
         });
       }}
     >
-      Open in
-    </Button>
+      {label}
+    </button>
   );
 }

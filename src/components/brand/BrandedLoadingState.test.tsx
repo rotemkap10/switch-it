@@ -82,7 +82,7 @@ describe("loader vs map pin and launch splash", () => {
 
     expect(picker).toContain("leaver-center-pin");
     expect(settle).toContain("parking-pin-settle");
-    expect(launch).toContain("SwitchItLogoMark");
+    expect(launch).toContain('variant="splash"');
     expect(launch).not.toContain("BrandedLoadingCar");
     expect(css).toContain(".leaver-center-pin");
     expect(css).toContain(".branded-loading-car");
