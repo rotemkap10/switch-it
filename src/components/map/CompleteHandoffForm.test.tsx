@@ -111,6 +111,19 @@ describe("CompleteHandoffForm", () => {
     });
   });
 
+  it("emphasizes Complete handoff without changing verification fields", () => {
+    render(
+      <FeedbackShell>
+        <CompleteHandoffForm claimId={claimId} emphasized />
+      </FeedbackShell>,
+    );
+
+    expect(screen.getByLabelText("Handoff code")).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: "Complete handoff" });
+    expect(button.className).toContain("bg-accent");
+    expect(button.className).toContain("min-h-[var(--app-tap-min)]");
+  });
+
   it("calls onCompleted after successful verification", async () => {
     const onCompleted = vi.fn();
     const user = userEvent.setup();

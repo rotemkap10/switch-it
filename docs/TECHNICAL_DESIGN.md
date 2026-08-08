@@ -534,11 +534,18 @@ blocking.
 
 ### Seeker claimed / handoff sheet (presentation)
 
-- `/map` overlay `ActiveClaimPanel` order: **Navigate to spot** → parking location
-  label (stored address or “Exact location marked on map”) → optional distance →
-  shared `HandoffWindowCountdown` (`available_at` / `expires_at`) → vehicle
-  identity (`HandoffVehicleSection` / photo or illustration) → complete / cancel.
+- `/map` overlay `ActiveClaimPanel` order: claim status + shared
+  `HandoffWindowCountdown` (`available_at` / `expires_at`) → prominent
+  **Navigate to spot** → parking location (stored address or “Exact location
+  marked on map”, optional Haversine distance, compact destination preview) →
+  leaving-driver vehicle identity (`HandoffVehicleSection` / photo or
+  illustration) → live-location status → complete / cancel.
+- Navigation, preview marker, and distance use claimed-spot `latitude` /
+  `longitude` only. Address is display-only.
 - Background MapLibre destination pin uses the same claimed-spot coordinates.
+- When straight-line distance is known and very close (~80 m), status shifts to
+  “You’re close to the parking spot” and Complete is easier to notice. This is
+  informational only — never a geofence and never auto-complete.
 - Complete/cancel remain seeker-only RPCs; no credit or claim-rule changes.
 
 ### Seeker map bottom-stack (presentation)

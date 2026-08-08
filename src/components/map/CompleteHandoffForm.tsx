@@ -23,11 +23,14 @@ type CompleteHandoffFormProps = {
   claimId: string;
   /** Called after a successful completion (including already-completed). */
   onCompleted?: () => void;
+  /** Visual emphasis only — does not change completion rules. */
+  emphasized?: boolean;
 };
 
 export function CompleteHandoffForm({
   claimId,
   onCompleted,
+  emphasized = false,
 }: CompleteHandoffFormProps) {
   const [state, formAction, pending] = useActionState(
     completeClaim,
@@ -93,10 +96,14 @@ export function CompleteHandoffForm({
 
       <Button
         type="submit"
-        variant="secondary"
+        variant={emphasized ? "primary" : "secondary"}
         loading={pending}
         disabled={pending || state.lockout}
-        className="w-full min-w-[12rem] border-success/25 bg-success-bg text-foreground hover:bg-success-bg/80"
+        className={
+          emphasized
+            ? "w-full min-w-[12rem] !min-h-[var(--app-tap-min)] text-base font-semibold"
+            : "w-full min-w-[12rem] border-success/25 bg-success-bg text-foreground hover:bg-success-bg/80"
+        }
       >
         {pending ? "Verifying…" : "Complete handoff"}
       </Button>

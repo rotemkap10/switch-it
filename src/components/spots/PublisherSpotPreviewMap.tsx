@@ -25,6 +25,8 @@ export type PublisherSpotPreviewMapProps = {
   latitude: number;
   longitude: number;
   variant?: PublisherPreviewVariant;
+  ariaLabel?: string;
+  testId?: string;
 };
 
 function disableMapChrome(map: MapLibreMap) {
@@ -50,6 +52,8 @@ export function PublisherSpotPreviewMap({
   latitude,
   longitude,
   variant = "available",
+  ariaLabel = "Map preview of your parking spot",
+  testId = "publisher-spot-preview-map",
 }: PublisherSpotPreviewMapProps) {
   const styleUrl = useMemo(() => assertMapTilerStyleUrlOrNull(), []);
   const initializedRef = useRef(false);
@@ -65,7 +69,7 @@ export function PublisherSpotPreviewMap({
     return (
       <div
         className={`flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border ${shellClass}`}
-        aria-label="Map preview of your parking spot"
+        aria-label={ariaLabel}
       >
         <MapUnavailable reason="configuration" />
       </div>
@@ -76,7 +80,7 @@ export function PublisherSpotPreviewMap({
     return (
       <div
         className={`flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border p-4 ${shellClass}`}
-        aria-label="Map preview of your parking spot"
+        aria-label={ariaLabel}
       >
         <MapUnavailable
           reason="temporary"
@@ -96,8 +100,8 @@ export function PublisherSpotPreviewMap({
         "relative w-full overflow-hidden rounded-[var(--radius-card)] border border-border motion-fade-in",
         shellClass,
       ].join(" ")}
-      aria-label="Map preview of your parking spot"
-      data-testid="publisher-spot-preview-map"
+      aria-label={ariaLabel}
+      data-testid={testId}
       data-latitude={String(latitude)}
       data-longitude={String(longitude)}
       data-preview-variant={variant}

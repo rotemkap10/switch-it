@@ -8,6 +8,7 @@ import { ClaimNavigationActions } from "@/components/map/ClaimNavigationActions"
 import { useOptionalPostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
 import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 import { SeekerShareLocationCard } from "@/components/map/SeekerShareLocationCard";
+import { PublisherSpotPreviewMapLoader } from "@/components/spots/PublisherSpotPreviewMapLoader";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import { HandoffWindowCountdown } from "@/components/ui/HandoffWindowCountdown";
 import {
@@ -17,6 +18,7 @@ import {
 import { sanitizeLocationLabel } from "@/lib/geocoding/sanitize-location-label";
 import { registerSeekerLiveLocationStarter } from "@/lib/location/seeker-live-location-intent";
 import { useSeekerLiveLocationShare } from "@/lib/location/use-seeker-live-location-share";
+import { isCloseToSpot } from "@/lib/map/distance";
 import { useDistanceToSpot } from "@/lib/map/use-distance-to-spot";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
@@ -41,6 +43,8 @@ export type ActiveClaimDestination = {
 };
 
 export const ACTIVE_CLAIM_DESTINATION_FALLBACK = "Exact location marked on map";
+export const ACTIVE_CLAIM_ON_WAY_STATUS = "You’re on your way";
+export const ACTIVE_CLAIM_CLOSE_STATUS = "You’re close to the parking spot";
 
 export function activeClaimDestinationLabel(
   spotAddress: string | null | undefined,
@@ -112,7 +116,9 @@ function ActiveClaimSheetBody({
   }, [forceStopLiveShare]);
 
   const destinationLabel = activeClaimDestinationLabel(claim.spotAddress);
-  const { label: distanceLabel } = useDistanceToSpot(destination);
+  const { label: distanceLabel, meters: distanceMeters } =
+    useDistanceToSpot(destination);
+  const closeToSpot = isCloseToSpot(distanceMeters);
   const navigation = useOptionalPostClaimNavigation();
   const sessionDestination =
     navigation?.session?.claimId === claim.claimId
@@ -133,6 +139,7 @@ function ActiveClaimSheetBody({
         ? sessionDestination
         : null;
   const canNavigate = Boolean(navigateDestination);
+  const showDetails = expanded || closeToSpot;
   const compactVehicleLabel =
     counterpartVehicle && isCompleteHandoffVehicle(counterpartVehicle)
       ? `${formatVehicleNameForDisplay(`${counterpartVehicle.make} ${counterpartVehicle.model}`)} · ${VEHICLE_COLOR_LABELS[counterpartVehicle.color!]} · ${formatLicensePlateForDisplay(counterpartVehicle.licensePlate!)}`
@@ -148,13 +155,29 @@ function ActiveClaimSheetBody({
         "motion-fade-slide-up",
       ].join(" ")}
       data-testid="active-claim-sheet"
+      data-arrival={closeToSpot ? "close" : "en-route"}
     >
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <div className="rounded-[calc(var(--radius-card)-4px)] bg-accent-soft px-3 py-2">
+          <div
+            className={[
+              "rounded-[calc(var(--radius-card)-4px)] px-3 py-2",
+              closeToSpot ? "bg-success-bg" : "bg-accent-soft",
+            ].join(" ")}
+          >
             <p className="text-xs font-semibold text-accent-hover">
-              You’re on your way
+              {closeToSpot
+                ? ACTIVE_CLAIM_CLOSE_STATUS
+                : ACTIVE_CLAIM_ON_WAY_STATUS}
             </p>
+            <HandoffWindowCountdown
+              key={claim.spotExpiresAt}
+              availableAtIso={claim.spotAvailableAt}
+              expiresAtIso={claim.spotExpiresAt}
+              role="seeker"
+              className="mt-1"
+              onExpired={onExpired}
+            />
           </div>
         </div>
 
@@ -183,7 +206,7 @@ function ActiveClaimSheetBody({
       ) : null}
 
       <div data-testid="active-claim-location">
-        <p className="text-xs font-medium text-muted">Parking spot location</p>
+        <p className="text-xs font-medium text-muted">Parking spot</p>
         <p
           id={sheetLabelId}
           className="truncate text-sm font-medium text-foreground"
@@ -200,17 +223,20 @@ function ActiveClaimSheetBody({
             {distanceLabel}
           </p>
         ) : null}
+        {expanded && canNavigate && navigateDestination ? (
+          <div className="mt-2">
+            <PublisherSpotPreviewMapLoader
+              latitude={navigateDestination.latitude}
+              longitude={navigateDestination.longitude}
+              variant="handoff"
+              ariaLabel="Exact parking location"
+              testId="claim-destination-preview-map"
+            />
+          </div>
+        ) : null}
       </div>
 
-      <HandoffWindowCountdown
-        key={claim.spotExpiresAt}
-        availableAtIso={claim.spotAvailableAt}
-        expiresAtIso={claim.spotExpiresAt}
-        role="seeker"
-        onExpired={onExpired}
-      />
-
-      {!expanded && compactVehicleLabel ? (
+      {!showDetails && compactVehicleLabel ? (
         <p
           className="truncate text-xs font-medium text-foreground"
           data-testid="active-claim-compact-vehicle"
@@ -220,6 +246,20 @@ function ActiveClaimSheetBody({
         </p>
       ) : null}
 
+      <div
+        id="active-claim-details"
+        hidden={!showDetails}
+        className={showDetails ? "flex flex-col gap-3 motion-fade-in" : undefined}
+      >
+        {showDetails && counterpartVehicle ? (
+          <HandoffVehicleSection
+            title="Look for this vehicle"
+            vehicle={counterpartVehicle}
+            approachAnimationKey={`seeker-${claim.claimId}`}
+          />
+        ) : null}
+      </div>
+
       <SeekerShareLocationCard
         uiState={liveShare.uiState}
         resumedOnce={liveShare.resumedOnce}
@@ -228,36 +268,22 @@ function ActiveClaimSheetBody({
         }}
       />
 
-      <div
-        id="active-claim-details"
-        hidden={!expanded}
-        className={expanded ? "flex flex-col gap-3 motion-fade-in" : undefined}
-      >
-        {expanded ? (
-          <>
-            {counterpartVehicle ? (
-              <HandoffVehicleSection
-                title="Look for this vehicle"
-                vehicle={counterpartVehicle}
-                approachAnimationKey={`seeker-${claim.claimId}`}
-              />
-            ) : null}
-            <div
-              className="map-bottom-sheet-actions"
-              data-testid="active-claim-complete-actions"
-            >
-              <CompleteHandoffForm
-                claimId={claim.claimId}
-                onCompleted={onHandoffTerminal}
-              />
-              <CancelClaimButton
-                claimId={claim.claimId}
-                onCancelled={onHandoffTerminal}
-              />
-            </div>
-          </>
-        ) : null}
-      </div>
+      {showDetails ? (
+        <div
+          className="map-bottom-sheet-actions"
+          data-testid="active-claim-complete-actions"
+        >
+          <CompleteHandoffForm
+            claimId={claim.claimId}
+            onCompleted={onHandoffTerminal}
+            emphasized={closeToSpot}
+          />
+          <CancelClaimButton
+            claimId={claim.claimId}
+            onCancelled={onHandoffTerminal}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

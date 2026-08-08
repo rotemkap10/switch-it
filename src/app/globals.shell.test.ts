@@ -74,6 +74,7 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".publisher-share-cta");
     expect(css).toContain(".publisher-preview-map-shell--available");
     expect(css).toContain(".publisher-preview-map-shell--claimed");
+    expect(css).toContain(".publisher-preview-map-shell--handoff");
     expect(css).toContain(".publisher-live-map-shell--collapsed");
     expect(css).toContain(".publisher-live-map-shell--expanded");
     expect(css).toContain(".publisher-spot-card");

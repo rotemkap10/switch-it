@@ -16,7 +16,7 @@ import {
  */
 export function useDistanceToSpot(
   destination: LatLng | null | undefined,
-): { label: string | null } {
+): { label: string | null; meters: number | null } {
   const [origin, setOrigin] = useState<LatLng | null>(null);
   const destLat = destination?.latitude;
   const destLng = destination?.longitude;
@@ -76,9 +76,13 @@ export function useDistanceToSpot(
   }, [destLat, destLng]);
 
   if (!destValid || !isValidLatLng(origin)) {
-    return { label: null };
+    return { label: null, meters: null };
   }
 
-  const label = formatDistanceAway(haversineDistanceMeters(origin, destValid));
-  return { label: label.length > 0 ? label : null };
+  const meters = haversineDistanceMeters(origin, destValid);
+  const label = formatDistanceAway(meters);
+  if (!label) {
+    return { label: null, meters: null };
+  }
+  return { label, meters };
 }

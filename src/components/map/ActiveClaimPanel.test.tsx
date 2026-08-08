@@ -26,11 +26,17 @@ vi.mock("@/components/map/CompleteHandoffForm", () => ({
   CompleteHandoffForm: ({
     claimId,
     onCompleted,
+    emphasized,
   }: {
     claimId: string;
     onCompleted?: () => void;
+    emphasized?: boolean;
   }) => (
-    <form data-testid="complete-handoff-form" data-claim-id={claimId}>
+    <form
+      data-testid="complete-handoff-form"
+      data-claim-id={claimId}
+      data-emphasized={emphasized ? "true" : "false"}
+    >
       <button type="button" onClick={() => onCompleted?.()}>
         Complete handoff
       </button>
@@ -61,21 +67,48 @@ vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
 
 const distanceState = vi.hoisted(() => ({
   label: null as string | null,
+  meters: null as number | null,
 }));
 
 vi.mock("@/lib/map/use-distance-to-spot", () => ({
-  useDistanceToSpot: () => ({ label: distanceState.label }),
+  useDistanceToSpot: () => ({
+    label: distanceState.label,
+    meters: distanceState.meters,
+  }),
 }));
 
-const { forceStopMock, startSharingMock, stopSharingMock } = vi.hoisted(() => ({
-  forceStopMock: vi.fn(),
-  startSharingMock: vi.fn(),
-  stopSharingMock: vi.fn(),
+vi.mock("@/components/spots/PublisherSpotPreviewMapLoader", () => ({
+  PublisherSpotPreviewMapLoader: ({
+    latitude,
+    longitude,
+    variant,
+    testId = "claim-destination-preview-map",
+  }: {
+    latitude: number;
+    longitude: number;
+    variant?: string;
+    testId?: string;
+  }) => (
+    <div
+      data-testid={testId}
+      data-latitude={String(latitude)}
+      data-longitude={String(longitude)}
+      data-preview-variant={variant}
+    />
+  ),
 }));
+
+const { forceStopMock, startSharingMock, stopSharingMock, liveShareState } =
+  vi.hoisted(() => ({
+    forceStopMock: vi.fn(),
+    startSharingMock: vi.fn(),
+    stopSharingMock: vi.fn(),
+    liveShareState: { uiState: "idle" as string },
+  }));
 
 vi.mock("@/lib/location/use-seeker-live-location-share", () => ({
   useSeekerLiveLocationShare: () => ({
-    uiState: "idle",
+    uiState: liveShareState.uiState,
     resumedOnce: false,
     startSharing: startSharingMock,
     stopSharing: stopSharingMock,
@@ -88,7 +121,9 @@ import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
 
 import {
+  ACTIVE_CLAIM_CLOSE_STATUS,
   ACTIVE_CLAIM_DESTINATION_FALLBACK,
+  ACTIVE_CLAIM_ON_WAY_STATUS,
   ActiveClaimPanel,
   activeClaimDestinationLabel,
 } from "@/components/map/ActiveClaimPanel";
@@ -153,7 +188,9 @@ describe("ActiveClaimPanel sheet UX", () => {
     forceStopMock.mockReset();
     startSharingMock.mockReset();
     stopSharingMock.mockReset();
+    liveShareState.uiState = "idle";
     distanceState.label = null;
+    distanceState.meters = null;
     sessionStore.clear();
     resetSessionHandoffAnimationForTests();
     resetPostClaimNavigationForTests();
@@ -269,9 +306,14 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.getByRole("button", { name: /Collapse claim details/i }),
     ).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Parking spot location")).toBeInTheDocument();
+    expect(screen.getByText("Parking spot")).toBeInTheDocument();
     expect(screen.getByTestId("active-claim-address")).toHaveTextContent(
       "Rothschild Blvd 1",
+    );
+    expect(screen.getByText(ACTIVE_CLAIM_ON_WAY_STATUS)).toBeInTheDocument();
+    expect(screen.getByTestId("active-claim-sheet")).toHaveAttribute(
+      "data-arrival",
+      "en-route",
     );
     expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
       "data-role",
@@ -361,7 +403,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.getByRole("region", { name: ACTIVE_CLAIM_DESTINATION_FALLBACK }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Parking spot location")).toBeInTheDocument();
+    expect(screen.getByText("Parking spot")).toBeInTheDocument();
     expect(screen.getByTestId("active-claim-address")).toHaveTextContent(
       ACTIVE_CLAIM_DESTINATION_FALLBACK,
     );
@@ -668,6 +710,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
   it("shows straight-line distance when seeker location is available", () => {
     distanceState.label = "120 m away";
+    distanceState.meters = 120;
     renderPanel(
       <ActiveClaimPanel claim={claim} destination={destination} />,
     );
@@ -675,6 +718,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(screen.getByTestId("active-claim-distance")).toHaveTextContent(
       "120 m away",
     );
+    expect(screen.getByText(ACTIVE_CLAIM_ON_WAY_STATUS)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
@@ -738,6 +782,132 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
+  });
+
+  it("renders a compact destination preview with exact parking coordinates", () => {
+    renderPanel(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        variant="overlay"
+        expanded
+      />,
+    );
+
+    const preview = screen.getByTestId("claim-destination-preview-map");
+    expect(preview).toHaveAttribute("data-latitude", String(destination.latitude));
+    expect(preview).toHaveAttribute("data-longitude", String(destination.longitude));
+    expect(preview).toHaveAttribute("data-preview-variant", "handoff");
+  });
+
+  it("still shows the destination preview when the display address is missing", () => {
+    renderPanel(
+      <ActiveClaimPanel
+        claim={{ ...claim, spotAddress: null }}
+        destination={destination}
+        variant="overlay"
+        expanded
+      />,
+    );
+
+    expect(screen.getByTestId("active-claim-address")).toHaveTextContent(
+      ACTIVE_CLAIM_DESTINATION_FALLBACK,
+    );
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
+    const preview = screen.getByTestId("claim-destination-preview-map");
+    expect(preview).toHaveAttribute("data-latitude", String(destination.latitude));
+    expect(preview).toHaveAttribute("data-longitude", String(destination.longitude));
+  });
+
+  it("hides the destination preview when collapsed", async () => {
+    const user = userEvent.setup();
+    renderPanel(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        variant="overlay"
+      />,
+    );
+
+    expect(screen.getByTestId("claim-destination-preview-map")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /Collapse claim details/i }),
+    );
+    expect(
+      screen.queryByTestId("claim-destination-preview-map"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shifts emphasis toward complete when the seeker is very close", async () => {
+    const user = userEvent.setup();
+    distanceState.label = "40 m away";
+    distanceState.meters = 40;
+    renderPanel(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        counterpartVehicle={ownerVehicle}
+        variant="overlay"
+      />,
+    );
+
+    expect(screen.getByText(ACTIVE_CLAIM_CLOSE_STATUS)).toBeInTheDocument();
+    expect(screen.queryByText(ACTIVE_CLAIM_ON_WAY_STATUS)).not.toBeInTheDocument();
+    expect(screen.getByTestId("active-claim-sheet")).toHaveAttribute(
+      "data-arrival",
+      "close",
+    );
+    expect(screen.getByTestId("complete-handoff-form")).toHaveAttribute(
+      "data-emphasized",
+      "true",
+    );
+    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Collapse claim details/i }),
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Complete handoff" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Release spot" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders paused live-location status without blocking the claim", () => {
+    liveShareState.uiState = "paused";
+    renderPanel(
+      <ActiveClaimPanel claim={claim} destination={destination} />,
+    );
+
+    expect(screen.getByText("Live location paused")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Complete handoff" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders unavailable live-location status without blocking the claim", () => {
+    liveShareState.uiState = "unavailable";
+    renderPanel(
+      <ActiveClaimPanel claim={claim} destination={destination} />,
+    );
+
+    expect(screen.getByText("Live location off")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Complete handoff" }),
+    ).toBeInTheDocument();
   });
 
   it("stops live location share when handoff completes or cancels", async () => {

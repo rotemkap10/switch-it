@@ -19,7 +19,7 @@ const PreviewMap = dynamic(
     loading: () => (
       <div
         className={`overflow-hidden rounded-[var(--radius-card)] border border-border ${publisherPreviewShellClass("available")}`}
-        aria-label="Map preview of your parking spot"
+        aria-label="Parking location map"
       >
         <MapLoadingState />
       </div>

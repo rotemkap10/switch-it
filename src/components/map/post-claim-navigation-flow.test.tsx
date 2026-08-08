@@ -47,6 +47,26 @@ vi.mock("@/lib/location/use-seeker-live-location-share", () => ({
   }),
 }));
 
+vi.mock("@/lib/map/use-distance-to-spot", () => ({
+  useDistanceToSpot: () => ({ label: null, meters: null }),
+}));
+
+vi.mock("@/components/spots/PublisherSpotPreviewMapLoader", () => ({
+  PublisherSpotPreviewMapLoader: ({
+    latitude,
+    longitude,
+  }: {
+    latitude: number;
+    longitude: number;
+  }) => (
+    <div
+      data-testid="claim-destination-preview-map"
+      data-latitude={String(latitude)}
+      data-longitude={String(longitude)}
+    />
+  ),
+}));
+
 const spotId = "550e8400-e29b-41d4-a716-446655440000";
 const claimId = "11111111-1111-4111-8111-111111111111";
 const destination = { latitude: 32.085312, longitude: 34.781812 };

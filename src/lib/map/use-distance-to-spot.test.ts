@@ -36,6 +36,8 @@ describe("useDistanceToSpot", () => {
 
     await waitFor(() => {
       expect(result.current.label).toMatch(/^\d+ m away$/);
+      expect(result.current.meters).toBeGreaterThan(100);
+      expect(result.current.meters).toBeLessThan(130);
     });
   });
 
@@ -62,6 +64,7 @@ describe("useDistanceToSpot", () => {
 
     await waitFor(() => {
       expect(result.current.label).toBeNull();
+      expect(result.current.meters).toBeNull();
     });
   });
 
@@ -75,5 +78,6 @@ describe("useDistanceToSpot", () => {
 
     expect(watchPosition).not.toHaveBeenCalled();
     expect(result.current.label).toBeNull();
+    expect(result.current.meters).toBeNull();
   });
 });

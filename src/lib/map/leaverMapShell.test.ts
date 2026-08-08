@@ -14,5 +14,8 @@ describe("leaver map shell contracts", () => {
     expect(publisherPreviewShellClass("claimed")).toContain(
       "publisher-preview-map-shell--claimed",
     );
+    expect(publisherPreviewShellClass("handoff")).toContain(
+      "publisher-preview-map-shell--handoff",
+    );
   });
 });

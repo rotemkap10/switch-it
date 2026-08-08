@@ -45,3 +45,18 @@ export function formatDistanceAway(meters: number): string {
 
   return `${(meters / 1000).toFixed(1)} km away`;
 }
+
+/**
+ * Informational arrival hint only — not a geofence and never auto-completes.
+ * GPS can be inaccurate; the seeker stays in control.
+ */
+export const CLAIM_ARRIVAL_NEAR_METERS = 80;
+
+export function isCloseToSpot(meters: number | null | undefined): boolean {
+  return (
+    typeof meters === "number" &&
+    Number.isFinite(meters) &&
+    meters >= 0 &&
+    meters <= CLAIM_ARRIVAL_NEAR_METERS
+  );
+}

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CLAIM_ARRIVAL_NEAR_METERS,
   formatDistanceAway,
   haversineDistanceMeters,
+  isCloseToSpot,
   isValidLatLng,
 } from "@/lib/map/distance";
 
@@ -28,5 +30,12 @@ describe("distance helpers", () => {
     expect(formatDistanceAway(350)).toBe("350 m away");
     expect(formatDistanceAway(1400)).toBe("1.4 km away");
     expect(formatDistanceAway(-1)).toBe("");
+  });
+
+  it("treats near-spot distance as informational arrival only", () => {
+    expect(isCloseToSpot(CLAIM_ARRIVAL_NEAR_METERS)).toBe(true);
+    expect(isCloseToSpot(40)).toBe(true);
+    expect(isCloseToSpot(120)).toBe(false);
+    expect(isCloseToSpot(null)).toBe(false);
   });
 });

@@ -46,7 +46,12 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
    foregrounded again (publisher returns to **Driver location live** /
    **Updated just now**). Pause while navigating is expected, not a defect.
 8. Reload `/map` with the active claim: chooser does **not** auto-open again
-9. When safely stopped, enter correct code → complete
+9. Confirm the active-claim sheet: remaining time, **Navigate to spot**,
+   parking address or **Exact location marked on map**, optional distance,
+   compact destination preview, leaving-driver vehicle (photo or illustration),
+   live-location status, then Complete / Cancel. Near the spot, status may
+   become **You’re close to the parking spot** — never auto-complete.
+10. When safely stopped, enter correct code → complete
 
 **Verify**
 
@@ -61,6 +66,8 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 - [ ] Publisher last-update freshness is visible (**Updated just now** / seconds ago)
 - [ ] Pause while seeker is in Waze/Maps is expected; last marker remains
 - [ ] Weak GPS on seeker shows **Getting an accurate location…** / **Location signal is weak** without cancelling the claim
+- [ ] Seeker claim sheet uses exact spot lat/lng for Navigate + preview; missing address still works
+- [ ] No seeker location permission: claim UI still usable, distance omitted
 - [ ] Code no longer fetchable after complete
 - [ ] No credit change toast implying transfer on claim alone
 

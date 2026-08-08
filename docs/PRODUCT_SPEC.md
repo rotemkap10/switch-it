@@ -256,6 +256,13 @@ offline screen rather than stale parking data.
    (one shared absolute deadline — no separate 15-minute claim hold).
 4. Other users can no longer claim that spot while the claim is active.
 5. Both participants immediately see counterpart vehicle recognition cards.
+   The seeker’s active-claim sheet is mobile-first: remaining time,
+   **Navigate to spot** (exact lat/lng via Waze / Google Maps / Apple Maps),
+   parking address or “Exact location marked on map” plus optional distance and
+   a compact destination preview, the leaving driver’s vehicle (photo or
+   illustration), live-location status, then Complete / Cancel. If the seeker
+   is very close, copy may shift to “You’re close to the parking spot” and
+   Complete becomes easier to notice — never auto-complete, never a geofence.
 
 ### 9.5 Completing a handoff
 

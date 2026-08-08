@@ -476,6 +476,10 @@ body {
   height: clamp(140px, 22dvh, 180px);
 }
 
+.publisher-preview-map-shell--handoff {
+  height: clamp(120px, 18dvh, 160px);
+}
+
 .publisher-live-map-shell {
   width: 100%;
   overflow: hidden;
