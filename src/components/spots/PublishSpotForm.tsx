@@ -15,7 +15,13 @@ import { Input } from "@/components/ui/Input";
 import { PUBLISHER_SPOT_ADDRESS_FALLBACK } from "@/lib/geocoding/location-display";
 import { useReverseGeocode } from "@/lib/geocoding/use-reverse-geocode";
 import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
-import { GEOLOCATION_TIMEOUT_MS } from "@/lib/spots/constants";
+import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
+import type { GeolocationReason } from "@/lib/map/use-user-location";
+import {
+  classifyGpsAccuracy,
+  formatGpsAccuracyLabel,
+  watchBestDeviceLocation,
+} from "@/lib/map/watch-best-device-location";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
 const initialState: PublishSpotActionState = {};
@@ -29,6 +35,17 @@ function formatCoord(value: number): string {
 function parseCoord(value: string): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function locationErrorCopy(reason: GeolocationReason | null): string {
+  switch (reason) {
+    case "denied":
+      return "Location permission denied. Place the pin on the map yourself.";
+    case "timeout":
+      return "GPS timed out. Try again or place the pin on the map.";
+    default:
+      return "Location unavailable. Place the pin on the map yourself.";
+  }
 }
 
 function MapShellSkeleton({ message }: { message: string }) {
@@ -52,14 +69,18 @@ function AddressLookupSummary({
   lookupStatus,
   addressLabel,
   isUpdating,
+  accuracyMeters,
+  pinPlacedManually,
 }: {
   geoStatus: GeoStatus;
   hasLocation: boolean;
   lookupStatus: "idle" | "loading" | "success" | "unavailable";
   addressLabel: string | null;
   isUpdating: boolean;
+  accuracyMeters: number | null;
+  pinPlacedManually: boolean;
 }) {
-  if (geoStatus === "loading") {
+  if (geoStatus === "loading" && !hasLocation) {
     return (
       <p
         className="publisher-location-status publisher-location-status--muted motion-location-indicator"
@@ -79,11 +100,47 @@ function AddressLookupSummary({
   const showResolved =
     lookupStatus === "success" && addressLabel && !isUpdating;
   const showLoading = lookupStatus === "loading" || isUpdating;
-  const showInitialIdle =
-    lookupStatus === "idle" && !addressLabel && !isUpdating;
   const showFallback =
     lookupStatus === "unavailable" ||
-    (lookupStatus === "success" && !addressLabel && !isUpdating);
+    (lookupStatus === "success" && !addressLabel && !isUpdating) ||
+    (lookupStatus === "idle" && !addressLabel && !isUpdating);
+
+  const accuracyLabel = pinPlacedManually
+    ? null
+    : formatGpsAccuracyLabel(accuracyMeters);
+  const accuracyBand = pinPlacedManually
+    ? "unknown"
+    : classifyGpsAccuracy(accuracyMeters);
+  const showPoorWarning = accuracyBand === "poor";
+
+  const accuracyBlock =
+    accuracyLabel || showPoorWarning ? (
+      <>
+        {accuracyLabel ? (
+          <p
+            className={[
+              "publisher-location-summary__accuracy",
+              accuracyBand === "poor"
+                ? "publisher-location-summary__accuracy--poor"
+                : "",
+            ].join(" ")}
+            data-testid="publisher-location-accuracy"
+          >
+            {accuracyLabel}
+          </p>
+        ) : null}
+        {showPoorWarning ? (
+          <p
+            className="publisher-location-summary__warning"
+            role="status"
+            data-testid="publisher-location-accuracy-warning"
+          >
+            Location accuracy is low. Wait a moment for a better GPS signal or
+            move the pin to the exact parking spot.
+          </p>
+        ) : null}
+      </>
+    ) : null;
 
   if (showLoading) {
     return (
@@ -98,13 +155,17 @@ function AddressLookupSummary({
             {addressLabel}
           </p>
         ) : (
-          <p className="publisher-location-status publisher-location-status--success">
-            Location selected
+          <p
+            className="publisher-location-status publisher-location-status--success"
+            data-testid="publisher-location-status"
+          >
+            {PUBLISHER_SPOT_ADDRESS_FALLBACK}
           </p>
         )}
         <p className="publisher-location-summary__loading motion-location-indicator">
           Finding the address…
         </p>
+        {accuracyBlock}
       </div>
     );
   }
@@ -124,6 +185,7 @@ function AddressLookupSummary({
         >
           {addressLabel}
         </p>
+        {accuracyBlock}
       </div>
     );
   }
@@ -142,24 +204,7 @@ function AddressLookupSummary({
         >
           {PUBLISHER_SPOT_ADDRESS_FALLBACK}
         </p>
-      </div>
-    );
-  }
-
-  if (showInitialIdle) {
-    return (
-      <div
-        className="publisher-location-summary"
-        role="status"
-        aria-live="polite"
-        data-testid="publisher-address-summary"
-      >
-        <p
-          className="publisher-location-status publisher-location-status--success motion-success-flash"
-          data-testid="publisher-location-status"
-        >
-          Location selected
-        </p>
+        {accuracyBlock}
       </div>
     );
   }
@@ -169,55 +214,53 @@ function AddressLookupSummary({
 
 function LocationStatus({
   geoStatus,
-  hasLocation,
+  geoError,
   pending,
   onRetry,
   onChooseOnMap,
 }: {
   geoStatus: GeoStatus;
-  hasLocation: boolean;
+  geoError: GeolocationReason | null;
   pending: boolean;
   onRetry: () => void;
   onChooseOnMap: () => void;
 }) {
-  if (geoStatus === "error") {
-    return (
-      <div
-        className="publisher-location-status"
-        role="status"
-        aria-live="polite"
-        data-testid="location-unavailable"
-      >
-        <p className="font-medium text-foreground">Location unavailable</p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onRetry}
-            disabled={pending}
-            className="!min-h-[var(--app-tap-min)] !px-3 !py-2 text-xs"
-          >
-            Try again
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onChooseOnMap}
-            disabled={pending}
-            className="!min-h-[var(--app-tap-min)] !px-3 !py-2 text-xs"
-          >
-            Choose on map
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (geoStatus === "loading" && !hasLocation) {
+  if (geoStatus !== "error") {
     return null;
   }
 
-  return null;
+  return (
+    <div
+      className="publisher-location-status"
+      role="status"
+      aria-live="polite"
+      data-testid="location-unavailable"
+    >
+      <p className="font-medium text-foreground">
+        {locationErrorCopy(geoError)}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onRetry}
+          disabled={pending}
+          className="!min-h-[var(--app-tap-min)] !px-3 !py-2 text-xs"
+        >
+          Try again
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onChooseOnMap}
+          disabled={pending}
+          className="!min-h-[var(--app-tap-min)] !px-3 !py-2 text-xs"
+        >
+          Choose on map
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function PublishSpotForm() {
@@ -238,8 +281,13 @@ export function PublishSpotForm() {
   } | null>(null);
   const [leaveInMinutes, setLeaveInMinutes] = useState(0);
   const [geoStatus, setGeoStatus] = useState<GeoStatus>("loading");
+  const [geoError, setGeoError] = useState<GeolocationReason | null>(null);
+  const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
+  const [manualOverride, setManualOverride] = useState(false);
   const [showManualCoords, setShowManualCoords] = useState(false);
-  const autoRequestedRef = useRef(false);
+  const stopWatchRef = useRef<(() => void) | null>(null);
+  const manualOverrideRef = useRef(false);
+  const hasLocationRef = useRef(false);
 
   const hasLocation = latitude !== "" && longitude !== "";
   const showMap =
@@ -256,6 +304,7 @@ export function PublishSpotForm() {
     addressForPublish,
     isUpdating,
     notifyMapMoveStart,
+    notifyMapMoveSettled,
   } = useReverseGeocode(
     canRenderPicker ? parsedLat : null,
     canRenderPicker ? parsedLng : null,
@@ -267,40 +316,83 @@ export function PublishSpotForm() {
     setLongitude(formatCoord(lng));
   }, []);
 
-  const requestLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      setGeoStatus("error");
-      return;
-    }
+  const stopGpsWatch = useCallback(() => {
+    stopWatchRef.current?.();
+    stopWatchRef.current = null;
+  }, []);
 
-    setGeoStatus("loading");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const { latitude: lat, longitude: lng } = position.coords;
-        setDetectedLocation({ latitude: lat, longitude: lng });
-        setLocation(lat, lng);
-        setGeoStatus("success");
-      },
-      () => {
-        setGeoStatus("error");
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: GEOLOCATION_TIMEOUT_MS,
-        maximumAge: 60_000,
-      },
-    );
-  }, [setLocation]);
+  const applyGpsFix = useCallback(
+    (fix: DeviceLocationFix) => {
+      setDetectedLocation({
+        latitude: fix.latitude,
+        longitude: fix.longitude,
+      });
+      setAccuracyMeters(fix.accuracy);
+      setLocation(fix.latitude, fix.longitude);
+      setGeoError(null);
+      setGeoStatus("success");
+    },
+    [setLocation],
+  );
+  const applyGpsFixRef = useRef(applyGpsFix);
 
   useEffect(() => {
-    if (autoRequestedRef.current) {
-      return;
+    applyGpsFixRef.current = applyGpsFix;
+  }, [applyGpsFix]);
+
+  const subscribeGpsWatch = useCallback(() => {
+    stopGpsWatch();
+    stopWatchRef.current = watchBestDeviceLocation({
+      onUpdate: (fix) => {
+        if (manualOverrideRef.current) {
+          return;
+        }
+        applyGpsFixRef.current(fix);
+      },
+      onError: (reason) => {
+        if (manualOverrideRef.current) {
+          return;
+        }
+        if (hasLocationRef.current) {
+          return;
+        }
+        setGeoError(reason);
+        setGeoStatus("error");
+      },
+    });
+  }, [stopGpsWatch]);
+
+  const startGpsWatch = useCallback(() => {
+    setGeoError(null);
+    setManualOverride(false);
+    manualOverrideRef.current = false;
+    if (!hasLocationRef.current) {
+      setGeoStatus("loading");
     }
-    autoRequestedRef.current = true;
-    requestLocation();
-  }, [requestLocation]);
+    subscribeGpsWatch();
+  }, [subscribeGpsWatch]);
+
+  useEffect(() => {
+    hasLocationRef.current = hasLocation;
+  }, [hasLocation]);
+
+  useEffect(() => {
+    manualOverrideRef.current = manualOverride;
+  }, [manualOverride]);
+
+  useEffect(() => {
+    subscribeGpsWatch();
+    return () => {
+      stopWatchRef.current?.();
+      stopWatchRef.current = null;
+    };
+  }, [subscribeGpsWatch]);
 
   function chooseOnMap() {
+    stopGpsWatch();
+    setManualOverride(true);
+    manualOverrideRef.current = true;
+    setAccuracyMeters(null);
     if (!hasLocation) {
       setLocation(MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng);
     }
@@ -314,6 +406,31 @@ export function PublishSpotForm() {
     }
   }
 
+  function handleUserMovedMap() {
+    stopGpsWatch();
+    setManualOverride(true);
+    manualOverrideRef.current = true;
+    setAccuracyMeters(null);
+  }
+
+  function handleCurrentLocationResolved(fix: DeviceLocationFix) {
+    stopGpsWatch();
+    setManualOverride(false);
+    manualOverrideRef.current = false;
+    applyGpsFix(fix);
+  }
+
+  function handleManualCoordChange(
+    setter: (value: string) => void,
+    value: string,
+  ) {
+    stopGpsWatch();
+    setManualOverride(true);
+    manualOverrideRef.current = true;
+    setAccuracyMeters(null);
+    setter(value);
+  }
+
   return (
     <form
       action={formAction}
@@ -322,9 +439,23 @@ export function PublishSpotForm() {
     >
       <div className="publisher-compose-surface">
         <section
-          className="flex flex-col gap-2"
-          aria-label="Parking location"
+          className="flex flex-col gap-3"
+          aria-label="Parking spot location"
         >
+          <p className="text-sm font-medium text-foreground">
+            Parking spot location
+          </p>
+
+          <AddressLookupSummary
+            geoStatus={geoStatus}
+            hasLocation={hasLocation}
+            lookupStatus={addressLookupStatus}
+            addressLabel={addressLabel}
+            isUpdating={isUpdating}
+            accuracyMeters={accuracyMeters}
+            pinPlacedManually={manualOverride || geoStatus === "manual"}
+          />
+
           {geoStatus === "loading" && !canRenderPicker ? (
             <MapShellSkeleton message="Loading map…" />
           ) : null}
@@ -335,32 +466,31 @@ export function PublishSpotForm() {
               longitude={parsedLng}
               onLocationChange={handleMapLocationChange}
               onMapInteractionStart={notifyMapMoveStart}
+              onMapInteractionSettled={notifyMapMoveSettled}
+              onUserMovedMap={handleUserMovedMap}
               disabled={pending}
               userLatitude={detectedLocation?.latitude ?? null}
               userLongitude={detectedLocation?.longitude ?? null}
-              onCurrentLocationResolved={(lat, lng) => {
-                setDetectedLocation({ latitude: lat, longitude: lng });
-              }}
+              onCurrentLocationResolved={handleCurrentLocationResolved}
             />
+          ) : null}
+
+          {canRenderPicker ? (
+            <p
+              className="publisher-pin-hint"
+              data-testid="publisher-pin-hint"
+            >
+              Drag the pin if needed to mark the exact parking spot.
+            </p>
           ) : null}
 
           <LocationStatus
             geoStatus={geoStatus}
-            hasLocation={hasLocation}
+            geoError={geoError}
             pending={pending}
-            onRetry={requestLocation}
+            onRetry={startGpsWatch}
             onChooseOnMap={chooseOnMap}
           />
-
-          {hasLocation && geoStatus !== "error" ? (
-            <AddressLookupSummary
-              geoStatus={geoStatus}
-              hasLocation={hasLocation}
-              lookupStatus={addressLookupStatus}
-              addressLabel={addressLabel}
-              isUpdating={isUpdating}
-            />
-          ) : null}
 
           {!showManualCoords ? (
             <>
@@ -402,7 +532,9 @@ export function PublishSpotForm() {
                     min={-90}
                     max={90}
                     value={latitude}
-                    onChange={(event) => setLatitude(event.target.value)}
+                    onChange={(event) =>
+                      handleManualCoordChange(setLatitude, event.target.value)
+                    }
                     disabled={pending}
                     error={state.fieldErrors?.latitude?.[0]}
                   />
@@ -417,7 +549,9 @@ export function PublishSpotForm() {
                     min={-180}
                     max={180}
                     value={longitude}
-                    onChange={(event) => setLongitude(event.target.value)}
+                    onChange={(event) =>
+                      handleManualCoordChange(setLongitude, event.target.value)
+                    }
                     disabled={pending}
                     error={state.fieldErrors?.longitude?.[0]}
                   />

@@ -34,6 +34,10 @@ describe("useMapRecenter", () => {
     });
 
     expect(requestCurrentDeviceLocation).toHaveBeenCalledTimes(1);
+    expect(requestCurrentDeviceLocation).toHaveBeenCalledWith({
+      enableHighAccuracy: true,
+      maximumAgeMs: 0,
+    });
     expect(onFix).toHaveBeenCalledWith(
       expect.objectContaining({ latitude: 32.08, longitude: 34.78 }),
     );

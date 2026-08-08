@@ -48,7 +48,7 @@ describe("root PWA metadata", () => {
     expect(layoutSource).toContain("appleWebApp");
     expect(layoutSource).toContain("apple-touch-startup-image");
     expect(layoutSource).toContain("apple-mobile-web-app-capable");
-    expect(layoutSource).toContain('statusBarStyle: "black-translucent"');
+    expect(layoutSource).toContain('statusBarStyle: "default"');
     expect(layoutSource).toContain("/apple-touch-icon.png");
   });
 

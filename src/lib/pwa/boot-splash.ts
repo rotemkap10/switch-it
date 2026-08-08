@@ -22,7 +22,10 @@ export function bootSplashCriticalCss(
   ].join("");
 }
 
-/** Runs before hydration so return visits never flash the boot splash. */
+/**
+ * Hide the SSR splash before hydration only for in-browser return visits.
+ * Standalone PWA launches always keep #app-boot-splash until the app shell paints.
+ */
 export function bootSplashSkipScript(): string {
-  return `(function(){try{if(sessionStorage.getItem(${JSON.stringify(APP_LAUNCH_SPLASH_SEEN_KEY)})==="1"){document.documentElement.classList.add(${JSON.stringify(BOOT_SPLASH_SKIP_CLASS)});}}catch(e){}})();`;
+  return `(function(){try{var standalone=(window.navigator&&window.navigator.standalone===true)||(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches);if(standalone){return;}if(sessionStorage.getItem(${JSON.stringify(APP_LAUNCH_SPLASH_SEEN_KEY)})==="1"){document.documentElement.classList.add(${JSON.stringify(BOOT_SPLASH_SKIP_CLASS)});}}catch(e){}})();`;
 }

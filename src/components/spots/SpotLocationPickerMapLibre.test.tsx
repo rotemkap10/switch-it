@@ -202,6 +202,61 @@ describe("SpotLocationPickerMapLibre", () => {
     expect(await screen.findByText("Location selected")).toBeInTheDocument();
   });
 
+  it("treats a user pan as an intentional pin move", async () => {
+    const onUserMovedMap = vi.fn();
+    const onMapInteractionStart = vi.fn();
+
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+        onUserMovedMap={onUserMovedMap}
+        onMapInteractionStart={onMapInteractionStart}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalled();
+    });
+
+    const movestartHandler = mockMap.on.mock.calls.find(
+      (call) => call[0] === "movestart",
+    )?.[1] as (() => void) | undefined;
+    expect(movestartHandler).toBeTypeOf("function");
+    movestartHandler?.();
+
+    expect(onMapInteractionStart).toHaveBeenCalledTimes(1);
+    expect(onUserMovedMap).toHaveBeenCalledTimes(1);
+  });
+
+  it("settles reverse geocode when moveend does not change the pin", async () => {
+    const onMapInteractionSettled = vi.fn();
+    const onLocationChange = vi.fn();
+    mockMap.getCenter.mockReturnValue({ lat: 32.085312, lng: 34.781812 });
+
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={onLocationChange}
+        onMapInteractionSettled={onMapInteractionSettled}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalled();
+    });
+
+    const moveendHandler = mockMap.on.mock.calls.find(
+      (call) => call[0] === "moveend",
+    )?.[1] as (() => void) | undefined;
+    moveendHandler?.();
+
+    expect(onLocationChange).not.toHaveBeenCalled();
+    expect(onMapInteractionSettled).toHaveBeenCalledTimes(1);
+  });
+
   it("exposes setPickerMapInteractionEnabled for handler contracts", () => {
     setPickerMapInteractionEnabled(mockMap as never, true);
     expect(mockMap.dragPan.enable).toHaveBeenCalled();
@@ -221,7 +276,7 @@ describe("SpotLocationPickerMapLibre", () => {
     );
 
     expect(
-      await screen.findByRole("button", { name: "Center on my location" }),
+      await screen.findByRole("button", { name: "Use my current location" }),
     ).toBeInTheDocument();
   });
 
@@ -240,7 +295,7 @@ describe("SpotLocationPickerMapLibre", () => {
     );
 
     await user.click(
-      await screen.findByRole("button", { name: "Center on my location" }),
+      await screen.findByRole("button", { name: "Use my current location" }),
     );
 
     expect(recenterMock).toHaveBeenCalledTimes(1);
@@ -258,8 +313,11 @@ describe("SpotLocationPickerMapLibre", () => {
       }),
     );
     expect(onCurrentLocationResolved).toHaveBeenCalledWith(
-      32.085312,
-      34.781812,
+      expect.objectContaining({
+        latitude: 32.085312,
+        longitude: 34.781812,
+        accuracy: 10,
+      }),
     );
     expect(onLocationChange).toHaveBeenCalled();
   });

@@ -13,11 +13,36 @@ export const SPLASH_MAX_MS = 12_000;
 export function shouldSkipLaunchSplash(options: {
   reducedMotion: boolean;
   alreadySeen: boolean;
+  standalone?: boolean;
 }): boolean {
   // Reduced motion still shows the cold-start splash (avoids black/half UI);
-  // it only skips the exit fade. Client navigations skip via alreadySeen.
+  // it only skips the exit fade. Standalone PWA launches always show splash.
+  // In-browser client remounts skip via alreadySeen.
   void options.reducedMotion;
+  if (options.standalone) {
+    return false;
+  }
   return options.alreadySeen;
+}
+
+/** Wait until after the next two frames so the app shell can paint first. */
+export function afterNextPaint(callback: () => void): () => void {
+  if (typeof window === "undefined" || typeof window.requestAnimationFrame !== "function") {
+    callback();
+    return () => {};
+  }
+
+  let innerId = 0;
+  const outerId = window.requestAnimationFrame(() => {
+    innerId = window.requestAnimationFrame(() => {
+      callback();
+    });
+  });
+
+  return () => {
+    window.cancelAnimationFrame(outerId);
+    window.cancelAnimationFrame(innerId);
+  };
 }
 
 export function prefersReducedMotionMedia(): boolean {

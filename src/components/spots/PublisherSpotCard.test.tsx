@@ -108,8 +108,8 @@ const seekerVehicle = {
 
 describe("publisherSpotTitleLabel", () => {
   it("falls back when address is missing", () => {
-    expect(publisherSpotTitleLabel(null)).toBe("Location selected on the map");
-    expect(publisherSpotTitleLabel("  ")).toBe("Location selected on the map");
+    expect(publisherSpotTitleLabel(null)).toBe("Exact location marked on map");
+    expect(publisherSpotTitleLabel("  ")).toBe("Exact location marked on map");
     expect(publisherSpotTitleLabel("Dizengoff 50")).toBe("Dizengoff 50");
   });
 });
@@ -251,7 +251,7 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("Location selected on the map")).toBeInTheDocument();
+    expect(screen.getByText("Exact location marked on map")).toBeInTheDocument();
   });
 
   it("prioritizes handoff code before live progress map in claimed state", () => {

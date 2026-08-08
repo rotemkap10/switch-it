@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+  afterNextPaint,
   APP_LAUNCH_SPLASH_SEEN_KEY,
   shouldSkipLaunchSplash,
   SPLASH_FADE_MS,
@@ -24,15 +25,51 @@ describe("app-launch", () => {
     ).toBe(false);
   });
 
-  it("skips splash when already seen this session", () => {
+  it("skips splash when already seen this session in the browser", () => {
     expect(
       shouldSkipLaunchSplash({ reducedMotion: false, alreadySeen: true }),
     ).toBe(true);
+  });
+
+  it("does not skip splash on standalone PWA launch even if already seen", () => {
+    expect(
+      shouldSkipLaunchSplash({
+        reducedMotion: false,
+        alreadySeen: true,
+        standalone: true,
+      }),
+    ).toBe(false);
   });
 
   it("shows splash on first cold launch without reduced motion", () => {
     expect(
       shouldSkipLaunchSplash({ reducedMotion: false, alreadySeen: false }),
     ).toBe(false);
+  });
+
+  it("runs afterNextPaint on the second animation frame", () => {
+    vi.useFakeTimers();
+    const calls: number[] = [];
+    let id = 0;
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      id += 1;
+      window.setTimeout(() => cb(id), 0);
+      return id;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (timerId: number) => {
+      window.clearTimeout(timerId);
+    });
+
+    afterNextPaint(() => {
+      calls.push(1);
+    });
+    expect(calls).toEqual([]);
+    vi.runOnlyPendingTimers();
+    expect(calls).toEqual([]);
+    vi.runOnlyPendingTimers();
+    expect(calls).toEqual([1]);
+
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
   });
 });

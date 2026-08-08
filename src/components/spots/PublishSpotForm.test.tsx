@@ -20,6 +20,7 @@ const reverseGeocodeState = vi.hoisted(() => ({
   addressForPublish: null as string | null,
   isUpdating: false,
   notifyMapMoveStart: vi.fn(),
+  notifyMapMoveSettled: vi.fn(),
 }));
 
 vi.mock("@/lib/geocoding/use-reverse-geocode", () => ({
@@ -29,6 +30,7 @@ vi.mock("@/lib/geocoding/use-reverse-geocode", () => ({
     addressForPublish: reverseGeocodeState.addressForPublish,
     isUpdating: reverseGeocodeState.isUpdating,
     notifyMapMoveStart: reverseGeocodeState.notifyMapMoveStart,
+    notifyMapMoveSettled: reverseGeocodeState.notifyMapMoveSettled,
   }),
 }));
 
@@ -37,10 +39,19 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
     latitude,
     longitude,
     onLocationChange,
+    onUserMovedMap,
+    onCurrentLocationResolved,
   }: {
     latitude: number;
     longitude: number;
     onLocationChange?: (latitude: number, longitude: number) => void;
+    onUserMovedMap?: () => void;
+    onCurrentLocationResolved?: (fix: {
+      latitude: number;
+      longitude: number;
+      accuracy: number | null;
+      timestamp: number;
+    }) => void;
     userLatitude?: number | null;
     userLongitude?: number | null;
   }) => (
@@ -52,14 +63,25 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
       Map at {latitude}, {longitude}
       <button
         type="button"
-        onClick={() => onLocationChange?.(32.111111, 34.222222)}
+        onClick={() => {
+          onUserMovedMap?.();
+          onLocationChange?.(32.111111, 34.222222);
+        }}
       >
         Simulate map move
       </button>
       <button
         type="button"
-        aria-label="Center on my location"
-        onClick={() => onLocationChange?.(32.085312, 34.781812)}
+        aria-label="Use my current location"
+        onClick={() => {
+          onCurrentLocationResolved?.({
+            latitude: 32.085312,
+            longitude: 34.781812,
+            accuracy: 8,
+            timestamp: Date.now(),
+          });
+          onLocationChange?.(32.085312, 34.781812);
+        }}
       >
         Center
       </button>
@@ -104,8 +126,34 @@ function stubGeolocation(
 ) {
   vi.stubGlobal("navigator", {
     ...navigator,
-    geolocation: { getCurrentPosition: vi.fn(implementation) },
+    geolocation: {
+      getCurrentPosition: vi.fn(implementation),
+      watchPosition: vi.fn((success, error) => {
+        implementation(success, error);
+        return 1;
+      }),
+      clearWatch: vi.fn(),
+    },
   });
+}
+
+function position(
+  latitude: number,
+  longitude: number,
+  accuracy: number,
+): GeolocationPosition {
+  return {
+    coords: {
+      latitude,
+      longitude,
+      accuracy,
+      altitude: null,
+      altitudeAccuracy: null,
+      heading: null,
+      speed: null,
+    },
+    timestamp: Date.now(),
+  } as GeolocationPosition;
 }
 
 describe("PublishSpotForm", () => {
@@ -117,19 +165,9 @@ describe("PublishSpotForm", () => {
     reverseGeocodeState.addressForPublish = null;
     reverseGeocodeState.isUpdating = false;
     reverseGeocodeState.notifyMapMoveStart.mockReset();
+    reverseGeocodeState.notifyMapMoveSettled.mockReset();
     stubGeolocation((success) => {
-      success({
-        coords: {
-          latitude: 32.085312,
-          longitude: 34.781812,
-          accuracy: 10,
-          altitude: null,
-          altitudeAccuracy: null,
-          heading: null,
-          speed: null,
-        },
-        timestamp: Date.now(),
-      } as GeolocationPosition);
+      success(position(32.085312, 34.781812, 10));
     });
   });
 
@@ -154,9 +192,16 @@ describe("PublishSpotForm", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
-        "Location selected",
+        "Exact location marked on map",
       );
     });
+    expect(screen.getByText("Parking spot location")).toBeInTheDocument();
+    expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
+      "Location accuracy: ±10 m",
+    );
+    expect(screen.getByTestId("publisher-pin-hint")).toHaveTextContent(
+      "Drag the pin if needed to mark the exact parking spot.",
+    );
     expect(
       screen.queryByText("You can move the map to adjust the spot."),
     ).not.toBeInTheDocument();
@@ -195,8 +240,8 @@ describe("PublishSpotForm", () => {
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
-      expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
-        "Location selected",
+      expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
+        "Location accuracy: ±10 m",
       );
     });
 
@@ -219,9 +264,7 @@ describe("PublishSpotForm", () => {
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
-      expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
-        "Location selected",
-      );
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
     });
 
     await user.click(screen.getByRole("button", { name: "Enter coordinates manually" }));
@@ -246,27 +289,30 @@ describe("PublishSpotForm", () => {
   });
 
   it("requests geolocation automatically on load", async () => {
-    const getCurrentPosition = vi.fn((success: PositionCallback) => {
-      success({
-        coords: {
-          latitude: 32,
-          longitude: 34,
-          accuracy: 10,
-          altitude: null,
-          altitudeAccuracy: null,
-          heading: null,
-          speed: null,
-        },
-        timestamp: Date.now(),
-      } as GeolocationPosition);
+    const watchPosition = vi.fn((success: PositionCallback) => {
+      success(position(32, 34, 10));
+      return 1;
     });
 
-    stubGeolocation(getCurrentPosition);
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: vi.fn(),
+        watchPosition,
+        clearWatch: vi.fn(),
+      },
+    });
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
-      expect(getCurrentPosition).toHaveBeenCalledTimes(1);
+      expect(watchPosition).toHaveBeenCalledTimes(1);
     });
+    expect(watchPosition.mock.calls[0]?.[2]).toEqual(
+      expect.objectContaining({
+        enableHighAccuracy: true,
+        maximumAge: 0,
+      }),
+    );
   });
 
   it("offers map fallback when geolocation is denied", async () => {
@@ -284,7 +330,9 @@ describe("PublishSpotForm", () => {
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     expect(
-      await screen.findByText("Location unavailable"),
+      await screen.findByText(
+        "Location permission denied. Place the pin on the map yourself.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByTestId("location-unavailable")).toBeInTheDocument();
 
@@ -300,7 +348,7 @@ describe("PublishSpotForm", () => {
     });
 
     expect(
-      screen.getByRole("button", { name: "Center on my location" }),
+      screen.getByRole("button", { name: "Use my current location" }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Latitude")).not.toBeInTheDocument();
 
@@ -316,12 +364,10 @@ describe("PublishSpotForm", () => {
     const { unmount } = render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
-      expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
-        "Location selected",
-      );
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
     });
     expect(
-      screen.getByRole("button", { name: "Center on my location" }),
+      screen.getByRole("button", { name: "Use my current location" }),
     ).toBeInTheDocument();
     unmount();
 
@@ -340,7 +386,7 @@ describe("PublishSpotForm", () => {
       await screen.findByRole("button", { name: "Choose on map" }),
     );
     expect(
-      screen.getByRole("button", { name: "Center on my location" }),
+      screen.getByRole("button", { name: "Use my current location" }),
     ).toBeInTheDocument();
   });
 
@@ -417,9 +463,7 @@ describe("PublishSpotForm", () => {
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
-      expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
-        "Location selected",
-      );
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
     });
 
     await user.click(screen.getByRole("button", { name: "Share spot" }));
@@ -435,5 +479,146 @@ describe("PublishSpotForm", () => {
         screen.getByRole("button", { name: "Share spot" }),
       ).toBeEnabled();
     });
+  });
+
+  it("prefers the more accurate GPS fix when several arrive", async () => {
+    let success: PositionCallback | null = null;
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: vi.fn(),
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          return 4;
+        }),
+        clearWatch: vi.fn(),
+      },
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    success?.(position(32.08, 34.78, 42));
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+        "Map at 32.08, 34.78",
+      );
+    });
+
+    success?.(position(32.085312, 34.781812, 9));
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+        "Map at 32.085312, 34.781812",
+      );
+    });
+    expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
+      "Location accuracy: ±9 m",
+    );
+  });
+
+  it("warns when GPS accuracy is poor without blocking publish", async () => {
+    stubGeolocation((success) => {
+      success(position(32.085312, 34.781812, 45));
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    expect(
+      await screen.findByTestId("publisher-location-accuracy-warning"),
+    ).toHaveTextContent("Location accuracy is low");
+    expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
+      "Location accuracy: ±45 m",
+    );
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
+  });
+
+  it("keeps a manually moved pin when later GPS updates arrive", async () => {
+    const user = userEvent.setup();
+    let success: PositionCallback | null = null;
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: vi.fn(),
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          nextSuccess(position(32.085312, 34.781812, 40));
+          return 5;
+        }),
+        clearWatch: vi.fn(),
+      },
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.111111, 34.222222",
+    );
+    expect(
+      screen.queryByTestId("publisher-location-accuracy"),
+    ).not.toBeInTheDocument();
+
+    success?.(position(32.099999, 34.799999, 8));
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.111111, 34.222222",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+    const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
+    expect(formData.get("latitude")).toBe("32.111111");
+    expect(formData.get("longitude")).toBe("34.222222");
+  });
+
+  it("returns to a fresh GPS fix when Use my current location is pressed", async () => {
+    const user = userEvent.setup();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.111111, 34.222222",
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Use my current location" }),
+    );
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.085312, 34.781812",
+    );
+    expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
+      "Location accuracy: ±8 m",
+    );
+  });
+
+  it("publishes coordinates when reverse geocoding is unavailable", async () => {
+    const user = userEvent.setup();
+    reverseGeocodeState.status = "unavailable";
+    reverseGeocodeState.label = null;
+    reverseGeocodeState.addressForPublish = null;
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    expect(
+      await screen.findByText("Exact location marked on map"),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+
+    const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
+    expect(formData.get("latitude")).toBe("32.085312");
+    expect(formData.get("longitude")).toBe("34.781812");
+    expect(formData.get("address")).toBe("");
   });
 });

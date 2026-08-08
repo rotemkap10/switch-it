@@ -543,15 +543,21 @@ blocking.
 
 - `/spots/new` uses a single compact compose surface (`.publisher-compose-surface`)
   with PageHeader h1 “Share a spot” — no nested duplicate headings.
-- Location picker shell: `.leaver-map-picker-shell` (`clamp(210px, 38dvh, 280px)`);
-  fixed center pin; coords from `map.getCenter()` on `moveend` only.
+- Location picker shell: `.leaver-map-picker-shell` (`clamp(280px, 48dvh, 400px)`);
+  fixed center pin; coords from `map.getCenter()` on `moveend` only. Marker
+  coordinates are the source of truth; address is display-only.
+- On open, a short high-accuracy `watchPosition` keeps the best (lowest
+  `coords.accuracy`) fix, then stops at ≤10 m or after 12 s. Manual pin moves
+  are sticky until “Use my current location”. Poor accuracy (>30 m) warns but
+  does not block publish.
 - Leave-time: phone-first `.leave-time-range` slider (0–10 minutes, step 1).
   Label “When will you leave?”; value text “Now” / “In N minutes”.
   Client submits delay only; server computes absolute timestamps.
 - Reverse geocoding enriches the publisher picker with a display-only address label
   (MapTiler Geocoding API via `NEXT_PUBLIC_MAPTILER_API_KEY`). Browser debounces
   ~750ms after `moveend`; publication stores the sanitized snapshot in
-  `parking_spots.address` when available. Coordinates remain authoritative for
+  `parking_spots.address` when available. Failed lookups are not cached and never
+  block publish. Coordinates remain authoritative for
   claims, navigation, and distance. Seeker UI reads stored labels only — no
   per-card geocoding.
 - Active publisher card mobile order: status + handoff countdown → handoff code →
@@ -989,16 +995,17 @@ Supabase project
   (**last**, no `media`). iOS uses the first match; unmatched devices (new
   iPhones, Display Zoom) otherwise show a black frame. Same lockup as
   AppLaunchShell (`#dff4ff`, centered official logo ~72% of the shorter side).
-  Requires `apple-mobile-web-app-capable=yes` and
-  `apple-mobile-web-app-status-bar-style=black-translucent`. OS-cached at Add
-  to Home Screen — not JS/React. After changing startup assets, **delete and
-  re-add** the Home Screen icon. Regenerate with `npm run generate:ios-startup`.
+  Requires `apple-mobile-web-app-capable=yes`. Status bar style is `default`
+  (light opaque chrome — not `black-translucent`, which full-bleeds WKWebView
+  and can flash black before paint). OS-cached at Add to Home Screen — not
+  JS/React. After changing startup assets, **delete and re-add** the Home
+  Screen icon. Regenerate with `npm run generate:ios-startup`.
 - **Two-layer launch:** OS splash (`apple-touch-startup-image` / manifest
   `background_color`) → server-rendered `#app-boot-splash` in root layout
   (inline CSS + preloaded launch logo, before React hydration) → real UI.
-  `AppLaunchShell` only *hides* that splash when `InitialShellReadyMarker`
-  fires (or safety max 12s). Return visits skip via a `beforeInteractive`
-  sessionStorage script. Reduced motion: splash still shows, exit is instant.
+  Standalone PWA launches always keep the splash until `InitialShellReadyMarker`
+  plus a paint frame (or safety max 12s). In-browser remounts may skip via
+  sessionStorage. Reduced motion: splash still shows, exit is instant.
   Dark Mode cannot turn launch black (`color-scheme: only light`, light
   `theme-color` for both schemes).
 - **Dev debug:** non-production `IosStartupDebugProbe` logs matching media

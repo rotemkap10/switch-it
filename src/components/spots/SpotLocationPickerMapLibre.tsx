@@ -10,6 +10,7 @@ import {
 } from "@/components/map/CurrentLocationControl";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
 import { centerMapOnLocation } from "@/lib/map/center-on-location";
+import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
 import { useMapRecenter } from "@/lib/map/use-map-recenter";
 import { usePrefersReducedMotion } from "@/lib/motion/use-prefers-reduced-motion";
 import {
@@ -28,12 +29,16 @@ export type SpotLocationPickerProps = {
   onLocationChange: (latitude: number, longitude: number) => void;
   /** Fired when the user begins panning/zooming (before moveend). */
   onMapInteractionStart?: () => void;
+  /** Fired when a user gesture ended without changing the pin coordinates. */
+  onMapInteractionSettled?: () => void;
+  /** Fired when the user intentionally moved the map (not GPS / recenter). */
+  onUserMovedMap?: () => void;
   disabled?: boolean;
   /** Optional detected user location for legacy callers — recenter uses fresh GPS. */
   userLatitude?: number | null;
   userLongitude?: number | null;
   /** Called when recenter obtains a fresh device fix (updates parent cache). */
-  onCurrentLocationResolved?: (latitude: number, longitude: number) => void;
+  onCurrentLocationResolved?: (fix: DeviceLocationFix) => void;
 };
 
 export { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
@@ -93,6 +98,8 @@ export function SpotLocationPickerMapLibre({
   longitude,
   onLocationChange,
   onMapInteractionStart,
+  onMapInteractionSettled,
+  onUserMovedMap,
   disabled = false,
   userLatitude = null,
   userLongitude = null,
@@ -103,6 +110,10 @@ export function SpotLocationPickerMapLibre({
   const shellRef = useRef<HTMLDivElement | null>(null);
   const onLocationChangeRef = useRef(onLocationChange);
   const onMapInteractionStartRef = useRef(onMapInteractionStart);
+  const onMapInteractionSettledRef = useRef(onMapInteractionSettled);
+  const onUserMovedMapRef = useRef(onUserMovedMap);
+  const latitudeRef = useRef(latitude);
+  const longitudeRef = useRef(longitude);
   const programmaticMoveRef = useRef(false);
   const handlersBoundRef = useRef(false);
   const [pinLifting, setPinLifting] = useState(false);
@@ -138,11 +149,24 @@ export function SpotLocationPickerMapLibre({
     onMapInteractionStartRef.current = onMapInteractionStart;
   }, [onMapInteractionStart]);
 
+  useEffect(() => {
+    onMapInteractionSettledRef.current = onMapInteractionSettled;
+  }, [onMapInteractionSettled]);
+
+  useEffect(() => {
+    onUserMovedMapRef.current = onUserMovedMap;
+  }, [onUserMovedMap]);
+
+  useEffect(() => {
+    latitudeRef.current = latitude;
+    longitudeRef.current = longitude;
+  }, [latitude, longitude]);
+
   const { recenter: recenterOnDeviceLocation, pending: recenterPending } =
     useMapRecenter({
       onFix: (fix) => {
         setRecenterNoticeVisible(false);
-        onCurrentLocationResolved?.(fix.latitude, fix.longitude);
+        onCurrentLocationResolved?.(fix);
 
         const map = mapRef.current;
         if (!map || disabled) {
@@ -201,10 +225,21 @@ export function SpotLocationPickerMapLibre({
       return;
     }
 
+    let cancelled = false;
     programmaticMoveRef.current = true;
     map.jumpTo({ center: [longitude, latitude] });
     map.resize();
-    programmaticMoveRef.current = false;
+    const releaseProgrammaticMove = () => {
+      if (!cancelled) {
+        programmaticMoveRef.current = false;
+      }
+    };
+    map.once("moveend", releaseProgrammaticMove);
+    const timeoutId = window.setTimeout(releaseProgrammaticMove, 100);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, [latitude, longitude, disabled]);
 
   useEffect(() => {
@@ -294,6 +329,7 @@ export function SpotLocationPickerMapLibre({
             }
             setPinLifting(true);
             onMapInteractionStartRef.current?.();
+            onUserMovedMapRef.current?.();
           });
 
           map.on("moveend", () => {
@@ -302,6 +338,17 @@ export function SpotLocationPickerMapLibre({
               return;
             }
             const center = map.getCenter();
+            if (
+              coordsNearlyEqual(
+                center.lat,
+                center.lng,
+                latitudeRef.current,
+                longitudeRef.current,
+              )
+            ) {
+              onMapInteractionSettledRef.current?.();
+              return;
+            }
             writeSessionMapCamera("publisher", {
               center: [center.lng, center.lat],
               zoom: map.getZoom(),
@@ -363,6 +410,7 @@ export function SpotLocationPickerMapLibre({
       {mapVisuallyReady ? (
         <CurrentLocationControl
           variant="embedded"
+          ariaLabel="Use my current location"
           data-testid="picker-current-location-control"
           pending={recenterPending}
           disabled={disabled}

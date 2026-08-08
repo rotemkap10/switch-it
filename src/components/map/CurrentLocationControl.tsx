@@ -8,6 +8,7 @@ type CurrentLocationControlProps = {
   disabled?: boolean;
   /** Seeker map: uses shared floating stack clearance. */
   variant?: "floating" | "embedded";
+  ariaLabel?: string;
   className?: string;
   "data-testid"?: string;
 };
@@ -49,6 +50,7 @@ export function CurrentLocationControl({
   pending = false,
   disabled = false,
   variant = "floating",
+  ariaLabel = "Center on my location",
   className = "",
   "data-testid": testId = "current-location-control",
 }: CurrentLocationControlProps) {
@@ -58,12 +60,12 @@ export function CurrentLocationControl({
     <button
       type="button"
       data-testid={testId}
-      aria-label="Center on my location"
+      aria-label={ariaLabel}
       aria-busy={pending || undefined}
       disabled={isDisabled}
       onClick={onClick}
       className={[
-        "flex h-10 w-10 items-center justify-center rounded-full",
+        "flex h-11 w-11 items-center justify-center rounded-full",
         "border border-border bg-surface text-foreground shadow-[var(--shadow-card)]",
         "transition-opacity hover:bg-surface/95",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
@@ -80,7 +82,7 @@ export function CurrentLocationControl({
         <LocationTargetIcon />
       )}
       <span className="sr-only">
-        {pending ? "Finding your location" : "Center on my location"}
+        {pending ? "Finding your location" : ariaLabel}
       </span>
     </button>
   );

@@ -13,6 +13,7 @@ import { Logo } from "@/components/branding/Logo";
 import { AppLaunchReadyProvider } from "@/components/shell/AppLaunchReadyContext";
 import { IosStartupDebugProbe } from "@/components/shell/IosStartupDebugProbe";
 import {
+  afterNextPaint,
   markLaunchSplashSeen,
   prefersReducedMotionMedia,
   readLaunchSplashSeen,
@@ -20,6 +21,7 @@ import {
   SPLASH_FADE_MS,
   SPLASH_MAX_MS,
 } from "@/lib/motion/app-launch";
+import { isStandaloneDisplayMode } from "@/lib/pwa/install-state";
 import {
   BOOT_SPLASH_EXITING_CLASS,
   BOOT_SPLASH_HIDDEN_CLASS,
@@ -85,6 +87,7 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     const skip = shouldSkipLaunchSplash({
       reducedMotion: prefersReducedMotionMedia(),
       alreadySeen: readLaunchSplashSeen(),
+      standalone: isStandaloneDisplayMode(),
     });
 
     if (skip) {
@@ -103,7 +106,7 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     if (!coldLaunchRef.current || phase !== "visible" || !shellReady) {
       return;
     }
-    beginExit();
+    return afterNextPaint(beginExit);
   }, [shellReady, phase, beginExit]);
 
   useEffect(() => {

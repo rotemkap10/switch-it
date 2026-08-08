@@ -24,10 +24,12 @@ describe("boot splash first-paint helpers", () => {
     expect(css).toContain(`.${BOOT_SPLASH_HIDDEN_CLASS}`);
   });
 
-  it("skips splash from sessionStorage before React hydrates", () => {
+  it("skips splash from sessionStorage only outside standalone PWA launches", () => {
     const script = bootSplashSkipScript();
     expect(script).toContain(APP_LAUNCH_SPLASH_SEEN_KEY);
     expect(script).toContain(BOOT_SPLASH_SKIP_CLASS);
     expect(script).toContain("sessionStorage");
+    expect(script).toContain("display-mode: standalone");
+    expect(script).toContain("navigator.standalone");
   });
 });

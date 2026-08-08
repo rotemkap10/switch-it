@@ -135,7 +135,8 @@ describe("root layout iOS launch metadata", () => {
     expect(layout).toContain('"color-scheme": "only light"');
     expect(bootSplashCriticalCss()).toContain("color-scheme: only light");
     expect(layout).toContain('"supported-color-schemes": "light"');
-    expect(layout).toContain('statusBarStyle: "black-translucent"');
+    expect(layout).toContain('statusBarStyle: "default"');
+    expect(layout).toContain('content="default"');
     expect(layout).toContain('apple-mobile-web-app-capable');
     expect(layout).toContain('content="yes"');
   });

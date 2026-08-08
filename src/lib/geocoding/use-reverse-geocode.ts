@@ -21,6 +21,8 @@ export type UseReverseGeocodeResult = {
   /** True while the map is moving and the label may be stale. */
   isUpdating: boolean;
   notifyMapMoveStart: () => void;
+  /** Call when a user gesture ended without changing coordinates. */
+  notifyMapMoveSettled: () => void;
 };
 
 /**
@@ -34,15 +36,25 @@ export function useReverseGeocode(
 ): UseReverseGeocodeResult {
   const [status, setStatus] = useState<ReverseGeocodeLookupStatus>("idle");
   const [label, setLabel] = useState<string | null>(null);
-  const [addressForPublish, setAddressForPublish] = useState<string | null>(
-    null,
-  );
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [resolvedKey, setResolvedKey] = useState<string | null>(null);
+  const [moveInProgress, setMoveInProgress] = useState(false);
 
   const requestSeqRef = useRef(0);
   const inFlightKeyRef = useRef<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const debounceRef = useRef<number | null>(null);
+
+  const currentKey =
+    enabled && latitude !== null && longitude !== null
+      ? coordsKey(latitude, longitude)
+      : null;
+  const coordsMatchResolved =
+    currentKey !== null && currentKey === resolvedKey;
+  const addressForPublish =
+    !moveInProgress && coordsMatchResolved ? label : null;
+  const isUpdating =
+    Boolean(currentKey) &&
+    (moveInProgress || !coordsMatchResolved || status === "loading");
 
   useEffect(() => {
     if (debounceRef.current !== null) {
@@ -57,14 +69,14 @@ export function useReverseGeocode(
       return;
     }
 
+    const targetKey = coordsKey(latitude, longitude);
     const cached = readReverseGeocodeCache(latitude, longitude);
-    if (cached) {
+    if (cached?.label) {
       debounceRef.current = window.setTimeout(() => {
         debounceRef.current = null;
-        setAddressForPublish(cached.label);
         setLabel(cached.label);
-        setStatus(cached.label ? "success" : "unavailable");
-        setIsUpdating(false);
+        setResolvedKey(targetKey);
+        setStatus("success");
       }, 0);
       return () => {
         if (debounceRef.current !== null) {
@@ -73,8 +85,6 @@ export function useReverseGeocode(
         }
       };
     }
-
-    const targetKey = coordsKey(latitude, longitude);
 
     debounceRef.current = window.setTimeout(() => {
       debounceRef.current = null;
@@ -104,10 +114,9 @@ export function useReverseGeocode(
           }
 
           inFlightKeyRef.current = null;
-          setAddressForPublish(result.label);
           setLabel(result.label);
+          setResolvedKey(targetKey);
           setStatus(result.label ? "success" : "unavailable");
-          setIsUpdating(false);
         })
         .catch((error: unknown) => {
           if (error instanceof DOMException && error.name === "AbortError") {
@@ -117,9 +126,9 @@ export function useReverseGeocode(
             return;
           }
           inFlightKeyRef.current = null;
-          setAddressForPublish(null);
+          setLabel(null);
+          setResolvedKey(targetKey);
           setStatus("unavailable");
-          setIsUpdating(false);
         });
     }, DEBOUNCE_MS);
 
@@ -134,10 +143,16 @@ export function useReverseGeocode(
   }, [latitude, longitude, enabled]);
 
   function notifyMapMoveStart() {
-    setIsUpdating(true);
-    setAddressForPublish(null);
+    setMoveInProgress(true);
     if (label) {
       setStatus("loading");
+    }
+  }
+
+  function notifyMapMoveSettled() {
+    setMoveInProgress(false);
+    if (label) {
+      setStatus("success");
     }
   }
 
@@ -147,5 +162,6 @@ export function useReverseGeocode(
     addressForPublish,
     isUpdating,
     notifyMapMoveStart,
+    notifyMapMoveSettled,
   };
 }

@@ -29,7 +29,8 @@ export async function reverseGeocode(
 
   if (!options.skipCache) {
     const cached = readReverseGeocodeCache(latitude, longitude);
-    if (cached) {
+    // Do not reuse failed lookups — a later retry may succeed.
+    if (cached?.label) {
       return cached;
     }
   }
@@ -45,7 +46,7 @@ export async function reverseGeocode(
     fetchImpl: options.fetchImpl,
   });
 
-  if (!options.skipCache) {
+  if (!options.skipCache && result.label) {
     writeReverseGeocodeCache(latitude, longitude, result);
   }
 

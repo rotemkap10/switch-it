@@ -112,6 +112,50 @@ describe("useReverseGeocode", () => {
     expect(result.current.addressForPublish).toBeNull();
   });
 
+  it("restores the publish address when a tiny pan does not change coords", async () => {
+    reverseGeocodeMock.mockResolvedValue({ label: "Stable St, Tel Aviv" });
+
+    const { result } = renderHook(() => useReverseGeocode(32.1, 34.2, true));
+
+    await act(async () => {
+      vi.advanceTimersByTime(750);
+      await Promise.resolve();
+    });
+
+    expect(result.current.label).toBe("Stable St, Tel Aviv");
+
+    act(() => {
+      result.current.notifyMapMoveStart();
+    });
+    expect(result.current.addressForPublish).toBeNull();
+
+    act(() => {
+      result.current.notifyMapMoveSettled();
+    });
+
+    expect(result.current.isUpdating).toBe(false);
+    expect(result.current.addressForPublish).toBe("Stable St, Tel Aviv");
+  });
+
+  it("clears the publish address as soon as coordinates change", () => {
+    reverseGeocodeMock.mockResolvedValue({ label: "Old St, Tel Aviv" });
+
+    const { result, rerender } = renderHook(
+      ({ lat, lng }: { lat: number; lng: number }) =>
+        useReverseGeocode(lat, lng, true),
+      { initialProps: { lat: 32.1, lng: 34.2 } },
+    );
+
+    act(() => {
+      result.current.notifyMapMoveStart();
+    });
+
+    rerender({ lat: 32.2, lng: 34.3 });
+
+    expect(result.current.addressForPublish).toBeNull();
+    expect(result.current.isUpdating).toBe(true);
+  });
+
   it("hydrates from the session cache without waiting for debounce", async () => {
     writeReverseGeocodeCache(32.0853124, 34.7818124, {
       label: "Cached Street, Tel Aviv",

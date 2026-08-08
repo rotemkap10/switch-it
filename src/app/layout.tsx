@@ -47,8 +47,9 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Switch It",
-    // Translucent so Dark Mode cannot paint a black status-bar chrome over the splash.
-    statusBarStyle: "black-translucent",
+    // Opaque light system chrome — black-translucent full-bleeds WKWebView
+    // and shows black before HTML/startup image paint.
+    statusBarStyle: "default",
     startupImage: iosStartupAppleWebAppImages(),
   },
   formatDetection: {
@@ -57,7 +58,7 @@ export const metadata: Metadata = {
   other: {
     "apple-mobile-web-app-capable": "yes",
     "mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "black-translucent",
+    "apple-mobile-web-app-status-bar-style": "default",
     "color-scheme": "only light",
     "supported-color-schemes": "light",
   },
@@ -105,7 +106,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta
           name="apple-mobile-web-app-status-bar-style"
-          content="black-translucent"
+          content="default"
         />
         <meta name="theme-color" content={PWA_BACKGROUND_COLOR} />
         <meta

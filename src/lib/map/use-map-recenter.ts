@@ -36,7 +36,10 @@ export function useMapRecenter(options: UseMapRecenterOptions = {}) {
     pendingRef.current = true;
     setPending(true);
 
-    const result = await requestCurrentDeviceLocation();
+    const result = await requestCurrentDeviceLocation({
+      enableHighAccuracy: true,
+      maximumAgeMs: 0,
+    });
 
     if (sequence !== sequenceRef.current) {
       return;

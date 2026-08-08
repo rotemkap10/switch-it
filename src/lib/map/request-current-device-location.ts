@@ -20,7 +20,7 @@ export type RequestCurrentDeviceLocationOptions = {
 const DEFAULT_OPTIONS: Required<RequestCurrentDeviceLocationOptions> = {
   enableHighAccuracy: true,
   timeoutMs: 10_000,
-  maximumAgeMs: 60_000,
+  maximumAgeMs: 0,
 };
 
 /**

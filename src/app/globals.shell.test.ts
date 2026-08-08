@@ -65,7 +65,7 @@ describe("mobile shell CSS foundation", () => {
 
   it("defines publisher compose and leaver picker shell utilities", () => {
     expect(css).toContain(".leaver-map-picker-shell");
-    expect(css).toContain("clamp(210px, 38dvh, 280px)");
+    expect(css).toContain("clamp(280px, 48dvh, 400px)");
     expect(css).toContain(".publisher-compose");
     expect(css).toContain(".publisher-compose-surface");
     expect(css).toContain(".publisher-leave-time-grid");

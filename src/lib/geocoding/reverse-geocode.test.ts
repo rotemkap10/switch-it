@@ -17,6 +17,41 @@ describe("reverseGeocode cache", () => {
     vi.restoreAllMocks();
   });
 
+  it("does not cache failed lookups so a later retry can succeed", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({}),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          features: [
+            {
+              place_type: ["address"],
+              text: "Dizengoff Street",
+              address: "123",
+              context: [{ id: "municipality.1", text: "Tel Aviv" }],
+            },
+          ],
+        }),
+      } as Response);
+
+    const first = await reverseGeocode(
+      { latitude: 32.0853, longitude: 34.7818 },
+      { fetchImpl },
+    );
+    expect(first.label).toBeNull();
+
+    const second = await reverseGeocode(
+      { latitude: 32.0853, longitude: 34.7818 },
+      { fetchImpl },
+    );
+    expect(second.label).toBe("Dizengoff Street 123, Tel Aviv");
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("reuses cached nearby coordinates", async () => {
     writeReverseGeocodeCache(32.0853124, 34.7818124, {
       label: "Cached Street, Tel Aviv",

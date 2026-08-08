@@ -10,9 +10,16 @@ import {
   SPLASH_MAX_MS,
 } from "@/lib/motion/app-launch";
 
-function mockMatchMedia(reducedMotion: boolean) {
+function mockMatchMedia(options: {
+  reducedMotion?: boolean;
+  standalone?: boolean;
+} = {}) {
+  const reducedMotion = options.reducedMotion ?? false;
+  const standalone = options.standalone ?? false;
   vi.stubGlobal("matchMedia", (query: string) => ({
-    matches: reducedMotion && query.includes("prefers-reduced-motion"),
+    matches:
+      (reducedMotion && query.includes("prefers-reduced-motion")) ||
+      (standalone && query.includes("display-mode: standalone")),
     media: query,
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
@@ -21,6 +28,16 @@ function mockMatchMedia(reducedMotion: boolean) {
     dispatchEvent: vi.fn(),
     onchange: null,
   }));
+}
+
+function flushSplashUntilHidden() {
+  act(() => {
+    vi.runOnlyPendingTimers();
+    vi.runOnlyPendingTimers();
+  });
+  act(() => {
+    vi.advanceTimersByTime(SPLASH_FADE_MS + 50);
+  });
 }
 
 function ReadyChild() {
@@ -40,7 +57,13 @@ describe("AppLaunchShell", () => {
       configurable: true,
       value: "complete",
     });
-    mockMatchMedia(false);
+    mockMatchMedia();
+    vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) => {
+      return window.setTimeout(() => cb(0), 0) as unknown as number;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => {
+      window.clearTimeout(id);
+    });
   });
 
   afterEach(() => {
@@ -93,12 +116,7 @@ describe("AppLaunchShell", () => {
 
     expect(screen.getByTestId("app-launch-splash")).toBeInTheDocument();
 
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-    act(() => {
-      vi.advanceTimersByTime(SPLASH_FADE_MS + 50);
-    });
+    flushSplashUntilHidden();
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
     expect(screen.getByText("App content")).toBeInTheDocument();
@@ -122,7 +140,7 @@ describe("AppLaunchShell", () => {
   });
 
   it("still shows splash under reduced motion until the shell is ready", () => {
-    mockMatchMedia(true);
+    mockMatchMedia({ reducedMotion: true });
 
     render(
       <AppLaunchShell>
@@ -138,7 +156,7 @@ describe("AppLaunchShell", () => {
   });
 
   it("hides instantly under reduced motion once the shell is ready", () => {
-    mockMatchMedia(true);
+    mockMatchMedia({ reducedMotion: true });
 
     render(
       <AppLaunchShell>
@@ -147,6 +165,7 @@ describe("AppLaunchShell", () => {
     );
 
     act(() => {
+      vi.runOnlyPendingTimers();
       vi.runOnlyPendingTimers();
     });
 
@@ -184,12 +203,7 @@ describe("AppLaunchShell", () => {
 
     expect(document.querySelectorAll("#app-boot-splash")).toHaveLength(1);
 
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-    act(() => {
-      vi.advanceTimersByTime(SPLASH_FADE_MS + 50);
-    });
+    flushSplashUntilHidden();
 
     expect(document.documentElement.classList.contains(BOOT_SPLASH_HIDDEN_CLASS)).toBe(
       true,
@@ -205,12 +219,7 @@ describe("AppLaunchShell", () => {
       </AppLaunchShell>,
     );
 
-    act(() => {
-      vi.runOnlyPendingTimers();
-    });
-    act(() => {
-      vi.advanceTimersByTime(SPLASH_FADE_MS + 50);
-    });
+    flushSplashUntilHidden();
     unmount();
 
     render(
@@ -225,5 +234,18 @@ describe("AppLaunchShell", () => {
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
     expect(screen.getByText("Second")).toBeInTheDocument();
+  });
+
+  it("still shows splash on standalone PWA launch even if sessionStorage is marked", () => {
+    sessionStorage.setItem(APP_LAUNCH_SPLASH_SEEN_KEY, "1");
+    mockMatchMedia({ standalone: true });
+
+    render(
+      <AppLaunchShell>
+        <p>App content</p>
+      </AppLaunchShell>,
+    );
+
+    expect(screen.getByTestId("app-launch-splash")).toBeInTheDocument();
   });
 });

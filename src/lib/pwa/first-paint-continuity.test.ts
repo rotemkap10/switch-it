@@ -24,7 +24,7 @@ describe("PWA / first-paint color continuity", () => {
     expect(layout).toContain('"color-scheme": "only light"');
     expect(bootSplashCriticalCss()).toContain("color-scheme: only light");
     expect(layout).toContain("apple-mobile-web-app-capable");
-    expect(layout).toContain("black-translucent");
+    expect(layout).toContain('statusBarStyle: "default"');
     expect(layout).toContain("supported-color-schemes");
     expect(layout).toContain("apple-touch-startup-image");
     expect(layout).toContain("IOS_STARTUP_FALLBACK");
