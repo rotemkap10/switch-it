@@ -6,8 +6,13 @@ vi.mock("@/actions/onboarding", () => ({
 }));
 
 vi.mock("@/actions/vehicle-photo", () => ({
-  uploadVehiclePhoto: vi.fn(),
+  saveVehiclePhotoPath: vi.fn(),
   removeVehiclePhoto: vi.fn(),
+}));
+
+vi.mock("@/lib/vehicle/upload-vehicle-photo-client", () => ({
+  uploadVehiclePhotoToStorage: vi.fn(),
+  removeUploadedVehiclePhoto: vi.fn(),
 }));
 
 import { FeedbackShell } from "@/components/feedback/FeedbackShell";

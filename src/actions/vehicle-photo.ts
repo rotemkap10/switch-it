@@ -5,9 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth/require-user";
 import { mapAppError } from "@/lib/feedback/error-map";
 import {
-  buildVehiclePhotoPath,
   isOwnVehiclePhotoPath,
-  validateVehiclePhotoFile,
   VEHICLE_PHOTO_BUCKET,
   VEHICLE_PHOTO_UNSUPPORTED_MESSAGE,
 } from "@/lib/vehicle/photo";
@@ -28,21 +26,19 @@ function revalidateVehiclePhotoPaths() {
   revalidatePath("/spots/new");
 }
 
-export async function uploadVehiclePhoto(
-  formData: FormData,
+/**
+ * Commits a storage path that was already uploaded from the browser.
+ * Does not accept image bytes — keeps this action well under the 1 MB
+ * Next.js Server Action body limit.
+ */
+export async function saveVehiclePhotoPath(
+  photoPath: string,
 ): Promise<VehiclePhotoActionState> {
-  const file = formData.get("photo");
-  if (!(file instanceof File)) {
+  const { supabase, user } = await requireUser();
+
+  if (!isOwnVehiclePhotoPath(user.id, photoPath)) {
     return { error: VEHICLE_PHOTO_UNSUPPORTED_MESSAGE };
   }
-
-  const parsed = validateVehiclePhotoFile(file);
-  if (!parsed.ok) {
-    return { error: parsed.message };
-  }
-
-  const { supabase, user } = await requireUser();
-  const nextPath = buildVehiclePhotoPath(user.id, parsed.extension);
 
   const { data: current } = await supabase
     .from("profiles")
@@ -54,25 +50,12 @@ export async function uploadVehiclePhoto(
       ? current.vehicle_photo_path
       : null;
 
-  const { error: uploadError } = await supabase.storage
-    .from(VEHICLE_PHOTO_BUCKET)
-    .upload(nextPath, file, {
-      contentType: parsed.contentType,
-      upsert: false,
-    });
-
-  if (uploadError) {
-    const mapped = mapAppError(uploadError, "Could not upload your vehicle photo.");
-    return { error: mapped.message, errorCode: mapped.code };
-  }
-
   const { error: updateError } = await supabase
     .from("profiles")
-    .update({ vehicle_photo_path: nextPath })
+    .update({ vehicle_photo_path: photoPath })
     .eq("id", user.id);
 
   if (updateError) {
-    await supabase.storage.from(VEHICLE_PHOTO_BUCKET).remove([nextPath]);
     const mapped = mapAppError(
       updateError,
       "Could not save your vehicle photo.",
@@ -80,16 +63,16 @@ export async function uploadVehiclePhoto(
     return { error: mapped.message, errorCode: mapped.code };
   }
 
-  if (previousPath && previousPath !== nextPath) {
+  if (previousPath && previousPath !== photoPath) {
     await supabase.storage.from(VEHICLE_PHOTO_BUCKET).remove([previousPath]);
   }
 
-  const photoUrl = await createVehiclePhotoSignedUrl(supabase, nextPath);
+  const photoUrl = await createVehiclePhotoSignedUrl(supabase, photoPath);
   revalidateVehiclePhotoPaths();
 
   return {
     success: true,
-    photoPath: nextPath,
+    photoPath,
     photoUrl,
   };
 }

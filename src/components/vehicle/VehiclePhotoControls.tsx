@@ -4,10 +4,19 @@ import { useId, useRef, useState } from "react";
 
 import {
   removeVehiclePhoto,
-  uploadVehiclePhoto,
+  saveVehiclePhotoPath,
 } from "@/actions/vehicle-photo";
 import { Button } from "@/components/ui/Button";
-import { VEHICLE_PHOTO_ACCEPT } from "@/lib/vehicle/photo";
+import {
+  VEHICLE_PHOTO_ACCEPT,
+  VEHICLE_PHOTO_TIMEOUT_MESSAGE,
+  validateVehiclePhotoForUpload,
+  withVehiclePhotoTimeout,
+} from "@/lib/vehicle/photo";
+import {
+  removeUploadedVehiclePhoto,
+  uploadVehiclePhotoToStorage,
+} from "@/lib/vehicle/upload-vehicle-photo-client";
 
 export type VehiclePhotoChange = {
   photoPath: string | null;
@@ -34,49 +43,79 @@ export function VehiclePhotoControls({
   const hasPhoto = Boolean(photoPath || photoUrl);
   const pending = action !== null;
 
+  function resetInput() {
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+  }
+
   async function handleFile(file: File | undefined) {
     if (!file) {
       return;
     }
 
     setError(null);
-    setAction("upload");
-    const formData = new FormData();
-    formData.set("photo", file);
-    const result = await uploadVehiclePhoto(formData);
-    setAction(null);
 
-    if (!result.success) {
-      setError(result.error ?? "Could not upload your vehicle photo.");
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
+    const parsed = await validateVehiclePhotoForUpload(file);
+    if (!parsed.ok) {
+      setError(parsed.message);
+      resetInput();
       return;
     }
 
-    onPhotoChange?.({
-      photoPath: result.photoPath ?? null,
-      photoUrl: result.photoUrl ?? null,
-    });
-    if (inputRef.current) {
-      inputRef.current.value = "";
+    setAction("upload");
+    try {
+      const uploaded = await uploadVehiclePhotoToStorage(file);
+      if (!uploaded.ok) {
+        setError(uploaded.error);
+        return;
+      }
+
+      try {
+        const saved = await withVehiclePhotoTimeout(
+          saveVehiclePhotoPath(uploaded.photoPath),
+        );
+        if (!saved.success) {
+          await removeUploadedVehiclePhoto(uploaded.photoPath);
+          setError(saved.error ?? "Could not save your vehicle photo.");
+          return;
+        }
+
+        onPhotoChange?.({
+          photoPath: saved.photoPath ?? uploaded.photoPath,
+          photoUrl: saved.photoUrl ?? null,
+        });
+      } catch (error) {
+        await removeUploadedVehiclePhoto(uploaded.photoPath);
+        throw error;
+      }
+    } catch (error) {
+      setError(
+        error instanceof Error && error.message === VEHICLE_PHOTO_TIMEOUT_MESSAGE
+          ? VEHICLE_PHOTO_TIMEOUT_MESSAGE
+          : "Could not upload your vehicle photo.",
+      );
+    } finally {
+      setAction(null);
+      resetInput();
     }
   }
 
   async function handleRemove() {
     setError(null);
     setAction("remove");
-    const result = await removeVehiclePhoto();
-    setAction(null);
+    try {
+      const result = await removeVehiclePhoto();
+      if (!result.success) {
+        setError(result.error ?? "Could not remove your vehicle photo.");
+        return;
+      }
 
-    if (!result.success) {
-      setError(result.error ?? "Could not remove your vehicle photo.");
-      return;
-    }
-
-    onPhotoChange?.({ photoPath: null, photoUrl: null });
-    if (inputRef.current) {
-      inputRef.current.value = "";
+      onPhotoChange?.({ photoPath: null, photoUrl: null });
+    } catch {
+      setError("Could not remove your vehicle photo.");
+    } finally {
+      setAction(null);
     }
   }
 

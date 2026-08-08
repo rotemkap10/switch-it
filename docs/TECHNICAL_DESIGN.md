@@ -473,9 +473,12 @@ server-only, env-protected, and out of the MVP user path.
   license plate from `get_handoff_counterpart_vehicle` (active handoffs only).
   Optional `vehicle_photo_path` is included for recognition; signed URLs are
   created at read time and never stored.
-- **Photos:** private bucket `vehicle-photos`. Owners upload/replace/delete
-  their own objects. Active handoff counterpart may `SELECT` only. `VehicleImage`
-  shows the photo when a signed URL is available, otherwise `VehicleIllustration`.
+- **Photos:** private bucket `vehicle-photos`. The browser uploads bytes
+  directly to Storage with the authenticated client + RLS (not via a Next.js
+  Server Action; those default to a 1 MB body). A small server action then
+  saves `vehicle_photo_path` and returns a signed URL. Active handoff
+  counterpart may `SELECT` only. `VehicleImage` shows the photo when a signed
+  URL is available, otherwise `VehicleIllustration`.
 - **Illustrations:** local SVG silhouettes in `VehicleIllustration`, one shared
   architecture with per-type paths in `illustration-silhouettes.tsx`. Colors use
   the controlled palette only; no brand logos or external imagery.

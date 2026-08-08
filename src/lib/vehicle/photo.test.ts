@@ -3,19 +3,35 @@ import { describe, expect, it } from "vitest";
 import {
   buildVehiclePhotoPath,
   isOwnVehiclePhotoPath,
+  sniffVehiclePhotoMagic,
   validateVehiclePhotoFile,
+  validateVehiclePhotoForUpload,
   VEHICLE_PHOTO_MAX_BYTES,
+  VEHICLE_PHOTO_TIMEOUT_MESSAGE,
   VEHICLE_PHOTO_TOO_LARGE_MESSAGE,
   VEHICLE_PHOTO_UNSUPPORTED_MESSAGE,
+  withVehiclePhotoTimeout,
 } from "@/lib/vehicle/photo";
 
 function fakeFile(
   name: string,
   type: string,
   size = 12,
+  bytes?: Uint8Array,
 ): File {
-  const bytes = new Uint8Array(size);
-  return new File([bytes], name, { type });
+  const payload = bytes ?? new Uint8Array(size);
+  return new File([payload], name, { type });
+}
+
+function jpegFile(name = "car.jpg", type = "image/jpeg") {
+  return fakeFile(name, type, 12, new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]));
+}
+
+function heicFile(name = "car.heic", type = "image/heic") {
+  const bytes = new Uint8Array([
+    0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63, 0, 0, 0, 0,
+  ]);
+  return fakeFile(name, type, bytes.length, bytes);
 }
 
 describe("validateVehiclePhotoFile", () => {
@@ -45,8 +61,12 @@ describe("validateVehiclePhotoFile", () => {
     });
   });
 
-  it("rejects unsupported formats including HEIC", () => {
+  it("rejects unsupported formats including HEIC/HEIF immediately", () => {
     expect(validateVehiclePhotoFile(fakeFile("car.heic", "image/heic"))).toEqual({
+      ok: false,
+      message: VEHICLE_PHOTO_UNSUPPORTED_MESSAGE,
+    });
+    expect(validateVehiclePhotoFile(fakeFile("car.HEIF", "image/heif"))).toEqual({
       ok: false,
       message: VEHICLE_PHOTO_UNSUPPORTED_MESSAGE,
     });
@@ -56,15 +76,51 @@ describe("validateVehiclePhotoFile", () => {
     });
   });
 
-  it("rejects files over 5 MB", () => {
-    expect(
-      validateVehiclePhotoFile(
-        fakeFile("huge.jpg", "image/jpeg", VEHICLE_PHOTO_MAX_BYTES + 1),
-      ),
-    ).toEqual({
+  it("rejects files over 5 MB before any upload", () => {
+    const huge = fakeFile("huge.jpg", "image/jpeg");
+    Object.defineProperty(huge, "size", { value: VEHICLE_PHOTO_MAX_BYTES + 1 });
+    expect(validateVehiclePhotoFile(huge)).toEqual({
       ok: false,
       message: VEHICLE_PHOTO_TOO_LARGE_MESSAGE,
     });
+  });
+});
+
+describe("validateVehiclePhotoForUpload", () => {
+  it("rejects HEIC magic bytes even when the file is named like a jpeg", async () => {
+    await expect(
+      validateVehiclePhotoForUpload(heicFile("IMG_1234.jpg", "image/jpeg")),
+    ).resolves.toEqual({
+      ok: false,
+      message: VEHICLE_PHOTO_UNSUPPORTED_MESSAGE,
+    });
+  });
+
+  it("accepts real jpeg magic bytes", async () => {
+    await expect(validateVehiclePhotoForUpload(jpegFile())).resolves.toEqual({
+      ok: true,
+      extension: "jpg",
+      contentType: "image/jpeg",
+    });
+  });
+
+  it("sniffs jpeg / heic headers", async () => {
+    await expect(sniffVehiclePhotoMagic(jpegFile())).resolves.toBe("jpg");
+    await expect(sniffVehiclePhotoMagic(heicFile())).resolves.toBe("heic");
+  });
+});
+
+describe("withVehiclePhotoTimeout", () => {
+  it("resolves when the work finishes in time", async () => {
+    await expect(withVehiclePhotoTimeout(Promise.resolve("ok"), 50)).resolves.toBe(
+      "ok",
+    );
+  });
+
+  it("rejects with the timeout message when work never finishes", async () => {
+    await expect(
+      withVehiclePhotoTimeout(new Promise(() => {}), 20),
+    ).rejects.toThrow(VEHICLE_PHOTO_TIMEOUT_MESSAGE);
   });
 });
 
