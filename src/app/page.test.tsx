@@ -11,13 +11,15 @@ describe("landing page", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Switch It" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: "Create account" }),
-    ).toHaveAttribute("href", "/register");
-    expect(screen.getByRole("link", { name: "Sign in" })).toHaveAttribute(
-      "href",
-      "/login",
+    const signIn = screen.getByRole("link", { name: "Sign in" });
+    const createAccount = screen.getByRole("link", { name: "Create account" });
+    expect(signIn).toHaveAttribute("href", "/login");
+    expect(createAccount).toHaveAttribute("href", "/register");
+    expect(signIn.compareDocumentPosition(createAccount)).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
     );
+    expect(signIn.querySelector("button")).not.toHaveClass("border-border");
+    expect(createAccount.querySelector("button")).toHaveClass("border-border");
     expect(screen.queryByText(/never sells or guarantees/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Find parking/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Share a spot/i)).not.toBeInTheDocument();

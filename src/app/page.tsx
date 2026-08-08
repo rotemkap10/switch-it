@@ -19,12 +19,12 @@ export default function HomePage() {
       </div>
 
       <div className="landing-page__actions">
-        <Link href="/register" className="w-full">
-          <Button className="w-full min-h-12">Create account</Button>
-        </Link>
         <Link href="/login" className="w-full">
+          <Button className="w-full min-h-12">Sign in</Button>
+        </Link>
+        <Link href="/register" className="w-full">
           <Button variant="secondary" className="w-full min-h-12">
-            Sign in
+            Create account
           </Button>
         </Link>
       </div>
