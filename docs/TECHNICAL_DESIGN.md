@@ -991,10 +991,14 @@ Supabase project
   `apple-mobile-web-app-status-bar-style=black-translucent`. OS-cached at Add
   to Home Screen — not JS/React. After changing startup assets, **delete and
   re-add** the Home Screen icon. Regenerate with `npm run generate:ios-startup`.
-- **In-app splash:** `AppLaunchShell` stays until `InitialShellReadyMarker`
-  (authenticated ModeGate ready, or auth/landing/offline page mount) — not
-  merely `document.load`. Safety max 12s. Reduced motion: splash still shows,
-  exit is instant (no fade).
+- **Two-layer launch:** OS splash (`apple-touch-startup-image` / manifest
+  `background_color`) → server-rendered `#app-boot-splash` in root layout
+  (inline CSS + preloaded launch logo, before React hydration) → real UI.
+  `AppLaunchShell` only *hides* that splash when `InitialShellReadyMarker`
+  fires (or safety max 12s). Return visits skip via a `beforeInteractive`
+  sessionStorage script. Reduced motion: splash still shows, exit is instant.
+  Dark Mode cannot turn launch black (`color-scheme: only light`, light
+  `theme-color` for both schemes).
 - **Dev debug:** non-production `IosStartupDebugProbe` logs matching media
   queries and exposes `window.__switchItIosStartupDebug()`. Also inspect:
   `screen.width/height`, `devicePixelRatio`, `innerWidth/Height`,

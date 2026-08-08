@@ -5,6 +5,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   containedLogoSize,
+  SWITCH_IT_LAUNCH_LOGO_HEIGHT,
+  SWITCH_IT_LAUNCH_LOGO_SRC,
+  SWITCH_IT_LAUNCH_LOGO_WIDTH,
   SWITCH_IT_LOGO_HEIGHT,
   SWITCH_IT_LOGO_WIDTH,
 } from "@/lib/branding/logo-asset";
@@ -23,6 +26,23 @@ describe("official logo asset", () => {
       Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
     );
     expect(png[25]).toBe(6);
+  });
+
+  it("ships a smaller launch lockup with the same aspect ratio", () => {
+    expect(SWITCH_IT_LAUNCH_LOGO_SRC).toBe("/branding/switch-it-logo-launch.png");
+    expect(SWITCH_IT_LAUNCH_LOGO_WIDTH / SWITCH_IT_LAUNCH_LOGO_HEIGHT).toBeCloseTo(
+      SWITCH_IT_LOGO_WIDTH / SWITCH_IT_LOGO_HEIGHT,
+      2,
+    );
+
+    const launchPng = readFileSync(
+      resolve(process.cwd(), "public/branding/switch-it-logo-launch.png"),
+    );
+    expect(launchPng.subarray(0, 8)).toEqual(
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    );
+    expect(launchPng[25]).toBe(6);
+    expect(launchPng.length).toBeLessThan(200_000);
   });
 
   it("contains the lockup inside a max box without stretching", () => {

@@ -83,8 +83,9 @@ describe("service worker policy", () => {
   it("precaches only approved offline and icon resources", () => {
     expect(sw).toContain('"/offline"');
     expect(sw).toContain('"/pwa/icon-192"');
-    expect(sw).toContain("switch-it-pwa-v4");
+    expect(sw).toContain("switch-it-pwa-v5");
     expect(sw).toContain("/branding/switch-it-logo.png");
+    expect(sw).toContain("/branding/switch-it-logo-launch.png");
     expect(sw).not.toContain("iphone-portrait-fallback");
     expect(sw).not.toContain("/pwa/startup/");
   });

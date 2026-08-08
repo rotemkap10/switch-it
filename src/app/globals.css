@@ -115,9 +115,18 @@ body {
   overflow-x: hidden;
 }
 
+#app-root,
+#app-boot-splash {
+  background: #dff4ff;
+  background-color: #dff4ff;
+}
+
 @media (prefers-color-scheme: dark) {
   html,
-  body {
+  body,
+  #app-root,
+  #app-boot-splash,
+  .app-launch-splash {
     background: #dff4ff !important;
     background-color: #dff4ff !important;
     color-scheme: only light !important;
@@ -1363,6 +1372,17 @@ body {
   padding-inline: var(--app-phone-gutter);
 }
 
+html.app-boot-splash-skip #app-boot-splash,
+html.app-boot-splash-hidden #app-boot-splash {
+  display: none !important;
+}
+
+html.app-boot-splash-exiting #app-boot-splash {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-splash-fade) var(--motion-ease);
+}
+
 .app-launch-splash.is-exiting {
   animation: app-launch-exit var(--motion-splash-fade) var(--motion-ease) forwards;
   pointer-events: none;
@@ -1379,15 +1399,8 @@ body {
   flex-direction: column;
 }
 
-.app-content-shell.is-waiting {
-  visibility: hidden;
-}
-
-.app-content-shell.is-revealing {
-  visibility: visible;
-  animation: app-content-reveal var(--motion-panel) var(--motion-ease) both;
-}
-
+.app-content-shell.is-waiting,
+.app-content-shell.is-revealing,
 .app-content-shell.is-ready {
   visibility: visible;
 }

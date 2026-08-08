@@ -68,7 +68,7 @@ npm run build
 
 ## Production
 
-Deploy on Vercel (or equivalent) with the env vars above. PWA: `/manifest.webmanifest`, `/sw.js`, `/offline`. iOS Home Screen launch uses static `apple-touch-startup-image` assets (`public/pwa/startup/`, including an unqualified fallback). After changing those, delete and re-add the icon so iOS recaches them.
+Deploy on Vercel (or equivalent) with the env vars above. PWA: `/manifest.webmanifest`, `/sw.js`, `/offline`. Launch is two-layer: iOS `apple-touch-startup-image` / Android manifest splash, then a server-rendered in-HTML splash (`#app-boot-splash`) until the app is ready. After changing iOS startup PNGs, delete and re-add the Home Screen icon so iOS recaches them.
 
 ## 2-device demo flow (~2–4 minutes)
 

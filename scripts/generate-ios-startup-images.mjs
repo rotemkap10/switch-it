@@ -37,6 +37,7 @@ const IMAGES = [
   { cssWidth: 430, cssHeight: 932, scale: 3 },
   { cssWidth: 402, cssHeight: 874, scale: 3 },
   { cssWidth: 440, cssHeight: 956, scale: 3 },
+  { cssWidth: 420, cssHeight: 912, scale: 3 },
 ];
 
 function splashMarkup(cssWidth, cssHeight, scale, landscape) {
@@ -107,3 +108,10 @@ for (const image of IMAGES) {
 
 const fallbackFileName = "iphone-portrait-fallback.png";
 await writeSplash(fallbackFileName, 430, 932, 3, false);
+
+const launchLogoPath = resolve(rootDir, "public/branding/switch-it-logo-launch.png");
+await sharp(logoPath)
+  .resize({ width: 880, withoutEnlargement: true })
+  .png({ compressionLevel: 9 })
+  .toFile(launchLogoPath);
+console.log("wrote switch-it-logo-launch.png (880px lockup copy)");

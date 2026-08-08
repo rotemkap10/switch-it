@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { bootSplashCriticalCss } from "@/lib/pwa/boot-splash";
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 import {
   allIosStartupHrefs,
@@ -64,6 +65,7 @@ describe("iOS startup images", () => {
         "430x932@3",
         "402x874@3",
         "440x956@3",
+        "420x912@3",
       ]),
     );
 
@@ -130,7 +132,8 @@ describe("root layout iOS launch metadata", () => {
     expect(layout.indexOf("IOS_STARTUP_IMAGES.map")).toBeLessThan(
       layout.indexOf("IOS_STARTUP_FALLBACK.href"),
     );
-    expect(layout).toContain("color-scheme: only light");
+    expect(layout).toContain('"color-scheme": "only light"');
+    expect(bootSplashCriticalCss()).toContain("color-scheme: only light");
     expect(layout).toContain('"supported-color-schemes": "light"');
     expect(layout).toContain('statusBarStyle: "black-translucent"');
     expect(layout).toContain('apple-mobile-web-app-capable');

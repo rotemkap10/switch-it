@@ -4,6 +4,14 @@ export const SWITCH_IT_LOGO_SRC = "/branding/switch-it-logo.png";
 export const SWITCH_IT_LOGO_WIDTH = 1106;
 export const SWITCH_IT_LOGO_HEIGHT = 342;
 
+/**
+ * Smaller copy of the same lockup for first paint / PWA boot splash.
+ * Same design, ~880px wide so preload stays light.
+ */
+export const SWITCH_IT_LAUNCH_LOGO_SRC = "/branding/switch-it-logo-launch.png";
+export const SWITCH_IT_LAUNCH_LOGO_WIDTH = 880;
+export const SWITCH_IT_LAUNCH_LOGO_HEIGHT = 272;
+
 export function containedLogoSize(
   maxWidth: number,
   maxHeight: number,

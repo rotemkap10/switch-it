@@ -106,6 +106,10 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".switch-it-logo--splash");
     expect(css).toContain("min(80vw, 22rem)");
     expect(css).toContain(".app-content-shell");
+    expect(css).toContain("#app-boot-splash");
+    expect(css).toContain("#app-root");
+    expect(css).toContain("app-boot-splash-skip");
+    expect(css).toContain("app-boot-splash-hidden");
     expect(css).toContain(".motion-page-enter");
     expect(css).toContain(".motion-page-header");
     expect(css).toContain(".switch-it-logo");

@@ -1,8 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 
 import { AppFeedbackRoot } from "@/components/feedback/AppFeedbackRoot";
+import { BootSplash } from "@/components/pwa/BootSplash";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
+import { SWITCH_IT_LAUNCH_LOGO_SRC } from "@/lib/branding/logo-asset";
+import {
+  APP_ROOT_ID,
+  bootSplashCriticalCss,
+  bootSplashSkipScript,
+} from "@/lib/pwa/boot-splash";
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 import {
   IOS_STARTUP_FALLBACK,
@@ -70,13 +78,20 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       style={{ backgroundColor: PWA_BACKGROUND_COLOR, colorScheme: "only light" }}
+      suppressHydrationWarning
     >
       <head>
-        {/* Critical first-paint color before CSS bundle — Dark Mode must not paint black. */}
+        {/* Critical first-paint color + splash before CSS bundle / React. */}
         <style
           dangerouslySetInnerHTML={{
-            __html: `html,body,:root{background:${PWA_BACKGROUND_COLOR}!important;background-color:${PWA_BACKGROUND_COLOR}!important;color-scheme: only light!important;}@media (prefers-color-scheme:dark){html,body,:root{background:${PWA_BACKGROUND_COLOR}!important;background-color:${PWA_BACKGROUND_COLOR}!important;color-scheme: only light!important;}}`,
+            __html: bootSplashCriticalCss(),
           }}
+        />
+        <link
+          rel="preload"
+          as="image"
+          href={SWITCH_IT_LAUNCH_LOGO_SRC}
+          fetchPriority="high"
         />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -118,7 +133,19 @@ export default function RootLayout({
         className="flex min-h-dvh flex-col bg-background text-foreground"
         style={{ backgroundColor: PWA_BACKGROUND_COLOR, colorScheme: "only light" }}
       >
-        <AppFeedbackRoot>{children}</AppFeedbackRoot>
+        <Script
+          id="app-boot-splash-skip"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: bootSplashSkipScript() }}
+        />
+        <BootSplash />
+        <div
+          id={APP_ROOT_ID}
+          className="flex min-h-dvh flex-1 flex-col"
+          style={{ backgroundColor: PWA_BACKGROUND_COLOR }}
+        >
+          <AppFeedbackRoot>{children}</AppFeedbackRoot>
+        </div>
         <ServiceWorkerRegistration />
       </body>
     </html>

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { Logo } from "@/components/branding/Logo";
 import { AppLaunchReadyProvider } from "@/components/shell/AppLaunchReadyContext";
@@ -13,6 +20,11 @@ import {
   SPLASH_FADE_MS,
   SPLASH_MAX_MS,
 } from "@/lib/motion/app-launch";
+import {
+  BOOT_SPLASH_EXITING_CLASS,
+  BOOT_SPLASH_HIDDEN_CLASS,
+  BOOT_SPLASH_ID,
+} from "@/lib/pwa/boot-splash";
 
 type SplashPhase = "visible" | "exit" | "hidden";
 
@@ -20,13 +32,31 @@ type AppLaunchShellProps = {
   children: ReactNode;
 };
 
+function applyBootSplashPhase(phase: SplashPhase) {
+  if (typeof document === "undefined") {
+    return;
+  }
+  const root = document.documentElement;
+  root.classList.toggle(BOOT_SPLASH_EXITING_CLASS, phase === "exit");
+  root.classList.toggle(BOOT_SPLASH_HIDDEN_CLASS, phase === "hidden");
+  if (phase === "hidden") {
+    root.classList.remove(BOOT_SPLASH_EXITING_CLASS);
+  }
+}
+
 /**
- * Branded cold-start splash. Stays until the initial application shell reports
- * ready (not merely hydration / document load), then fades into the first screen.
+ * Hides the server-rendered boot splash when the initial application shell
+ * reports ready. Does not wait to *show* the splash — that is already in HTML.
  * Session navigations skip. Reduced motion keeps the splash, then hides instantly.
  */
 export function AppLaunchShell({ children }: AppLaunchShellProps) {
   const [phase, setPhase] = useState<SplashPhase>("visible");
+  const [ownsSplash] = useState(() => {
+    if (typeof document === "undefined") {
+      return false;
+    }
+    return !document.getElementById(BOOT_SPLASH_ID);
+  });
   const [shellReady, setShellReady] = useState(false);
   const coldLaunchRef = useRef(false);
   const exitStartedRef = useRef(false);
@@ -46,6 +76,10 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     }
     setPhase("exit");
   }, []);
+
+  useLayoutEffect(() => {
+    applyBootSplashPhase(phase);
+  }, [phase]);
 
   useEffect(() => {
     const skip = shouldSkipLaunchSplash({
@@ -81,14 +115,8 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     return () => window.clearTimeout(timer);
   }, [phase]);
 
-  const showSplash = phase === "visible" || phase === "exit";
+  const showOwnedSplash = ownsSplash && (phase === "visible" || phase === "exit");
   const launchReady = phase === "hidden";
-  const contentClass =
-    phase === "hidden"
-      ? "app-content-shell is-ready"
-      : phase === "exit"
-        ? "app-content-shell is-revealing"
-        : "app-content-shell is-waiting";
 
   return (
     <AppLaunchReadyProvider
@@ -96,7 +124,7 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
       reportInitialShellReady={reportInitialShellReady}
     >
       {process.env.NODE_ENV !== "production" ? <IosStartupDebugProbe /> : null}
-      {showSplash ? (
+      {showOwnedSplash ? (
         <div
           className={[
             "app-launch-splash",
@@ -113,7 +141,7 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
           </div>
         </div>
       ) : null}
-      <div className={contentClass} data-testid="app-content-shell">
+      <div className="app-content-shell" data-testid="app-content-shell">
         {children}
       </div>
     </AppLaunchReadyProvider>

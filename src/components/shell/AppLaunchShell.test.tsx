@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMarker";
 import { AppLaunchShell } from "@/components/shell/AppLaunchShell";
+import { BOOT_SPLASH_HIDDEN_CLASS, BOOT_SPLASH_ID } from "@/lib/pwa/boot-splash";
 import {
   APP_LAUNCH_SPLASH_SEEN_KEY,
   SPLASH_FADE_MS,
@@ -80,7 +81,7 @@ describe("AppLaunchShell", () => {
     });
 
     expect(screen.getByTestId("app-launch-splash")).toBeInTheDocument();
-    expect(screen.getByTestId("app-content-shell")).toHaveClass("is-waiting");
+    expect(screen.getByTestId("app-content-shell")).toBeInTheDocument();
   });
 
   it("keeps splash until the initial shell reports ready", () => {
@@ -100,7 +101,6 @@ describe("AppLaunchShell", () => {
     });
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
-    expect(screen.getByTestId("app-content-shell")).toHaveClass("is-ready");
     expect(screen.getByText("App content")).toBeInTheDocument();
     expect(sessionStorage.getItem(APP_LAUNCH_SPLASH_SEEN_KEY)).toBe("1");
   });
@@ -118,7 +118,6 @@ describe("AppLaunchShell", () => {
       vi.runOnlyPendingTimers();
     });
 
-    expect(screen.getByTestId("app-content-shell")).toHaveClass("is-ready");
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
   });
 
@@ -152,7 +151,6 @@ describe("AppLaunchShell", () => {
     });
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
-    expect(screen.getByTestId("app-content-shell")).toHaveClass("is-ready");
   });
 
   it("exits via safety max if the shell never reports ready", () => {
@@ -170,7 +168,34 @@ describe("AppLaunchShell", () => {
     });
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
-    expect(screen.getByTestId("app-content-shell")).toHaveClass("is-ready");
+  });
+
+  it("hides a server-rendered boot splash instead of mounting a second one", () => {
+    const boot = document.createElement("div");
+    boot.id = BOOT_SPLASH_ID;
+    boot.setAttribute("data-testid", "app-launch-splash");
+    document.body.append(boot);
+
+    render(
+      <AppLaunchShell>
+        <ReadyChild />
+      </AppLaunchShell>,
+    );
+
+    expect(document.querySelectorAll("#app-boot-splash")).toHaveLength(1);
+
+    act(() => {
+      vi.runOnlyPendingTimers();
+    });
+    act(() => {
+      vi.advanceTimersByTime(SPLASH_FADE_MS + 50);
+    });
+
+    expect(document.documentElement.classList.contains(BOOT_SPLASH_HIDDEN_CLASS)).toBe(
+      true,
+    );
+    boot.remove();
+    document.documentElement.classList.remove(BOOT_SPLASH_HIDDEN_CLASS);
   });
 
   it("does not replay splash on remount after session mark", () => {

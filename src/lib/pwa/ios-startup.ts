@@ -71,8 +71,9 @@ const DEVICE_SPECS: readonly DeviceSpec[] = [
   { cssWidth: 428, cssHeight: 926, scale: 3, devices: "iPhone 12/13/14 Pro Max, 14 Plus" },
   { cssWidth: 393, cssHeight: 852, scale: 3, devices: "iPhone 14 Pro, 15, 15 Pro, 16" },
   { cssWidth: 430, cssHeight: 932, scale: 3, devices: "iPhone 15 Plus, 15 Pro Max, 16 Plus" },
-  { cssWidth: 402, cssHeight: 874, scale: 3, devices: "iPhone 16 Pro" },
-  { cssWidth: 440, cssHeight: 956, scale: 3, devices: "iPhone 16 Pro Max" },
+  { cssWidth: 402, cssHeight: 874, scale: 3, devices: "iPhone 16 Pro, 17, 17 Pro" },
+  { cssWidth: 440, cssHeight: 956, scale: 3, devices: "iPhone 16 Pro Max, 17 Pro Max" },
+  { cssWidth: 420, cssHeight: 912, scale: 3, devices: "iPhone Air" },
 ];
 
 export function iosStartupLogoCssPx(cssWidth: number, cssHeight: number): number {

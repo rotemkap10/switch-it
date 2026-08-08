@@ -3,6 +3,7 @@ import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { bootSplashCriticalCss } from "@/lib/pwa/boot-splash";
 import {
   PWA_BACKGROUND_COLOR,
   PWA_THEME_COLOR,
@@ -20,12 +21,21 @@ describe("PWA / first-paint color continuity", () => {
     expect(layout).toContain("PWA_BACKGROUND_COLOR");
     expect(layout).toContain("backgroundColor: PWA_BACKGROUND_COLOR");
     expect(layout).toContain("colorScheme: \"light\"");
-    expect(layout).toContain("color-scheme: only light");
+    expect(layout).toContain('"color-scheme": "only light"');
+    expect(bootSplashCriticalCss()).toContain("color-scheme: only light");
     expect(layout).toContain("apple-mobile-web-app-capable");
     expect(layout).toContain("black-translucent");
     expect(layout).toContain("supported-color-schemes");
     expect(layout).toContain("apple-touch-startup-image");
     expect(layout).toContain("IOS_STARTUP_FALLBACK");
+    expect(layout).toContain("BootSplash");
+    expect(layout).toContain("bootSplashCriticalCss");
+    expect(layout).toContain("bootSplashSkipScript");
+    expect(layout).toContain("beforeInteractive");
+    expect(layout).toContain("SWITCH_IT_LAUNCH_LOGO_SRC");
+    expect(layout).toContain('rel="preload"');
+    expect(layout).toContain("suppressHydrationWarning");
+    expect(layout).toContain("APP_ROOT_ID");
 
     const manifest = readFileSync(
       resolve(process.cwd(), "src/app/manifest.ts"),
