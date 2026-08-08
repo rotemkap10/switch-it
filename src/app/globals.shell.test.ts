@@ -74,6 +74,9 @@ describe("mobile shell CSS foundation", () => {
   });
 
   it("defines mobile account form utilities", () => {
+    expect(css).toContain(".landing-page");
+    expect(css).toContain(".landing-page__brand");
+    expect(css).toContain(".landing-page__actions");
     expect(css).toContain(".auth-page");
     expect(css).toContain("justify-content: flex-start");
     expect(css).toContain("overflow-x: hidden");
@@ -102,6 +105,8 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".map-route-transition");
     expect(css).toContain(".route-transition-overlay");
     expect(css).toContain(".branded-loading-page");
+    expect(css).toContain(".branded-loading-car");
+    expect(css).not.toContain(".map-loading-pin");
     expect(css).toContain("color-scheme: only light");
     expect(css).toContain("background-color: #dff4ff");
     expect(css).not.toMatch(

@@ -340,11 +340,13 @@ export function SpotLocationPickerMapLibre({
               stroke="#ffffff"
               strokeWidth="2.5"
             />
-            <circle cx="20" cy="18" r="7.5" fill="#ffffff" />
+            <circle cx="20" cy="18" r="8" fill="#ffffff" />
             <path
-              d="M17.2 13.5h3.6c1.85 0 3 1 3 2.55 0 1.7-1.2 2.7-3.2 2.7H19.4v4.75h-2.2V13.5Z"
+              d="M12.8 19.2c.6-2.4 3.2-4 6.2-4h3.4c3.2 0 5.5 1.4 7.2 3.4l2.2.9c.5.2.9.7.9 1.2v1.1H12.2v-1.3c0-.5.3-1 .8-1.2l-.2-.1Z"
               fill="#55bff3"
             />
+            <circle cx="16.2" cy="21.8" r="1.35" fill="#12324a" />
+            <circle cx="25.6" cy="21.8" r="1.35" fill="#12324a" />
           </svg>
         </div>
       </div>

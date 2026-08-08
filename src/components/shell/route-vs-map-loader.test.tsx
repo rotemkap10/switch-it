@@ -18,7 +18,7 @@ describe("route vs embedded map loaders", () => {
     // Destination chrome and embedded map loader can coexist; only one
     // full-page route overlay exists in production (separate provider).
     expect(screen.getByTestId("arrived-shell")).toBeInTheDocument();
-    expect(screen.getAllByTestId("branded-loading-pin")).toHaveLength(2);
+    expect(screen.getAllByTestId("branded-loading-car")).toHaveLength(2);
     expect(screen.getByText("Loading the map…")).toBeInTheDocument();
     expect(screen.getAllByText("Loading…").length).toBeGreaterThanOrEqual(1);
 

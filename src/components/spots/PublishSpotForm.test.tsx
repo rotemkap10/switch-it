@@ -158,16 +158,16 @@ describe("PublishSpotForm", () => {
       );
     });
     expect(
-      screen.getByText("You can move the map to adjust the spot."),
-    ).toBeInTheDocument();
+      screen.queryByText("You can move the map to adjust the spot."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("This coordinates a handoff; it does not reserve the spot."),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Enter coordinates manually" }),
     ).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByLabelText("Latitude")).not.toBeInTheDocument();
-    expect(
-      screen.getByText("This coordinates a handoff; it does not reserve the spot."),
-    ).toBeInTheDocument();
   });
 
   it("updates hidden coordinates from the map picker callback", async () => {

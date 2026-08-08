@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 
 /** Delay before showing the slow-connection hint on map loads. */
 export const MAP_SLOW_NETWORK_HINT_MS = 3000;
@@ -52,45 +52,105 @@ function useMediaPrefersReducedMotion() {
   return reduced;
 }
 
-/** Shared parking-pin visual used by map and route loaders. */
-export function BrandedLoadingPin({ animate }: { animate: boolean }) {
+function Wheel({ cx, cy }: { cx: number; cy: number }) {
+  return (
+    <g transform={`translate(${cx} ${cy})`}>
+      <g className="branded-loading-wheel">
+        <circle r="6.4" fill="#12324a" />
+        <circle r="2.6" fill="#eaf8ff" />
+        <path
+          d="M0-4.2v8.4M-4.2 0h8.4"
+          stroke="#9fd9f5"
+          strokeWidth="1.15"
+          strokeLinecap="round"
+          opacity="0.9"
+        />
+      </g>
+    </g>
+  );
+}
+
+/** Shared driving-car visual used by map and route loaders. Not the app logo. */
+export function BrandedLoadingCar({ animate }: { animate: boolean }) {
+  const reactId = useId().replace(/:/g, "");
+  const clipId = `branded-loading-road-${reactId}`;
+
   return (
     <div
       className={[
-        "map-loading-pin",
-        animate ? "map-loading-pin-animate" : "",
+        "branded-loading-car",
+        animate ? "branded-loading-car-animate" : "",
       ].join(" ")}
       aria-hidden="true"
-      data-testid="branded-loading-pin"
+      data-testid="branded-loading-car"
+      data-animated={animate ? "true" : "false"}
     >
-      <span className="map-loading-ring map-loading-ring-a" />
-      <span className="map-loading-ring map-loading-ring-b" />
       <svg
-        width="40"
-        height="48"
-        viewBox="0 0 40 48"
+        viewBox="0 0 136 56"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        className="relative z-[1]"
+        className="branded-loading-car__svg"
       >
-        <path
-          d="M20 46c0 0 14-14.2 14-26a14 14 0 1 0-28 0c0 11.8 14 26 14 26Z"
-          fill="#55bff3"
-          stroke="#ffffff"
-          strokeWidth="2.5"
+        <defs>
+          <clipPath id={clipId}>
+            <rect x="10" y="44" width="116" height="8" rx="4" />
+          </clipPath>
+        </defs>
+
+        <rect
+          x="10"
+          y="44"
+          width="116"
+          height="8"
+          rx="4"
+          fill="#12324a"
+          opacity="0.18"
         />
-        <circle cx="20" cy="18" r="7.5" fill="#ffffff" />
-        <path
-          d="M17.2 13.5h3.6c1.85 0 3 1 3 2.55 0 1.7-1.2 2.7-3.2 2.7H19.4v4.75h-2.2V13.5Z"
-          fill="#55bff3"
-        />
+        <g clipPath={`url(#${clipId})`}>
+          <g className="branded-loading-dashes">
+            {[-30, -10, 10, 30, 50, 70, 90, 110, 130, 150].map((x) => (
+              <rect
+                key={x}
+                x={x}
+                y="47"
+                width="10"
+                height="2.2"
+                rx="1.1"
+                fill="#ffffff"
+                opacity="0.85"
+              />
+            ))}
+          </g>
+        </g>
+
+        <g className="branded-loading-car-body">
+          <ellipse cx="68" cy="41.5" rx="30" ry="2.6" fill="#12324a" opacity="0.12" />
+          <path
+            d="M40 33.5c2-6.2 9.5-10 18-10h16c9.5 0 16 3.4 21 8.2l7.5 2.3c1.6.4 2.7 1.8 2.7 3.4v3.1H38.2v-3.6c0-1.4 1-2.6 2.4-3.1l-.6-.3Z"
+            fill="#55bff3"
+          />
+          <path
+            d="M55 23.8h17.5c6.4 0 11.2 2.8 14.6 6.6H53.6c.2-2.6 1-5 1.4-6.6Z"
+            fill="#eaf8ff"
+          />
+          <path
+            d="M71.5 23.8v6.6"
+            stroke="#9fd9f5"
+            strokeWidth="1.2"
+            opacity="0.9"
+          />
+          <rect x="37.5" y="35.5" width="5" height="4" rx="1" fill="#12324a" opacity="0.22" />
+          <rect x="98" y="35.2" width="7.5" height="3.6" rx="1.2" fill="#2fa9e6" />
+          <Wheel cx={54} cy={40.2} />
+          <Wheel cx={92} cy={40.2} />
+        </g>
       </svg>
     </div>
   );
 }
 
 /**
- * Provider-neutral Switch It loading visual (parking pin + status).
+ * Provider-neutral Switch It loading visual (driving car + status).
  * Map and route loaders share this — do not introduce a second spinner.
  */
 export function BrandedLoadingState({
@@ -121,7 +181,7 @@ export function BrandedLoadingState({
       data-testid="branded-loading-state"
       data-variant={variant}
     >
-      <BrandedLoadingPin animate={!prefersReducedMotion} />
+      <BrandedLoadingCar animate={!prefersReducedMotion} />
       <p className="text-sm font-medium text-foreground">{label}</p>
       {supportingText ? (
         <p className="max-w-xs text-xs text-muted">{supportingText}</p>

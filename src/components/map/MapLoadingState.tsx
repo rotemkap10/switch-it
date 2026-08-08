@@ -17,7 +17,7 @@ type MapLoadingStateProps = {
 };
 
 /**
- * Embedded map-area loader — thin wrapper around the shared parking-pin visual.
+ * Embedded map-area loader — thin wrapper around the shared driving-car visual.
  */
 export function MapLoadingState({
   className = "",

@@ -7,7 +7,6 @@ import { CancelSpotButton } from "@/components/spots/CancelSpotButton";
 import { ExtendHandoffWaitButton } from "@/components/spots/ExtendHandoffWaitButton";
 import { HandoffCodeSection } from "@/components/spots/HandoffCodeSection";
 import { PublisherLiveProgressMapLoader } from "@/components/spots/PublisherLiveProgressMapLoader";
-import { PublisherSpotPreviewMapLoader } from "@/components/spots/PublisherSpotPreviewMapLoader";
 import { ParkingPinSettle } from "@/components/illustrations/ParkingPinSettle";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import {
@@ -115,11 +114,6 @@ export function PublisherSpotCard({
           <h2 className="text-lg font-semibold text-foreground sm:text-xl">
             {claimed ? "A driver is on the way" : "Waiting for a driver"}
           </h2>
-          <p className="mt-1 text-sm text-muted">
-            {claimed
-              ? "Waiting is optional — extend if the driver is close, or leave when you need to."
-              : "Your spot is visible to nearby drivers."}
-          </p>
         </div>
         {!claimed ? (
           <ParkingPinSettle
@@ -168,8 +162,8 @@ export function PublisherSpotCard({
       </div>
     ) : null;
 
-  const mapBlock = hasValidCoords ? (
-    claimed && activeClaimId ? (
+  const mapBlock =
+    claimed && activeClaimId && hasValidCoords ? (
       <div className="border-t border-border/60 pt-3">
         <PublisherLiveProgressMapLoader
           parkingLatitude={spot.latitude}
@@ -181,14 +175,7 @@ export function PublisherSpotCard({
           onExpandedChange={setLiveMapExpanded}
         />
       </div>
-    ) : (
-      <PublisherSpotPreviewMapLoader
-        latitude={spot.latitude}
-        longitude={spot.longitude}
-        variant={claimed ? "claimed" : "available"}
-      />
-    )
-  ) : null;
+    ) : null;
 
   const cancelBlock = (
     <div className="publisher-spot-cancel flex flex-col gap-2">
@@ -221,16 +208,14 @@ export function PublisherSpotCard({
       data-testid="publisher-spot-card"
       data-status={spot.status}
     >
-      {usePageGrid ? (
+      {usePageGrid && mapBlock ? (
         <div className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:items-start md:gap-4">
           <div className="flex flex-col gap-3 md:col-start-1">
             {statusBlock}
             {handoffBlock}
             {vehicleBlock}
           </div>
-          {mapBlock ? (
-            <div className="md:col-start-2 md:row-start-1">{mapBlock}</div>
-          ) : null}
+          <div className="md:col-start-2 md:row-start-1">{mapBlock}</div>
           <div className="md:col-span-2">{cancelBlock}</div>
         </div>
       ) : (

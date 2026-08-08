@@ -55,7 +55,7 @@ function windowLocationKey(): string {
 }
 
 /**
- * Full-page branded parking-pin loader for internal navigations.
+ * Full-page branded driving-car loader for internal navigations.
  * Complements Next.js loading.tsx; anti-flicker reveal / min-visible timings.
  */
 export function RouteTransitionProvider({

@@ -5,6 +5,7 @@ export const SEEKER_MARKER_IMAGE_IDS = {
   unselected: "spot-unselected",
   selected: "spot-selected",
   destination: "spot-destination",
+  seekerLive: "seeker-live",
 } as const;
 
 export type SeekerMarkerImageId =
@@ -14,6 +15,7 @@ export const SEEKER_MARKER_IMAGE_ID_LIST: readonly SeekerMarkerImageId[] = [
   SEEKER_MARKER_IMAGE_IDS.unselected,
   SEEKER_MARKER_IMAGE_IDS.selected,
   SEEKER_MARKER_IMAGE_IDS.destination,
+  SEEKER_MARKER_IMAGE_IDS.seekerLive,
 ];
 
 type Rgba = readonly [number, number, number, number];
@@ -44,6 +46,13 @@ const MARKER_COLORS: Record<
     size: 52,
     ringWidth: 5,
   },
+  "seeker-live": {
+    ring: [47, 169, 230, 255],
+    fill: [85, 191, 243, 255],
+    glyph: [255, 255, 255, 255],
+    size: 56,
+    ringWidth: 4,
+  },
 };
 
 function setPixel(data: Uint8ClampedArray, i: number, rgba: Rgba) {
@@ -60,7 +69,7 @@ export type SeekerMarkerImagePixels = {
 };
 
 /**
- * Build a simple circular parking marker as raw RGBA pixels.
+ * Build a circular vehicle marker as raw RGBA pixels.
  * Avoids SVG / map.loadImage — MapLibre does not reliably decode SVG for icons.
  * MapLibre accepts { width, height, data } the same as ImageData.
  */
@@ -87,67 +96,76 @@ export function createSeekerMarkerImageData(
     }
   }
 
-  // Compact "P" glyph in the center (destination uses a pin-like stem).
-  if (id === SEEKER_MARKER_IMAGE_IDS.destination) {
-    drawDestinationGlyph(data, size, glyph);
-  } else {
-    drawParkingGlyph(data, size, glyph);
-  }
+  drawVehicleGlyph(data, size, glyph);
 
   return { width: size, height: size, data };
 }
 
-function drawParkingGlyph(
+function fillRect(
   data: Uint8ClampedArray,
   size: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
   color: Rgba,
 ) {
-  const left = Math.round(size * 0.38);
-  const top = Math.round(size * 0.30);
-  const stemW = Math.max(2, Math.round(size * 0.08));
-  const bowlH = Math.round(size * 0.28);
-  const bowlW = Math.round(size * 0.22);
-  const totalH = Math.round(size * 0.42);
-
-  for (let y = top; y < top + totalH; y += 1) {
-    for (let x = left; x < left + stemW; x += 1) {
-      setPixel(data, (y * size + x) * 4, color);
-    }
-  }
-  for (let y = top; y < top + stemW; y += 1) {
-    for (let x = left; x < left + bowlW; x += 1) {
-      setPixel(data, (y * size + x) * 4, color);
-    }
-  }
-  for (let y = top + bowlH; y < top + bowlH + stemW; y += 1) {
-    for (let x = left; x < left + bowlW; x += 1) {
-      setPixel(data, (y * size + x) * 4, color);
-    }
-  }
-  for (let y = top; y < top + bowlH + stemW; y += 1) {
-    for (let x = left + bowlW - stemW; x < left + bowlW; x += 1) {
+  const left = Math.max(0, Math.round(Math.min(x0, x1)));
+  const right = Math.min(size - 1, Math.round(Math.max(x0, x1)));
+  const top = Math.max(0, Math.round(Math.min(y0, y1)));
+  const bottom = Math.min(size - 1, Math.round(Math.max(y0, y1)));
+  for (let y = top; y <= bottom; y += 1) {
+    for (let x = left; x <= right; x += 1) {
       setPixel(data, (y * size + x) * 4, color);
     }
   }
 }
 
-function drawDestinationGlyph(
+/** Compact top-down car — readable at map marker sizes. */
+function drawVehicleGlyph(
   data: Uint8ClampedArray,
   size: number,
   color: Rgba,
 ) {
-  const cx = Math.round(size / 2);
-  const top = Math.round(size * 0.30);
-  const bottom = Math.round(size * 0.70);
-  const halfTop = Math.round(size * 0.12);
+  const cx = (size - 1) / 2;
+  const bodyTop = size * 0.29;
+  const bodyBottom = size * 0.71;
+  const bodyHalf = size * 0.16;
+  const cabinTop = size * 0.35;
+  const cabinBottom = size * 0.54;
+  const cabinHalf = size * 0.11;
+  const wheelY = size * 0.52;
+  const wheelH = size * 0.09;
+  const wheelHalf = size * 0.21;
 
-  for (let y = top; y <= bottom; y += 1) {
-    const t = (y - top) / Math.max(1, bottom - top);
-    const half = Math.max(1, Math.round(halfTop * (1 - t * 0.85)));
-    for (let x = cx - half; x <= cx + half; x += 1) {
-      setPixel(data, (y * size + x) * 4, color);
-    }
-  }
+  fillRect(data, size, cx - bodyHalf, bodyTop, cx + bodyHalf, bodyBottom, color);
+  fillRect(
+    data,
+    size,
+    cx - cabinHalf,
+    cabinTop,
+    cx + cabinHalf,
+    cabinBottom,
+    color,
+  );
+  fillRect(
+    data,
+    size,
+    cx - wheelHalf,
+    wheelY,
+    cx - bodyHalf + 1,
+    wheelY + wheelH,
+    color,
+  );
+  fillRect(
+    data,
+    size,
+    cx + bodyHalf - 1,
+    wheelY,
+    cx + wheelHalf,
+    wheelY + wheelH,
+    color,
+  );
 }
 
 /**

@@ -49,14 +49,18 @@ describe("MapLoadingState", () => {
     clearSpy.mockRestore();
   });
 
-  it("keeps a static pin when reduced motion is forced", () => {
+  it("keeps a static car when reduced motion is forced", () => {
     const { container } = render(<MapLoadingState reducedMotion />);
-    expect(container.querySelector(".map-loading-pin-animate")).toBeNull();
-    expect(container.querySelector(".map-loading-pin")).not.toBeNull();
+    expect(container.querySelector(".branded-loading-car-animate")).toBeNull();
+    expect(container.querySelector(".branded-loading-car")).not.toBeNull();
+    expect(screen.getByTestId("branded-loading-car")).toHaveAttribute(
+      "data-animated",
+      "false",
+    );
   });
 
-  it("animates the pin when reduced motion is off", () => {
+  it("animates the car when reduced motion is off", () => {
     const { container } = render(<MapLoadingState reducedMotion={false} />);
-    expect(container.querySelector(".map-loading-pin-animate")).not.toBeNull();
+    expect(container.querySelector(".branded-loading-car-animate")).not.toBeNull();
   });
 });

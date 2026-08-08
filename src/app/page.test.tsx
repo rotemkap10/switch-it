@@ -5,8 +5,9 @@ import HomePage from "@/app/page";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 
 describe("landing page", () => {
-  it("leads with the brand and clear CTAs", () => {
+  it("leads with the brand and two CTAs only", () => {
     render(<HomePage />);
+    expect(screen.getByTestId("landing-page")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 1, name: "Switch It" }),
     ).toBeInTheDocument();
@@ -17,7 +18,13 @@ describe("landing page", () => {
       "href",
       "/login",
     );
-    expect(screen.getByText(/never sells or guarantees/i)).toBeInTheDocument();
+    expect(screen.queryByText(/never sells or guarantees/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Find parking/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Share a spot/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Confirm the handoff/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Find a spot someone is leaving/i),
+    ).not.toBeInTheDocument();
   });
 });
 

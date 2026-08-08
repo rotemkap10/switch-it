@@ -9,12 +9,19 @@ import {
 } from "@/lib/map/seekerMarkerImages";
 
 describe("seekerMarkerImages", () => {
-  it("uses only the three stable image IDs", () => {
+  it("uses only the stable vehicle marker image IDs", () => {
     expect(SEEKER_MARKER_IMAGE_ID_LIST).toEqual([
       "spot-unselected",
       "spot-selected",
       "spot-destination",
+      "seeker-live",
     ]);
+  });
+
+  it("sizes live seeker markers distinctly from parking spots", () => {
+    expect(createSeekerMarkerImageData("spot-unselected").width).toBe(52);
+    expect(createSeekerMarkerImageData("spot-selected").width).toBe(62);
+    expect(createSeekerMarkerImageData("seeker-live").width).toBe(56);
   });
 
   it("builds non-empty ImageData for each marker", () => {
@@ -52,8 +59,9 @@ describe("seekerMarkerImages", () => {
 
     registerSeekerMarkerImages(map as never);
 
-    expect(addImage).toHaveBeenCalledTimes(2);
+    expect(addImage).toHaveBeenCalledTimes(3);
     expect(addImage.mock.calls.map((c) => c[0]).sort()).toEqual([
+      "seeker-live",
       "spot-destination",
       "spot-selected",
     ]);

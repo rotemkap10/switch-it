@@ -673,6 +673,43 @@ body {
 
 /* ---- Mobile account forms (Phase 4) ---- */
 
+.landing-page {
+  position: relative;
+  display: flex;
+  min-height: 100%;
+  min-height: 100dvh;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2.75rem;
+  padding-inline: var(--app-phone-gutter);
+  padding-top: max(3rem, var(--app-safe-top));
+  padding-bottom: max(2.5rem, calc(1.5rem + var(--app-safe-bottom)));
+}
+
+.landing-page__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.landing-page__title {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  color: var(--color-text);
+}
+
+.landing-page__actions {
+  display: flex;
+  width: min(100%, 20rem);
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .auth-page {
   display: flex;
   width: 100%;
@@ -1012,67 +1049,67 @@ body {
   pointer-events: none;
 }
 
-.map-loading-pin {
+.branded-loading-car {
   position: relative;
   display: flex;
   height: 3.5rem;
-  width: 3.5rem;
-  align-items: center;
+  width: 8.5rem;
+  flex-shrink: 0;
+  align-items: flex-end;
   justify-content: center;
 }
 
-.map-loading-ring {
-  position: absolute;
-  left: 50%;
-  top: 42%;
-  width: 1.75rem;
-  height: 1.75rem;
-  border-radius: 9999px;
-  border: 2px solid rgb(85 191 243 / 35%);
-  transform: translate(-50%, -50%) scale(0.7);
-  opacity: 0;
-  pointer-events: none;
+.branded-loading-car__svg {
+  display: block;
+  height: 100%;
+  width: 100%;
+  overflow: visible;
 }
 
-.map-loading-pin-animate .map-loading-ring-a {
-  animation: map-loading-ring 2.4s var(--motion-ease) infinite;
+.branded-loading-car-animate .branded-loading-car-body {
+  animation: branded-loading-car-bob 1.5s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center bottom;
 }
 
-.map-loading-pin-animate .map-loading-ring-b {
-  animation: map-loading-ring 2.4s var(--motion-ease) 0.7s infinite;
+.branded-loading-car-animate .branded-loading-wheel {
+  animation: branded-loading-wheel-spin 1.5s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
 }
 
-.map-loading-pin-animate svg {
-  animation: map-loading-pin-lift 2.2s var(--motion-ease) infinite;
-  transform-origin: 50% 90%;
-  will-change: transform;
+.branded-loading-car-animate .branded-loading-dashes {
+  animation: branded-loading-road-scroll 1.5s linear infinite;
 }
 
-@keyframes map-loading-pin-lift {
+@keyframes branded-loading-car-bob {
   0%,
   100% {
     transform: translateY(0);
   }
 
-  45% {
-    transform: translateY(-5px);
+  50% {
+    transform: translateY(-1.5px);
   }
 }
 
-@keyframes map-loading-ring {
-  0% {
-    opacity: 0.55;
-    transform: translate(-50%, -50%) scale(0.65);
+@keyframes branded-loading-wheel-spin {
+  from {
+    transform: rotate(0deg);
   }
 
-  70% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.55);
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes branded-loading-road-scroll {
+  from {
+    transform: translateX(0);
   }
 
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.55);
+  to {
+    transform: translateX(-20px);
   }
 }
 
@@ -1167,7 +1204,7 @@ body {
   opacity: 0.95;
 }
 
-/* Branded map route transition (shared parking-pin via BrandedLoadingState) */
+/* Branded map route transition (shared driving-car via BrandedLoadingState) */
 
 .map-route-transition {
   position: relative;
@@ -1920,9 +1957,9 @@ body {
     transform: translateY(-42%);
   }
 
-  .map-loading-pin-animate svg,
-  .map-loading-pin-animate .map-loading-ring-a,
-  .map-loading-pin-animate .map-loading-ring-b {
+  .branded-loading-car-animate .branded-loading-car-body,
+  .branded-loading-car-animate .branded-loading-wheel,
+  .branded-loading-car-animate .branded-loading-dashes {
     animation: none !important;
   }
 

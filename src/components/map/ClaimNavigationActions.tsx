@@ -66,12 +66,12 @@ export function ClaimNavigationActions({
         ref={navigateButtonRef}
         type="button"
         variant="primary"
-        className={fullWidth ? "w-full" : "w-full sm:w-fit"}
+        className={fullWidth ? "w-full min-h-12" : "w-full min-h-12 sm:w-fit"}
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={toggleChooser}
       >
-        Navigate
+        Open in
       </Button>
 
       <NavigationProviderSheet
@@ -79,9 +79,9 @@ export function ClaimNavigationActions({
         onClose={closeChooser}
         links={links}
         returnFocusRef={navigateButtonRef}
-        title={copyVariant === "post-claim" ? "Spot claimed" : "Navigate to spot"}
-        description="Choose an app to navigate to the handoff."
-        dismissLabel="Not now"
+        title={copyVariant === "post-claim" ? "Spot claimed" : "Open in"}
+        description={null}
+        dismissLabel="Cancel"
         onChoose={(url) => {
           openExternalNavigationUrl(url);
           closeChooser();

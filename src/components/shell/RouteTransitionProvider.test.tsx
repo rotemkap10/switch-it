@@ -99,7 +99,7 @@ describe("RouteTransitionProvider", () => {
     });
 
     expect(screen.getByTestId("route-transition-overlay")).toBeInTheDocument();
-    expect(screen.getByTestId("branded-loading-pin")).toBeInTheDocument();
+    expect(screen.getByTestId("branded-loading-car")).toBeInTheDocument();
     expect(screen.getByLabelText("Loading page")).toBeInTheDocument();
 
     navigationState.pathname = "/profile";

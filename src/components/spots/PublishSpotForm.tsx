@@ -105,9 +105,6 @@ function AddressLookupSummary({
         <p className="publisher-location-summary__loading motion-location-indicator">
           Finding the address…
         </p>
-        <p className="mt-0.5 text-xs leading-5 text-muted">
-          You can move the map to adjust the spot.
-        </p>
       </div>
     );
   }
@@ -120,16 +117,12 @@ function AddressLookupSummary({
         aria-live="polite"
         data-testid="publisher-address-summary"
       >
-        <p className="publisher-location-summary__label">Selected location</p>
         <p
           className="publisher-location-summary__value"
           data-testid="publisher-address-label"
           title={addressLabel ?? undefined}
         >
           {addressLabel}
-        </p>
-        <p className="mt-0.5 text-xs leading-5 text-muted">
-          You can move the map to adjust the spot.
         </p>
       </div>
     );
@@ -149,9 +142,6 @@ function AddressLookupSummary({
         >
           {PUBLISHER_SPOT_ADDRESS_FALLBACK}
         </p>
-        <p className="mt-0.5 text-xs leading-5 text-muted">
-          You can move the map to adjust the spot.
-        </p>
       </div>
     );
   }
@@ -169,9 +159,6 @@ function AddressLookupSummary({
           data-testid="publisher-location-status"
         >
           Location selected
-        </p>
-        <p className="mt-0.5 text-xs leading-5 text-muted">
-          You can move the map to adjust the spot.
         </p>
       </div>
     );
@@ -470,9 +457,6 @@ export function PublishSpotForm() {
           >
             {pending ? "Sharing…" : "Share spot"}
           </Button>
-          <p className="text-xs leading-5 text-muted">
-            This coordinates a handoff; it does not reserve the spot.
-          </p>
         </div>
       </div>
     </form>

@@ -132,7 +132,7 @@ export default async function NewSpotPage() {
   return (
     <AuthenticatedShell
       title="Share a spot"
-      description="Let nearby drivers know when you’re leaving."
+      description=""
       handoffException="active-publisher"
       access={access}
     >

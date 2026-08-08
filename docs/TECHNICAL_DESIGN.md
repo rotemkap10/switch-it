@@ -365,12 +365,13 @@ Application constants (window lengths) are validated in Zod and stored as
 - Routing / ETA is **not implemented** (deferred; MapTiler basemap + MapLibre
   rendering remain). After a **successful Claim**, the seeker immediately sees
   `NavigationProviderSheet` once (in-memory post-claim intent, not DB). Waze is
-  first; the user must tap a provider. Reloading / returning from Waze / an
-  existing active claim does **not** auto-open. **Navigate** reopens the same
-  sheet. Deep links (Waze `waze.com/ul`, Apple Maps `maps.apple.com`, Google
-  Maps `/maps/dir/?api=1`) use only `spot.latitude` / `spot.longitude`.
-  No Google Routes API, no origin, no stored provider preference, no auto live
-  location.
+  first, then Google Maps, then Apple Maps; the user must tap a provider.
+  Reloading / returning from Waze / an existing active claim does **not**
+  auto-open. **Open in** reopens the same sheet. Deep links (Waze `waze.com/ul`,
+  Apple Maps `maps.apple.com`, Google Maps `/maps/dir/?api=1`) use only
+  `spot.latitude` / `spot.longitude`. No Google Routes API, no origin, no stored
+  provider preference, no auto live location. Nearby users/cars are not rendered
+  on the map (deferred; privacy and minimalism).
 
 ## 10. Authentication flow
 
@@ -581,6 +582,11 @@ blocking.
 
 ### Map readiness (presentation)
 
+- Shared in-app loader is `BrandedLoadingState` (`BrandedLoadingCar`): a
+  centered side-profile car on a short road (1.5s loop). Used for route
+  transitions, `loading.tsx`, and embedded map loads. Not the app logo; PWA
+  splash / `apple-touch-startup-image` stay static. Reduced motion: static car
+  + road. Map parking markers and leaver center-pin remain pins.
 - Blocking loader hides after MapLibre `load` + first paint (double
   `requestAnimationFrame`), not after full tile `idle`.
 - Remaining tiles/labels may continue loading behind a usable map.

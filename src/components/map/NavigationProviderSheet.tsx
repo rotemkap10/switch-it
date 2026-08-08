@@ -11,7 +11,7 @@ type NavigationProviderSheetProps = {
   onChoose: (url: string) => void;
   returnFocusRef?: React.RefObject<HTMLElement | null>;
   title?: string;
-  description?: string;
+  description?: string | null;
   dismissLabel?: string;
 };
 
@@ -21,8 +21,8 @@ const PROVIDERS: Array<{
   emphasized?: boolean;
 }> = [
   { id: "waze", label: "Waze", emphasized: true },
-  { id: "appleMaps", label: "Apple Maps" },
   { id: "googleMaps", label: "Google Maps" },
+  { id: "appleMaps", label: "Apple Maps" },
 ];
 
 export function NavigationProviderSheet({
@@ -31,9 +31,9 @@ export function NavigationProviderSheet({
   links,
   onChoose,
   returnFocusRef,
-  title = "Navigate to spot",
-  description = "Choose an app to navigate to the handoff.",
-  dismissLabel = "Not now",
+  title = "Open in",
+  description = null,
+  dismissLabel = "Cancel",
 }: NavigationProviderSheetProps) {
   const titleId = useId();
   const sheetRef = useRef<HTMLDivElement | null>(null);
@@ -107,9 +107,9 @@ export function NavigationProviderSheet({
         <p id={titleId} className="text-sm font-semibold text-foreground">
           {title}
         </p>
-        <p className="mt-1 text-xs leading-5 text-muted">
-          {description}
-        </p>
+        {description ? (
+          <p className="mt-1 text-xs leading-5 text-muted">{description}</p>
+        ) : null}
         <ul className="mt-3 flex flex-col gap-2">
           {PROVIDERS.map((provider) => (
             <li key={provider.id}>

@@ -65,7 +65,7 @@ function fitParkingAndSeeker(
 }
 
 /**
- * Compact publisher live-progress map: parking pin + ephemeral seeker marker.
+ * Compact publisher live-progress map: parking marker + ephemeral seeker vehicle.
  * Updates GeoJSON via setData — does not recreate MapLibre.
  */
 export function PublisherLiveProgressMap({
@@ -336,17 +336,18 @@ export function PublisherLiveProgressMap({
               });
             }
 
-            map.addLayer({
-              id: SEEKER_LAYER,
-              type: "circle",
-              source: SEEKER_SOURCE,
-              paint: {
-                "circle-radius": 7,
-                "circle-color": "#2fa9e6",
-                "circle-stroke-color": "#ffffff",
-                "circle-stroke-width": 2,
-              },
-            });
+            if (map.hasImage(SEEKER_MARKER_IMAGE_IDS.seekerLive)) {
+              map.addLayer({
+                id: SEEKER_LAYER,
+                type: "symbol",
+                source: SEEKER_SOURCE,
+                layout: {
+                  "icon-image": SEEKER_MARKER_IMAGE_IDS.seekerLive,
+                  "icon-size": 0.8,
+                  "icon-allow-overlap": true,
+                },
+              });
+            }
 
             const disableFollow = () => setFollow(false);
             map.on("dragstart", disableFollow);

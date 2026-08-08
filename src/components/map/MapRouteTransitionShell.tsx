@@ -17,7 +17,7 @@ type MapRouteTransitionShellProps = {
 };
 
 /**
- * Route-level loading visual for map destinations — shared parking-pin animation.
+ * Route-level loading visual for map destinations — shared driving-car animation.
  * (Keeps the historical test id / mode attrs for shell chrome.)
  */
 export function MapRouteTransitionShell({
@@ -126,9 +126,6 @@ export function MapRouteLoadingChrome({
             <div className="mb-3 flex flex-col gap-1">
               <p className="text-2xl font-semibold tracking-tight text-foreground">
                 Share a spot
-              </p>
-              <p className="text-sm text-muted">
-                Let nearby drivers know when you’re leaving.
               </p>
             </div>
             <div className="publisher-compose-surface">

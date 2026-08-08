@@ -8,7 +8,7 @@ type PageRouteLoadingChromeProps = {
 };
 
 /**
- * Shared App Router loading.tsx chrome — parking-pin, not skeletons or spinners.
+ * Shared App Router loading.tsx chrome — driving-car loader, not skeletons or spinners.
  */
 export function PageRouteLoadingChrome({
   testId = "page-route-loading-shell",

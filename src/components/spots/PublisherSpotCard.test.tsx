@@ -160,8 +160,10 @@ describe("PublisherSpotCard", () => {
     );
     expect(screen.getByText("Waiting for a driver")).toBeInTheDocument();
     expect(
-      screen.getByText("Your spot is visible to nearby drivers."),
-    ).toBeInTheDocument();
+      screen.queryByText("Your spot is visible to nearby drivers."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("publisher-live-progress")).not.toBeInTheDocument();
     expect(screen.queryByText(/^Live$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/^claimed$/i)).not.toBeInTheDocument();
   });
@@ -175,18 +177,13 @@ describe("PublisherSpotCard", () => {
     );
 
     expect(screen.getByText("A driver is on the way")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Waiting is optional — extend if the driver is close, or leave when you need to.",
-      ),
-    ).toBeInTheDocument();
     expect(screen.queryByText(/^Driver coming$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
     expect(screen.queryByText(/seeker/i)).not.toBeInTheDocument();
     expect(screen.queryByText(baseSpot.id)).not.toBeInTheDocument();
   });
 
-  it("passes spot coordinates to the map preview", () => {
+  it("does not show a map preview while waiting for a driver", () => {
     render(
       <PublisherSpotCard
         spot={{ ...baseSpot, status: "available" }}
@@ -194,9 +191,10 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    const preview = screen.getByTestId("publisher-spot-preview-map");
-    expect(preview).toHaveAttribute("data-latitude", "32.0853");
-    expect(preview).toHaveAttribute("data-longitude", "34.7818");
+    expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
+    expect(screen.getByText("Dizengoff 50")).toBeInTheDocument();
+    expect(screen.getByTestId("handoff-window-countdown")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel spot" })).toBeInTheDocument();
   });
 
   it("shows Wait 2 more min during the claimed window when headroom remains", () => {
@@ -279,18 +277,17 @@ describe("PublisherSpotCard", () => {
     expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
   });
 
-  it("uses a larger preview variant while waiting for a driver", () => {
+  it("shows the live handoff map only after a seeker claims", () => {
     render(
       <PublisherSpotCard
-        spot={{ ...baseSpot, status: "available" }}
+        spot={{ ...baseSpot, status: "claimed" }}
         layout="page"
+        activeClaimId="11111111-1111-4111-8111-111111111111"
       />,
     );
 
-    expect(screen.getByTestId("publisher-spot-preview-map")).toHaveAttribute(
-      "data-preview-variant",
-      "available",
-    );
+    expect(screen.getByTestId("publisher-live-progress")).toBeInTheDocument();
+    expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
   });
 
   it("shows seeker vehicle in claimed state", () => {

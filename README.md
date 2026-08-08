@@ -108,7 +108,7 @@ Then show: credits moved by exactly one, and a **History** entry.
 
 - Parking is never guaranteed (public street spots)
 - Live location is foreground-first explicit opt-in (may pause in background)
-- No ETA / turn-by-turn routing in-app (Navigate opens Waze, Apple Maps, or Google Maps)
+- No ETA / turn-by-turn routing in-app (Open in launches Waze, Google Maps, or Apple Maps)
 - No payments, chat, push notifications, ratings, or no-show penalties
 - Course MVP credits are not real money
 

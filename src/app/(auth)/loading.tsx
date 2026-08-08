@@ -1,6 +1,6 @@
 import { BrandedLoadingState } from "@/components/brand/BrandedLoadingState";
 
-/** Auth route loading — branded pin on the app background (no dark overlay). */
+/** Auth route loading — branded driving-car on the app background (no dark overlay). */
 export default function AuthLoading() {
   return (
     <div
