@@ -52,13 +52,19 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
     longitude,
     onLocationChange,
     onUserMovedMap,
+    onMapInteractionStart,
+    onMapInteractionSettled,
     onCurrentLocationRequested,
     onCurrentLocationResolved,
+    userLatitude,
+    userLongitude,
   }: {
     latitude: number;
     longitude: number;
     onLocationChange?: (latitude: number, longitude: number) => void;
     onUserMovedMap?: () => void;
+    onMapInteractionStart?: () => void;
+    onMapInteractionSettled?: () => void;
     onCurrentLocationRequested?: () => void;
     onCurrentLocationResolved?: (fix: {
       latitude: number;
@@ -75,14 +81,29 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
       data-testid="leaver-map-picker"
     >
       Map at {latitude}, {longitude}
+      {userLatitude != null && userLongitude != null ? (
+        <span data-testid="picker-blue-dot">
+          Dot at {userLatitude}, {userLongitude}
+        </span>
+      ) : null}
       <button
         type="button"
         onClick={() => {
+          onMapInteractionStart?.();
           onUserMovedMap?.();
           onLocationChange?.(32.111111, 34.222222);
         }}
       >
         Simulate map move
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onMapInteractionStart?.();
+          onMapInteractionSettled?.();
+        }}
+      >
+        Simulate touch without move
       </button>
       <button
         type="button"
@@ -463,6 +484,137 @@ describe("PublishSpotForm", () => {
     );
   });
 
+  it("does not lock the Tel Aviv fallback from a touch that does not move the pin", async () => {
+    const user = userEvent.setup();
+    const watchPosition = vi.fn((nextSuccess: PositionCallback) => {
+      // Do not resolve immediately — keep pending during the touch.
+      void nextSuccess;
+      return 1;
+    });
+    const clearWatch = vi.fn();
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: vi.fn(),
+        watchPosition,
+        clearWatch,
+      },
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+    expect(watchPosition).toHaveBeenCalledTimes(1);
+
+    await user.click(
+      screen.getByRole("button", { name: "Simulate touch without move" }),
+    );
+
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
+    await waitFor(() => {
+      expect(watchPosition).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("shows the blue current-location dot when initial GPS arrives", async () => {
+    stubGeolocation((success) => {
+      success(position(32.085312, 34.781812, 10));
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("picker-blue-dot")).toHaveTextContent(
+        "Dot at 32.085312, 34.781812",
+      );
+    });
+  });
+
+  it("does not let a late GPS fix overwrite an address selection", async () => {
+    const user = userEvent.setup();
+    let success: PositionCallback | null = null;
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: vi.fn(),
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          return 1;
+        }),
+        clearWatch: vi.fn(),
+      },
+    });
+
+    mapTilerForwardGeocodeSearchMock.mockResolvedValue([
+      {
+        label: "Rothschild Blvd 1, Tel Aviv",
+        latitude: 32.064,
+        longitude: 34.775,
+      },
+    ]);
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    await user.type(screen.getByPlaceholderText("Search an address"), "Roth");
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Rothschild Blvd 1, Tel Aviv" }),
+      ).toBeInTheDocument();
+    });
+    await user.click(
+      screen.getByRole("button", { name: "Rothschild Blvd 1, Tel Aviv" }),
+    );
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.064, 34.775",
+    );
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
+
+    success?.(position(32.085312, 34.781812, 8));
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.064, 34.775",
+    );
+  });
+
+  it("lets Current Location override a manual pin repeatedly", async () => {
+    const user = userEvent.setup();
+    stubGeolocation((success) => {
+      success(position(32.01, 34.01, 10));
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+        "Map at 32.01, 34.01",
+      );
+    });
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.111111, 34.222222",
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Use my current location" }),
+    );
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.085312, 34.781812",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    await user.click(
+      screen.getByRole("button", { name: "Use my current location" }),
+    );
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.085312, 34.781812",
+    );
+  });
+
   it("offers map fallback when geolocation is denied", async () => {
     const user = userEvent.setup();
     stubGeolocation((_success, error) => {
@@ -502,6 +654,10 @@ describe("PublishSpotForm", () => {
       screen.getByRole("button", { name: "Use my current location" }),
     ).toBeInTheDocument();
     expect(screen.queryByLabelText("Latitude")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "Share spot" }));
 

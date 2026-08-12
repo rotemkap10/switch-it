@@ -127,6 +127,7 @@ export function SpotLocationPickerMapLibre({
   const latitudeRef = useRef(latitude);
   const longitudeRef = useRef(longitude);
   const programmaticMoveRef = useRef(false);
+  const pendingCameraSyncRef = useRef(false);
   const handlersBoundRef = useRef(false);
   const [pinLifting, setPinLifting] = useState(false);
   const [mapUnavailable, setMapUnavailable] = useState(false);
@@ -239,32 +240,63 @@ export function SpotLocationPickerMapLibre({
     setPickerMapInteractionEnabled(map, !disabled);
   }, [disabled]);
 
-  // Sync external coordinate changes (e.g. manual entry) into the map view.
+  // Sync external coordinate changes (GPS / address / Current Location) into
+  // the map camera. Depends on pickerLayersReady so a GPS fix that arrived
+  // before the map instance existed is applied once the map is ready.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || disabled) {
+    if (!map || !pickerLayersReady || disabled) {
       return;
     }
 
     // Prevent prop-driven pin sync from racing against an in-flight
     // programmatic recenter (the recenter handler will set coords on moveend).
     if (programmaticMoveRef.current) {
+      pendingCameraSyncRef.current = true;
       return;
     }
 
     const center = map.getCenter();
     if (coordsNearlyEqual(center.lat, center.lng, latitude, longitude)) {
+      pendingCameraSyncRef.current = false;
       return;
     }
 
     let cancelled = false;
     programmaticMoveRef.current = true;
+    pendingCameraSyncRef.current = false;
     map.jumpTo({ center: [longitude, latitude] });
     map.resize();
     const releaseProgrammaticMove = () => {
-      if (!cancelled) {
-        programmaticMoveRef.current = false;
+      if (cancelled) {
+        return;
       }
+      programmaticMoveRef.current = false;
+      if (!pendingCameraSyncRef.current) {
+        return;
+      }
+      pendingCameraSyncRef.current = false;
+      const nextCenter = map.getCenter();
+      if (
+        coordsNearlyEqual(
+          nextCenter.lat,
+          nextCenter.lng,
+          latitudeRef.current,
+          longitudeRef.current,
+        )
+      ) {
+        return;
+      }
+      programmaticMoveRef.current = true;
+      map.jumpTo({
+        center: [longitudeRef.current, latitudeRef.current],
+      });
+      map.once("moveend", () => {
+        programmaticMoveRef.current = false;
+      });
+      window.setTimeout(() => {
+        programmaticMoveRef.current = false;
+      }, 100);
     };
     map.once("moveend", releaseProgrammaticMove);
     const timeoutId = window.setTimeout(releaseProgrammaticMove, 100);
@@ -272,7 +304,7 @@ export function SpotLocationPickerMapLibre({
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [latitude, longitude, disabled]);
+  }, [latitude, longitude, disabled, pickerLayersReady]);
 
   useEffect(() => {
     if (!showSelectedHint) {
@@ -355,6 +387,30 @@ export function SpotLocationPickerMapLibre({
             );
           }
 
+          // GPS may have already updated parent coords while the map was still
+          // mounting. BaseMap freezes initialCenter, so apply a pending jump now.
+          const readyCenter = map.getCenter();
+          if (
+            !disabled &&
+            !coordsNearlyEqual(
+              readyCenter.lat,
+              readyCenter.lng,
+              latitudeRef.current,
+              longitudeRef.current,
+            )
+          ) {
+            programmaticMoveRef.current = true;
+            map.jumpTo({
+              center: [longitudeRef.current, latitudeRef.current],
+            });
+            map.once("moveend", () => {
+              programmaticMoveRef.current = false;
+            });
+            window.setTimeout(() => {
+              programmaticMoveRef.current = false;
+            }, 100);
+          }
+
           setPickerLayersReady(true);
 
           if (handlersBoundRef.current) {
@@ -364,7 +420,7 @@ export function SpotLocationPickerMapLibre({
 
           map.on("movestart", (e) => {
             // Recenter and GPS jumpTo are programmatic. Only a real gesture
-            // should lock out automatic current-location initialization.
+            // should notify the parent (soft-pause GPS / reverse-geocode).
             const isUserGesture = Boolean(
               (e as unknown as { originalEvent?: unknown } | undefined)
                 ?.originalEvent,
@@ -374,7 +430,6 @@ export function SpotLocationPickerMapLibre({
             }
             setPinLifting(true);
             onMapInteractionStartRef.current?.();
-            onUserMovedMapRef.current?.();
           });
 
           map.on("moveend", () => {
@@ -398,7 +453,9 @@ export function SpotLocationPickerMapLibre({
               center: [center.lng, center.lat],
               zoom: map.getZoom(),
             });
-            // Final center only — never on every move frame.
+            // Intentional pin move: lock out auto-GPS only when the center
+            // actually changed (tiny touches / programmatic noise do not).
+            onUserMovedMapRef.current?.();
             onLocationChangeRef.current(center.lat, center.lng);
             setShowSelectedHint(true);
           });

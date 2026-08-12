@@ -41,6 +41,8 @@ let recenterOnFix: ((fix: {
   timestamp: number;
 }) => void) | null = null;
 let recenterOnError: (() => void) | null = null;
+let deferMapReady = false;
+let pendingMapReady: (() => void) | null = null;
 
 vi.mock("@/lib/map/use-map-recenter", () => ({
   useMapRecenter: (options: {
@@ -69,8 +71,15 @@ vi.mock("@/components/map/BaseMap", () => ({
     zoom: number;
   }) => {
     useEffect(() => {
-      props.onMapReady(mockMap);
-      props.onVisuallyReady?.();
+      const ready = () => {
+        props.onMapReady(mockMap);
+        props.onVisuallyReady?.();
+      };
+      if (deferMapReady) {
+        pendingMapReady = ready;
+        return;
+      }
+      ready();
     }, [props]);
     return <div data-testid="base-map" />;
   },
@@ -138,6 +147,8 @@ describe("SpotLocationPickerMapLibre", () => {
     recenterPending = false;
     recenterOnFix = null;
     recenterOnError = null;
+    deferMapReady = false;
+    pendingMapReady = null;
     mockMap.getCenter.mockReset();
     mockMap.getCenter.mockReturnValue({ lat: 32.085312, lng: 34.781812 });
     mockMap.jumpTo.mockReset();
@@ -292,7 +303,43 @@ describe("SpotLocationPickerMapLibre", () => {
     expect(await screen.findByText("Location selected")).toBeInTheDocument();
   });
 
-  it("treats a user pan as an intentional pin move", async () => {
+  it("treats a user pan as an intentional pin move only when the center changes", async () => {
+    const onUserMovedMap = vi.fn();
+    const onMapInteractionStart = vi.fn();
+    const onLocationChange = vi.fn();
+    mockMap.getCenter.mockReturnValue({ lat: 32.1, lng: 34.8 });
+
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={onLocationChange}
+        onUserMovedMap={onUserMovedMap}
+        onMapInteractionStart={onMapInteractionStart}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalled();
+    });
+
+    const movestartHandler = mockMap.on.mock.calls.find(
+      (call) => call[0] === "movestart",
+    )?.[1] as ((event?: unknown) => void) | undefined;
+    const moveendHandler = mockMap.on.mock.calls.find(
+      (call) => call[0] === "moveend",
+    )?.[1] as (() => void) | undefined;
+
+    movestartHandler?.({ originalEvent: { type: "pointerdown" } });
+    expect(onMapInteractionStart).toHaveBeenCalledTimes(1);
+    expect(onUserMovedMap).not.toHaveBeenCalled();
+
+    moveendHandler?.();
+    expect(onUserMovedMap).toHaveBeenCalledTimes(1);
+    expect(onLocationChange).toHaveBeenCalledWith(32.1, 34.8);
+  });
+
+  it("does not treat programmatic map movement as a user pin move", async () => {
     const onUserMovedMap = vi.fn();
     const onMapInteractionStart = vi.fn();
 
@@ -312,36 +359,11 @@ describe("SpotLocationPickerMapLibre", () => {
 
     const movestartHandler = mockMap.on.mock.calls.find(
       (call) => call[0] === "movestart",
-    )?.[1] as (() => void) | undefined;
-    expect(movestartHandler).toBeTypeOf("function");
-    movestartHandler?.({ originalEvent: { type: "pointerdown" } });
-
-    expect(onMapInteractionStart).toHaveBeenCalledTimes(1);
-    expect(onUserMovedMap).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not treat programmatic map movement as a user pin move", async () => {
-    const onUserMovedMap = vi.fn();
-
-    render(
-      <SpotLocationPickerMapLibre
-        latitude={32.085312}
-        longitude={34.781812}
-        onLocationChange={vi.fn()}
-        onUserMovedMap={onUserMovedMap}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(mockMap.on).toHaveBeenCalled();
-    });
-
-    const movestartHandler = mockMap.on.mock.calls.find(
-      (call) => call[0] === "movestart",
     )?.[1] as ((event?: unknown) => void) | undefined;
     movestartHandler?.({});
     movestartHandler?.({ originalEvent: undefined });
 
+    expect(onMapInteractionStart).not.toHaveBeenCalled();
     expect(onUserMovedMap).not.toHaveBeenCalled();
   });
 
@@ -557,6 +579,7 @@ describe("SpotLocationPickerMapLibre", () => {
 
   it("keeps the current-location dot after a user pan without treating GPS as a camera lock", async () => {
     const onUserMovedMap = vi.fn();
+    mockMap.getCenter.mockReturnValue({ lat: 32.085312, lng: 34.781812 });
     const { rerender } = render(
       <SpotLocationPickerMapLibre
         latitude={32.085312}
@@ -575,7 +598,12 @@ describe("SpotLocationPickerMapLibre", () => {
     const movestartHandler = mockMap.on.mock.calls.find(
       (call) => call[0] === "movestart",
     )?.[1] as ((event?: unknown) => void) | undefined;
+    const moveendHandler = mockMap.on.mock.calls.find(
+      (call) => call[0] === "moveend",
+    )?.[1] as (() => void) | undefined;
     movestartHandler?.({ originalEvent: { type: "pointerdown" } });
+    mockMap.getCenter.mockReturnValue({ lat: 32.1, lng: 34.8 });
+    moveendHandler?.();
     expect(onUserMovedMap).toHaveBeenCalledTimes(1);
 
     rerender(
@@ -604,6 +632,46 @@ describe("SpotLocationPickerMapLibre", () => {
         ],
       }),
     );
+  });
+
+  it("applies a pending GPS camera jump when map becomes ready after GPS props changed", async () => {
+    deferMapReady = true;
+    mockMap.getCenter.mockReturnValue({
+      lat: MAP_DEFAULT_CENTER.lat,
+      lng: MAP_DEFAULT_CENTER.lng,
+    });
+
+    const { rerender } = render(
+      <SpotLocationPickerMapLibre
+        latitude={MAP_DEFAULT_CENTER.lat}
+        longitude={MAP_DEFAULT_CENTER.lng}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("base-map")).toBeInTheDocument();
+    expect(pendingMapReady).not.toBeNull();
+
+    rerender(
+      <SpotLocationPickerMapLibre
+        latitude={32.26}
+        longitude={34.89}
+        userLatitude={32.26}
+        userLongitude={34.89}
+        userAccuracy={10}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    expect(mockMap.jumpTo).not.toHaveBeenCalled();
+
+    pendingMapReady?.();
+
+    await waitFor(() => {
+      expect(mockMap.jumpTo).toHaveBeenCalledWith({
+        center: [34.89, 32.26],
+      });
+    });
   });
 
   it("uses a parking P mark in the center pin instead of a tiny car", async () => {

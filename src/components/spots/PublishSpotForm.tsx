@@ -243,7 +243,9 @@ export function PublishSpotForm() {
   const [locationConfirmed, setLocationConfirmed] = useState(false);
   const stopWatchRef = useRef<(() => void) | null>(null);
   const manualOverrideRef = useRef(false);
-  const hasLocationRef = useRef(false);
+  const locationConfirmedRef = useRef(false);
+  /** True while a user gesture paused GPS before we know if the pin moved. */
+  const gesturePausedGpsRef = useRef(false);
 
   const [addressQuery, setAddressQuery] = useState("");
   const [addressSuggestions, setAddressSuggestions] = useState<
@@ -435,19 +437,19 @@ export function PublishSpotForm() {
     setGeoError(null);
     setManualOverride(false);
     manualOverrideRef.current = false;
-    if (!hasLocationRef.current) {
-      setGeoStatus("loading");
-    }
+    gesturePausedGpsRef.current = false;
+    setLocationConfirmed(false);
+    setGeoStatus("loading");
     subscribeGpsWatch();
   }, [subscribeGpsWatch]);
 
   useEffect(() => {
-    hasLocationRef.current = hasLocation;
-  }, [hasLocation]);
-
-  useEffect(() => {
     manualOverrideRef.current = manualOverride;
   }, [manualOverride]);
+
+  useEffect(() => {
+    locationConfirmedRef.current = locationConfirmed;
+  }, [locationConfirmed]);
 
   useEffect(() => {
     subscribeGpsWatch();
@@ -472,6 +474,7 @@ export function PublishSpotForm() {
     bumpLocationAction();
     gpsRequestSeqRef.current = null;
     stopGpsWatch();
+    gesturePausedGpsRef.current = false;
     setManualOverride(true);
     manualOverrideRef.current = true;
     setManualAddressLabel(null);
@@ -483,7 +486,9 @@ export function PublishSpotForm() {
       setLocation(MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng);
     }
     setGeoStatus("manual");
-    setLocationConfirmed(true);
+    // Fallback is display-only until the user pans, picks an address, or
+    // uses Current Location — do not confirm Tel Aviv for publish.
+    setLocationConfirmed(false);
   }
 
   function handleMapLocationChange(lat: number, lng: number) {
@@ -493,9 +498,36 @@ export function PublishSpotForm() {
     }
   }
 
+  function handleMapInteractionStart() {
+    notifyMapMoveStart();
+    // Soft-pause GPS during a gesture so a late fix cannot yank the pin mid-drag.
+    // Do not set permanent manualOverride / locationConfirmed yet — a tiny touch
+    // that does not change coordinates must not lock the Tel Aviv fallback.
+    if (!manualOverrideRef.current) {
+      gesturePausedGpsRef.current = true;
+      stopGpsWatch();
+    }
+  }
+
+  function handleMapInteractionSettled() {
+    notifyMapMoveSettled();
+    if (
+      gesturePausedGpsRef.current &&
+      !manualOverrideRef.current &&
+      !locationConfirmedRef.current
+    ) {
+      gesturePausedGpsRef.current = false;
+      setGeoStatus("loading");
+      subscribeGpsWatch();
+      return;
+    }
+    gesturePausedGpsRef.current = false;
+  }
+
   function handleUserMovedMap() {
     bumpLocationAction();
     gpsRequestSeqRef.current = null;
+    gesturePausedGpsRef.current = false;
     stopGpsWatch();
     setManualOverride(true);
     manualOverrideRef.current = true;
@@ -511,6 +543,7 @@ export function PublishSpotForm() {
       return;
     }
     gpsRequestSeqRef.current = null;
+    gesturePausedGpsRef.current = false;
     stopGpsWatch();
     setManualOverride(false);
     manualOverrideRef.current = false;
@@ -521,6 +554,7 @@ export function PublishSpotForm() {
     bumpLocationAction();
     gpsRequestSeqRef.current = null;
 
+    gesturePausedGpsRef.current = false;
     stopGpsWatch();
     setManualOverride(true);
     manualOverrideRef.current = true;
@@ -613,8 +647,8 @@ export function PublishSpotForm() {
               latitude={parsedLat}
               longitude={parsedLng}
               onLocationChange={handleMapLocationChange}
-              onMapInteractionStart={notifyMapMoveStart}
-              onMapInteractionSettled={notifyMapMoveSettled}
+              onMapInteractionStart={handleMapInteractionStart}
+              onMapInteractionSettled={handleMapInteractionSettled}
               onUserMovedMap={handleUserMovedMap}
               onCurrentLocationRequested={handleCurrentLocationRequested}
               disabled={pending}
