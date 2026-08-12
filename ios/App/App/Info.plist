@@ -72,6 +72,8 @@
 	<string>Switch It continues sharing your live location with the leaving driver while you navigate in Waze or Maps during an active parking handoff.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Switch It continues sharing your live location with the leaving driver while you navigate in Waze or Maps during an active parking handoff.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Switch It uses the camera so you can take a photo of your car for other drivers to recognize during a parking handoff.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

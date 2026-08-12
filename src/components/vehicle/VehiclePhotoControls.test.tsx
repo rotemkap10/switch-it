@@ -7,16 +7,26 @@ const {
   removeUploadedVehiclePhotoMock,
   saveVehiclePhotoPathMock,
   removeVehiclePhotoMock,
+  captureVehiclePhotoMock,
 } = vi.hoisted(() => ({
   uploadVehiclePhotoToStorageMock: vi.fn(),
   removeUploadedVehiclePhotoMock: vi.fn(),
   saveVehiclePhotoPathMock: vi.fn(),
   removeVehiclePhotoMock: vi.fn(),
+  captureVehiclePhotoMock: vi.fn(),
 }));
 
 vi.mock("@/lib/vehicle/upload-vehicle-photo-client", () => ({
   uploadVehiclePhotoToStorage: uploadVehiclePhotoToStorageMock,
   removeUploadedVehiclePhoto: removeUploadedVehiclePhotoMock,
+}));
+
+vi.mock("@/lib/vehicle/capture-vehicle-photo", () => ({
+  captureVehiclePhoto: captureVehiclePhotoMock,
+  VEHICLE_PHOTO_CAMERA_PERMISSION_MESSAGE:
+    "Camera permission is required to take a photo.",
+  VEHICLE_PHOTO_CAMERA_UNAVAILABLE_MESSAGE:
+    "Camera is unavailable. You can still choose a photo from your library.",
 }));
 
 vi.mock("@/actions/vehicle-photo", () => ({
@@ -30,6 +40,10 @@ import {
   VEHICLE_PHOTO_TOO_LARGE_MESSAGE,
   VEHICLE_PHOTO_UNSUPPORTED_MESSAGE,
 } from "@/lib/vehicle/photo";
+import {
+  VEHICLE_PHOTO_CAMERA_PERMISSION_MESSAGE,
+  VEHICLE_PHOTO_CAMERA_UNAVAILABLE_MESSAGE,
+} from "@/lib/vehicle/capture-vehicle-photo";
 
 function jpegFile() {
   return new File(
@@ -45,6 +59,8 @@ describe("VehiclePhotoControls", () => {
     removeUploadedVehiclePhotoMock.mockReset();
     saveVehiclePhotoPathMock.mockReset();
     removeVehiclePhotoMock.mockReset();
+    captureVehiclePhotoMock.mockReset();
+    captureVehiclePhotoMock.mockResolvedValue({ ok: false, reason: "web-fallback" });
   });
 
   it("lets a user add a photo without requiring it", async () => {
@@ -71,6 +87,7 @@ describe("VehiclePhotoControls", () => {
     expect(
       screen.getByRole("button", { name: "Add vehicle photo" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Take Photo" })).toBeInTheDocument();
 
     await user.upload(screen.getByLabelText("Vehicle photo"), jpegFile());
 
@@ -219,5 +236,180 @@ describe("VehiclePhotoControls", () => {
       photoPath: null,
       photoUrl: null,
     });
+  });
+
+  it("invokes native camera capture when Take Photo is pressed", async () => {
+    const user = userEvent.setup();
+    const onPhotoChange = vi.fn();
+    captureVehiclePhotoMock.mockResolvedValue({ ok: true, file: jpegFile() });
+    uploadVehiclePhotoToStorageMock.mockResolvedValue({
+      ok: true,
+      photoPath: "user/photo.jpg",
+    });
+    saveVehiclePhotoPathMock.mockResolvedValue({
+      success: true,
+      photoPath: "user/photo.jpg",
+      photoUrl: "https://example.test/photo.jpg",
+    });
+
+    render(<VehiclePhotoControls onPhotoChange={onPhotoChange} />);
+    await user.click(screen.getByRole("button", { name: "Take Photo" }));
+
+    await waitFor(() => {
+      expect(captureVehiclePhotoMock).toHaveBeenCalledTimes(1);
+      expect(uploadVehiclePhotoToStorageMock).toHaveBeenCalledWith(
+        expect.any(File),
+      );
+      expect(saveVehiclePhotoPathMock).toHaveBeenCalledWith("user/photo.jpg");
+    });
+    expect(onPhotoChange).toHaveBeenCalledWith({
+      photoPath: "user/photo.jpg",
+      photoUrl: "https://example.test/photo.jpg",
+    });
+    expect(screen.queryByText("Uploading…")).not.toBeInTheDocument();
+  });
+
+  it("resets loading when the user cancels the camera", async () => {
+    const user = userEvent.setup();
+    captureVehiclePhotoMock.mockResolvedValue({
+      ok: false,
+      reason: "cancelled",
+    });
+
+    render(<VehiclePhotoControls />);
+    await user.click(screen.getByRole("button", { name: "Take Photo" }));
+
+    await waitFor(() => {
+      expect(captureVehiclePhotoMock).toHaveBeenCalled();
+    });
+    expect(uploadVehiclePhotoToStorageMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("vehicle-photo-error")).not.toBeInTheDocument();
+    expect(screen.queryByText("Uploading…")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Take Photo" })).toBeEnabled();
+  });
+
+  it("resets loading and shows an error when camera permission is denied", async () => {
+    const user = userEvent.setup();
+    captureVehiclePhotoMock.mockResolvedValue({
+      ok: false,
+      reason: "permission",
+      message: VEHICLE_PHOTO_CAMERA_PERMISSION_MESSAGE,
+    });
+
+    render(<VehiclePhotoControls />);
+    await user.click(screen.getByRole("button", { name: "Take Photo" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("vehicle-photo-error")).toHaveTextContent(
+        VEHICLE_PHOTO_CAMERA_PERMISSION_MESSAGE,
+      );
+    });
+    expect(uploadVehiclePhotoToStorageMock).not.toHaveBeenCalled();
+    expect(screen.queryByText("Uploading…")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Take Photo" })).toBeEnabled();
+  });
+
+  it("resets loading and shows an error when the camera is unavailable", async () => {
+    const user = userEvent.setup();
+    captureVehiclePhotoMock.mockResolvedValue({
+      ok: false,
+      reason: "unavailable",
+      message: VEHICLE_PHOTO_CAMERA_UNAVAILABLE_MESSAGE,
+    });
+
+    render(<VehiclePhotoControls />);
+    await user.click(screen.getByRole("button", { name: "Take Photo" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("vehicle-photo-error")).toHaveTextContent(
+        VEHICLE_PHOTO_CAMERA_UNAVAILABLE_MESSAGE,
+      );
+    });
+    expect(screen.getByRole("button", { name: "Add vehicle photo" })).toBeEnabled();
+    expect(screen.queryByText("Uploading…")).not.toBeInTheDocument();
+  });
+
+  it("resets loading when a captured photo fails to upload", async () => {
+    const user = userEvent.setup();
+    captureVehiclePhotoMock.mockResolvedValue({ ok: true, file: jpegFile() });
+    uploadVehiclePhotoToStorageMock.mockResolvedValue({
+      ok: false,
+      error: "Could not upload your vehicle photo.",
+    });
+
+    render(<VehiclePhotoControls />);
+    await user.click(screen.getByRole("button", { name: "Take Photo" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("vehicle-photo-error")).toHaveTextContent(
+        "Could not upload your vehicle photo.",
+      );
+    });
+    expect(saveVehiclePhotoPathMock).not.toHaveBeenCalled();
+    expect(screen.queryByText("Uploading…")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Take Photo" })).toBeEnabled();
+  });
+
+  it("falls back to a camera file input on web without native Camera", async () => {
+    const user = userEvent.setup();
+    captureVehiclePhotoMock.mockResolvedValue({
+      ok: false,
+      reason: "web-fallback",
+    });
+    uploadVehiclePhotoToStorageMock.mockResolvedValue({
+      ok: true,
+      photoPath: "user/photo.jpg",
+    });
+    saveVehiclePhotoPathMock.mockResolvedValue({
+      success: true,
+      photoPath: "user/photo.jpg",
+      photoUrl: "https://example.test/photo.jpg",
+    });
+
+    render(<VehiclePhotoControls />);
+    const captureInput = screen.getByLabelText("Take vehicle photo");
+    expect(captureInput).toHaveAttribute("capture", "environment");
+    const clickSpy = vi.spyOn(captureInput, "click");
+
+    await user.click(screen.getByRole("button", { name: "Take Photo" }));
+
+    await waitFor(() => {
+      expect(captureVehiclePhotoMock).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
+    });
+    expect(uploadVehiclePhotoToStorageMock).not.toHaveBeenCalled();
+
+    await user.upload(captureInput, jpegFile());
+    await waitFor(() => {
+      expect(uploadVehiclePhotoToStorageMock).toHaveBeenCalled();
+    });
+    clickSpy.mockRestore();
+  });
+
+  it("keeps library and file selection on the existing input", async () => {
+    const user = userEvent.setup();
+    captureVehiclePhotoMock.mockResolvedValue({
+      ok: false,
+      reason: "web-fallback",
+    });
+    uploadVehiclePhotoToStorageMock.mockResolvedValue({
+      ok: true,
+      photoPath: "user/photo.jpg",
+    });
+    saveVehiclePhotoPathMock.mockResolvedValue({
+      success: true,
+      photoPath: "user/photo.jpg",
+      photoUrl: "https://example.test/photo.jpg",
+    });
+
+    render(<VehiclePhotoControls />);
+    const libraryInput = screen.getByLabelText("Vehicle photo");
+    expect(libraryInput).not.toHaveAttribute("capture");
+    await user.upload(libraryInput, jpegFile());
+
+    await waitFor(() => {
+      expect(uploadVehiclePhotoToStorageMock).toHaveBeenCalled();
+    });
+    expect(captureVehiclePhotoMock).not.toHaveBeenCalled();
   });
 });

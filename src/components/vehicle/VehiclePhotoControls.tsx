@@ -8,6 +8,10 @@ import {
 } from "@/actions/vehicle-photo";
 import { Button } from "@/components/ui/Button";
 import {
+  captureVehiclePhoto,
+  VEHICLE_PHOTO_CAMERA_UNAVAILABLE_MESSAGE,
+} from "@/lib/vehicle/capture-vehicle-photo";
+import {
   VEHICLE_PHOTO_ACCEPT,
   VEHICLE_PHOTO_TIMEOUT_MESSAGE,
   validateVehiclePhotoForUpload,
@@ -37,15 +41,53 @@ export function VehiclePhotoControls({
   onPhotoChange,
 }: VehiclePhotoControlsProps) {
   const inputId = useId();
+  const captureInputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const captureInputRef = useRef<HTMLInputElement>(null);
   const [action, setAction] = useState<"upload" | "remove" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const hasPhoto = Boolean(photoPath || photoUrl);
   const pending = action !== null;
 
-  function resetInput() {
+  function resetInputs() {
     if (inputRef.current) {
       inputRef.current.value = "";
+    }
+    if (captureInputRef.current) {
+      captureInputRef.current.value = "";
+    }
+  }
+
+  async function uploadSelectedFile(file: File) {
+    const parsed = await validateVehiclePhotoForUpload(file);
+    if (!parsed.ok) {
+      setError(parsed.message);
+      return;
+    }
+
+    const uploaded = await uploadVehiclePhotoToStorage(file);
+    if (!uploaded.ok) {
+      setError(uploaded.error);
+      return;
+    }
+
+    try {
+      const saved = await withVehiclePhotoTimeout(
+        saveVehiclePhotoPath(uploaded.photoPath),
+      );
+      if (!saved.success) {
+        await removeUploadedVehiclePhoto(uploaded.photoPath);
+        setError(saved.error ?? "Could not save your vehicle photo.");
+        return;
+      }
+
+      onPhotoChange?.({
+        photoPath: saved.photoPath ?? uploaded.photoPath,
+        photoUrl: saved.photoUrl ?? null,
+      });
+    } catch (error) {
+      await removeUploadedVehiclePhoto(uploaded.photoPath);
+      throw error;
     }
   }
 
@@ -55,40 +97,9 @@ export function VehiclePhotoControls({
     }
 
     setError(null);
-
-    const parsed = await validateVehiclePhotoForUpload(file);
-    if (!parsed.ok) {
-      setError(parsed.message);
-      resetInput();
-      return;
-    }
-
     setAction("upload");
     try {
-      const uploaded = await uploadVehiclePhotoToStorage(file);
-      if (!uploaded.ok) {
-        setError(uploaded.error);
-        return;
-      }
-
-      try {
-        const saved = await withVehiclePhotoTimeout(
-          saveVehiclePhotoPath(uploaded.photoPath),
-        );
-        if (!saved.success) {
-          await removeUploadedVehiclePhoto(uploaded.photoPath);
-          setError(saved.error ?? "Could not save your vehicle photo.");
-          return;
-        }
-
-        onPhotoChange?.({
-          photoPath: saved.photoPath ?? uploaded.photoPath,
-          photoUrl: saved.photoUrl ?? null,
-        });
-      } catch (error) {
-        await removeUploadedVehiclePhoto(uploaded.photoPath);
-        throw error;
-      }
+      await uploadSelectedFile(file);
     } catch (error) {
       setError(
         error instanceof Error && error.message === VEHICLE_PHOTO_TIMEOUT_MESSAGE
@@ -97,7 +108,39 @@ export function VehiclePhotoControls({
       );
     } finally {
       setAction(null);
-      resetInput();
+      resetInputs();
+    }
+  }
+
+  async function handleTakePhoto() {
+    setError(null);
+    setAction("upload");
+    try {
+      const captured = await captureVehiclePhoto();
+      if (!captured.ok && captured.reason === "web-fallback") {
+        setAction(null);
+        captureInputRef.current?.click();
+        return;
+      }
+      if (!captured.ok && captured.reason === "cancelled") {
+        return;
+      }
+      if (!captured.ok) {
+        setError(
+          captured.message ?? VEHICLE_PHOTO_CAMERA_UNAVAILABLE_MESSAGE,
+        );
+        return;
+      }
+      await uploadSelectedFile(captured.file);
+    } catch (error) {
+      setError(
+        error instanceof Error && error.message === VEHICLE_PHOTO_TIMEOUT_MESSAGE
+          ? VEHICLE_PHOTO_TIMEOUT_MESSAGE
+          : VEHICLE_PHOTO_CAMERA_UNAVAILABLE_MESSAGE,
+      );
+    } finally {
+      setAction(null);
+      resetInputs();
     }
   }
 
@@ -140,8 +183,34 @@ export function VehiclePhotoControls({
           void handleFile(event.target.files?.[0]);
         }}
       />
+      <input
+        id={captureInputId}
+        ref={captureInputRef}
+        type="file"
+        accept={VEHICLE_PHOTO_ACCEPT}
+        capture="environment"
+        aria-label="Take vehicle photo"
+        className="sr-only"
+        disabled={disabled}
+        onChange={(event) => {
+          void handleFile(event.target.files?.[0]);
+        }}
+      />
 
       <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={disabled || pending}
+          loading={action === "upload"}
+          className="min-h-[var(--app-tap-min)]"
+          data-testid="vehicle-take-photo"
+          onClick={() => {
+            void handleTakePhoto();
+          }}
+        >
+          {action === "upload" ? "Uploading…" : "Take Photo"}
+        </Button>
         <Button
           type="button"
           variant="secondary"
