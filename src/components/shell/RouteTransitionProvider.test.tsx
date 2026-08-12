@@ -13,6 +13,9 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/components/shell/AppLaunchReadyContext", () => ({
   useAppLaunchReady: () => true,
+  useReportInitialShellReady: () => () => {},
+  useRequestAwaitInitialMap: () => () => {},
+  useReportInitialMapReady: () => () => {},
 }));
 
 import { RouteTransitionProvider } from "@/components/shell/RouteTransitionProvider";

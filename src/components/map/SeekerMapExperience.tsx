@@ -11,6 +11,7 @@ import {
 import { OwnSpotNotice } from "@/components/map/OwnSpotNotice";
 import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
 import { Alert } from "@/components/ui/Alert";
+import { useReportInitialMapReady } from "@/components/shell/AppLaunchReadyContext";
 import {
   syncDocumentMapBottomStack,
   type MapBottomStack,
@@ -41,6 +42,7 @@ export function SeekerMapExperience({
   activeClaimError,
   ownedSpotError,
 }: SeekerMapExperienceProps) {
+  const reportInitialMapReady = useReportInitialMapReady();
   const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
   const [claimExpanded, setClaimExpanded] = useState(true);
   const [expandedForClaimId, setExpandedForClaimId] = useState<string | null>(
@@ -48,7 +50,15 @@ export function SeekerMapExperience({
   );
   const handleVisuallyReady = useCallback(() => {
     setMapVisuallyReady(true);
-  }, []);
+    reportInitialMapReady();
+  }, [reportInitialMapReady]);
+
+  useEffect(() => {
+    if (spotsError) {
+      // No map will mount — release cold-launch splash to show the error UI.
+      reportInitialMapReady();
+    }
+  }, [spotsError, reportInitialMapReady]);
 
   const activeClaimId = activeClaim?.claimId ?? null;
   if (activeClaimId !== expandedForClaimId) {

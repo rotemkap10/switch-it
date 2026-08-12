@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/shell/AppLaunchReadyContext", () => ({
   useAppLaunchReady: () => false,
+  useReportInitialShellReady: () => () => {},
+  useRequestAwaitInitialMap: () => () => {},
+  useReportInitialMapReady: () => () => {},
 }));
 
 vi.mock("next/navigation", () => ({

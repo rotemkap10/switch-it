@@ -49,8 +49,8 @@ function applyBootSplashPhase(phase: SplashPhase) {
 }
 
 /**
- * Hides the server-rendered boot splash when the initial application shell
- * reports ready. Does not wait to *show* the splash — that is already in HTML.
+ * Hides the server-rendered boot splash when the initial destination is ready.
+ * Cold launch to /map waits for the first usable map frame (not just shell mount).
  * Session navigations skip. Reduced motion keeps the splash, then hides instantly.
  */
 export function AppLaunchShell({ children }: AppLaunchShellProps) {
@@ -62,11 +62,24 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     return !document.getElementById(BOOT_SPLASH_ID);
   });
   const [shellReady, setShellReady] = useState(false);
+  const [awaitInitialMap, setAwaitInitialMap] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const coldLaunchRef = useRef(false);
   const exitStartedRef = useRef(false);
 
   const reportInitialShellReady = useCallback(() => {
     setShellReady(true);
+  }, []);
+
+  const requestAwaitInitialMap = useCallback(() => {
+    if (exitStartedRef.current) {
+      return;
+    }
+    setAwaitInitialMap(true);
+  }, []);
+
+  const reportInitialMapReady = useCallback(() => {
+    setMapReady(true);
   }, []);
 
   const beginExit = useCallback(() => {
@@ -97,6 +110,7 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
 
     if (skip) {
       coldLaunchRef.current = false;
+      exitStartedRef.current = true;
       void hideNativeSplashScreen();
       const id = window.setTimeout(() => setPhase("hidden"), 0);
       return () => window.clearTimeout(id);
@@ -108,12 +122,15 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     return () => window.clearTimeout(maxTimer);
   }, [beginExit]);
 
+  const launchExitReady =
+    shellReady && (!awaitInitialMap || mapReady);
+
   useEffect(() => {
-    if (!coldLaunchRef.current || phase !== "visible" || !shellReady) {
+    if (!coldLaunchRef.current || phase !== "visible" || !launchExitReady) {
       return;
     }
     return afterNextPaint(beginExit);
-  }, [shellReady, phase, beginExit]);
+  }, [launchExitReady, phase, beginExit]);
 
   useEffect(() => {
     if (phase !== "exit") {
@@ -131,6 +148,8 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     <AppLaunchReadyProvider
       ready={launchReady}
       reportInitialShellReady={reportInitialShellReady}
+      requestAwaitInitialMap={requestAwaitInitialMap}
+      reportInitialMapReady={reportInitialMapReady}
     >
       {process.env.NODE_ENV !== "production" ? <IosStartupDebugProbe /> : null}
       {showOwnedSplash ? (

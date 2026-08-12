@@ -11,6 +11,7 @@ import { BaseMap } from "@/components/map/BaseMap";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
 import { SelectedSpotCard } from "@/components/map/SelectedSpotCard";
 import { SpotDiscoveryCarousel } from "@/components/map/SpotDiscoveryCarousel";
+import { useReportInitialMapReady } from "@/components/shell/AppLaunchReadyContext";
 import {
   CurrentLocationControl,
   CurrentLocationUnavailableNotice,
@@ -210,6 +211,7 @@ export function ParkingMapMapLibre({
   bottomStackOverride = null,
 }: ParkingMapMapLibreProps) {
   const prefersReducedMotion = usePrefersReducedMotion();
+  const reportInitialMapReady = useReportInitialMapReady();
   const mapTilerStyleUrl = useMemo(
     () => assertMapTilerStyleUrlOrNull(),
     [],
@@ -230,6 +232,12 @@ export function ParkingMapMapLibre({
     string | null
   >(null);
   const onVisuallyReadyRef = useRef(onVisuallyReady);
+
+  useEffect(() => {
+    if (styleFallback || mapUnavailable) {
+      reportInitialMapReady();
+    }
+  }, [styleFallback, mapUnavailable, reportInitialMapReady]);
 
   // Reconcile selection when Realtime refresh removes the spot from props.
   if (selectedId && !spots.some((spot) => spot.id === selectedId)) {

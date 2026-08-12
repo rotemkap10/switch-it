@@ -6,9 +6,16 @@ import {
   MapLoadingState,
 } from "@/components/map/MapLoadingState";
 
+const launchReadyRef = vi.hoisted(() => ({ current: true }));
+
+vi.mock("@/components/shell/AppLaunchReadyContext", () => ({
+  useAppLaunchReady: () => launchReadyRef.current,
+}));
+
 describe("MapLoadingState", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    launchReadyRef.current = true;
   });
 
   afterEach(() => {
@@ -62,5 +69,15 @@ describe("MapLoadingState", () => {
   it("animates the car when reduced motion is off", () => {
     const { container } = render(<MapLoadingState reducedMotion={false} />);
     expect(container.querySelector(".branded-loading-car-animate")).not.toBeNull();
+  });
+
+  it("suppresses the car while cold-launch splash owns loading", () => {
+    launchReadyRef.current = false;
+    render(<MapLoadingState />);
+    expect(
+      screen.getByTestId("map-loading-suppressed-by-launch"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("branded-loading-car")).not.toBeInTheDocument();
+    expect(screen.queryByText("Loading the map…")).not.toBeInTheDocument();
   });
 });

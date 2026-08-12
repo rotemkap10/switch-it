@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { BrandedLoadingState } from "@/components/brand/BrandedLoadingState";
+import { useAppLaunchReady } from "@/components/shell/AppLaunchReadyContext";
 import { markRouteShell } from "@/lib/map/map-perf";
 
 export type MapRouteTransitionMode = "seeker" | "publisher";
@@ -19,6 +20,7 @@ type MapRouteTransitionShellProps = {
 /**
  * Route-level loading visual for map destinations — shared driving-car animation.
  * (Keeps the historical test id / mode attrs for shell chrome.)
+ * Cold-launch splash suppresses the car so logo → map feels continuous.
  */
 export function MapRouteTransitionShell({
   mode,
@@ -26,9 +28,29 @@ export function MapRouteTransitionShell({
   className = "",
   reducedMotion,
 }: MapRouteTransitionShellProps) {
+  const launchReady = useAppLaunchReady();
+
   useEffect(() => {
     markRouteShell();
   }, []);
+
+  if (!launchReady) {
+    return (
+      <div
+        className={[
+          "map-route-transition",
+          variant === "compose"
+            ? "map-route-transition--compose"
+            : "map-route-transition--fullscreen",
+          className,
+        ].join(" ")}
+        data-testid="map-route-transition"
+        data-mode={mode}
+        data-launch-suppressed="true"
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
     <div
@@ -61,19 +83,33 @@ type MapRouteLoadingChromeProps = {
 /**
  * Full-page loading fallback used by route loading.tsx files.
  * Matches final shell dimensions; header chrome is static (not interactive).
+ * During cold launch, render an empty shell so the branded splash stays sole UI.
  */
 export function MapRouteLoadingChrome({
   mode,
   layout,
 }: MapRouteLoadingChromeProps) {
+  const launchReady = useAppLaunchReady();
   const isMap = layout === "map";
+  const testId =
+    mode === "seeker" ? "map-loading-shell" : "spots-new-loading-shell";
+
+  if (!launchReady) {
+    return (
+      <div
+        className={["app-shell", isMap ? "app-shell--map" : ""].join(" ")}
+        data-testid={testId}
+        data-layout={isMap ? "map" : "page"}
+        data-launch-suppressed="true"
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
     <div
       className={["app-shell", isMap ? "app-shell--map" : ""].join(" ")}
-      data-testid={
-        mode === "seeker" ? "map-loading-shell" : "spots-new-loading-shell"
-      }
+      data-testid={testId}
       data-layout={isMap ? "map" : "page"}
     >
       <div className="app-shell-header border-b border-border">

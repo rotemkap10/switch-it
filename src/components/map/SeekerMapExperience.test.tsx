@@ -2,6 +2,8 @@ import { act, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+const reportInitialMapReadyMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/components/map/ParkingMapLoader", () => ({
   ParkingMapLoader: ({
     onVisuallyReady,
@@ -23,6 +25,13 @@ vi.mock("@/components/map/ParkingMapLoader", () => ({
       <div role="status">Loading the map…</div>
     </div>
   ),
+}));
+
+vi.mock("@/components/shell/AppLaunchReadyContext", () => ({
+  useReportInitialMapReady: () => reportInitialMapReadyMock,
+  useAppLaunchReady: () => true,
+  useReportInitialShellReady: () => () => {},
+  useRequestAwaitInitialMap: () => () => {},
 }));
 
 vi.mock("@/components/map/ActiveClaimPanel", () => ({
@@ -79,6 +88,24 @@ function renderExperience(
 }
 
 describe("SeekerMapExperience overlay hierarchy", () => {
+  it("reports initial map ready for cold-launch splash when the map is usable", () => {
+    reportInitialMapReadyMock.mockClear();
+    renderExperience();
+    expect(reportInitialMapReadyMock).not.toHaveBeenCalled();
+
+    act(() => {
+      screen.getByRole("button", { name: "Simulate map ready" }).click();
+    });
+
+    expect(reportInitialMapReadyMock).toHaveBeenCalled();
+  });
+
+  it("reports initial map ready when spots fail so splash can reveal the error", () => {
+    reportInitialMapReadyMock.mockClear();
+    renderExperience({ spotsError: true });
+    expect(reportInitialMapReadyMock).toHaveBeenCalled();
+  });
+
   it("uses a flex-1 absolute-fill map stage without fixed desktop heights", () => {
     const { container } = renderExperience({ spots: [] });
 

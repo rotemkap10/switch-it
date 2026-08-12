@@ -5,8 +5,9 @@ export const SPLASH_FADE_MS = 280;
 
 /**
  * Safety timeout so a stuck boot overlay cannot block the app forever.
- * Not an artificial minimum. Cold launch waits for initial shell ready first.
- * Slow networks may keep the branded splash visible until this cap.
+ * Not an artificial minimum. Cold launch waits for the initial destination
+ * (shell ready, or first usable map frame on /map) before exiting; this cap
+ * still releases the splash if MapLibre/auth never settles.
  */
 export const SPLASH_MAX_MS = 12_000;
 
