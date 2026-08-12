@@ -8,14 +8,8 @@ import {
 } from "@/actions/spots";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { LeaveTimeSlider } from "@/components/spots/LeaveTimeSlider";
-import {
-  PUBLISH_SPOT_FORM_ID,
-  PublishSpotShareActions,
-  usePublisherMobileViewportCta,
-} from "@/components/spots/PublishSpotShareActions";
 import { SpotLocationPickerLoader } from "@/components/spots/SpotLocationPickerLoader";
-import { Button } from "@/components/ui/Button";
-import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
+import { Button } from "@/components/ui/Button";import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { useReverseGeocode } from "@/lib/geocoding/use-reverse-geocode";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
 import type { GeolocationReason } from "@/lib/map/use-user-location";
@@ -591,23 +585,13 @@ export function PublishSpotForm() {
     setLocationConfirmed(true);
   }
 
-  const shareDisabled =
-    pending || !locationConfirmed || awaitingInitialGps;
-  const viewportFixedCta = usePublisherMobileViewportCta();
-
   return (
     <form
-      id={PUBLISH_SPOT_FORM_ID}
       action={formAction}
-      className={[
-        "publisher-compose mx-auto w-full max-w-lg md:max-w-xl",
-        viewportFixedCta ? "publisher-compose--viewport-cta" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      className="publisher-compose mx-auto w-full max-w-lg motion-fade-slide-up md:max-w-xl"
       data-testid="publish-spot-form"
     >
-      <div className="publisher-compose-surface motion-fade-slide-up">
+      <div className="publisher-compose-surface">
         <section
           className="flex flex-col gap-3"
           aria-label="Parking spot location"
@@ -736,20 +720,19 @@ export function PublishSpotForm() {
             error={state.fieldErrors?.available_in_minutes?.[0]}
           />
         </section>
-      </div>
 
-      <PublishSpotShareActions viewportFixed={viewportFixedCta}>
-        <Button
-          type="submit"
-          form={PUBLISH_SPOT_FORM_ID}
-          disabled={shareDisabled}
-          loading={pending}
-          aria-busy={pending}
-          className="publisher-share-cta"
-        >
-          {pending ? "Sharing…" : "Share spot"}
-        </Button>
-      </PublishSpotShareActions>
+        <div className="flex flex-col gap-2" data-testid="publish-spot-actions">
+          <Button
+            type="submit"
+            disabled={pending || !locationConfirmed || awaitingInitialGps}
+            loading={pending}
+            aria-busy={pending}
+            className="publisher-share-cta"
+          >
+            {pending ? "Sharing…" : "Share spot"}
+          </Button>
+        </div>
+      </div>
     </form>
   );
 }

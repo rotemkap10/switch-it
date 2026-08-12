@@ -267,6 +267,7 @@ describe("PublishSpotForm", () => {
     const addressSearch = screen.getByTestId("publish-spot-address-search");
     const mapSection = screen.getByTestId("publish-spot-map-section");
     const actions = screen.getByTestId("publish-spot-actions");
+    const shareButton = screen.getByRole("button", { name: "Share spot" });
 
     // Document order: location (address → map) → leave-time → Share spot.
     expect(locationSection.contains(addressSearch)).toBe(true);
@@ -295,100 +296,18 @@ describe("PublishSpotForm", () => {
       );
     expect(betweenAddressAndMap).toBe(false);
 
-    expect(actions.className).toContain("publisher-compose-actions");
-    expect(actions.querySelector(".publisher-share-cta")).not.toBeNull();
-    expect(screen.getAllByRole("button", { name: "Share spot" })).toHaveLength(
-      1,
-    );
-  });
-
-  it("portals the Share CTA to document.body on mobile viewports", async () => {
-    const listeners = new Set<(event: MediaQueryListEvent) => void>();
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn((query: string) => ({
-        matches: String(query).includes("max-width: 767.98px"),
-        media: query,
-        onchange: null,
-        addEventListener: (
-          _type: string,
-          listener: (event: MediaQueryListEvent) => void,
-        ) => {
-          listeners.add(listener);
-        },
-        removeEventListener: (
-          _type: string,
-          listener: (event: MediaQueryListEvent) => void,
-        ) => {
-          listeners.delete(listener);
-        },
-        addListener: (listener: (event: MediaQueryListEvent) => void) => {
-          listeners.add(listener);
-        },
-        removeListener: (listener: (event: MediaQueryListEvent) => void) => {
-          listeners.delete(listener);
-        },
-        dispatchEvent: () => false,
-      })),
-    );
-
-    render(
-      <FeedbackShell>
-        <PublishSpotForm />
-      </FeedbackShell>,
-    );
-
-    const form = screen.getByTestId("publish-spot-form");
-    await waitFor(() => {
-      expect(form.className).toContain("publisher-compose--viewport-cta");
-    });
-
-    const actions = screen.getByTestId("publish-spot-actions");
-    expect(actions).toHaveAttribute("data-viewport-fixed", "true");
-    expect(actions.className).toContain("publisher-compose-actions--viewport");
-    expect(document.body.contains(actions)).toBe(true);
-    expect(form.contains(actions)).toBe(false);
-    expect(screen.getByRole("button", { name: "Share spot" })).toHaveAttribute(
-      "form",
-      "publish-spot-form",
-    );
-    expect(screen.getAllByRole("button", { name: "Share spot" })).toHaveLength(
-      1,
-    );
-  });
-
-  it("keeps the Share CTA inline on desktop viewports", async () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn((query: string) => ({
-        matches: false,
-        media: query,
-        onchange: null,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        dispatchEvent: () => false,
-      })),
-    );
-
-    render(
-      <FeedbackShell>
-        <PublishSpotForm />
-      </FeedbackShell>,
-    );
-
-    const form = screen.getByTestId("publish-spot-form");
-    const leaveSection = screen.getByTestId("leave-time-section");
-    const actions = await screen.findByTestId("publish-spot-actions");
-
-    expect(form.className).not.toContain("publisher-compose--viewport-cta");
-    expect(actions).toHaveAttribute("data-viewport-fixed", "false");
     expect(form.contains(actions)).toBe(true);
-    expect(
-      leaveSection.compareDocumentPosition(actions) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(form.contains(shareButton)).toBe(true);
+    expect(actions.querySelector(".publisher-share-cta")).toBe(shareButton);
+    expect(screen.getAllByRole("button", { name: "Share spot" })).toHaveLength(
+      1,
+    );
+    expect(actions.className).not.toContain(
+      "publisher-compose-actions--viewport",
+    );
+    expect(actions).not.toHaveAttribute("data-viewport-fixed");
+    expect(form.className).not.toContain("publisher-compose--viewport-cta");
+    expect(document.body.querySelector(".publisher-compose-actions--viewport")).toBeNull();
   });
 
   it("updates hidden coordinates from the map picker callback", async () => {
