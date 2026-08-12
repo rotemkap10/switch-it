@@ -20,10 +20,12 @@ import {
 } from "@/lib/geocoding/maptiler-forward-geocode";
 import {
   classifyGpsAccuracy,
-  formatGpsAccuracyLabel,
   watchBestDeviceLocation,
 } from "@/lib/map/watch-best-device-location";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
+
+export const PUBLISHER_POOR_LOCATION_WARNING =
+  "Your location may not be precise. Check that the pin is in the correct spot.";
 
 const initialState: PublishSpotActionState = {};
 
@@ -90,42 +92,18 @@ function AddressLookupSummary({
     return null;
   }
 
-  const accuracyLabel = pinPlacedManually
-    ? null
-    : formatGpsAccuracyLabel(accuracyMeters);
-  const accuracyBand = pinPlacedManually
-    ? "unknown"
-    : classifyGpsAccuracy(accuracyMeters);
-  const showPoorWarning = accuracyBand === "poor";
+  const showPoorWarning =
+    !pinPlacedManually && classifyGpsAccuracy(accuracyMeters) === "poor";
 
-  const accuracyBlock =
-    accuracyLabel || showPoorWarning ? (
-      <>
-        {accuracyLabel ? (
-          <p
-            className={[
-              "publisher-location-summary__accuracy",
-              accuracyBand === "poor"
-                ? "publisher-location-summary__accuracy--poor"
-                : "",
-            ].join(" ")}
-            data-testid="publisher-location-accuracy"
-          >
-            {accuracyLabel}
-          </p>
-        ) : null}
-        {showPoorWarning ? (
-          <p
-            className="publisher-location-summary__warning"
-            role="status"
-            data-testid="publisher-location-accuracy-warning"
-          >
-            Location accuracy is low. Wait a moment for a better GPS signal or
-            move the pin to the exact parking spot.
-          </p>
-        ) : null}
-      </>
-    ) : null;
+  const accuracyBlock = showPoorWarning ? (
+    <p
+      className="publisher-location-summary__warning"
+      role="status"
+      data-testid="publisher-location-accuracy-warning"
+    >
+      {PUBLISHER_POOR_LOCATION_WARNING}
+    </p>
+  ) : null;
 
   const showManualAddress =
     pinPlacedManually && Boolean(manualAddressLabel?.trim());

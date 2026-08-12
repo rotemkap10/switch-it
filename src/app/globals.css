@@ -580,16 +580,6 @@ body {
   color: var(--color-text-muted);
 }
 
-.publisher-location-summary__accuracy {
-  font-size: 0.8125rem;
-  color: var(--color-text-muted);
-}
-
-.publisher-location-summary__accuracy--poor {
-  color: var(--color-warning);
-  font-weight: 500;
-}
-
 .publisher-location-summary__warning {
   font-size: 0.8125rem;
   line-height: 1.3;

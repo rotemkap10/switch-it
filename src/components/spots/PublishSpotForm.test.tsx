@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FeedbackShell } from "@/components/feedback/FeedbackShell";
-import { PublishSpotForm } from "@/components/spots/PublishSpotForm";
+import {
+  PUBLISHER_POOR_LOCATION_WARNING,
+  PublishSpotForm,
+} from "@/components/spots/PublishSpotForm";
 import { publishSpotSchema } from "@/lib/validations/spot";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
@@ -213,9 +216,13 @@ describe("PublishSpotForm", () => {
       ).not.toBeInTheDocument();
     });
     expect(screen.getByText("Parking spot location")).toBeInTheDocument();
-    expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
-      "Location accuracy: ±10 m",
-    );
+    expect(
+      screen.queryByTestId("publisher-location-accuracy"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("publisher-location-accuracy-warning"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/±/)).not.toBeInTheDocument();
     expect(screen.queryByTestId("publisher-pin-hint")).not.toBeInTheDocument();
     expect(
       screen.queryByText("You can move the map to adjust the spot."),
@@ -256,10 +263,12 @@ describe("PublishSpotForm", () => {
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     await waitFor(() => {
-      expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
-        "Location accuracy: ±10 m",
-      );
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
     });
+    expect(
+      screen.queryByTestId("publisher-location-accuracy-warning"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/±/)).not.toBeInTheDocument();
 
     const range = screen.getByTestId("leave-time-range");
     fireEvent.change(range, { target: { value: "10" } });
@@ -563,25 +572,102 @@ describe("PublishSpotForm", () => {
         "Map at 32.085312, 34.781812",
       );
     });
-    expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
-      "Location accuracy: ±9 m",
-    );
+    expect(
+      screen.queryByTestId("publisher-location-accuracy-warning"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/±/)).not.toBeInTheDocument();
+  });
+
+  it("hides accuracy copy when GPS accuracy is good", async () => {
+    stubGeolocation((success) => {
+      success(position(32.085312, 34.781812, 10));
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByTestId("publisher-location-accuracy-warning"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/±/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Location accuracy:/i)).not.toBeInTheDocument();
+  });
+
+  it("hides accuracy copy when GPS accuracy is acceptable", async () => {
+    stubGeolocation((success) => {
+      success(position(32.085312, 34.781812, 28));
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    });
+    expect(
+      screen.queryByTestId("publisher-location-accuracy-warning"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/±/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Location accuracy:/i)).not.toBeInTheDocument();
   });
 
   it("warns when GPS accuracy is poor without blocking publish", async () => {
+    const user = userEvent.setup();
     stubGeolocation((success) => {
       success(position(32.085312, 34.781812, 45));
     });
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
+    const warning = await screen.findByTestId(
+      "publisher-location-accuracy-warning",
+    );
+    expect(warning).toHaveTextContent(PUBLISHER_POOR_LOCATION_WARNING);
+    expect(warning.textContent).not.toMatch(/±/);
+    expect(warning.textContent).not.toMatch(/\d+\s*m/);
+    expect(
+      screen.queryByTestId("publisher-location-accuracy"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Location accuracy:/i)).not.toBeInTheDocument();
+
+    const shareButton = screen.getByRole("button", { name: "Share spot" });
+    expect(shareButton).toBeEnabled();
+    await user.click(shareButton);
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("removes the poor-accuracy warning when a better GPS fix arrives", async () => {
+    let success: PositionCallback | null = null;
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: vi.fn(),
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          nextSuccess(position(32.085312, 34.781812, 45));
+          return 6;
+        }),
+        clearWatch: vi.fn(),
+      },
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
     expect(
       await screen.findByTestId("publisher-location-accuracy-warning"),
-    ).toHaveTextContent("Location accuracy is low");
-    expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
-      "Location accuracy: ±45 m",
-    );
-    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
+    ).toHaveTextContent(PUBLISHER_POOR_LOCATION_WARNING);
+
+    success?.(position(32.085312, 34.781812, 9));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("publisher-location-accuracy-warning"),
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText(/±/)).not.toBeInTheDocument();
   });
 
   it("keeps a manually moved pin when later GPS updates arrive", async () => {
@@ -647,9 +733,10 @@ describe("PublishSpotForm", () => {
     expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
       "Map at 32.085312, 34.781812",
     );
-    expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
-      "Location accuracy: ±8 m",
-    );
+    expect(
+      screen.queryByTestId("publisher-location-accuracy-warning"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/±/)).not.toBeInTheDocument();
   });
 
   it("search an address, select a result, and updates marker + publish coordinates", async () => {
