@@ -103,11 +103,36 @@ describe("startup auth routing", () => {
     render(<HomePage />);
 
     expect(screen.queryByTestId("landing-page")).not.toBeInTheDocument();
+    expect(screen.getByTestId("home-auth-routing")).toBeInTheDocument();
 
     resolveSession({ data: { session: null } });
     await waitFor(() => {
       expect(screen.getByTestId("landing-page")).toBeInTheDocument();
     });
+  });
+
+  it("does not signal shell ready while session is still resolving", async () => {
+    replaceMock.mockReset();
+    authStateCallback = null;
+
+    let resolveSession: (v: unknown) => void = () => {};
+    getSessionMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSession = resolve;
+      }) as never,
+    );
+
+    render(<HomePage />);
+
+    expect(screen.getByTestId("home-auth-routing")).toBeInTheDocument();
+    // No InitialShellReadyMarker during checking — splash must stay covering.
+    expect(screen.queryByTestId("landing-page")).not.toBeInTheDocument();
+
+    resolveSession({ data: { session: { access_token: "test" } } });
+    await waitFor(() => {
+      expect(replaceMock).toHaveBeenCalledWith("/map");
+    });
+    expect(screen.queryByTestId("landing-page")).not.toBeInTheDocument();
   });
 
   it("logout returns to auth landing again", async () => {

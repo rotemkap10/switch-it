@@ -1,26 +1,40 @@
 import { haversineDistanceMeters } from "@/lib/map/distance";
+import { watchForegroundDeviceLocation } from "@/lib/map/foreground-device-location";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
-import {
-  geolocationErrorCodeToReason,
-  type GeolocationReason,
-} from "@/lib/map/use-user-location";
+import type { GeolocationReason } from "@/lib/map/use-user-location";
 
 /** Publisher-facing accuracy bands (meters). */
 export const GPS_ACCURACY_GOOD_MAX_M = 15;
 export const GPS_ACCURACY_ACCEPTABLE_MAX_M = 30;
-/** Stop watching early once a fix is this good or better. */
+/** Stop watching early once a fix is this good or better (and fresh). */
 export const GPS_ACCURACY_GOOD_ENOUGH_M = 10;
-/** Wall-clock cap for watchPosition during publish. */
+/** Wall-clock cap for watchPosition during publish / Find Parking init. */
 export const GPS_WATCH_TIMEOUT_MS = 12_000;
 /**
- * iOS WKWebView often delivers a cached sample as the first watchPosition
- * callback even with maximumAge: 0. Treat older timestamps as not current.
+ * Samples older than this are clearly cached and must not be published as
+ * the current parking / map location. Android WebView and Fused Location
+ * often deliver last-known fixes first.
  */
 export const GPS_STALE_FIX_MAX_AGE_MS = 15_000;
-/** Keep listening briefly so a cached first sample can be replaced. */
-export const GPS_MIN_WATCH_MS = 2_000;
+/**
+ * A fix must be at least this fresh before we allow an early watch stop.
+ * Prevents locking onto a high-accuracy last-known sample that Android
+ * re-stamped near "now" but is still geographically stale.
+ */
+export const GPS_FRESH_FIX_MAX_AGE_MS = 5_000;
+/**
+ * Keep listening briefly after the first usable update so a fresher sample
+ * can replace a provisional / cached one. Do not wait this long if a
+ * genuinely fresh good fix already arrived after a prior provisional.
+ */
+export const GPS_MIN_WATCH_MS = 2_500;
 /** A later sample this far away is a new place, not GPS jitter. */
 export const GPS_MOVED_SIGNIFICANTLY_M = 50;
+/**
+ * Prefer a meaningfully newer sample over a slightly more accurate older
+ * one when the user has moved (freshness > tiny accuracy wins).
+ */
+export const GPS_NEWER_SAMPLE_MIN_MS = 1_000;
 
 export type GpsAccuracyBand = "good" | "acceptable" | "poor" | "unknown";
 
@@ -48,6 +62,13 @@ export function formatGpsAccuracyLabel(
   return `Location accuracy: ±${Math.round(accuracyM)} m`;
 }
 
+export function gpsFixAgeMs(fix: DeviceLocationFix, now = Date.now()): number {
+  if (!Number.isFinite(fix.timestamp) || fix.timestamp <= 0) {
+    return Number.POSITIVE_INFINITY;
+  }
+  return Math.max(0, now - fix.timestamp);
+}
+
 export function isStaleGpsFix(
   fix: DeviceLocationFix,
   now = Date.now(),
@@ -55,7 +76,18 @@ export function isStaleGpsFix(
   if (!Number.isFinite(fix.timestamp) || fix.timestamp <= 0) {
     return false;
   }
-  return now - fix.timestamp > GPS_STALE_FIX_MAX_AGE_MS;
+  return gpsFixAgeMs(fix, now) > GPS_STALE_FIX_MAX_AGE_MS;
+}
+
+/** Fresh enough to allow early watch termination. */
+export function isFreshEnoughToStop(
+  fix: DeviceLocationFix,
+  now = Date.now(),
+): boolean {
+  if (isStaleGpsFix(fix, now)) {
+    return false;
+  }
+  return gpsFixAgeMs(fix, now) <= GPS_FRESH_FIX_MAX_AGE_MS;
 }
 
 export function isBetterGpsFix(
@@ -82,10 +114,29 @@ export function isBetterGpsFix(
       { latitude: current.latitude, longitude: current.longitude },
     ) >= GPS_MOVED_SIGNIFICANTLY_M;
   const newerBy = candidate.timestamp - current.timestamp;
+  const candidateAge = gpsFixAgeMs(candidate, now);
+  const currentAge = gpsFixAgeMs(current, now);
 
-  // Cached high-accuracy point at the old place must not beat a live sample
-  // after the user has moved. iOS may stamp both with "now".
+  // Fresher sample at a new place beats an older high-accuracy cache, even
+  // when reported accuracy is slightly worse (e.g. 16m now vs 8m Herzliya).
   if (!candidateStale && moved && newerBy >= 0) {
+    const next = candidate.accuracy;
+    if (
+      next != null &&
+      Number.isFinite(next) &&
+      next <= GPS_ACCURACY_ACCEPTABLE_MAX_M * 2
+    ) {
+      return true;
+    }
+  }
+
+  // Same place / small move: prefer a clearly fresher sample over a slightly
+  // more accurate older one (Android last-known vs live GPS).
+  if (
+    !candidateStale &&
+    newerBy >= GPS_NEWER_SAMPLE_MIN_MS &&
+    candidateAge + GPS_NEWER_SAMPLE_MIN_MS < currentAge
+  ) {
     const next = candidate.accuracy;
     if (
       next != null &&
@@ -117,8 +168,9 @@ export type WatchBestDeviceLocationOptions = {
 };
 
 /**
- * Short-lived high-accuracy watch. Keeps the lowest `coords.accuracy`
- * and stops when good enough or when the timeout fires.
+ * Short-lived high-accuracy foreground watch.
+ * Uses Capacitor Geolocation on native Android/iOS and browser geolocation
+ * on Web/PWA. Keeps improving until a fresh good-enough fix arrives or timeout.
  */
 export function watchBestDeviceLocation(
   options: WatchBestDeviceLocationOptions,
@@ -129,10 +181,11 @@ export function watchBestDeviceLocation(
   const enableHighAccuracy = options.enableHighAccuracy ?? true;
 
   let stopped = false;
-  let watchId: number | null = null;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   let minWatchStopId: ReturnType<typeof setTimeout> | null = null;
   let bestFix: DeviceLocationFix | null = null;
+  let publishedCount = 0;
+  let stopProvider: () => void = () => {};
   const watchStartedAt = Date.now();
 
   const stop = (settled = true) => {
@@ -140,10 +193,7 @@ export function watchBestDeviceLocation(
       return;
     }
     stopped = true;
-    if (watchId !== null && navigator.geolocation) {
-      navigator.geolocation.clearWatch(watchId);
-    }
-    watchId = null;
+    stopProvider();
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
       timeoutId = null;
@@ -157,56 +207,47 @@ export function watchBestDeviceLocation(
     }
   };
 
-  if (typeof window !== "undefined" && window.isSecureContext === false) {
-    options.onError("unavailable");
-    options.onSettled?.(null);
-    return () => {};
-  }
-
-  if (!("geolocation" in navigator) || !navigator.geolocation) {
-    options.onError("unsupported");
-    options.onSettled?.(null);
-    return () => {};
-  }
-
-  try {
-    watchId = navigator.geolocation.watchPosition(
-      (position) => {
+  stopProvider = watchForegroundDeviceLocation(
+    {
+      onUpdate: (fix) => {
         if (stopped) {
           return;
         }
-        const fix: DeviceLocationFix = {
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-          accuracy: Number.isFinite(position.coords.accuracy)
-            ? position.coords.accuracy
-            : null,
-          timestamp: position.timestamp ?? Date.now(),
-        };
 
         if (!isBetterGpsFix(fix, bestFix)) {
           return;
         }
 
-        const hadPreviousPublished = bestFix != null && !isStaleGpsFix(bestFix);
+        const hadPreviousPublished =
+          bestFix != null && !isStaleGpsFix(bestFix);
         bestFix = fix;
 
+        // Clearly stale samples are never published as current location.
         if (isStaleGpsFix(fix)) {
           return;
         }
 
+        publishedCount += 1;
         options.onUpdate(fix);
 
         const goodEnough =
           fix.accuracy != null &&
           Number.isFinite(fix.accuracy) &&
           fix.accuracy <= goodEnoughAccuracyM;
-        if (!goodEnough) {
+
+        // Never stop solely because the first cached/high-accuracy sample
+        // looked good — require freshness + a short replace window.
+        if (!goodEnough || !isFreshEnoughToStop(fix)) {
           return;
         }
 
         const elapsed = Date.now() - watchStartedAt;
-        if (hadPreviousPublished || elapsed >= GPS_MIN_WATCH_MS) {
+        const canStopEarly =
+          publishedCount >= 2 ||
+          hadPreviousPublished ||
+          elapsed >= GPS_MIN_WATCH_MS;
+
+        if (canStopEarly) {
           stop(true);
           return;
         }
@@ -220,6 +261,7 @@ export function watchBestDeviceLocation(
             if (
               bestFix &&
               !isStaleGpsFix(bestFix) &&
+              isFreshEnoughToStop(bestFix) &&
               bestFix.accuracy != null &&
               bestFix.accuracy <= goodEnoughAccuracyM
             ) {
@@ -228,7 +270,7 @@ export function watchBestDeviceLocation(
           }, GPS_MIN_WATCH_MS - elapsed);
         }
       },
-      (error) => {
+      onError: (reason) => {
         if (stopped) {
           return;
         }
@@ -236,20 +278,18 @@ export function watchBestDeviceLocation(
           stop(true);
           return;
         }
-        options.onError(geolocationErrorCodeToReason(error.code));
+        options.onError(reason);
         stop(true);
       },
-      {
-        enableHighAccuracy,
-        timeout: timeoutMs,
-        maximumAge: 0,
-      },
-    );
-  } catch {
-    options.onError("unavailable");
-    options.onSettled?.(null);
-    return () => {};
-  }
+    },
+    {
+      enableHighAccuracy,
+      timeoutMs,
+      maximumAgeMs: 0,
+      intervalMs: 1_000,
+      minimumUpdateIntervalMs: 500,
+    },
+  );
 
   timeoutId = setTimeout(() => {
     if (stopped) {

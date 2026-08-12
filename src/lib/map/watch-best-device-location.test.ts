@@ -3,10 +3,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   classifyGpsAccuracy,
   formatGpsAccuracyLabel,
+  GPS_FRESH_FIX_MAX_AGE_MS,
   GPS_MIN_WATCH_MS,
   GPS_STALE_FIX_MAX_AGE_MS,
   GPS_WATCH_TIMEOUT_MS,
   isBetterGpsFix,
+  isFreshEnoughToStop,
   isStaleGpsFix,
   watchBestDeviceLocation,
 } from "@/lib/map/watch-best-device-location";
@@ -21,6 +23,11 @@ function fix(
     timestamp: 1,
     ...partial,
   };
+}
+
+async function flushWatchStart() {
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 describe("gps accuracy helpers", () => {
@@ -73,6 +80,26 @@ describe("gps accuracy helpers", () => {
     ).toBe(false);
   });
 
+  it("rejects Android stale high-accuracy sample in favor of fresh worse accuracy", () => {
+    const now = Date.now();
+    // Herzliya-style cached sample: excellent accuracy, 2 minutes old.
+    const herzliya = fix({
+      latitude: 32.164,
+      longitude: 34.846,
+      accuracy: 8,
+      timestamp: now - 120_000,
+    });
+    const current = fix({
+      latitude: 32.26,
+      longitude: 34.89,
+      accuracy: 16,
+      timestamp: now,
+    });
+    expect(isStaleGpsFix(herzliya, now)).toBe(true);
+    expect(isFreshEnoughToStop(herzliya, now)).toBe(false);
+    expect(isBetterGpsFix(current, herzliya, now)).toBe(true);
+  });
+
   it("prefers a fresh sample over a stale cached fix", () => {
     const now = Date.now();
     expect(
@@ -93,6 +120,26 @@ describe("gps accuracy helpers", () => {
       ),
     ).toBe(true);
   });
+
+  it("does not treat a moderately aged sample as fresh enough to stop", () => {
+    const now = Date.now();
+    expect(
+      isFreshEnoughToStop(
+        fix({
+          latitude: 1,
+          longitude: 1,
+          timestamp: now - GPS_FRESH_FIX_MAX_AGE_MS - 1,
+        }),
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      isFreshEnoughToStop(
+        fix({ latitude: 1, longitude: 1, timestamp: now }),
+        now,
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("watchBestDeviceLocation", () => {
@@ -106,7 +153,7 @@ describe("watchBestDeviceLocation", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps the best fix and stops when accuracy is good enough", () => {
+  it("keeps the best fix and stops when accuracy is good enough", async () => {
     let success: PositionCallback | null = null;
     const clearWatch = vi.fn();
     vi.stubGlobal("navigator", {
@@ -123,6 +170,7 @@ describe("watchBestDeviceLocation", () => {
     const onError = vi.fn();
     const onSettled = vi.fn();
     watchBestDeviceLocation({ onUpdate, onError, onSettled });
+    await flushWatchStart();
 
     success?.({
       coords: {
@@ -165,7 +213,7 @@ describe("watchBestDeviceLocation", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it("waits a minimum window before stopping on the first good fix", () => {
+  it("waits a minimum window before stopping on the first good fix", async () => {
     let success: PositionCallback | null = null;
     const clearWatch = vi.fn();
     vi.stubGlobal("navigator", {
@@ -183,6 +231,7 @@ describe("watchBestDeviceLocation", () => {
       onError: vi.fn(),
       onSettled: vi.fn(),
     });
+    await flushWatchStart();
 
     success?.({
       coords: {
@@ -202,7 +251,69 @@ describe("watchBestDeviceLocation", () => {
     expect(clearWatch).toHaveBeenCalledWith(8);
   });
 
-  it("ignores a worse later fix at the same place", () => {
+  it("does not stop early on a stale high-accuracy Android sample", async () => {
+    let success: PositionCallback | null = null;
+    const clearWatch = vi.fn();
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          return 21;
+        }),
+        clearWatch,
+      },
+    });
+
+    const onUpdate = vi.fn();
+    watchBestDeviceLocation({
+      onUpdate,
+      onError: vi.fn(),
+      onSettled: vi.fn(),
+    });
+    await flushWatchStart();
+
+    // Stale Herzliya-quality cache — must not publish or stop the watch.
+    success?.({
+      coords: {
+        latitude: 32.164,
+        longitude: 34.846,
+        accuracy: 8,
+        altitude: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      },
+      timestamp: Date.now() - 120_000,
+    } as GeolocationPosition);
+
+    expect(onUpdate).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(GPS_MIN_WATCH_MS);
+    expect(clearWatch).not.toHaveBeenCalled();
+
+    success?.({
+      coords: {
+        latitude: 32.26,
+        longitude: 34.89,
+        accuracy: 16,
+        altitude: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      },
+      timestamp: Date.now(),
+    } as GeolocationPosition);
+
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        latitude: 32.26,
+        longitude: 34.89,
+        accuracy: 16,
+      }),
+    );
+  });
+
+  it("ignores a worse later fix at the same place", async () => {
     let success: PositionCallback | null = null;
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -221,6 +332,7 @@ describe("watchBestDeviceLocation", () => {
       goodEnoughAccuracyM: 5,
       timeoutMs: 20_000,
     });
+    await flushWatchStart();
 
     success?.({
       coords: {
@@ -253,7 +365,7 @@ describe("watchBestDeviceLocation", () => {
     );
   });
 
-  it("times out without a fix", () => {
+  it("times out without a fix", async () => {
     vi.stubGlobal("navigator", {
       geolocation: {
         watchPosition: vi.fn(() => 1),
@@ -269,6 +381,7 @@ describe("watchBestDeviceLocation", () => {
       onSettled,
       timeoutMs: 1_000,
     });
+    await flushWatchStart();
 
     vi.advanceTimersByTime(1_000);
 
@@ -276,7 +389,7 @@ describe("watchBestDeviceLocation", () => {
     expect(onSettled).toHaveBeenCalledWith(null);
   });
 
-  it("settles with the best fix when the watch times out", () => {
+  it("settles with the best fix when the watch times out", async () => {
     let success: PositionCallback | null = null;
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -297,6 +410,7 @@ describe("watchBestDeviceLocation", () => {
       timeoutMs: 2_000,
       goodEnoughAccuracyM: 5,
     });
+    await flushWatchStart();
 
     success?.({
       coords: {
@@ -319,7 +433,7 @@ describe("watchBestDeviceLocation", () => {
     );
   });
 
-  it("stop callback clears the watch without reporting timeout", () => {
+  it("stop callback clears the watch without reporting timeout", async () => {
     const clearWatch = vi.fn();
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -334,6 +448,7 @@ describe("watchBestDeviceLocation", () => {
       onError,
       timeoutMs: GPS_WATCH_TIMEOUT_MS,
     });
+    await flushWatchStart();
 
     stop();
     vi.advanceTimersByTime(GPS_WATCH_TIMEOUT_MS);
@@ -342,7 +457,7 @@ describe("watchBestDeviceLocation", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it("maps permission denied before any fix", () => {
+  it("maps permission denied before any fix", async () => {
     vi.stubGlobal("navigator", {
       geolocation: {
         watchPosition: vi.fn(
@@ -367,11 +482,12 @@ describe("watchBestDeviceLocation", () => {
       onError,
       onSettled: vi.fn(),
     });
+    await flushWatchStart();
 
     expect(onError).toHaveBeenCalledWith("denied");
   });
 
-  it("does not publish a stale cached sample and lets a fresh location win", () => {
+  it("does not publish a stale cached sample and lets a fresh location win", async () => {
     let success: PositionCallback | null = null;
     const clearWatch = vi.fn();
     vi.stubGlobal("navigator", {
@@ -391,6 +507,7 @@ describe("watchBestDeviceLocation", () => {
       onError,
       onSettled: vi.fn(),
     });
+    await flushWatchStart();
 
     success?.({
       coords: {
@@ -432,7 +549,7 @@ describe("watchBestDeviceLocation", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it("times out instead of settling on a stale-only cached fix", () => {
+  it("times out instead of settling on a stale-only cached fix", async () => {
     let success: PositionCallback | null = null;
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -453,6 +570,7 @@ describe("watchBestDeviceLocation", () => {
       onSettled,
       timeoutMs: 3_000,
     });
+    await flushWatchStart();
 
     success?.({
       coords: {

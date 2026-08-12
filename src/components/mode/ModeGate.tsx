@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useLayoutEffect, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 
 import {
@@ -19,6 +19,8 @@ type ModeGateProps = {
  *
  * Cold launch to /map: request that splash wait for the first usable map
  * frame before exiting (shell chrome alone is not enough).
+ * Uses layout effect so await-map is registered in the same commit as shell
+ * ready — never release splash between those two signals.
  */
 export function ModeGate({ children }: ModeGateProps) {
   const { ready } = useMode();
@@ -26,7 +28,7 @@ export function ModeGate({ children }: ModeGateProps) {
   const reportShellReady = useReportInitialShellReady();
   const requestAwaitInitialMap = useRequestAwaitInitialMap();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!ready) {
       return;
     }

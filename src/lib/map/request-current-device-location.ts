@@ -1,4 +1,5 @@
-import { geolocationErrorCodeToReason, type GeolocationReason } from "@/lib/map/use-user-location";
+import { getForegroundDeviceLocation } from "@/lib/map/foreground-device-location";
+import type { GeolocationReason } from "@/lib/map/use-user-location";
 
 export type DeviceLocationFix = {
   latitude: number;
@@ -25,9 +26,10 @@ const DEFAULT_OPTIONS: Required<RequestCurrentDeviceLocationOptions> = {
 
 /**
  * One-shot device location for explicit recenter actions.
- * Does not start watchPosition.
+ * Native Capacitor Geolocation on iOS/Android; browser on Web/PWA.
+ * Does not start a long-lived watch and does not use background handoff GPS.
  */
-export function requestCurrentDeviceLocation(
+export async function requestCurrentDeviceLocation(
   options: RequestCurrentDeviceLocationOptions = {},
 ): Promise<DeviceLocationResult> {
   const { enableHighAccuracy, timeoutMs, maximumAgeMs } = {
@@ -35,46 +37,14 @@ export function requestCurrentDeviceLocation(
     ...options,
   };
 
-  if (typeof window !== "undefined" && window.isSecureContext === false) {
-    return Promise.resolve({ ok: false, reason: "unavailable" });
-  }
-
-  if (!("geolocation" in navigator) || !navigator.geolocation) {
-    return Promise.resolve({ ok: false, reason: "unsupported" });
-  }
-
-  return new Promise((resolve) => {
-    try {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          resolve({
-            ok: true,
-            fix: {
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-              timestamp: position.timestamp ?? Date.now(),
-            },
-          });
-        },
-        (error) => {
-          resolve({
-            ok: false,
-            reason: geolocationErrorCodeToReason(error.code),
-          });
-        },
-        { enableHighAccuracy, timeout: timeoutMs, maximumAge: maximumAgeMs },
-      );
-    } catch (err: unknown) {
-      const maybe = err as { name?: unknown; code?: unknown };
-      const reason =
-        typeof maybe.code === "number"
-          ? geolocationErrorCodeToReason(maybe.code)
-          : typeof maybe.name === "string" &&
-              maybe.name.toLowerCase().includes("denied")
-            ? "denied"
-            : "unavailable";
-      resolve({ ok: false, reason });
-    }
+  const result = await getForegroundDeviceLocation({
+    enableHighAccuracy,
+    timeoutMs,
+    maximumAgeMs,
   });
+
+  if (result.ok) {
+    return { ok: true, fix: result.fix };
+  }
+  return { ok: false, reason: result.reason };
 }

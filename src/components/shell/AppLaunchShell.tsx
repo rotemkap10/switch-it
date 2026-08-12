@@ -10,7 +10,10 @@ import {
 } from "react";
 
 import { Logo } from "@/components/branding/Logo";
-import { AppLaunchReadyProvider } from "@/components/shell/AppLaunchReadyContext";
+import {
+  AppLaunchReadyProvider,
+  type AppLaunchPhase,
+} from "@/components/shell/AppLaunchReadyContext";
 import { IosStartupDebugProbe } from "@/components/shell/IosStartupDebugProbe";
 import { isNativeHandoffPlatform } from "@/lib/location/is-native-handoff-platform";
 import {
@@ -36,6 +39,16 @@ type AppLaunchShellProps = {
   children: ReactNode;
 };
 
+function toLaunchPhase(phase: SplashPhase): AppLaunchPhase {
+  if (phase === "visible") {
+    return "covering";
+  }
+  if (phase === "exit") {
+    return "releasing";
+  }
+  return "released";
+}
+
 function applyBootSplashPhase(phase: SplashPhase) {
   if (typeof document === "undefined") {
     return;
@@ -49,9 +62,14 @@ function applyBootSplashPhase(phase: SplashPhase) {
 }
 
 /**
- * Hides the server-rendered boot splash when the initial destination is ready.
- * Cold launch to /map waits for the first usable map frame (not just shell mount).
- * Session navigations skip. Reduced motion keeps the splash, then hides instantly.
+ * Single owner of cold-launch cover: COVERING → RELEASING → RELEASED.
+ *
+ * Hides the server-rendered boot splash only when the initial destination is
+ * ready. Cold launch to /map waits for the first usable map frame — not shell
+ * mount, hydration, or auth-routing placeholders.
+ *
+ * Invariant: while COVERING or RELEASING, car/map loaders stay suppressed and
+ * the logo + #dff4ff background remain together.
  */
 export function AppLaunchShell({ children }: AppLaunchShellProps) {
   const [phase, setPhase] = useState<SplashPhase>("visible");
@@ -66,6 +84,8 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
   const [mapReady, setMapReady] = useState(false);
   const coldLaunchRef = useRef(false);
   const exitStartedRef = useRef(false);
+  const awaitInitialMapRef = useRef(false);
+  const mapReadyRef = useRef(false);
 
   const reportInitialShellReady = useCallback(() => {
     setShellReady(true);
@@ -75,19 +95,31 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     if (exitStartedRef.current) {
       return;
     }
+    awaitInitialMapRef.current = true;
     setAwaitInitialMap(true);
   }, []);
 
   const reportInitialMapReady = useCallback(() => {
+    mapReadyRef.current = true;
     setMapReady(true);
   }, []);
 
-  const beginExit = useCallback(() => {
+  const beginExit = useCallback((options?: { force?: boolean }) => {
     if (exitStartedRef.current) {
+      return;
+    }
+    // Never release into a map destination without a map frame once await
+    // was requested — unless the safety timeout forces release.
+    if (
+      !options?.force &&
+      awaitInitialMapRef.current &&
+      !mapReadyRef.current
+    ) {
       return;
     }
     exitStartedRef.current = true;
     // Reveal the identical HTML boot splash under the native overlay, then fade.
+    // Logo + background stay together until opacity hits 0 as one unit.
     void hideNativeSplashScreen();
     if (prefersReducedMotionMedia()) {
       setPhase("hidden");
@@ -99,6 +131,14 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
   useLayoutEffect(() => {
     applyBootSplashPhase(phase);
   }, [phase]);
+
+  useEffect(() => {
+    awaitInitialMapRef.current = awaitInitialMap;
+  }, [awaitInitialMap]);
+
+  useEffect(() => {
+    mapReadyRef.current = mapReady;
+  }, [mapReady]);
 
   useEffect(() => {
     const skip = shouldSkipLaunchSplash({
@@ -118,18 +158,19 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
 
     coldLaunchRef.current = true;
     markLaunchSplashSeen();
-    const maxTimer = window.setTimeout(beginExit, SPLASH_MAX_MS);
+    const maxTimer = window.setTimeout(() => {
+      beginExit({ force: true });
+    }, SPLASH_MAX_MS);
     return () => window.clearTimeout(maxTimer);
   }, [beginExit]);
 
-  const launchExitReady =
-    shellReady && (!awaitInitialMap || mapReady);
+  const launchExitReady = shellReady && (!awaitInitialMap || mapReady);
 
   useEffect(() => {
     if (!coldLaunchRef.current || phase !== "visible" || !launchExitReady) {
       return;
     }
-    return afterNextPaint(beginExit);
+    return afterNextPaint(() => beginExit());
   }, [launchExitReady, phase, beginExit]);
 
   useEffect(() => {
@@ -141,12 +182,13 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     return () => window.clearTimeout(timer);
   }, [phase]);
 
-  const showOwnedSplash = ownsSplash && (phase === "visible" || phase === "exit");
-  const launchReady = phase === "hidden";
+  const showOwnedSplash =
+    ownsSplash && (phase === "visible" || phase === "exit");
+  const launchPhase = toLaunchPhase(phase);
 
   return (
     <AppLaunchReadyProvider
-      ready={launchReady}
+      phase={launchPhase}
       reportInitialShellReady={reportInitialShellReady}
       requestAwaitInitialMap={requestAwaitInitialMap}
       reportInitialMapReady={reportInitialMapReady}
@@ -163,13 +205,18 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
           aria-label="Loading Switch It"
           data-testid="app-launch-splash"
           data-splash-phase={phase}
+          data-launch-phase={launchPhase}
         >
           <div className="app-launch-splash__logo">
             <Logo variant="splash" decorative />
           </div>
         </div>
       ) : null}
-      <div className="app-content-shell" data-testid="app-content-shell">
+      <div
+        className="app-content-shell"
+        data-testid="app-content-shell"
+        data-launch-phase={launchPhase}
+      >
         {children}
       </div>
     </AppLaunchReadyProvider>

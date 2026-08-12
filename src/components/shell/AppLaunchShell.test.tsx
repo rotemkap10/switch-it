@@ -6,7 +6,9 @@ import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMar
 import { AppLaunchShell } from "@/components/shell/AppLaunchShell";
 import {
   useReportInitialMapReady,
+  useReportInitialShellReady,
   useRequestAwaitInitialMap,
+  useAppLaunchReady,
 } from "@/components/shell/AppLaunchReadyContext";
 import { BOOT_SPLASH_HIDDEN_CLASS, BOOT_SPLASH_ID } from "@/lib/pwa/boot-splash";
 import {
@@ -64,17 +66,42 @@ function ReadyChild() {
   );
 }
 
-function MapColdLaunchChild({
+function AuthRoutingThenMapChild({
   mapReady = false,
 }: {
   mapReady?: boolean;
 }) {
   const requestAwait = useRequestAwaitInitialMap();
   const reportMap = useReportInitialMapReady();
+  const reportShell = useReportInitialShellReady();
+
+  // Simulate the fixed home-page behavior: auth routing does NOT report shell
+  // ready. Only after /map mounts do we await map + report shell.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      requestAwait();
+      reportShell();
+      if (mapReady) {
+        reportMap();
+      }
+    }, 80);
+    return () => window.clearTimeout(id);
+  }, [requestAwait, reportShell, reportMap, mapReady]);
+
+  return <p>Auth routing then map</p>;
+}
+
+function SignedInMapColdLaunch({ mapReady = false }: { mapReady?: boolean }) {
+  const requestAwait = useRequestAwaitInitialMap();
+  const reportMap = useReportInitialMapReady();
+  const reportShell = useReportInitialShellReady();
+  const launchReady = useAppLaunchReady();
 
   useEffect(() => {
+    // Correct /map ModeGate ordering: await map BEFORE/with shell ready.
     requestAwait();
-  }, [requestAwait]);
+    reportShell();
+  }, [requestAwait, reportShell]);
 
   useEffect(() => {
     if (mapReady) {
@@ -84,10 +111,37 @@ function MapColdLaunchChild({
 
   return (
     <>
-      <InitialShellReadyMarker />
       <p>Map shell</p>
+      {launchReady ? (
+        <div data-testid="post-launch-car-loader">car loader after release</div>
+      ) : (
+        <div data-testid="map-loading-suppressed-by-launch" />
+      )}
     </>
   );
+}
+
+function PrematureShellReadyBug({ mapReady = false }: { mapReady?: boolean }) {
+  const requestAwait = useRequestAwaitInitialMap();
+  const reportMap = useReportInitialMapReady();
+  const reportShell = useReportInitialShellReady();
+
+  // OLD buggy `/` checking behavior — must not be used in production.
+  useEffect(() => {
+    reportShell();
+  }, [reportShell]);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      requestAwait();
+      if (mapReady) {
+        reportMap();
+      }
+    }, 200);
+    return () => window.clearTimeout(id);
+  }, [requestAwait, reportMap, mapReady]);
+
+  return <p>Premature shell</p>;
 }
 
 describe("AppLaunchShell", () => {
@@ -169,7 +223,7 @@ describe("AppLaunchShell", () => {
   it("keeps splash while awaiting initial map even after shell ready", () => {
     render(
       <AppLaunchShell>
-        <MapColdLaunchChild mapReady={false} />
+        <SignedInMapColdLaunch mapReady={false} />
       </AppLaunchShell>,
     );
 
@@ -185,7 +239,7 @@ describe("AppLaunchShell", () => {
   it("hides splash into the map once initial map reports ready", () => {
     const { rerender } = render(
       <AppLaunchShell>
-        <MapColdLaunchChild mapReady={false} />
+        <SignedInMapColdLaunch mapReady={false} />
       </AppLaunchShell>,
     );
 
@@ -196,12 +250,108 @@ describe("AppLaunchShell", () => {
 
     rerender(
       <AppLaunchShell>
-        <MapColdLaunchChild mapReady />
+        <SignedInMapColdLaunch mapReady />
       </AppLaunchShell>,
     );
 
     flushSplashUntilHidden();
 
+    expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
+    expect(hideNativeSplashMock).toHaveBeenCalled();
+  });
+
+  it("signed-in cold launch: shell+map mount without visual ready keeps logo and suppresses car", () => {
+    const boot = document.createElement("div");
+    boot.id = BOOT_SPLASH_ID;
+    boot.innerHTML = "<img alt='' src='/branding/switch-it-logo.png' />";
+    document.body.append(boot);
+
+    render(
+      <AppLaunchShell>
+        <SignedInMapColdLaunch mapReady={false} />
+      </AppLaunchShell>,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+
+    expect(document.documentElement.classList.contains(BOOT_SPLASH_HIDDEN_CLASS)).toBe(
+      false,
+    );
+    expect(boot.querySelector("img")).toBeTruthy();
+    expect(
+      screen.getByTestId("map-loading-suppressed-by-launch"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("post-launch-car-loader")).not.toBeInTheDocument();
+    expect(hideNativeSplashMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("app-content-shell")).toHaveAttribute(
+      "data-launch-phase",
+      "covering",
+    );
+
+    boot.remove();
+  });
+
+  it("signed-in cold launch: map visually ready releases splash with no car flash", () => {
+    const { rerender } = render(
+      <AppLaunchShell>
+        <SignedInMapColdLaunch mapReady={false} />
+      </AppLaunchShell>,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(
+      screen.getByTestId("map-loading-suppressed-by-launch"),
+    ).toBeInTheDocument();
+
+    rerender(
+      <AppLaunchShell>
+        <SignedInMapColdLaunch mapReady />
+      </AppLaunchShell>,
+    );
+    flushSplashUntilHidden();
+
+    expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
+    expect(screen.getByTestId("app-content-shell")).toHaveAttribute(
+      "data-launch-phase",
+      "released",
+    );
+    expect(screen.getByTestId("post-launch-car-loader")).toBeInTheDocument();
+  });
+
+  it("auth-routing delay then map await keeps splash until map ready", () => {
+    render(
+      <AppLaunchShell>
+        <AuthRoutingThenMapChild mapReady={false} />
+      </AppLaunchShell>,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(40);
+    });
+    expect(screen.getByTestId("app-launch-splash")).toBeInTheDocument();
+    expect(hideNativeSplashMock).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(screen.getByTestId("app-launch-splash")).toBeInTheDocument();
+    expect(hideNativeSplashMock).not.toHaveBeenCalled();
+  });
+
+  it("documents that premature shell-ready without await-map releases splash (home must not do this)", () => {
+    render(
+      <AppLaunchShell>
+        <PrematureShellReadyBug mapReady={false} />
+      </AppLaunchShell>,
+    );
+
+    flushSplashUntilHidden();
+
+    // This is why home auth-checking must not call InitialShellReadyMarker.
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
     expect(hideNativeSplashMock).toHaveBeenCalled();
   });
@@ -278,7 +428,7 @@ describe("AppLaunchShell", () => {
   it("exits via safety max if the map never becomes ready", () => {
     render(
       <AppLaunchShell>
-        <MapColdLaunchChild mapReady={false} />
+        <SignedInMapColdLaunch mapReady={false} />
       </AppLaunchShell>,
     );
 

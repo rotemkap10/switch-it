@@ -7,9 +7,16 @@ import {
   type ReactNode,
 } from "react";
 
+/** Authoritative cold-launch cover state. */
+export type AppLaunchPhase = "covering" | "releasing" | "released";
+
 type AppLaunchReadyContextValue = {
-  /** True once the cold-start splash has fully hidden. */
+  /** COVERING → RELEASING → RELEASED */
+  phase: AppLaunchPhase;
+  /** True only after RELEASED (splash fully gone). */
   ready: boolean;
+  /** True while splash must own the UI (covering or releasing). */
+  isCovering: boolean;
   reportInitialShellReady: () => void;
   /**
    * Cold launch to /map: keep splash until the first usable map frame.
@@ -21,34 +28,42 @@ type AppLaunchReadyContextValue = {
 };
 
 const AppLaunchReadyContext = createContext<AppLaunchReadyContextValue>({
+  phase: "released",
   ready: true,
+  isCovering: false,
   reportInitialShellReady: () => {},
   requestAwaitInitialMap: () => {},
   reportInitialMapReady: () => {},
 });
 
 export function AppLaunchReadyProvider({
-  ready,
+  phase,
   reportInitialShellReady,
   requestAwaitInitialMap,
   reportInitialMapReady,
   children,
 }: {
-  ready: boolean;
+  phase: AppLaunchPhase;
   reportInitialShellReady: () => void;
   requestAwaitInitialMap: () => void;
   reportInitialMapReady: () => void;
   children: ReactNode;
 }) {
+  const ready = phase === "released";
+  const isCovering = phase !== "released";
   const value = useMemo(
     () => ({
+      phase,
       ready,
+      isCovering,
       reportInitialShellReady,
       requestAwaitInitialMap,
       reportInitialMapReady,
     }),
     [
+      phase,
       ready,
+      isCovering,
       reportInitialShellReady,
       requestAwaitInitialMap,
       reportInitialMapReady,
@@ -62,9 +77,18 @@ export function AppLaunchReadyProvider({
   );
 }
 
-/** False while the cold-start splash is still covering the app. */
+/** False while the cold-start splash is still covering or releasing. */
 export function useAppLaunchReady(): boolean {
   return useContext(AppLaunchReadyContext).ready;
+}
+
+/** True while branded splash must remain the sole loading surface. */
+export function useAppLaunchCovering(): boolean {
+  return useContext(AppLaunchReadyContext).isCovering;
+}
+
+export function useAppLaunchPhase(): AppLaunchPhase {
+  return useContext(AppLaunchReadyContext).phase;
 }
 
 /** Call once when the first real route shell has mounted. */

@@ -19,7 +19,7 @@ type MapLoadingStateProps = {
 
 /**
  * Embedded map-area loader — thin wrapper around the shared driving-car visual.
- * Suppressed while the cold-launch splash owns the loading surface.
+ * Suppressed while cold-launch is COVERING or RELEASING (splash owns the UI).
  */
 export function MapLoadingState({
   className = "",
@@ -39,6 +39,7 @@ export function MapLoadingState({
     return () => window.clearTimeout(id);
   }, [launchReady]);
 
+  // Invariant: if splash is still covering/releasing, never show the car.
   if (!launchReady) {
     return (
       <div
