@@ -97,8 +97,15 @@ vi.mock("@/components/map/MapUnavailable", () => ({
 }));
 
 vi.mock("maplibre-gl", () => ({
-  NavigationControl: vi.fn(function NavigationControl() {
-    return {};
+  NavigationControl: vi.fn(function NavigationControl(
+    this: unknown,
+    options?: {
+      showCompass?: boolean;
+      visualizePitch?: boolean;
+      showZoom?: boolean;
+    },
+  ) {
+    return { options };
   }),
 }));
 
@@ -108,9 +115,24 @@ import {
 } from "@/components/spots/SpotLocationPickerMapLibre";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 import { PICKER_USER_LOCATION_IDS } from "@/lib/map/user-location-dot";
+import { LEAVER_MAP_ZOOM_CONTROLS_MEDIA_QUERY } from "@/lib/map/leaverMapShell";
+import { NavigationControl } from "maplibre-gl";
+
+function stubLeaverMapViewport(desktop: boolean) {
+  vi.stubGlobal("matchMedia", (query: string) => ({
+    matches: query === LEAVER_MAP_ZOOM_CONTROLS_MEDIA_QUERY ? desktop : false,
+    media: query,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
+}
 
 describe("SpotLocationPickerMapLibre", () => {
   beforeEach(() => {
+    stubLeaverMapViewport(false);
     process.env.NEXT_PUBLIC_MAPTILER_API_KEY = "test-key";
     recenterMock.mockReset();
     recenterPending = false;
@@ -159,9 +181,52 @@ describe("SpotLocationPickerMapLibre", () => {
       handler.disable.mockReset();
     }
     mockMap.touchZoomRotate.disableRotation.mockReset();
+    vi.mocked(NavigationControl).mockClear();
+  });
+
+  it("does not add MapLibre zoom NavigationControl on mobile viewports", async () => {
+    stubLeaverMapViewport(false);
+
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalled();
+    });
+
+    expect(mockMap.addControl).not.toHaveBeenCalled();
+    expect(NavigationControl).not.toHaveBeenCalled();
+  });
+
+  it("adds MapLibre NavigationControl with zoom on desktop viewports", async () => {
+    stubLeaverMapViewport(true);
+
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.addControl).toHaveBeenCalled();
+    });
+
+    expect(NavigationControl).toHaveBeenCalledWith({
+      showCompass: false,
+      visualizePitch: false,
+      showZoom: true,
+    });
   });
 
   it("enables pan/zoom handlers and disables rotation", async () => {
+    stubLeaverMapViewport(true);
     render(
       <SpotLocationPickerMapLibre
         latitude={32.085312}

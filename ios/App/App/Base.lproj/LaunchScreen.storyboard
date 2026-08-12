@@ -16,17 +16,17 @@
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="LaunchLogo" translatesAutoresizingMaskIntoConstraints="NO" id="logo-image-view">
-                                <rect key="frame" x="39.666666666666686" y="326" width="314" height="200"/>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="LaunchLogo" translatesAutoresizingMaskIntoConstraints="NO" id="logo-image-view">
+                                <rect key="frame" x="54.5" y="326" width="284" height="88"/>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="safe-area-guide"/>
-                        <color key="backgroundColor" red="0.87450980392156863" green="0.95686274509803926" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <color key="backgroundColor" name="LaunchBackground"/>
                         <constraints>
                             <constraint firstItem="logo-image-view" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="logo-center-x"/>
                             <constraint firstItem="logo-image-view" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" id="logo-center-y"/>
-                            <constraint firstItem="logo-image-view" firstAttribute="width" secondItem="snD-IY-ifK" secondAttribute="width" multiplier="0.8" id="logo-width"/>
-                            <constraint firstItem="logo-image-view" firstAttribute="height" relation="lessThanOrEqual" secondItem="snD-IY-ifK" secondAttribute="height" multiplier="0.28" id="logo-max-height"/>
+                            <constraint firstItem="logo-image-view" firstAttribute="width" secondItem="snD-IY-ifK" secondAttribute="width" multiplier="0.72" id="logo-width"/>
+                            <constraint firstItem="logo-image-view" firstAttribute="height" secondItem="logo-image-view" secondAttribute="width" multiplier="0.30909090909090909" id="logo-aspect"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -35,7 +35,4 @@
             <point key="canvasLocation" x="53" y="375"/>
         </scene>
     </scenes>
-    <resources>
-        <image name="LaunchLogo" width="880" height="272"/>
-    </resources>
 </document>

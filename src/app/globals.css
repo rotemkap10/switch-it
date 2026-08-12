@@ -32,9 +32,11 @@
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-ease-in-out: cubic-bezier(0.45, 0, 0.55, 1);
 
-  /* Safe areas — use max() so non-notched phones still get normal spacing. */
-  --app-safe-top: env(safe-area-inset-top, 0px);
-  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Safe-area tokens — synced on `<html>` before hydration on iOS/Capacitor. */
+  --app-safe-top: 0px;
+  --app-safe-bottom: 0px;
+  --app-safe-left: 0px;
+  --app-safe-right: 0px;
 
   /* Mobile spacing rhythm (phone-first). */
   --app-phone-gutter: 1rem; /* 16px */
@@ -68,6 +70,15 @@
   --map-floating-control-bottom: calc(
     var(--app-overlay-bottom-gap) + var(--map-attribution-clearance) + 0.5rem
   );
+}
+
+@supports (top: env(safe-area-inset-top)) {
+  :root {
+    --app-safe-top: env(safe-area-inset-top, 0px);
+    --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --app-safe-left: env(safe-area-inset-left, 0px);
+    --app-safe-right: env(safe-area-inset-right, 0px);
+  }
 }
 
 @theme inline {
@@ -156,7 +167,9 @@ body {
 
 .app-shell-header {
   flex: none;
-  padding-top: var(--app-safe-top);
+  /* Single shell owner for top inset on authenticated pages. */
+  padding-top: constant(safe-area-inset-top);
+  padding-top: var(--app-safe-top, env(safe-area-inset-top, 0px));
   background: color-mix(in srgb, var(--color-surface) 90%, transparent);
 }
 
@@ -461,20 +474,6 @@ body {
 .leaver-map-picker-shell {
   height: clamp(280px, 48dvh, 400px);
   touch-action: none;
-}
-
-/* MapLibre navigation zoom buttons: hide on mobile to avoid clutter.
-   Pinch-to-zoom and map gestures remain enabled. */
-[data-testid="leaver-map-picker"] .maplibregl-ctrl-zoom-in,
-[data-testid="leaver-map-picker"] .maplibregl-ctrl-zoom-out {
-  display: none !important;
-}
-
-@media (min-width: 640px) {
-  [data-testid="leaver-map-picker"] .maplibregl-ctrl-zoom-in,
-  [data-testid="leaver-map-picker"] .maplibregl-ctrl-zoom-out {
-    display: block !important;
-  }
 }
 
 .publisher-preview-map-shell {

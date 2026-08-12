@@ -17,7 +17,10 @@ import {
   MAP_SELECTED_SPOT_ZOOM,
   assertMapTilerStyleUrlOrNull,
 } from "@/lib/map/seekerMapConfig";
-import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
+import {
+  LEAVER_MAP_SHELL_HEIGHT_CLASS,
+  shouldShowLeaverMapZoomControls,
+} from "@/lib/map/leaverMapShell";
 import {
   clearSessionMapCamera,
   writeSessionMapCamera,
@@ -338,11 +341,15 @@ export function SpotLocationPickerMapLibre({
           map.resize();
           setPickerMapInteractionEnabled(map, !disabled);
 
-          if (!map.getContainer().querySelector(".maplibregl-ctrl-zoom-in")) {
+          if (
+            shouldShowLeaverMapZoomControls() &&
+            !map.getContainer().querySelector(".maplibregl-ctrl-zoom-in")
+          ) {
             map.addControl(
               new NavigationControl({
                 showCompass: false,
                 visualizePitch: false,
+                showZoom: true,
               }),
               "bottom-right",
             );

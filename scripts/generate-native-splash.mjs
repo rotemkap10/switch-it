@@ -105,33 +105,39 @@ const launchLogoDir = resolve(
   "ios/App/App/Assets.xcassets/LaunchLogo.imageset",
 );
 mkdirSync(launchLogoDir, { recursive: true });
-const launchLogoWidth = 880;
-await sharp(logoPath)
-  .resize({ width: launchLogoWidth, withoutEnlargement: true })
-  .png({ compressionLevel: 9 })
-  .toFile(resolve(launchLogoDir, "launch-logo.png"));
+
+/** Logical 1x width — ~72% of a 390pt phone, matching web boot splash. */
+const LAUNCH_LOGO_1X_WIDTH = 880;
+const launchLogoScales = [
+  { scale: "1x", suffix: "1x", multiplier: 1 },
+  { scale: "2x", suffix: "2x", multiplier: 2 },
+  { scale: "3x", suffix: "3x", multiplier: 3 },
+];
+
+for (const { suffix, multiplier } of launchLogoScales) {
+  const pixelWidth = LAUNCH_LOGO_1X_WIDTH * multiplier;
+  const fileName = `launch-logo-${suffix}.png`;
+  await sharp(logoPath)
+    .resize({ width: pixelWidth, withoutEnlargement: true })
+    .flatten({ background: BACKGROUND })
+    .png({ compressionLevel: 9 })
+    .toFile(resolve(launchLogoDir, fileName));
+  console.log(`wrote LaunchLogo ${fileName} (${pixelWidth}px wide)`);
+}
+
 writeFileSync(
   resolve(launchLogoDir, "Contents.json"),
   JSON.stringify(
     {
-      images: [
-        {
-          idiom: "universal",
-          filename: "launch-logo.png",
-          scale: "1x",
-        },
-        {
-          idiom: "universal",
-          filename: "launch-logo.png",
-          scale: "2x",
-        },
-        {
-          idiom: "universal",
-          filename: "launch-logo.png",
-          scale: "3x",
-        },
-      ],
+      images: launchLogoScales.map(({ scale, suffix }) => ({
+        idiom: "universal",
+        filename: `launch-logo-${suffix}.png`,
+        scale,
+      })),
       info: { version: 1, author: "xcode" },
+      properties: {
+        "preserves-vector-representation": false,
+      },
     },
     null,
     2,

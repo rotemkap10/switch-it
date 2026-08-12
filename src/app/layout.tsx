@@ -6,6 +6,7 @@ import { AppFeedbackRoot } from "@/components/feedback/AppFeedbackRoot";
 import { BootSplash } from "@/components/pwa/BootSplash";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import { SWITCH_IT_LAUNCH_LOGO_SRC } from "@/lib/branding/logo-asset";
+import { safeAreaBootstrapScript } from "@/lib/native/safe-area";
 import {
   APP_ROOT_ID,
   bootSplashCriticalCss,
@@ -146,6 +147,11 @@ export default function RootLayout({
           id="app-boot-splash-skip"
           strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: bootSplashSkipScript() }}
+        />
+        <Script
+          id="app-safe-area-bootstrap"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: safeAreaBootstrapScript() }}
         />
         <BootSplash />
         <div

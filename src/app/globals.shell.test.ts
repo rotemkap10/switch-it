@@ -12,6 +12,7 @@ describe("mobile shell CSS foundation", () => {
   it("defines safe-area and spacing tokens without a fixed 3.5rem layout header", () => {
     expect(css).toContain("--app-safe-top:");
     expect(css).toContain("--app-safe-bottom:");
+    expect(css).toContain("@supports (top: env(safe-area-inset-top))");
     expect(css).toContain("--app-phone-gutter:");
     expect(css).toContain("--app-card-gap:");
     expect(css).toContain("--app-section-gap:");
@@ -27,7 +28,8 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".app-shell--map");
     expect(css).toContain("height: 100dvh");
     expect(css).toContain(".app-shell-header");
-    expect(css).toContain("padding-top: var(--app-safe-top)");
+    expect(css).toContain("padding-top: constant(safe-area-inset-top)");
+    expect(css).toContain("padding-top: var(--app-safe-top, env(safe-area-inset-top, 0px))");
     expect(css).toContain(".app-shell-main");
     expect(css).toContain("min-height: 0");
     expect(css).toContain(".app-shell-main--map");

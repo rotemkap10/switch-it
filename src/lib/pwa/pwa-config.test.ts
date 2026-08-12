@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import manifest from "@/app/manifest";
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
+import { safeAreaBootstrapScript } from "@/lib/native/safe-area";
 
 describe("PWA manifest", () => {
   const config = manifest();
@@ -54,6 +55,8 @@ describe("root PWA metadata", () => {
 
   it("preserves viewport fit and light launch theme color", () => {
     expect(layoutSource).toContain('viewportFit: "cover"');
+    expect(layoutSource).toContain("safeAreaBootstrapScript");
+    expect(safeAreaBootstrapScript()).toContain("viewport-fit=cover");
     expect(layoutSource).toContain("PWA_BACKGROUND_COLOR");
     expect(layoutSource).toContain('colorScheme: "light"');
     expect(layoutSource).not.toContain("userScalable: false");
