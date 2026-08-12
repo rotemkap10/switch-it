@@ -106,6 +106,28 @@ function ActiveClaimSheetBody({
     });
   }, [startSharing]);
 
+  // Start live sharing as soon as the active claim is shown — mandatory for
+  // every handoff. Navigation-provider taps are independent and optional.
+  useEffect(() => {
+    void startSharing();
+  }, [startSharing]);
+
+  // Permission revoke / extended outage: keep retrying until sharing resumes
+  // or the seeker releases the spot. Short GPS gaps are handled inside the hook.
+  useEffect(() => {
+    if (
+      liveShare.uiState !== "denied" &&
+      liveShare.uiState !== "unavailable" &&
+      liveShare.uiState !== "off"
+    ) {
+      return;
+    }
+    const intervalId = window.setInterval(() => {
+      void startSharing();
+    }, 8_000);
+    return () => window.clearInterval(intervalId);
+  }, [liveShare.uiState, startSharing]);
+
   const onExpired = useCallback(() => {
     forceStopLiveShare();
     router.refresh();
@@ -263,9 +285,6 @@ function ActiveClaimSheetBody({
       <SeekerShareLocationCard
         uiState={liveShare.uiState}
         resumedOnce={liveShare.resumedOnce}
-        onStop={() => {
-          void liveShare.stopSharing();
-        }}
       />
 
       {showDetails ? (

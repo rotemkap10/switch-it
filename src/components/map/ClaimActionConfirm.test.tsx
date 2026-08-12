@@ -43,9 +43,13 @@ describe("claim action confirmations", () => {
     render(<FeedbackShell><CancelClaimButton claimId={claimId} /></FeedbackShell>);
 
     expect(screen.getByText("Can’t make it?")).toBeInTheDocument();
+    const release = screen.getByTestId("cancel-claim-trigger");
+    expect(release).toHaveTextContent("Release spot");
+    expect(release.className).toContain("border-danger");
+    expect(release.className).toContain("min-h-[var(--app-tap-min)]");
     expect(
-      screen.getByText("Release the spot so another driver can claim it."),
-    ).toBeInTheDocument();
+      screen.queryByText("Release the spot so another driver can claim it."),
+    ).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: "Release spot" }),
@@ -54,5 +58,18 @@ describe("claim action confirmations", () => {
 
     const dialog = screen.getByTestId("cancel-claim-confirm");
     expect(dialog.querySelector('input[name="claim_id"]')).toHaveValue(claimId);
+  });
+
+  it("renders Complete handoff as a prominent framed primary action", () => {
+    render(
+      <FeedbackShell>
+        <CompleteHandoffForm claimId={claimId} />
+      </FeedbackShell>,
+    );
+
+    const complete = screen.getByTestId("complete-handoff-submit");
+    expect(complete.className).toContain("border-accent");
+    expect(complete.className).toContain("border-2");
+    expect(complete.className).toContain("min-h-[var(--app-tap-min)]");
   });
 });

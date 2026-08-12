@@ -1,9 +1,9 @@
 import { z } from "zod";
 
+import { APP_ERROR_MESSAGES } from "@/lib/feedback/error-map";
 import { handoffCodeSchema } from "@/lib/validations/handoff-code";
 
-const LOCATION_REQUIRED_MESSAGE =
-  "We need your current location to claim this spot.";
+const LOCATION_REQUIRED_MESSAGE = APP_ERROR_MESSAGES.LOCATION_REQUIRED;
 
 function seekerCoordinateField() {
   return z.preprocess(

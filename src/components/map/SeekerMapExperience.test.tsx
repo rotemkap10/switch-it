@@ -60,6 +60,13 @@ vi.mock("@/components/map/OwnSpotNotice", () => ({
   ),
 }));
 
+const stopHandoffTrackingBestEffortMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/location/handoff-location-service", () => ({
+  stopHandoffTrackingBestEffort: (...args: unknown[]) =>
+    stopHandoffTrackingBestEffortMock(...args),
+}));
+
 import { SeekerMapExperience } from "@/components/map/SeekerMapExperience";
 
 const claim = {
@@ -88,6 +95,30 @@ function renderExperience(
 }
 
 describe("SeekerMapExperience overlay hierarchy", () => {
+  it("stops handoff tracking when the active claim disappears", () => {
+    stopHandoffTrackingBestEffortMock.mockClear();
+    const { rerender } = renderExperience({
+      activeClaim: claim,
+      destination: { latitude: 32.08, longitude: 34.78 },
+    });
+
+    expect(stopHandoffTrackingBestEffortMock).not.toHaveBeenCalled();
+
+    rerender(
+      <SeekerMapExperience
+        spots={[]}
+        destination={null}
+        activeClaim={null}
+        showOwnSpotNotice={false}
+        spotsError={false}
+        activeClaimError={false}
+        ownedSpotError={false}
+      />,
+    );
+
+    expect(stopHandoffTrackingBestEffortMock).toHaveBeenCalledWith("claim_ended");
+  });
+
   it("reports initial map ready for cold-launch splash when the map is usable", () => {
     reportInitialMapReadyMock.mockClear();
     renderExperience();

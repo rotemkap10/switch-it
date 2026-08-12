@@ -18,12 +18,15 @@ const initialState: CancelSpotActionState = {};
 
 type CancelSpotButtonProps = {
   spotId: string;
+  /** Active claim id when cancelling a claimed handoff — suppresses claim toast echo. */
+  claimId?: string | null;
   /** When true, use claimed-handoff copy. */
   claimed?: boolean;
 };
 
 export function CancelSpotButton({
   spotId,
+  claimId = null,
   claimed = false,
 }: CancelSpotButtonProps) {
   const [confirming, setConfirming] = useState(false);
@@ -46,6 +49,10 @@ export function CancelSpotButton({
   useSuppressRealtimeOnSuccess(
     state.success,
     realtimeFeedbackKey("spot", spotId, "cancelled"),
+  );
+  useSuppressRealtimeOnSuccess(
+    Boolean(state.success && claimId),
+    claimId ? realtimeFeedbackKey("claim", claimId, "cancelled") : null,
   );
 
   useEffect(() => {

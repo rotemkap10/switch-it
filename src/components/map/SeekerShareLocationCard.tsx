@@ -5,17 +5,14 @@ import type { SeekerShareUiState } from "@/lib/location/use-seeker-live-location
 type SeekerShareLocationCardProps = {
   uiState: SeekerShareUiState;
   resumedOnce?: boolean;
-  onShare?: () => void;
-  onStop: () => void;
 };
 
 /**
- * Compact live-location status. Sharing starts from navigation provider tap,
- * not a separate consent card.
+ * Compact live-location status for an active handoff.
+ * Sharing is mandatory for the claim — there is no Stop sharing control.
  */
 export function SeekerShareLocationCard({
   uiState,
-  onStop,
 }: SeekerShareLocationCardProps) {
   if (uiState === "idle" || uiState === "prompt") {
     return null;
@@ -30,35 +27,42 @@ export function SeekerShareLocationCard({
           ? "Live location on"
           : uiState === "paused"
             ? "Live location paused"
-            : uiState === "denied" || uiState === "unavailable" || uiState === "off"
-              ? "Live location off"
-              : null;
+            : uiState === "denied"
+              ? "Location permission needed"
+              : uiState === "unavailable" || uiState === "off"
+                ? "Location update delayed"
+                : null;
   if (!label) {
     return null;
   }
 
-  const canStop =
-    uiState === "acquiring" ||
-    uiState === "weak" ||
-    uiState === "sharing" ||
-    uiState === "paused";
+  const needsAttention =
+    uiState === "denied" || uiState === "unavailable" || uiState === "off";
 
   return (
     <div
-      className="flex items-center justify-between gap-3"
+      className="flex flex-col gap-1"
       data-testid="seeker-share-location"
       data-state={uiState === "off" ? "off" : uiState}
       aria-live="polite"
     >
-      <p className="text-xs font-medium text-muted">{label}</p>
-      {canStop ? (
-        <button
-          type="button"
-          className="motion-interactive-press shrink-0 text-xs font-medium text-muted underline-offset-2 hover:text-foreground hover:underline"
-          onClick={onStop}
+      <p
+        className={[
+          "text-xs font-medium",
+          needsAttention ? "text-danger" : "text-muted",
+        ].join(" ")}
+      >
+        {label}
+      </p>
+      {needsAttention ? (
+        <p
+          className="text-xs leading-5 text-muted"
+          data-testid="seeker-share-location-hint"
         >
-          Stop sharing
-        </button>
+          {uiState === "denied"
+            ? "Enable location for Switch It, or release the spot to end the handoff."
+            : "Trying to resume automatically. Release the spot if you can’t share location."}
+        </p>
       ) : null}
     </div>
   );

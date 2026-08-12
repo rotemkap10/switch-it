@@ -37,9 +37,9 @@ export type PublisherSpotSummary = {
 };
 
 export const PUBLISHER_WAITING_STATUS = "Waiting for a driver";
-export const PUBLISHER_CLAIMED_STATUS = "Your spot has been claimed";
-export const PUBLISHER_CLAIMED_STAY_INSTRUCTION =
-  "Stay at the parking spot until the driver arrives.";
+/** Compact claimed headline — map is the primary surface. */
+export const PUBLISHER_CLAIMED_STATUS = "Driver on the way";
+export const PUBLISHER_CLAIMED_STAY_INSTRUCTION = "Stay at your parking spot.";
 export const PUBLISHER_CLAIMED_NEARBY_INSTRUCTION =
   "Driver is approaching the parking spot";
 
@@ -69,7 +69,6 @@ export function PublisherSpotCard({
   const router = useRouter();
   const claimed = spot.status === "claimed";
   const [claimedEmphasis, setClaimedEmphasis] = useState(false);
-  const [liveMapExpanded, setLiveMapExpanded] = useState(false);
   const destinationLabel = publisherSpotTitleLabel(spot.address);
   const parkingLatLng = isValidLatLng({
     latitude: spot.latitude,
@@ -135,6 +134,26 @@ export function PublisherSpotCard({
     return undefined;
   }, [spot.status, spot.id, activeClaimId]);
 
+  // Clear ephemeral live state when claim ends (spot becomes available again).
+  useEffect(() => {
+    if (!claimed) {
+      clearLiveLocation();
+    }
+  }, [claimed, clearLiveLocation]);
+
+  const claimedHeadline = driverNearby
+    ? PUBLISHER_CLAIMED_NEARBY_INSTRUCTION
+    : PUBLISHER_CLAIMED_STATUS;
+  const claimedSecondary = !activeClaimId
+    ? PUBLISHER_CLAIMED_STAY_INSTRUCTION
+    : liveLocation.freshness === "waiting" ||
+        liveLocation.freshness === "live" ||
+        liveLocation.freshness === "delayed" ||
+        liveLocation.freshness === "paused" ||
+        liveLocation.freshness === "unavailable"
+      ? liveLocation.statusLabel
+      : PUBLISHER_CLAIMED_STAY_INSTRUCTION;
+
   const statusBlock = (
     <div
       className={[
@@ -147,17 +166,20 @@ export function PublisherSpotCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold text-foreground sm:text-xl">
-            {claimed ? PUBLISHER_CLAIMED_STATUS : PUBLISHER_WAITING_STATUS}
+          <h2
+            className={[
+              "font-semibold text-foreground",
+              claimed ? "text-base sm:text-lg" : "text-lg sm:text-xl",
+            ].join(" ")}
+          >
+            {claimed ? claimedHeadline : PUBLISHER_WAITING_STATUS}
           </h2>
           {claimed ? (
             <p
               className="mt-1 text-sm text-muted"
               data-testid="publisher-claimed-instruction"
             >
-              {driverNearby
-                ? PUBLISHER_CLAIMED_NEARBY_INSTRUCTION
-                : PUBLISHER_CLAIMED_STAY_INSTRUCTION}
+              {claimedSecondary}
             </p>
           ) : null}
         </div>
@@ -177,32 +199,23 @@ export function PublisherSpotCard({
           {destinationLabel}
         </p>
       ) : null}
-      <div className={claimed ? "mt-2" : "mt-3"}>
-        <HandoffWindowCountdown
-          key={spot.expires_at}
-          availableAtIso={spot.available_at}
-          expiresAtIso={spot.expires_at}
-          role="publisher"
-          onExpired={onExpired}
-        />
-      </div>
+      {!claimed ? (
+        <div className="mt-3">
+          <HandoffWindowCountdown
+            key={spot.expires_at}
+            availableAtIso={spot.available_at}
+            expiresAtIso={spot.expires_at}
+            role="publisher"
+            onExpired={onExpired}
+          />
+        </div>
+      ) : null}
     </div>
   );
 
-  const vehicleBlock =
-    claimed && counterpartVehicle ? (
-      <div className="border-t border-border/60 pt-3">
-        <HandoffVehicleSection
-          title="Look for this vehicle"
-          vehicle={counterpartVehicle}
-          approachAnimationKey={`publisher-${spot.id}`}
-        />
-      </div>
-    ) : null;
-
   const mapBlock =
     claimed && activeClaimId && parkingLatLng ? (
-      <div className="border-t border-border/60 pt-3 md:border-t-0 md:pt-0">
+      <div data-testid="publisher-claimed-map-priority">
         <PublisherLiveProgressMapLoader
           parkingLatitude={parkingLatLng.latitude}
           parkingLongitude={parkingLatLng.longitude}
@@ -211,27 +224,22 @@ export function PublisherSpotCard({
           updatedLabel={liveLocation.updatedLabel}
           pauseHint={liveLocation.pauseHint}
           progressLabel={driverProgressLabel}
-          expanded={liveMapExpanded}
-          onExpandedChange={setLiveMapExpanded}
+          expanded
+          compactChrome
         />
       </div>
     ) : null;
 
-  const parkingContextBlock = claimed ? (
-    <div
-      className="border-t border-border/60 pt-3"
-      data-testid="publisher-parking-context"
-    >
-      <p className="text-xs font-medium text-muted">Parking spot</p>
-      <p
-        className="truncate text-sm font-medium text-foreground"
-        title={destinationLabel}
-        data-testid="publisher-parking-address"
-      >
-        {destinationLabel}
-      </p>
-    </div>
-  ) : null;
+  const vehicleBlock =
+    claimed && counterpartVehicle ? (
+      <div className="border-t border-border/60 pt-3">
+        <HandoffVehicleSection
+          title=""
+          vehicle={counterpartVehicle}
+          compact
+        />
+      </div>
+    ) : null;
 
   const handoffBlock =
     claimed && handoffCode ? (
@@ -256,42 +264,36 @@ export function PublisherSpotCard({
           expiresAtIso={spot.expires_at}
         />
       ) : null}
-      <CancelSpotButton spotId={spot.id} claimed={claimed} />
+      <CancelSpotButton
+        spotId={spot.id}
+        claimId={activeClaimId}
+        claimed={claimed}
+      />
     </div>
   );
-
-  const usePageGrid = layout === "page";
 
   return (
     <div
       className={[
         "publisher-spot-card flex w-full flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] motion-fade-slide-up sm:gap-4 sm:p-5",
-        usePageGrid ? "mx-auto max-w-lg md:max-w-2xl" : "",
+        layout === "page" ? "mx-auto max-w-lg md:max-w-2xl" : "",
       ].join(" ")}
       data-testid="publisher-spot-card"
       data-status={spot.status}
       data-driver-nearby={claimed && driverNearby ? "true" : "false"}
+      data-layout={claimed ? "claimed-map-first" : "waiting"}
     >
-      {usePageGrid && mapBlock ? (
-        <div className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:items-start md:gap-4">
-          <div className="flex flex-col gap-3 md:col-start-1">
-            {statusBlock}
-            {vehicleBlock}
-          </div>
-          <div className="md:col-start-2 md:row-start-1">{mapBlock}</div>
-          <div className="flex flex-col gap-3 md:col-span-2">
-            {parkingContextBlock}
-            {handoffBlock}
-            {cancelBlock}
-          </div>
-        </div>
+      {claimed ? (
+        <>
+          {statusBlock}
+          {mapBlock}
+          {vehicleBlock}
+          {handoffBlock}
+          {cancelBlock}
+        </>
       ) : (
         <>
           {statusBlock}
-          {vehicleBlock}
-          {mapBlock}
-          {parkingContextBlock}
-          {handoffBlock}
           {cancelBlock}
         </>
       )}

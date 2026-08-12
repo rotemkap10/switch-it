@@ -330,6 +330,39 @@ describe("PublisherLiveProgressMap handoff focus", () => {
     );
   });
 
+  it("autofocuses parking + seeker once when the first live fix arrives", () => {
+    const { rerender } = render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={null}
+        statusLabel="Waiting for driver location"
+        updatedLabel="Waiting"
+      />,
+    );
+    const map = readyMap();
+    expect(map.fitBounds).not.toHaveBeenCalled();
+
+    rerender(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Driver location live"
+        updatedLabel="Updated just now"
+      />,
+    );
+
+    expect(map.fitBounds).toHaveBeenCalledTimes(1);
+    expect(map.fitBounds).toHaveBeenCalledWith(
+      [
+        [parkingLongitude, parkingLatitude],
+        [seekerLocation.longitude, seekerLocation.latitude],
+      ],
+      expect.any(Object),
+    );
+  });
+
   it("does not refocus when live updates arrive after a manual pan", () => {
     const { rerender } = render(
       <PublisherLiveProgressMap
@@ -341,6 +374,16 @@ describe("PublisherLiveProgressMap handoff focus", () => {
       />,
     );
     const map = readyMap();
+    expect(map.fitBounds).toHaveBeenCalledTimes(1);
+    map.fitBounds.mockClear();
+
+    const dragstart = map.on.mock.calls.find(
+      (call) => call[0] === "dragstart",
+    )?.[1] as (() => void) | undefined;
+    expect(dragstart).toEqual(expect.any(Function));
+    act(() => {
+      dragstart?.();
+    });
 
     rerender(
       <PublisherLiveProgressMap
@@ -373,6 +416,8 @@ describe("PublisherLiveProgressMap handoff focus", () => {
       />,
     );
     const map = readyMap();
+    expect(map.fitBounds).toHaveBeenCalledTimes(1);
+    map.fitBounds.mockClear();
 
     rerender(
       <PublisherLiveProgressMap
@@ -388,6 +433,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
         updatedLabel="Updated just now"
       />,
     );
+    expect(map.fitBounds).not.toHaveBeenCalled();
 
     await user.click(screen.getByTestId("publisher-handoff-focus"));
 

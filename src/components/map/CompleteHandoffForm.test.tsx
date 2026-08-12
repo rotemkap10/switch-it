@@ -127,7 +127,9 @@ describe("CompleteHandoffForm", () => {
 
     expect(screen.getByLabelText("Handoff code")).toBeInTheDocument();
     const button = screen.getByRole("button", { name: "Complete handoff" });
-    expect(button.className).toContain("bg-accent");
+    expect(button).toHaveAttribute("data-emphasized", "true");
+    expect(button.className).toContain("border-accent");
+    expect(button.className).toContain("border-2");
     expect(button.className).toContain("min-h-[var(--app-tap-min)]");
   });
 

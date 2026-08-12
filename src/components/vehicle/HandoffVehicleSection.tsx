@@ -16,6 +16,8 @@ type HandoffVehicleSectionProps = {
   showRepresentativeNote?: boolean;
   /** When set, plays the approach animation once per browser session. */
   approachAnimationKey?: string;
+  /** Compact row for map-centric claimed handoff (no decorative animation). */
+  compact?: boolean;
 };
 
 export function HandoffVehicleSection({
@@ -23,23 +25,27 @@ export function HandoffVehicleSection({
   helper,
   vehicle,
   approachAnimationKey,
+  compact = false,
 }: HandoffVehicleSectionProps) {
   const shouldAnimate = useSessionHandoffAnimation(approachAnimationKey ?? "");
   const complete = isCompleteHandoffVehicle(vehicle);
   const showAnimation =
-    !!approachAnimationKey && complete && shouldAnimate;
+    !compact && !!approachAnimationKey && complete && shouldAnimate;
 
   return (
     <section
       className="flex flex-col gap-2"
       data-testid="handoff-vehicle-section"
+      data-compact={compact ? "true" : "false"}
     >
-      <div>
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
-        {helper ? (
-          <p className="mt-0.5 text-xs leading-5 text-muted">{helper}</p>
-        ) : null}
-      </div>
+      {title ? (
+        <div>
+          <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+          {helper ? (
+            <p className="mt-0.5 text-xs leading-5 text-muted">{helper}</p>
+          ) : null}
+        </div>
+      ) : null}
       {complete ? (
         <>
           {showAnimation ? (
@@ -48,7 +54,7 @@ export function HandoffVehicleSection({
               vehicleColor={vehicle.color!}
             />
           ) : null}
-          <VehicleIdentityCard vehicle={vehicle} />
+          <VehicleIdentityCard vehicle={vehicle} compact={compact} />
         </>
       ) : (
         <p

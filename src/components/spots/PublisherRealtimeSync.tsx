@@ -6,10 +6,15 @@ import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import {
   isRealtimeFeedbackSuppressed,
   realtimeFeedbackKey,
+  suppressRealtimeFeedback,
 } from "@/lib/realtime/feedback-suppression";
+import { useActiveHandoffReconciliation } from "@/lib/realtime/use-active-handoff-reconciliation";
 import { useDebouncedRouterRefresh } from "@/lib/realtime/use-debounced-router-refresh";
 import { useRealtimeInvalidation } from "@/lib/realtime/use-realtime-invalidation";
 import { sensoryHandoffCompleted } from "@/lib/sensory/feedback";
+
+export const PUBLISHER_CLAIM_CANCELLED_BY_SEEKER =
+  "Driver cancelled — your spot is available again.";
 
 type PublisherRealtimeSyncProps = {
   userId: string;
@@ -36,6 +41,7 @@ function rowId(row: Record<string, unknown> | null | undefined): string | null {
 /**
  * Publisher /spots/new Realtime invalidation.
  * Spot + related claim events trigger authorized RSC refetch (code/vehicle via RPCs).
+ * Visibility + short poll reconcile when Realtime is missed while claimed.
  */
 export function PublisherRealtimeSync({
   userId,
@@ -44,6 +50,8 @@ export function PublisherRealtimeSync({
 }: PublisherRealtimeSyncProps) {
   const scheduleRefresh = useDebouncedRouterRefresh();
   const { info } = useFeedback();
+
+  useActiveHandoffReconciliation(Boolean(userId && claimId));
 
   useRealtimeInvalidation({
     channelName: `publisher-spot:${userId}`,
@@ -91,9 +99,11 @@ export function PublisherRealtimeSync({
           !isRealtimeFeedbackSuppressed(claimKey) &&
           !(spotKey && isRealtimeFeedbackSuppressed(spotKey))
         ) {
-          info(
-            "Spot released\nThe spot may become available to other drivers again. No credits were changed.",
-          );
+          info(PUBLISHER_CLAIM_CANCELLED_BY_SEEKER);
+          suppressRealtimeFeedback(claimKey);
+          if (spotKey) {
+            suppressRealtimeFeedback(spotKey);
+          }
         }
       } else if (id && next === "expired") {
         const key = realtimeFeedbackKey("claim", id, "expired");
@@ -101,12 +111,14 @@ export function PublisherRealtimeSync({
           info(
             "Handoff expired\nThe handoff window ended. No credits were changed.",
           );
+          suppressRealtimeFeedback(key);
         }
       } else if (id && next === "completed") {
         const key = realtimeFeedbackKey("claim", id, "completed");
         if (!isRealtimeFeedbackSuppressed(key)) {
           info("Spot handed off\nYou earned 1 credit.");
           sensoryHandoffCompleted(id);
+          suppressRealtimeFeedback(key);
         }
       }
 

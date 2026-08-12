@@ -62,7 +62,7 @@ async function refreshSeekerAccessToken(): Promise<string | null> {
  * Seeker live-location share for one active claim.
  * Web/PWA: foreground-only watchPosition + private Broadcast.
  * Native app: single background GPS + HTTP bridge; does not pause when hidden.
- * Consent is in-memory for this claim only — never persisted.
+ * Sharing is mandatory for the active handoff — stop only on terminal outcomes.
  */
 export function useSeekerLiveLocationShare({
   claimId,
@@ -93,6 +93,8 @@ export function useSeekerLiveLocationShare({
   const nativeListenerRef = useRef<{ remove: () => Promise<void> } | null>(
     null,
   );
+  const watchRetryTimerRef = useRef<number | null>(null);
+  const startWatchRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     claimIdRef.current = claimId;
@@ -100,6 +102,10 @@ export function useSeekerLiveLocationShare({
   }, [claimId, spotExpiresAtIso]);
 
   const clearWatch = useCallback(() => {
+    if (watchRetryTimerRef.current !== null) {
+      window.clearTimeout(watchRetryTimerRef.current);
+      watchRetryTimerRef.current = null;
+    }
     if (watchIdRef.current !== null && navigator.geolocation) {
       navigator.geolocation.clearWatch(watchIdRef.current);
     }
@@ -244,14 +250,39 @@ export function useSeekerLiveLocationShare({
       },
       (error) => {
         const reason = geolocationErrorCodeToReason(error.code);
-        clearWatch();
-        sharingEnabledRef.current = false;
-        if (reason === "denied") {
-          setUiState("denied");
-        } else {
-          setUiState("unavailable");
+        if (watchIdRef.current !== null && navigator.geolocation) {
+          navigator.geolocation.clearWatch(watchIdRef.current);
         }
-        void leaveChannel();
+        watchIdRef.current = null;
+
+        if (reason === "denied") {
+          if (watchRetryTimerRef.current !== null) {
+            window.clearTimeout(watchRetryTimerRef.current);
+            watchRetryTimerRef.current = null;
+          }
+          sharingEnabledRef.current = false;
+          setUiState("denied");
+          void leaveChannel();
+          return;
+        }
+
+        // Temporary GPS / timeout: keep the share intent. Publisher keeps the
+        // last known marker and shows delayed freshness until updates resume.
+        setUiState("unavailable");
+        if (!sharingEnabledRef.current || terminalRef.current) {
+          return;
+        }
+        if (watchRetryTimerRef.current !== null) {
+          window.clearTimeout(watchRetryTimerRef.current);
+        }
+        watchRetryTimerRef.current = window.setTimeout(() => {
+          watchRetryTimerRef.current = null;
+          if (!sharingEnabledRef.current || terminalRef.current) {
+            return;
+          }
+          setUiState(hasUsableFixRef.current ? "sharing" : "acquiring");
+          startWatchRef.current();
+        }, 3_000);
       },
       {
         enableHighAccuracy: LIVE_LOCATION_GEO_OPTIONS.enableHighAccuracy,
@@ -260,6 +291,10 @@ export function useSeekerLiveLocationShare({
       },
     );
   }, [clearWatch, leaveChannel, publishSample]);
+
+  useEffect(() => {
+    startWatchRef.current = startWatch;
+  }, [startWatch]);
 
   const ensureChannel = useCallback(async (): Promise<boolean> => {
     const topic = claimLocationTopic(claimIdRef.current);

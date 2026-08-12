@@ -100,14 +100,12 @@ export function CompleteHandoffForm({
 
       <Button
         type="submit"
-        variant={emphasized ? "primary" : "secondary"}
+        variant="secondary"
         loading={pending}
         disabled={pending || state.lockout}
-        className={
-          emphasized
-            ? "w-full min-w-[12rem] !min-h-[var(--app-tap-min)] text-base font-semibold"
-            : "w-full min-w-[12rem] border-success/25 bg-success-bg text-foreground hover:bg-success-bg/80"
-        }
+        className="w-full !min-h-[var(--app-tap-min)] border-2 border-accent bg-surface text-base font-semibold text-foreground hover:bg-accent-soft"
+        data-testid="complete-handoff-submit"
+        data-emphasized={emphasized ? "true" : "false"}
       >
         {pending ? "Verifying…" : "Complete handoff"}
       </Button>

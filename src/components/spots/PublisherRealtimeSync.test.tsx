@@ -1,11 +1,10 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const scheduleRefreshMock = vi.fn();
 const useActiveHandoffReconciliationMock = vi.fn();
 
 vi.mock("@/lib/realtime/use-debounced-router-refresh", () => ({
-  useDebouncedRouterRefresh: () => scheduleRefreshMock,
+  useDebouncedRouterRefresh: () => vi.fn(),
 }));
 
 vi.mock("@/lib/realtime/use-realtime-invalidation", () => ({
@@ -21,21 +20,26 @@ vi.mock("@/components/feedback/FeedbackProvider", () => ({
   useFeedback: () => ({ info: vi.fn() }),
 }));
 
-import { MapRealtimeSync } from "@/components/map/MapRealtimeSync";
+import { PublisherRealtimeSync } from "@/components/spots/PublisherRealtimeSync";
 
-describe("MapRealtimeSync", () => {
+describe("PublisherRealtimeSync", () => {
   beforeEach(() => {
-    scheduleRefreshMock.mockReset();
     useActiveHandoffReconciliationMock.mockReset();
   });
 
   it("enables handoff reconciliation while a claim is active", () => {
-    render(<MapRealtimeSync userId="user-1" activeClaimId="claim-1" />);
+    render(
+      <PublisherRealtimeSync
+        userId="owner-1"
+        spotId="spot-1"
+        claimId="claim-1"
+      />,
+    );
     expect(useActiveHandoffReconciliationMock).toHaveBeenCalledWith(true);
   });
 
-  it("does not reconcile when browsing without an active claim", () => {
-    render(<MapRealtimeSync userId="user-1" />);
+  it("does not reconcile while waiting for a claim", () => {
+    render(<PublisherRealtimeSync userId="owner-1" spotId="spot-1" />);
     expect(useActiveHandoffReconciliationMock).toHaveBeenCalledWith(false);
   });
 });

@@ -1,15 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import {
   isRealtimeFeedbackSuppressed,
   realtimeFeedbackKey,
+  suppressRealtimeFeedback,
 } from "@/lib/realtime/feedback-suppression";
+import { useActiveHandoffReconciliation } from "@/lib/realtime/use-active-handoff-reconciliation";
 import { useDebouncedRouterRefresh } from "@/lib/realtime/use-debounced-router-refresh";
 import { useRealtimeInvalidation } from "@/lib/realtime/use-realtime-invalidation";
+
+export const SEEKER_CLAIM_CANCELLED_BY_PUBLISHER =
+  "The driver cancelled this handoff.";
 
 type MapRealtimeSyncProps = {
   userId: string;
@@ -35,6 +39,7 @@ function rowId(row: Record<string, unknown> | null | undefined): string | null {
  * Seeker /map Realtime invalidation.
  * - parking_spots: refresh discovery markers
  * - claims (own active): refresh claim sheet + terminal feedback
+ * Visibility + short poll reconcile when Realtime is missed during an active claim.
  */
 export function MapRealtimeSync({
   userId,
@@ -42,6 +47,8 @@ export function MapRealtimeSync({
 }: MapRealtimeSyncProps) {
   const scheduleRefresh = useDebouncedRouterRefresh();
   const { info } = useFeedback();
+
+  useActiveHandoffReconciliation(Boolean(userId && activeClaimId));
 
   useRealtimeInvalidation({
     channelName: `map-spots:${userId}`,
@@ -82,9 +89,8 @@ export function MapRealtimeSync({
       if (claimId && next === "cancelled") {
         const key = realtimeFeedbackKey("claim", claimId, "cancelled");
         if (!isRealtimeFeedbackSuppressed(key)) {
-          info(
-            "Spot cancelled\nThis parking spot is no longer available. No credits were changed.",
-          );
+          info(SEEKER_CLAIM_CANCELLED_BY_PUBLISHER);
+          suppressRealtimeFeedback(key);
         }
       } else if (claimId && next === "expired") {
         const key = realtimeFeedbackKey("claim", claimId, "expired");
@@ -92,6 +98,7 @@ export function MapRealtimeSync({
           info(
             "Handoff expired\nThe handoff window ended. No credits were changed.",
           );
+          suppressRealtimeFeedback(key);
         }
       } else if (claimId && next === "completed") {
         // Local completeClaim already toasts; suppress duplicate.
@@ -104,20 +111,6 @@ export function MapRealtimeSync({
       scheduleRefresh();
     },
   });
-
-  // Passive fallback when Realtime cannot deliver claimed-row updates (RLS).
-  useEffect(() => {
-    function handleVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        scheduleRefresh();
-      }
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [scheduleRefresh]);
 
   return null;
 }

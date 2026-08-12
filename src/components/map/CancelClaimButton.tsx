@@ -81,21 +81,19 @@ export function CancelClaimButton({
 
   if (!confirming) {
     return (
-      <div className="flex flex-col gap-1" data-testid="cancel-claim-prompt">
-        <p className="text-center text-xs font-medium text-foreground">
+      <div className="flex flex-col gap-2" data-testid="cancel-claim-prompt">
+        <p className="text-center text-xs font-medium text-muted">
           Can’t make it?
         </p>
-        <p className="text-center text-[0.7rem] leading-4 text-muted">
-          Release the spot so another driver can claim it.
-        </p>
-        <button
+        <Button
           type="button"
-          className="w-full px-0 py-1 text-center text-xs text-muted underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
+          variant="secondary"
+          className="w-full !min-h-[var(--app-tap-min)] border border-danger/40 bg-surface text-sm font-semibold text-danger hover:bg-danger/5"
           onClick={() => setConfirming(true)}
           data-testid="cancel-claim-trigger"
         >
           Release spot
-        </button>
+        </Button>
       </div>
     );
   }
@@ -122,17 +120,17 @@ export function CancelClaimButton({
           type="button"
           variant="secondary"
           disabled={pending}
-          className="w-full"
+          className="w-full !min-h-[var(--app-tap-min)]"
           onClick={() => setConfirming(false)}
         >
           Keep handoff
         </Button>
         <Button
           type="submit"
-          variant="ghost"
+          variant="secondary"
           loading={pending}
           disabled={pending}
-          className="w-full px-0 py-1 text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
+          className="w-full !min-h-[var(--app-tap-min)] border border-danger/40 text-danger hover:bg-danger/5"
         >
           {pending ? "Releasing…" : "Release spot"}
         </Button>

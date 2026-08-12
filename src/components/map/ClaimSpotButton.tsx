@@ -154,14 +154,13 @@ export function ClaimSpotButton({
         })();
       }}
     >
-      {!isValidLatLng(seekerLocation) ? (
-        <p
-          className="text-xs leading-5 text-muted"
-          data-testid="claim-location-hint"
-        >
-          We’ll use your current location to confirm you’re close enough.
-        </p>
-      ) : null}
+      <p
+        className="text-xs leading-5 text-muted"
+        data-testid="claim-location-hint"
+      >
+        Live location is required during a parking handoff. We’ll confirm
+        you’re close enough to claim.
+      </p>
       {errorMessage ? (
         <p
           className="text-sm text-danger"

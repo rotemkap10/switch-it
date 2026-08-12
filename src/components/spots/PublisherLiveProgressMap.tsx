@@ -34,6 +34,8 @@ export type PublisherLiveProgressMapProps = {
   progressLabel?: string | null;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
+  /** Slimmer labels — status lives in the parent card. */
+  compactChrome?: boolean;
 };
 
 function prefersReducedMotion(): boolean {
@@ -61,11 +63,14 @@ export function PublisherLiveProgressMap({
   progressLabel = null,
   expanded = false,
   onExpandedChange,
+  compactChrome = false,
 }: PublisherLiveProgressMapProps) {
   const styleUrl = useMemo(() => assertMapTilerStyleUrlOrNull(), []);
   const mapRef = useRef<MapLibreMap | null>(null);
   const initializedRef = useRef(false);
   const pendingFocusRef = useRef(false);
+  const userPannedRef = useRef(false);
+  const didAutoFocusSeekerRef = useRef(false);
   const parkingRef = useRef({
     latitude: parkingLatitude,
     longitude: parkingLongitude,
@@ -117,6 +122,7 @@ export function PublisherLiveProgressMap({
       return;
     }
     pendingFocusRef.current = false;
+    userPannedRef.current = false;
     const seeker = seekerRef.current;
     focusPublisherHandoffCamera(
       map,
@@ -130,6 +136,18 @@ export function PublisherLiveProgressMap({
       { reducedMotion: prefersReducedMotion() },
     );
   }, []);
+
+  // First seeker fix: frame spot + driver once unless the user already panned.
+  useEffect(() => {
+    if (!mapReady || !seekerLocation || didAutoFocusSeekerRef.current) {
+      return;
+    }
+    if (userPannedRef.current) {
+      return;
+    }
+    didAutoFocusSeekerRef.current = true;
+    focusHandoff();
+  }, [mapReady, seekerLocation, focusHandoff]);
 
   useEffect(() => {
     if (!mapReady || !pendingFocusRef.current) {
@@ -270,44 +288,80 @@ export function PublisherLiveProgressMap({
 
   return (
     <div className="flex flex-col gap-2" data-testid="publisher-live-progress">
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-foreground">Driver location</p>
-        <p
-          className="text-sm text-foreground"
-          aria-live="polite"
-          data-testid="publisher-live-status"
-        >
-          {statusLabel}
-        </p>
-        {progressLabel ? (
-          <p
-            className="mt-0.5 text-sm font-medium text-foreground"
-            data-testid="publisher-driver-distance"
-          >
-            {progressLabel}
+      {compactChrome ? (
+        <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-2">
+          {showUpdated ? (
+            <p
+              className="text-xs text-muted"
+              data-testid="publisher-live-updated"
+            >
+              {updatedLabel}
+            </p>
+          ) : (
+            <p className="text-xs text-muted" data-testid="publisher-live-legend">
+              {seekerLocation ? "Parking spot · Approaching driver" : "Parking spot"}
+            </p>
+          )}
+          {progressLabel ? (
+            <p
+              className="text-xs font-medium text-foreground"
+              data-testid="publisher-driver-distance"
+            >
+              {progressLabel}
+            </p>
+          ) : null}
+          {pauseHint ? (
+            <p
+              className="basis-full text-xs text-muted"
+              data-testid="publisher-live-pause-hint"
+            >
+              {pauseHint}
+            </p>
+          ) : null}
+          <p className="sr-only" data-testid="publisher-live-status">
+            {statusLabel}
           </p>
-        ) : null}
-        {pauseHint ? (
+        </div>
+      ) : (
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-foreground">Driver location</p>
           <p
-            className="mt-0.5 text-xs text-muted"
-            data-testid="publisher-live-pause-hint"
+            className="text-sm text-foreground"
+            aria-live="polite"
+            data-testid="publisher-live-status"
           >
-            {pauseHint}
+            {statusLabel}
           </p>
-        ) : null}
-        {showUpdated ? (
-          <p
-            className="mt-0.5 text-xs text-muted"
-            data-testid="publisher-live-updated"
-          >
-            {updatedLabel}
+          {progressLabel ? (
+            <p
+              className="mt-0.5 text-sm font-medium text-foreground"
+              data-testid="publisher-driver-distance"
+            >
+              {progressLabel}
+            </p>
+          ) : null}
+          {pauseHint ? (
+            <p
+              className="mt-0.5 text-xs text-muted"
+              data-testid="publisher-live-pause-hint"
+            >
+              {pauseHint}
+            </p>
+          ) : null}
+          {showUpdated ? (
+            <p
+              className="mt-0.5 text-xs text-muted"
+              data-testid="publisher-live-updated"
+            >
+              {updatedLabel}
+            </p>
+          ) : null}
+          <p className="mt-1 text-xs text-muted" data-testid="publisher-live-legend">
+            Parking spot
+            {seekerLocation ? " · Approaching driver" : ""}
           </p>
-        ) : null}
-        <p className="mt-1 text-xs text-muted" data-testid="publisher-live-legend">
-          Parking spot
-          {seekerLocation ? " · Approaching driver" : ""}
-        </p>
-      </div>
+        </div>
+      )}
 
       <div
         className={[
@@ -333,6 +387,10 @@ export function PublisherLiveProgressMap({
               return;
             }
             initializedRef.current = true;
+
+            map.on("dragstart", () => {
+              userPannedRef.current = true;
+            });
 
             registerSeekerMarkerImages(map);
 
@@ -400,6 +458,7 @@ export function PublisherLiveProgressMap({
             }
 
             map.resize();
+            pendingFocusRef.current = true;
             setMapReady(true);
           }}
         />
@@ -419,7 +478,7 @@ export function PublisherLiveProgressMap({
         <button
           type="button"
           data-testid="publisher-handoff-focus"
-          className="motion-interactive-press min-h-10 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground"
+          className="motion-interactive-press min-h-10 rounded-lg border border-accent bg-surface px-3 text-sm font-medium text-foreground"
           aria-label={
             seekerLocation
               ? "Focus parking spot and approaching driver"

@@ -90,6 +90,7 @@ vi.mock("@/components/spots/PublisherLiveProgressMapLoader", () => ({
     seekerLocation,
     parkingLatitude,
     parkingLongitude,
+    compactChrome = false,
   }: {
     statusLabel: string;
     updatedLabel?: string;
@@ -98,9 +99,16 @@ vi.mock("@/components/spots/PublisherLiveProgressMapLoader", () => ({
     seekerLocation?: { latitude: number; longitude: number } | null;
     parkingLatitude: number;
     parkingLongitude: number;
+    compactChrome?: boolean;
   }) => (
-    <div data-testid="publisher-live-progress">
-      <p data-testid="publisher-live-status">{statusLabel}</p>
+    <div data-testid="publisher-live-progress" data-compact-chrome={String(compactChrome)}>
+      {compactChrome ? (
+        <p className="sr-only" data-testid="publisher-live-status">
+          {statusLabel}
+        </p>
+      ) : (
+        <p data-testid="publisher-live-status">{statusLabel}</p>
+      )}
       {progressLabel ? (
         <p data-testid="publisher-driver-distance">{progressLabel}</p>
       ) : null}
@@ -274,17 +282,8 @@ describe("PublisherSpotCard", () => {
     expect(
       screen.getByText(PUBLISHER_CLAIMED_STAY_INSTRUCTION),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
-      "data-role",
-      "publisher",
-    );
-    expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
-      "data-expires",
-      baseSpot.expires_at,
-    );
-    expect(screen.getByTestId("publisher-parking-address")).toHaveTextContent(
-      "Dizengoff 50",
-    );
+    expect(screen.queryByTestId("handoff-window-countdown")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("publisher-parking-context")).not.toBeInTheDocument();
     expect(screen.queryByText("A driver is on the way")).not.toBeInTheDocument();
     expect(screen.queryByText(/^Driver coming$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
@@ -383,22 +382,24 @@ describe("PublisherSpotCard", () => {
     );
 
     const card = screen.getByTestId("publisher-spot-card");
+    expect(card).toHaveAttribute("data-layout", "claimed-map-first");
     const testIds = Array.from(card.querySelectorAll("[data-testid]")).map(
       (element) => element.getAttribute("data-testid"),
     );
     expect(testIds.indexOf("publisher-spot-status")).toBeLessThan(
+      testIds.indexOf("publisher-claimed-map-priority"),
+    );
+    expect(testIds.indexOf("publisher-claimed-map-priority")).toBeLessThan(
       testIds.indexOf("handoff-vehicle-section"),
     );
     expect(testIds.indexOf("handoff-vehicle-section")).toBeLessThan(
-      testIds.indexOf("publisher-live-progress"),
-    );
-    expect(testIds.indexOf("publisher-live-progress")).toBeLessThan(
-      testIds.indexOf("publisher-parking-context"),
-    );
-    expect(testIds.indexOf("publisher-parking-context")).toBeLessThan(
       testIds.indexOf("handoff-code-section"),
     );
-    expect(screen.getByText("Waiting for driver location")).toBeInTheDocument();
+    expect(screen.getByTestId("publisher-claimed-instruction")).toHaveTextContent(
+      "Waiting for driver location",
+    );
+    expect(screen.queryByTestId("handoff-window-countdown")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("publisher-parking-context")).not.toBeInTheDocument();
     expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Complete handoff" }),
@@ -429,23 +430,18 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
-    expect(
-      screen.queryByText("Recognize this vehicle when the driver arrives."),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("The driver can choose to share their progress."),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("Give this code to the driver when you meet."),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
+    expect(screen.getByTestId("handoff-vehicle-section")).toHaveAttribute(
+      "data-compact",
+      "true",
+    );
     expect(screen.getByText("Red · 76-543-21")).toBeInTheDocument();
     expect(screen.getByText("Mazda 3")).toBeInTheDocument();
-    expect(screen.getByText("76-543-21")).toBeInTheDocument();
     const identity = screen.getByTestId("vehicle-identity-card");
+    expect(identity).toHaveAttribute("data-compact", "true");
     expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
-    expect(screen.getByTestId("handoff-vehicle-animation")).toBeInTheDocument();
+    expect(screen.queryByTestId("handoff-vehicle-animation")).not.toBeInTheDocument();
     expect(screen.getByText("Handoff code")).toBeInTheDocument();
     expect(screen.getByTestId("handoff-code-value")).toHaveTextContent("48291");
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
@@ -496,8 +492,9 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
+    expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
     const identity = screen.getByTestId("vehicle-identity-card");
+    expect(identity).toHaveAttribute("data-compact", "true");
     expect(within(identity).getByTestId("vehicle-photo")).toBeInTheDocument();
     expect(within(identity).getByRole("img", { name: "Mazda 3" })).toHaveAttribute(
       "src",
@@ -523,13 +520,17 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
+    expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
+    expect(screen.getByTestId("handoff-vehicle-section")).toHaveAttribute(
+      "data-compact",
+      "true",
+    );
     expect(
       screen.getByText("Vehicle details not added yet"),
     ).toBeInTheDocument();
   });
 
-  it("shows parking context fallback when address is missing", () => {
+  it("does not show parking address context on the claimed map-first screen", () => {
     render(
       <PublisherSpotCard
         spot={{ ...baseSpot, status: "claimed", address: null }}
@@ -538,10 +539,9 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByTestId("publisher-parking-context")).toBeInTheDocument();
-    expect(screen.getByTestId("publisher-parking-address")).toHaveTextContent(
-      "Exact location marked on map",
-    );
+    expect(screen.queryByTestId("publisher-parking-context")).not.toBeInTheDocument();
+    expect(screen.getByTestId("publisher-live-progress")).toBeInTheDocument();
+    expect(screen.queryByText("Exact location marked on map")).not.toBeInTheDocument();
   });
 
   it("does not give the publisher a seeker Complete action", () => {

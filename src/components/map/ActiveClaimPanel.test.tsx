@@ -224,6 +224,11 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
   });
 
+  it("starts live location sharing as soon as the active claim panel mounts", () => {
+    renderPanel(<ActiveClaimPanel claim={claim} destination={destination} />);
+    expect(startSharingMock).toHaveBeenCalled();
+  });
+
   it("uses keyboard-safe expanded sheet classes without overlapping sticky actions", () => {
     renderPanel(
       <ActiveClaimPanel
@@ -901,13 +906,29 @@ describe("ActiveClaimPanel sheet UX", () => {
       <ActiveClaimPanel claim={claim} destination={destination} />,
     );
 
-    expect(screen.getByText("Live location off")).toBeInTheDocument();
+    expect(screen.getByText("Location update delayed")).toBeInTheDocument();
+    expect(screen.getByTestId("seeker-share-location-hint")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Stop sharing" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Complete handoff" }),
     ).toBeInTheDocument();
+  });
+
+  it("does not offer Stop sharing during an active handoff", () => {
+    liveShareState.uiState = "sharing";
+    renderPanel(
+      <ActiveClaimPanel claim={claim} destination={destination} />,
+    );
+
+    expect(screen.getByText("Live location on")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Stop sharing" }),
+    ).not.toBeInTheDocument();
   });
 
   it("stops live location share when handoff completes or cancels", async () => {

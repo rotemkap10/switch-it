@@ -11,9 +11,14 @@ import { VehicleImage } from "@/components/vehicle/VehicleImage";
 type VehicleIdentityCardProps = {
   vehicle: HandoffVehicle;
   showRepresentativeNote?: boolean;
+  /** Tighter row used on the publisher live-handoff screen. */
+  compact?: boolean;
 };
 
-export function VehicleIdentityCard({ vehicle }: VehicleIdentityCardProps) {
+export function VehicleIdentityCard({
+  vehicle,
+  compact = false,
+}: VehicleIdentityCardProps) {
   if (!isCompleteHandoffVehicle(vehicle)) {
     return null;
   }
@@ -25,8 +30,9 @@ export function VehicleIdentityCard({ vehicle }: VehicleIdentityCardProps) {
 
   return (
     <div
-      className="flex items-start gap-3"
+      className="flex items-center gap-3"
       data-testid="vehicle-identity-card"
+      data-compact={compact ? "true" : "false"}
     >
       <VehicleImage
         photoUrl={vehicle.photoUrl}
@@ -48,13 +54,15 @@ export function VehicleIdentityCard({ vehicle }: VehicleIdentityCardProps) {
         <p className="mt-0.5 truncate text-sm text-muted">
           {colorLabel} · {plate}
         </p>
-        <p
-          className="vehicle-plate-display mt-2"
-          data-testid="vehicle-identity-plate"
-          aria-label={`License plate ${plate}`}
-        >
-          {plate}
-        </p>
+        {compact ? null : (
+          <p
+            className="vehicle-plate-display mt-2"
+            data-testid="vehicle-identity-plate"
+            aria-label={`License plate ${plate}`}
+          >
+            {plate}
+          </p>
+        )}
         <p className="sr-only">{handoffVehicleAccessibleLabel(vehicle)}</p>
       </div>
     </div>

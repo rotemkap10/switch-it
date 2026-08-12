@@ -12,6 +12,7 @@ import { OwnSpotNotice } from "@/components/map/OwnSpotNotice";
 import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
 import { Alert } from "@/components/ui/Alert";
 import { useReportInitialMapReady } from "@/components/shell/AppLaunchReadyContext";
+import { stopHandoffTrackingBestEffort } from "@/lib/location/handoff-location-service";
 import {
   syncDocumentMapBottomStack,
   type MapBottomStack,
@@ -59,6 +60,15 @@ export function SeekerMapExperience({
       reportInitialMapReady();
     }
   }, [spotsError, reportInitialMapReady]);
+
+  // When the active claim ends remotely (publisher cancel / expiry / refresh),
+  // ensure native background sharing stops even if the panel didn't call forceStop.
+  useEffect(() => {
+    if (activeClaim) {
+      return;
+    }
+    void stopHandoffTrackingBestEffort("claim_ended");
+  }, [activeClaim]);
 
   const activeClaimId = activeClaim?.claimId ?? null;
   if (activeClaimId !== expandedForClaimId) {

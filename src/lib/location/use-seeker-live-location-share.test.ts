@@ -306,4 +306,101 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
 
     expect(result.current.uiState).toBe("sharing");
   });
+
+  it("keeps sharing intent and retries after a temporary GPS error", async () => {
+    vi.useFakeTimers();
+    let errorCb: PositionErrorCallback | null = null;
+    let successCb: PositionCallback | null = null;
+    let watchCalls = 0;
+    watchPosition.mockImplementation((success, error) => {
+      watchCalls += 1;
+      successCb = success;
+      errorCb = error ?? null;
+      return 40 + watchCalls;
+    });
+
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+    expect(watchCalls).toBe(1);
+
+    await act(async () => {
+      successCb?.({
+        coords: {
+          latitude: 32.08,
+          longitude: 34.78,
+          accuracy: 12,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      } as GeolocationPosition);
+    });
+    expect(result.current.uiState).toBe("sharing");
+
+    await act(async () => {
+      errorCb?.({
+        code: 3,
+        message: "timeout",
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
+    });
+    expect(result.current.uiState).toBe("unavailable");
+    expect(removeChannel).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3_000);
+    });
+    expect(watchCalls).toBe(2);
+
+    await act(async () => {
+      successCb?.({
+        coords: {
+          latitude: 32.081,
+          longitude: 34.781,
+          accuracy: 10,
+          altitude: null,
+          altitudeAccuracy: null,
+          heading: null,
+          speed: null,
+        },
+        timestamp: Date.now(),
+      } as GeolocationPosition);
+    });
+    expect(result.current.uiState).toBe("sharing");
+    vi.useRealTimers();
+  });
+
+  it("subscribes on a private claim-location channel only", async () => {
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(channel).toHaveBeenCalledWith(
+      "claim-location:11111111-1111-4111-8111-111111111111",
+      expect.objectContaining({
+        config: expect.objectContaining({ private: true }),
+      }),
+    );
+  });
 });

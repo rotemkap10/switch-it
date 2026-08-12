@@ -499,11 +499,11 @@ body {
 }
 
 .publisher-live-map-shell--collapsed {
-  height: clamp(140px, 22dvh, 180px);
+  height: clamp(160px, 28dvh, 220px);
 }
 
 .publisher-live-map-shell--expanded {
-  height: clamp(220px, 42dvh, 320px);
+  height: clamp(260px, 48dvh, 420px);
 }
 
 .publisher-compose {
@@ -703,11 +703,11 @@ body {
   }
 
   .publisher-live-map-shell--collapsed {
-    height: clamp(100px, 20dvh, 140px);
+    height: clamp(140px, 26dvh, 200px);
   }
 
   .publisher-live-map-shell--expanded {
-    height: clamp(160px, 36dvh, 240px);
+    height: clamp(220px, 46dvh, 380px);
   }
 }
 

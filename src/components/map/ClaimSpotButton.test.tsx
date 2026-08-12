@@ -120,9 +120,32 @@ describe("ClaimSpotButton", () => {
     await user.click(screen.getByRole("button", { name: "I’m on my way" }));
 
     expect(await screen.findByTestId("claim-local-error")).toHaveTextContent(
-      "We need your current location to claim this spot.",
+      "Live location is required during a parking handoff.",
     );
     expect(claimSpotMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks claim when location is unavailable without creating a claim", async () => {
+    const user = userEvent.setup();
+    requestLocationMock.mockResolvedValue({
+      ok: false,
+      reason: "unavailable",
+    });
+
+    renderClaimButton({ seekerLocation: null });
+    await user.click(screen.getByRole("button", { name: "I’m on my way" }));
+
+    expect(await screen.findByTestId("claim-local-error")).toHaveTextContent(
+      "Live location is required during a parking handoff.",
+    );
+    expect(claimSpotMock).not.toHaveBeenCalled();
+  });
+
+  it("explains that live location is required before claiming", () => {
+    renderClaimButton({ seekerLocation: null });
+    expect(screen.getByTestId("claim-location-hint")).toHaveTextContent(
+      "Live location is required during a parking handoff.",
+    );
   });
 
   it("shows a pending disabled state that prevents duplicate submits", async () => {

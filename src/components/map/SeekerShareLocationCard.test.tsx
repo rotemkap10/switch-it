@@ -1,23 +1,18 @@
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { SeekerShareLocationCard } from "@/components/map/SeekerShareLocationCard";
 
 describe("SeekerShareLocationCard", () => {
   it("renders nothing before sharing has started", () => {
-    const { container } = render(
-      <SeekerShareLocationCard uiState="idle" onStop={vi.fn()} />,
-    );
+    const { container } = render(<SeekerShareLocationCard uiState="idle" />);
     expect(container).toBeEmptyDOMElement();
     expect(screen.queryByText("Share live location")).not.toBeInTheDocument();
     expect(screen.queryByText("Not now")).not.toBeInTheDocument();
   });
 
   it("does not show a separate consent prompt", () => {
-    const { container } = render(
-      <SeekerShareLocationCard uiState="prompt" onStop={vi.fn()} />,
-    );
+    const { container } = render(<SeekerShareLocationCard uiState="prompt" />);
     expect(container).toBeEmptyDOMElement();
     expect(screen.queryByText("Share your live location")).not.toBeInTheDocument();
     expect(
@@ -26,47 +21,55 @@ describe("SeekerShareLocationCard", () => {
     expect(screen.queryByRole("button", { name: "Not now" })).not.toBeInTheDocument();
   });
 
-  it("shows acquiring copy before a usable fix", () => {
-    render(<SeekerShareLocationCard uiState="acquiring" onStop={vi.fn()} />);
+  it("shows acquiring copy without a Stop sharing action", () => {
+    render(<SeekerShareLocationCard uiState="acquiring" />);
     expect(
       screen.getByText("Getting an accurate location…"),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Stop sharing" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Stop sharing" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows weak-signal copy without cancelling the claim", () => {
-    render(<SeekerShareLocationCard uiState="weak" onStop={vi.fn()} />);
+    render(<SeekerShareLocationCard uiState="weak" />);
     expect(screen.getByText("Location signal is weak")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Stop sharing" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Stop sharing" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("shows stop sharing while active", async () => {
-    const user = userEvent.setup();
-    const onStop = vi.fn();
-    render(<SeekerShareLocationCard uiState="sharing" onStop={onStop} />);
+  it("shows live status without Stop sharing", () => {
+    render(<SeekerShareLocationCard uiState="sharing" />);
     expect(screen.getByText("Live location on")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Stop sharing" }));
-    expect(onStop).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("button", { name: "Stop sharing" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("shows paused status with stop sharing", () => {
-    render(<SeekerShareLocationCard uiState="paused" onStop={vi.fn()} />);
+  it("shows paused status without Stop sharing", () => {
+    render(<SeekerShareLocationCard uiState="paused" />);
     expect(screen.getByText("Live location paused")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Stop sharing" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Stop sharing" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("shows compact off status without browser error codes", () => {
-    render(<SeekerShareLocationCard uiState="denied" onStop={vi.fn()} />);
-    expect(screen.getByText("Live location off")).toBeInTheDocument();
+  it("warns when permission is denied and points to release", () => {
+    render(<SeekerShareLocationCard uiState="denied" />);
+    expect(screen.getByText("Location permission needed")).toBeInTheDocument();
+    expect(screen.getByTestId("seeker-share-location-hint")).toHaveTextContent(
+      /Enable location|release the spot/i,
+    );
     expect(screen.queryByText(/GeolocationPositionError/i)).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Stop sharing" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows delayed copy for temporary location loss", () => {
+    render(<SeekerShareLocationCard uiState="unavailable" />);
+    expect(screen.getByText("Location update delayed")).toBeInTheDocument();
+    expect(screen.getByTestId("seeker-share-location-hint")).toBeInTheDocument();
   });
 });
