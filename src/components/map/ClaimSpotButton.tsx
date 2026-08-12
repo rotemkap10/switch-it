@@ -13,6 +13,7 @@ import {
   registerClaimSpotDestination,
   takeClaimSpotDestination,
 } from "@/lib/map/post-claim-navigation";
+import { sensoryLightTap } from "@/lib/sensory/feedback";
 
 const initialState: ClaimSpotActionState = {};
 
@@ -80,6 +81,7 @@ export function ClaimSpotButton({
       action={formAction}
       className="space-y-2"
       onSubmit={() => {
+        sensoryLightTap();
         logPostClaimNavigationDev("claim click");
         registerClaimSpotDestination(spotId, latitude, longitude);
       }}

@@ -11,6 +11,7 @@
     "test:run": "vitest run",
     "generate:ios-startup": "node scripts/generate-ios-startup-images.mjs",
     "generate:app-icons": "node scripts/generate-app-icons.mjs",
+    "generate:sensory-sounds": "node scripts/generate-sensory-sounds.mjs",
     "clean:logo": "node scripts/clean-switch-it-logo.mjs",
     "test:watch": "vitest",
     "sync:maplibre-worker": "mkdir -p public/maplibre && cp node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs node_modules/maplibre-gl/dist/maplibre-gl-shared.mjs public/maplibre/ && cp node_modules/@mapbox/mapbox-gl-rtl-text/dist/mapbox-gl-rtl-text.js public/maplibre/",
@@ -19,6 +20,7 @@
     "native:open:ios": "npx cap open ios"
   },
   "dependencies": {
+    "@capacitor/haptics": "^8.0.2",
     "@mapbox/mapbox-gl-rtl-text": "^0.3.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.111.0",

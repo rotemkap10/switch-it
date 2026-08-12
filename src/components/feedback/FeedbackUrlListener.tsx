@@ -8,6 +8,7 @@ import {
   feedbackSuccessMessage,
   isFeedbackSuccessKey,
 } from "@/lib/feedback/success-keys";
+import { sensorySuccess } from "@/lib/sensory/feedback";
 
 /**
  * Consumes allowlisted ?feedback= keys once, then cleans the URL.
@@ -33,6 +34,9 @@ export function FeedbackUrlListener() {
     consumedRef.current = token;
 
     success(feedbackSuccessMessage(key));
+    if (key === "spot-published") {
+      sensorySuccess();
+    }
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete("feedback");

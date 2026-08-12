@@ -1,5 +1,11 @@
 import { render, screen, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  resetSensoryAdaptersForTests,
+  setSensoryAdaptersForTests,
+} from "@/lib/sensory/feedback";
+import { resetSensoryOnceForTests } from "@/lib/sensory/once";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
@@ -225,6 +231,13 @@ describe("PublisherSpotCard", () => {
         removeEventListener: vi.fn(),
       })),
     );
+    resetSensoryOnceForTests();
+    resetSensoryAdaptersForTests();
+  });
+
+  afterEach(() => {
+    resetSensoryAdaptersForTests();
+    resetSensoryOnceForTests();
   });
 
   it("shows waiting copy for an available spot", () => {
@@ -674,6 +687,75 @@ describe("PublisherSpotCard", () => {
     expect(
       screen.queryByRole("button", { name: /Complete handoff/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it("plays claim feedback once on available → claimed, not on remount of the same claim", () => {
+    const playSound = vi.fn();
+    const haptic = vi.fn();
+    setSensoryAdaptersForTests({ playSound, haptic });
+
+    const { rerender } = render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "available" }}
+        layout="page"
+      />,
+    );
+
+    rerender(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        activeClaimId="claim-abc"
+        layout="page"
+      />,
+    );
+
+    expect(playSound).toHaveBeenCalledTimes(1);
+    expect(playSound).toHaveBeenCalledWith("claimReceived");
+    expect(haptic).toHaveBeenCalledWith("medium");
+
+    rerender(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        activeClaimId="claim-abc"
+        layout="page"
+      />,
+    );
+    expect(playSound).toHaveBeenCalledTimes(1);
+  });
+
+  it("can play again for a different claim id", () => {
+    const playSound = vi.fn();
+    setSensoryAdaptersForTests({ playSound, haptic: vi.fn() });
+
+    const { rerender } = render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "available" }}
+        layout="page"
+      />,
+    );
+    rerender(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        activeClaimId="claim-one"
+        layout="page"
+      />,
+    );
+    expect(playSound).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "available" }}
+        layout="page"
+      />,
+    );
+    rerender(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        activeClaimId="claim-two"
+        layout="page"
+      />,
+    );
+    expect(playSound).toHaveBeenCalledTimes(2);
   });
 });
 

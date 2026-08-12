@@ -1,6 +1,7 @@
 import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { ProfileSummaryRow } from "@/components/profile/ProfileSummaryRow";
+import { SensoryPreferences } from "@/components/profile/SensoryPreferences";
 import { VehicleForm } from "@/components/profile/VehicleForm";
 import { Alert } from "@/components/ui/Alert";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
@@ -73,6 +74,19 @@ export default async function ProfilePage() {
             Display name
           </h2>
           <ProfileForm initialDisplayName={profile.display_name} />
+        </section>
+
+        <section
+          className="mobile-form-section"
+          aria-labelledby="profile-feedback-title"
+        >
+          <h2 id="profile-feedback-title" className="mobile-form-section-title">
+            Sounds & haptics
+          </h2>
+          <p className="mobile-form-section-helper">
+            Optional cues for important parking handoff events on this device.
+          </p>
+          <SensoryPreferences />
         </section>
 
         <section

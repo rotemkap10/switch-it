@@ -17,7 +17,6 @@ import {
 } from "@/components/map/CurrentLocationControl";
 import { centerMapOnLocation } from "@/lib/map/center-on-location";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
-import { useMapRecenter } from "@/lib/map/use-map-recenter";
 import { watchBestDeviceLocation } from "@/lib/map/watch-best-device-location";
 import { usePrefersReducedMotion } from "@/lib/motion/use-prefers-reduced-motion";
 import {
@@ -307,6 +306,11 @@ export function ParkingMapMapLibre({
   const hasAutoCenteredRef = useRef(false);
   const autoCenterGenerationRef = useRef(0);
   const pendingAutoCenterFixRef = useRef<DeviceLocationFix | null>(null);
+  const lastKnownFixRef = useRef<DeviceLocationFix | null>(null);
+  const pendingExplicitRecenterFixRef = useRef<DeviceLocationFix | null>(null);
+  const explicitRecenterSeqRef = useRef(0);
+  const stopExplicitRecenterWatchRef = useRef<(() => void) | null>(null);
+  const [recenterPending, setRecenterPending] = useState(false);
   const prefersReducedMotionRef = useRef(prefersReducedMotion);
   const applyFreshFixRef = useRef(applyFreshFix);
   const applyErrorRef = useRef(applyError);
@@ -353,26 +357,69 @@ export function ParkingMapMapLibre({
     });
   };
 
-  const { recenter: recenterOnDeviceLocation, pending: recenterPending } =
-    useMapRecenter({
-      onFix: (fix) => {
-        autoCenterGenerationRef.current += 1;
-        hasAutoCenteredRef.current = true;
-        pendingAutoCenterFixRef.current = null;
-        setRecenterNoticeVisible(false);
-        applyFreshFix(fix);
-        const map = mapRef.current;
-        if (!map) {
+  const centerFindMapOnFix = (fix: DeviceLocationFix): boolean => {
+    const map = mapRef.current;
+    if (!map || !hasInitializedLayersRef.current) {
+      pendingExplicitRecenterFixRef.current = fix;
+      return false;
+    }
+
+    pendingExplicitRecenterFixRef.current = null;
+    if (typeof map.stop === "function") {
+      map.stop();
+    }
+    centerMapOnLocation(map, fix.longitude, fix.latitude, {
+      reducedMotion: prefersReducedMotionRef.current,
+    });
+    return true;
+  };
+
+  const applyExplicitRecenterFix = (fix: DeviceLocationFix) => {
+    // Explicit Current Location always wins over pan / auto-center guards.
+    autoCenterGenerationRef.current += 1;
+    hasAutoCenteredRef.current = true;
+    pendingAutoCenterFixRef.current = null;
+    lastKnownFixRef.current = fix;
+    applyFreshFixRef.current(fix);
+    setRecenterNoticeVisible(false);
+    centerFindMapOnFix(fix);
+  };
+
+  const handleCurrentLocationClick = () => {
+    const seq = ++explicitRecenterSeqRef.current;
+    setRecenterNoticeVisible(false);
+
+    const known = lastKnownFixRef.current;
+    if (known) {
+      applyExplicitRecenterFix(known);
+    }
+
+    stopExplicitRecenterWatchRef.current?.();
+    setRecenterPending(true);
+    stopExplicitRecenterWatchRef.current = watchBestDeviceLocation({
+      onUpdate: (fix) => {
+        if (seq !== explicitRecenterSeqRef.current) {
           return;
         }
-        centerMapOnLocation(map, fix.longitude, fix.latitude, {
-          reducedMotion: prefersReducedMotion,
-        });
+        applyExplicitRecenterFix(fix);
       },
       onError: () => {
-        setRecenterNoticeVisible(true);
+        if (seq !== explicitRecenterSeqRef.current) {
+          return;
+        }
+        setRecenterPending(false);
+        if (!lastKnownFixRef.current) {
+          setRecenterNoticeVisible(true);
+        }
+      },
+      onSettled: () => {
+        if (seq !== explicitRecenterSeqRef.current) {
+          return;
+        }
+        setRecenterPending(false);
       },
     });
+  };
 
   useEffect(() => {
     if (!recenterNoticeVisible) {
@@ -388,6 +435,7 @@ export function ParkingMapMapLibre({
     const watchGeneration = autoCenterGenerationRef.current;
     const stop = watchBestDeviceLocation({
       onUpdate: (fix) => {
+        lastKnownFixRef.current = fix;
         applyFreshFixRef.current(fix);
         tryAutoCenterOnFix(fix, watchGeneration);
       },
@@ -397,6 +445,7 @@ export function ParkingMapMapLibre({
     });
     return () => {
       stop();
+      stopExplicitRecenterWatchRef.current?.();
     };
   }, []);
 
@@ -805,12 +854,17 @@ export function ParkingMapMapLibre({
 
               hasInitializedLayersRef.current = true;
 
-              const pendingFix = pendingAutoCenterFixRef.current;
-              if (pendingFix) {
-                tryAutoCenterOnFix(
-                  pendingFix,
-                  autoCenterGenerationRef.current,
-                );
+              const pendingExplicit = pendingExplicitRecenterFixRef.current;
+              if (pendingExplicit) {
+                centerFindMapOnFix(pendingExplicit);
+              } else {
+                const pendingFix = pendingAutoCenterFixRef.current;
+                if (pendingFix) {
+                  tryAutoCenterOnFix(
+                    pendingFix,
+                    autoCenterGenerationRef.current,
+                  );
+                }
               }
             } catch (error) {
               if (process.env.NODE_ENV === "development") {
@@ -828,9 +882,8 @@ export function ParkingMapMapLibre({
           variant="floating"
           data-testid="map-recenter-control"
           pending={recenterPending}
-          onClick={() => {
-            void recenterOnDeviceLocation();
-          }}
+          disableWhenPending={false}
+          onClick={handleCurrentLocationClick}
         />
       ) : null}
 

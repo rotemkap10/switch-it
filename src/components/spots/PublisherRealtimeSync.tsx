@@ -9,6 +9,7 @@ import {
 } from "@/lib/realtime/feedback-suppression";
 import { useDebouncedRouterRefresh } from "@/lib/realtime/use-debounced-router-refresh";
 import { useRealtimeInvalidation } from "@/lib/realtime/use-realtime-invalidation";
+import { sensoryHandoffCompleted } from "@/lib/sensory/feedback";
 
 type PublisherRealtimeSyncProps = {
   userId: string;
@@ -105,6 +106,7 @@ export function PublisherRealtimeSync({
         const key = realtimeFeedbackKey("claim", id, "completed");
         if (!isRealtimeFeedbackSuppressed(key)) {
           info("Spot handed off\nYou earned 1 credit.");
+          sensoryHandoffCompleted(id);
         }
       }
 

@@ -12,6 +12,7 @@ import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import { sensoryHandoffCompleted } from "@/lib/sensory/feedback";
 import {
   realtimeFeedbackKey,
   useSuppressRealtimeOnSuccess,
@@ -53,9 +54,12 @@ export function CompleteHandoffForm({
 
   useEffect(() => {
     if (state.success) {
+      if (!state.alreadyCompleted) {
+        sensoryHandoffCompleted(claimId);
+      }
       onCompleted?.();
     }
-  }, [state.success, onCompleted]);
+  }, [state.success, state.alreadyCompleted, claimId, onCompleted]);
 
   if (state.success) {
     return (

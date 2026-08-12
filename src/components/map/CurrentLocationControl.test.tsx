@@ -28,6 +28,24 @@ describe("CurrentLocationControl", () => {
     expect(button).toBeDisabled();
   });
 
+  it("keeps clicks enabled while pending when disableWhenPending is false", async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+    render(
+      <CurrentLocationControl
+        onClick={onClick}
+        pending
+        disableWhenPending={false}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: /Center on my location/i });
+    expect(button).not.toBeDisabled();
+    expect(button).toHaveAttribute("aria-busy", "true");
+    await user.click(button);
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
   it("calls onClick when enabled", async () => {
     const user = userEvent.setup();
     const onClick = vi.fn();

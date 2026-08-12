@@ -6,6 +6,11 @@ type CurrentLocationControlProps = {
   onClick: () => void;
   pending?: boolean;
   disabled?: boolean;
+  /**
+   * When false, pending shows a spinner but clicks still fire.
+   * Find Parking uses this so an explicit Current Location click is never locked out.
+   */
+  disableWhenPending?: boolean;
   /** Seeker map: uses shared floating stack clearance. */
   variant?: "floating" | "embedded";
   ariaLabel?: string;
@@ -49,12 +54,13 @@ export function CurrentLocationControl({
   onClick,
   pending = false,
   disabled = false,
+  disableWhenPending = true,
   variant = "floating",
   ariaLabel = "Center on my location",
   className = "",
   "data-testid": testId = "current-location-control",
 }: CurrentLocationControlProps) {
-  const isDisabled = disabled || pending;
+  const isDisabled = disabled || (pending && disableWhenPending);
 
   const button = (
     <button

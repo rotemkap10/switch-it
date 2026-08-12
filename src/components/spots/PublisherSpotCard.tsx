@@ -22,6 +22,7 @@ import {
   isValidLatLng,
 } from "@/lib/map/distance";
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
+import { sensoryClaimReceived } from "@/lib/sensory/feedback";
 import { canOfferHandoffExtension } from "@/lib/spots/constants";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 
@@ -113,6 +114,12 @@ export function PublisherSpotCard({
     window.sessionStorage.setItem(statusKey, spot.status);
 
     if (previous === "available" && spot.status === "claimed") {
+      sensoryClaimReceived({
+        previousStatus: previous,
+        nextStatus: spot.status,
+        claimId: activeClaimId,
+        spotId: spot.id,
+      });
       const playedKey = `switch-it:publisher-claimed-emphasis:${spot.id}`;
       if (window.sessionStorage.getItem(playedKey)) {
         return;
@@ -126,7 +133,7 @@ export function PublisherSpotCard({
       };
     }
     return undefined;
-  }, [spot.status, spot.id]);
+  }, [spot.status, spot.id, activeClaimId]);
 
   const statusBlock = (
     <div

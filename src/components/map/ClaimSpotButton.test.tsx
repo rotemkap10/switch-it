@@ -8,6 +8,10 @@ import {
   peekPostClaimNavigationPendingForTests,
   resetPostClaimNavigationForTests,
 } from "@/lib/map/post-claim-navigation";
+import {
+  resetSensoryAdaptersForTests,
+  setSensoryAdaptersForTests,
+} from "@/lib/sensory/feedback";
 
 const { claimSpotMock } = vi.hoisted(() => ({
   claimSpotMock: vi.fn(),
@@ -36,6 +40,7 @@ describe("ClaimSpotButton", () => {
   beforeEach(() => {
     claimSpotMock.mockReset();
     resetPostClaimNavigationForTests();
+    resetSensoryAdaptersForTests();
   });
 
   it("renders the friendly primary wording", () => {
@@ -162,5 +167,28 @@ describe("ClaimSpotButton", () => {
     );
     expect(peekPostClaimNavigationPendingForTests()).toBeNull();
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
+  });
+
+  it("still claims when haptic feedback throws", async () => {
+    setSensoryAdaptersForTests({
+      playSound: vi.fn(),
+      haptic: () => {
+        throw new Error("haptic failed");
+      },
+    });
+    const user = userEvent.setup();
+    claimSpotMock.mockResolvedValue({
+      success: true,
+      claimId: "11111111-1111-4111-8111-111111111111",
+      claimExpiresAt: "2026-08-03T12:30:00.000Z",
+    });
+
+    renderClaimButton();
+    await user.click(screen.getByRole("button", { name: "I’m on my way" }));
+
+    await waitFor(() => {
+      expect(claimSpotMock).toHaveBeenCalledTimes(1);
+    });
+    expect(await screen.findByText("Opening your trip…")).toBeInTheDocument();
   });
 });

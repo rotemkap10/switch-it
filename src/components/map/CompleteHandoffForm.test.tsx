@@ -13,6 +13,11 @@ vi.mock("@/actions/claims", () => ({
 import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { completeClaimSchema } from "@/lib/validations/claim";
+import {
+  resetSensoryAdaptersForTests,
+  setSensoryAdaptersForTests,
+} from "@/lib/sensory/feedback";
+import { resetSensoryOnceForTests } from "@/lib/sensory/once";
 
 const claimId = "11111111-1111-4111-8111-111111111111";
 
@@ -47,6 +52,8 @@ describe("CompleteHandoffForm", () => {
   beforeEach(() => {
     completeClaimMock.mockReset();
     mockCompleteWithSchemaValidation();
+    resetSensoryOnceForTests();
+    resetSensoryAdaptersForTests();
   });
 
   function renderForm() {
@@ -141,5 +148,58 @@ describe("CompleteHandoffForm", () => {
     await waitFor(() => {
       expect(onCompleted).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("plays completion feedback once and still completes if sensory fails", async () => {
+    const playSound = vi.fn(() => {
+      throw new Error("audio failed");
+    });
+    const haptic = vi.fn();
+    setSensoryAdaptersForTests({ playSound, haptic });
+
+    const onCompleted = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <FeedbackShell>
+        <CompleteHandoffForm claimId={claimId} onCompleted={onCompleted} />
+      </FeedbackShell>,
+    );
+
+    await user.type(screen.getByLabelText("Handoff code"), "12345");
+    await user.click(
+      screen.getByRole("button", { name: "Complete handoff" }),
+    );
+
+    await waitFor(() => {
+      expect(onCompleted).toHaveBeenCalledTimes(1);
+    });
+    expect(playSound).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not play completion feedback for an already-completed handoff", async () => {
+    completeClaimMock.mockResolvedValue({
+      success: true,
+      claimId,
+      alreadyCompleted: true,
+    });
+    const playSound = vi.fn();
+    setSensoryAdaptersForTests({ playSound, haptic: vi.fn() });
+
+    const user = userEvent.setup();
+    render(
+      <FeedbackShell>
+        <CompleteHandoffForm claimId={claimId} />
+      </FeedbackShell>,
+    );
+
+    await user.type(screen.getByLabelText("Handoff code"), "12345");
+    await user.click(
+      screen.getByRole("button", { name: "Complete handoff" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("handoff-complete-status")).toBeInTheDocument();
+    });
+    expect(playSound).not.toHaveBeenCalled();
   });
 });

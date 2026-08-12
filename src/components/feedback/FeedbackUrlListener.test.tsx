@@ -12,9 +12,17 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { AppFeedbackRoot } from "@/components/feedback/AppFeedbackRoot";
+import {
+  resetSensoryAdaptersForTests,
+  setSensoryAdaptersForTests,
+} from "@/lib/sensory/feedback";
 
 describe("FeedbackUrlListener", () => {
   it("shows an allowlisted success toast and cleans the URL", async () => {
+    const playSound = vi.fn();
+    const haptic = vi.fn();
+    setSensoryAdaptersForTests({ playSound, haptic });
+
     render(
       <AppFeedbackRoot>
         <div>Publisher page</div>
@@ -30,5 +38,9 @@ describe("FeedbackUrlListener", () => {
     await waitFor(() => {
       expect(replaceMock).toHaveBeenCalledWith("/spots/new", { scroll: false });
     });
+
+    expect(playSound).toHaveBeenCalledWith("success");
+    expect(haptic).toHaveBeenCalledWith("success");
+    resetSensoryAdaptersForTests();
   });
 });
