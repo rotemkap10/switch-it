@@ -10,6 +10,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "generate:ios-startup": "node scripts/generate-ios-startup-images.mjs",
+    "generate:native-splash": "node scripts/generate-native-splash.mjs",
     "generate:app-icons": "node scripts/generate-app-icons.mjs",
     "generate:sensory-sounds": "node scripts/generate-sensory-sounds.mjs",
     "clean:logo": "node scripts/clean-switch-it-logo.mjs",
@@ -22,6 +23,7 @@
   "dependencies": {
     "@capacitor/camera": "^8.2.2",
     "@capacitor/haptics": "^8.0.2",
+    "@capacitor/splash-screen": "^8.0.2",
     "@mapbox/mapbox-gl-rtl-text": "^0.3.0",
     "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.111.0",

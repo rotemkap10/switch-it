@@ -41,6 +41,16 @@ describe("app-launch", () => {
     ).toBe(false);
   });
 
+  it("does not skip splash on Capacitor native cold launch even if already seen", () => {
+    expect(
+      shouldSkipLaunchSplash({
+        reducedMotion: false,
+        alreadySeen: true,
+        nativeCapacitor: true,
+      }),
+    ).toBe(false);
+  });
+
   it("shows splash on first cold launch without reduced motion", () => {
     expect(
       shouldSkipLaunchSplash({ reducedMotion: false, alreadySeen: false }),

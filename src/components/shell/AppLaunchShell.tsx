@@ -12,6 +12,7 @@ import {
 import { Logo } from "@/components/branding/Logo";
 import { AppLaunchReadyProvider } from "@/components/shell/AppLaunchReadyContext";
 import { IosStartupDebugProbe } from "@/components/shell/IosStartupDebugProbe";
+import { isNativeHandoffPlatform } from "@/lib/location/is-native-handoff-platform";
 import {
   afterNextPaint,
   markLaunchSplashSeen,
@@ -21,6 +22,7 @@ import {
   SPLASH_FADE_MS,
   SPLASH_MAX_MS,
 } from "@/lib/motion/app-launch";
+import { hideNativeSplashScreen } from "@/lib/native/splash-screen";
 import { isStandaloneDisplayMode } from "@/lib/pwa/install-state";
 import {
   BOOT_SPLASH_EXITING_CLASS,
@@ -72,6 +74,8 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
       return;
     }
     exitStartedRef.current = true;
+    // Reveal the identical HTML boot splash under the native overlay, then fade.
+    void hideNativeSplashScreen();
     if (prefersReducedMotionMedia()) {
       setPhase("hidden");
       return;
@@ -88,10 +92,12 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
       reducedMotion: prefersReducedMotionMedia(),
       alreadySeen: readLaunchSplashSeen(),
       standalone: isStandaloneDisplayMode(),
+      nativeCapacitor: isNativeHandoffPlatform(),
     });
 
     if (skip) {
       coldLaunchRef.current = false;
+      void hideNativeSplashScreen();
       const id = window.setTimeout(() => setPhase("hidden"), 0);
       return () => window.clearTimeout(id);
     }

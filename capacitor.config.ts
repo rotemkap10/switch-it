@@ -1,3 +1,8 @@
+import type { CapacitorConfig } from "@capacitor/cli";
+
+/** Keep aligned with src/lib/pwa/brand-colors.ts PWA_BACKGROUND_COLOR */
+const NATIVE_SPLASH_BACKGROUND = "#dff4ff";
+
 /**
  * Native pilot shell. Production web remains the Vercel Next.js app.
  *
@@ -45,16 +50,25 @@ function developmentServerFromEnv():
 
 const developmentServer = developmentServerFromEnv();
 
-const config = {
+const config: CapacitorConfig = {
   appId: "il.ac.runi.switchit",
   appName: "Switch It",
   webDir: "native/web-placeholder",
   ...(developmentServer ? { server: developmentServer } : {}),
+  plugins: {
+    SplashScreen: {
+      launchAutoHide: false,
+      launchShowDuration: 0,
+      backgroundColor: NATIVE_SPLASH_BACKGROUND,
+      androidSplashResourceName: "splash",
+      showSpinner: false,
+    },
+  },
   ios: {
-    backgroundColor: "#0b1220",
+    backgroundColor: NATIVE_SPLASH_BACKGROUND,
   },
   android: {
-    backgroundColor: "#0b1220",
+    backgroundColor: NATIVE_SPLASH_BACKGROUND,
   },
 };
 

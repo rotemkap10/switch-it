@@ -14,12 +14,14 @@ export function shouldSkipLaunchSplash(options: {
   reducedMotion: boolean;
   alreadySeen: boolean;
   standalone?: boolean;
+  /** Capacitor iOS/Android cold launch — always show until shell ready. */
+  nativeCapacitor?: boolean;
 }): boolean {
   // Reduced motion still shows the cold-start splash (avoids black/half UI);
-  // it only skips the exit fade. Standalone PWA launches always show splash.
-  // In-browser client remounts skip via alreadySeen.
+  // it only skips the exit fade. Standalone PWA and native Capacitor cold
+  // launches always show splash. In-browser client remounts skip via alreadySeen.
   void options.reducedMotion;
-  if (options.standalone) {
+  if (options.standalone || options.nativeCapacitor) {
     return false;
   }
   return options.alreadySeen;

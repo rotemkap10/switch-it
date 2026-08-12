@@ -24,8 +24,9 @@ export function bootSplashCriticalCss(
 
 /**
  * Hide the SSR splash before hydration only for in-browser return visits.
- * Standalone PWA launches always keep #app-boot-splash until the app shell paints.
+ * Standalone PWA and Capacitor native cold launches always keep
+ * #app-boot-splash until the app shell paints.
  */
 export function bootSplashSkipScript(): string {
-  return `(function(){try{var standalone=(window.navigator&&window.navigator.standalone===true)||(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches);if(standalone){return;}if(sessionStorage.getItem(${JSON.stringify(APP_LAUNCH_SPLASH_SEEN_KEY)})==="1"){document.documentElement.classList.add(${JSON.stringify(BOOT_SPLASH_SKIP_CLASS)});}}catch(e){}})();`;
+  return `(function(){try{var cap=window.Capacitor;if(cap&&cap.isNativePlatform&&cap.isNativePlatform()){return;}var standalone=(window.navigator&&window.navigator.standalone===true)||(window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches);if(standalone){return;}if(sessionStorage.getItem(${JSON.stringify(APP_LAUNCH_SPLASH_SEEN_KEY)})==="1"){document.documentElement.classList.add(${JSON.stringify(BOOT_SPLASH_SKIP_CLASS)});}}catch(e){}})();`;
 }

@@ -10,6 +10,16 @@ import {
   SPLASH_MAX_MS,
 } from "@/lib/motion/app-launch";
 
+const hideNativeSplashMock = vi.fn().mockResolvedValue(undefined);
+
+vi.mock("@/lib/native/splash-screen", () => ({
+  hideNativeSplashScreen: (...args: unknown[]) => hideNativeSplashMock(...args),
+}));
+
+vi.mock("@/lib/location/is-native-handoff-platform", () => ({
+  isNativeHandoffPlatform: vi.fn(() => false),
+}));
+
 function mockMatchMedia(options: {
   reducedMotion?: boolean;
   standalone?: boolean;
@@ -53,6 +63,7 @@ describe("AppLaunchShell", () => {
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     sessionStorage.clear();
+    hideNativeSplashMock.mockClear();
     Object.defineProperty(document, "readyState", {
       configurable: true,
       value: "complete",
@@ -121,6 +132,7 @@ describe("AppLaunchShell", () => {
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
     expect(screen.getByText("App content")).toBeInTheDocument();
     expect(sessionStorage.getItem(APP_LAUNCH_SPLASH_SEEN_KEY)).toBe("1");
+    expect(hideNativeSplashMock).toHaveBeenCalled();
   });
 
   it("skips splash when already seen this session", () => {
@@ -137,6 +149,7 @@ describe("AppLaunchShell", () => {
     });
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
+    expect(hideNativeSplashMock).toHaveBeenCalled();
   });
 
   it("still shows splash under reduced motion until the shell is ready", () => {
@@ -170,6 +183,7 @@ describe("AppLaunchShell", () => {
     });
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
+    expect(hideNativeSplashMock).toHaveBeenCalled();
   });
 
   it("exits via safety max if the shell never reports ready", () => {
@@ -187,6 +201,7 @@ describe("AppLaunchShell", () => {
     });
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
+    expect(hideNativeSplashMock).toHaveBeenCalled();
   });
 
   it("hides a server-rendered boot splash instead of mounting a second one", () => {
