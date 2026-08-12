@@ -236,7 +236,7 @@ describe("SpotLocationPickerMapLibre", () => {
     });
   });
 
-  it("enables pan/zoom handlers and disables rotation", async () => {
+  it("enables pan/zoom handlers with shared inertia and disables rotation", async () => {
     stubLeaverMapViewport(true);
     render(
       <SpotLocationPickerMapLibre
@@ -248,6 +248,11 @@ describe("SpotLocationPickerMapLibre", () => {
 
     await waitFor(() => {
       expect(mockMap.dragPan.enable).toHaveBeenCalled();
+    });
+    expect(mockMap.dragPan.enable).toHaveBeenCalledWith({
+      linearity: 0.3,
+      deceleration: 2500,
+      maxSpeed: 1400,
     });
     expect(mockMap.scrollZoom.enable).toHaveBeenCalled();
     expect(mockMap.touchZoomRotate.enable).toHaveBeenCalled();
@@ -396,11 +401,49 @@ describe("SpotLocationPickerMapLibre", () => {
 
   it("exposes setPickerMapInteractionEnabled for handler contracts", () => {
     setPickerMapInteractionEnabled(mockMap as never, true);
-    expect(mockMap.dragPan.enable).toHaveBeenCalled();
+    expect(mockMap.dragPan.enable).toHaveBeenCalledWith({
+      linearity: 0.3,
+      deceleration: 2500,
+      maxSpeed: 1400,
+    });
     expect(mockMap.touchZoomRotate.disableRotation).toHaveBeenCalled();
 
     setPickerMapInteractionEnabled(mockMap as never, false);
     expect(mockMap.dragPan.disable).toHaveBeenCalled();
+  });
+
+  it("does not jumpTo over an in-progress user pan when props change", async () => {
+    mockMap.isMoving = vi.fn(() => false);
+    mockMap.getCenter.mockReturnValue({ lat: 32.085312, lng: 34.781812 });
+
+    const { rerender } = render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalled();
+    });
+
+    const movestartHandler = mockMap.on.mock.calls.find(
+      (call) => call[0] === "movestart",
+    )?.[1] as ((event: { originalEvent?: Event }) => void) | undefined;
+
+    mockMap.jumpTo.mockClear();
+    movestartHandler?.({ originalEvent: new Event("touchstart") });
+
+    rerender(
+      <SpotLocationPickerMapLibre
+        latitude={32.1}
+        longitude={34.8}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    expect(mockMap.jumpTo).not.toHaveBeenCalled();
   });
 
   it("shows current-location control even without cached user coordinates", async () => {

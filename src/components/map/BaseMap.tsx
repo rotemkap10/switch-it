@@ -20,6 +20,7 @@ import {
   shouldEscalateMapUnavailable,
 } from "@/lib/map/is-ignorable-map-error";
 import { mapPerfMark, mapPerfMeasure, PERF_MARKS } from "@/lib/map/map-perf";
+import { MAP_INTERACTION_OPTIONS } from "@/lib/map/maplibre-interaction";
 import {
   MAP_MAX_ZOOM,
   MAP_MIN_ZOOM,
@@ -236,10 +237,8 @@ export function BaseMap({
         attributionControl: {
           compact: true,
         },
-        dragRotate: false,
-        touchPitch: false,
-        pitchWithRotate: false,
-        maxPitch: 0,
+        // Shared with Share a Spot picker — same pan inertia / touch profile.
+        ...MAP_INTERACTION_OPTIONS,
       });
       mapPerfMark("map:constructor-end");
       mapPerfMeasure(

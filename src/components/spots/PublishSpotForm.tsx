@@ -424,7 +424,7 @@ export function PublishSpotForm() {
     }
 
     const unsub = subscribeSharedForegroundLocation((snap) => {
-      if (manualOverrideRef.current) {
+      if (manualOverrideRef.current || gesturePausedGpsRef.current) {
         return;
       }
       if (snap.trustedFix) {

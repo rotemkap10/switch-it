@@ -188,6 +188,11 @@ describe("BaseMap loading lifecycle", () => {
 
     expect(MapMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        dragPan: {
+          linearity: 0.3,
+          deceleration: 2500,
+          maxSpeed: 1400,
+        },
         dragRotate: false,
         touchPitch: false,
         pitchWithRotate: false,

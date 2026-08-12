@@ -14,6 +14,9 @@ import type { DeviceLocationFix } from "@/lib/map/request-current-device-locatio
 import { useMapRecenter } from "@/lib/map/use-map-recenter";
 import { usePrefersReducedMotion } from "@/lib/motion/use-prefers-reduced-motion";
 import {
+  applyMapInteractionMode,
+} from "@/lib/map/maplibre-interaction";
+import {
   MAP_SELECTED_SPOT_ZOOM,
   assertMapTilerStyleUrlOrNull,
 } from "@/lib/map/seekerMapConfig";
@@ -69,34 +72,14 @@ function coordsNearlyEqual(
 }
 
 /**
- * Enable pan/zoom for the center-pin picker.
+ * Enable pan/zoom for the center-pin picker (shared inertia with Find Parking).
  * Rotation stays disabled so mobile gestures stay simple.
  */
 export function setPickerMapInteractionEnabled(
   map: MapLibreMap,
   enabled: boolean,
 ) {
-  const handlers = [
-    map.dragPan,
-    map.scrollZoom,
-    map.boxZoom,
-    map.doubleClickZoom,
-    map.touchZoomRotate,
-    map.keyboard,
-  ] as const;
-
-  for (const handler of handlers) {
-    if (enabled) {
-      handler.enable();
-    } else {
-      handler.disable();
-    }
-  }
-
-  // Keep pinch zoom; suppress two-finger rotate.
-  if (enabled && typeof map.touchZoomRotate.disableRotation === "function") {
-    map.touchZoomRotate.disableRotation();
-  }
+  applyMapInteractionMode(map, { enabled, allowRotation: false });
 }
 
 /**
@@ -128,6 +111,8 @@ export function SpotLocationPickerMapLibre({
   const longitudeRef = useRef(longitude);
   const programmaticMoveRef = useRef(false);
   const pendingCameraSyncRef = useRef(false);
+  /** True from user movestart until moveend (includes pan inertia). */
+  const userGestureActiveRef = useRef(false);
   const handlersBoundRef = useRef(false);
   const [pinLifting, setPinLifting] = useState(false);
   const [mapUnavailable, setMapUnavailable] = useState(false);
@@ -249,9 +234,12 @@ export function SpotLocationPickerMapLibre({
       return;
     }
 
-    // Prevent prop-driven pin sync from racing against an in-flight
-    // programmatic recenter (the recenter handler will set coords on moveend).
-    if (programmaticMoveRef.current) {
+    // Never interrupt an in-progress user pan (including inertia) or recenter.
+    if (
+      programmaticMoveRef.current ||
+      userGestureActiveRef.current ||
+      (typeof map.isMoving === "function" && map.isMoving())
+    ) {
       pendingCameraSyncRef.current = true;
       return;
     }
@@ -428,11 +416,13 @@ export function SpotLocationPickerMapLibre({
             if (disabled || !isUserGesture) {
               return;
             }
+            userGestureActiveRef.current = true;
             setPinLifting(true);
             onMapInteractionStartRef.current?.();
           });
 
           map.on("moveend", () => {
+            userGestureActiveRef.current = false;
             setPinLifting(false);
             if (programmaticMoveRef.current || disabled) {
               return;
@@ -458,6 +448,8 @@ export function SpotLocationPickerMapLibre({
             onUserMovedMapRef.current?.();
             onLocationChangeRef.current(center.lat, center.lng);
             setShowSelectedHint(true);
+            // Drop deferred prop sync — user center is authoritative after pan.
+            pendingCameraSyncRef.current = false;
           });
         }}
       />
