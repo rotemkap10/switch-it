@@ -729,6 +729,7 @@ export function ParkingMapMapLibre({
             center={initialCenter}
             zoom={initialZoom}
             className="absolute inset-0 h-full w-full"
+            interactionDebugLabel="find-parking"
             onMapUnavailable={() => setMapUnavailable(true)}
             onVisuallyReady={markVisuallyReady}
             onMapReady={(map) => {

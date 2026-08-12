@@ -21,6 +21,7 @@ const mockMap = {
   getLayer: vi.fn(),
   project: vi.fn(() => ({ x: 0, y: 0 })),
   isMoving: vi.fn(() => false),
+  isEasing: vi.fn(() => false),
   dragPan: { enable: vi.fn(), disable: vi.fn() },
   scrollZoom: { enable: vi.fn(), disable: vi.fn() },
   boxZoom: { enable: vi.fn(), disable: vi.fn() },
@@ -120,7 +121,6 @@ vi.mock("maplibre-gl", () => ({
 }));
 
 import {
-  setPickerMapInteractionEnabled,
   SpotLocationPickerMapLibre,
 } from "@/components/spots/SpotLocationPickerMapLibre";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
@@ -237,7 +237,7 @@ describe("SpotLocationPickerMapLibre", () => {
     });
   });
 
-  it("enables pan/zoom handlers with shared inertia and disables rotation", async () => {
+  it("does not touch dragPan — BaseMap owns the single gesture initialization", async () => {
     stubLeaverMapViewport(true);
     render(
       <SpotLocationPickerMapLibre
@@ -248,18 +248,41 @@ describe("SpotLocationPickerMapLibre", () => {
     );
 
     await waitFor(() => {
-      expect(mockMap.dragPan.enable).toHaveBeenCalled();
+      expect(mockMap.on).toHaveBeenCalled();
     });
-    expect(mockMap.dragPan.enable).toHaveBeenCalledWith({
-      linearity: 0.3,
-      deceleration: 2500,
-      maxSpeed: 1400,
-    });
-    expect(mockMap.scrollZoom.enable).toHaveBeenCalled();
-    expect(mockMap.touchZoomRotate.enable).toHaveBeenCalled();
-    expect(mockMap.touchZoomRotate.disableRotation).toHaveBeenCalled();
-    expect(mockMap.keyboard.enable).toHaveBeenCalled();
+    expect(mockMap.dragPan.enable).not.toHaveBeenCalled();
+    expect(mockMap.dragPan.disable).not.toHaveBeenCalled();
+    expect(mockMap.touchZoomRotate.disableRotation).not.toHaveBeenCalled();
     expect(mockMap.addControl).toHaveBeenCalled();
+  });
+
+  it("locks gestures with pointer-events when disabled without reconfiguring dragPan", async () => {
+    const { rerender } = render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+        disabled={false}
+      />,
+    );
+
+    const picker = await screen.findByTestId("leaver-map-picker");
+    expect(picker.className).not.toContain("pointer-events-none");
+
+    rerender(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+        disabled
+      />,
+    );
+
+    expect(screen.getByTestId("leaver-map-picker").className).toContain(
+      "pointer-events-none",
+    );
+    expect(mockMap.dragPan.enable).not.toHaveBeenCalled();
+    expect(mockMap.dragPan.disable).not.toHaveBeenCalled();
   });
 
   it("keeps the center-pin overlay pointer-events-none without map-canvas-fade", async () => {
@@ -432,21 +455,9 @@ describe("SpotLocationPickerMapLibre", () => {
     expect(onMapInteractionSettled).toHaveBeenCalledTimes(1);
   });
 
-  it("exposes setPickerMapInteractionEnabled for handler contracts", () => {
-    setPickerMapInteractionEnabled(mockMap as never, true);
-    expect(mockMap.dragPan.enable).toHaveBeenCalledWith({
-      linearity: 0.3,
-      deceleration: 2500,
-      maxSpeed: 1400,
-    });
-    expect(mockMap.touchZoomRotate.disableRotation).toHaveBeenCalled();
-
-    setPickerMapInteractionEnabled(mockMap as never, false);
-    expect(mockMap.dragPan.disable).toHaveBeenCalled();
-  });
-
   it("does not jumpTo over an in-progress user pan when props change", async () => {
     mockMap.isMoving = vi.fn(() => false);
+    mockMap.isEasing = vi.fn(() => false);
     mockMap.getCenter.mockReturnValue({ lat: 32.085312, lng: 34.781812 });
 
     const { rerender } = render(

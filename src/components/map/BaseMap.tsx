@@ -20,7 +20,8 @@ import {
   shouldEscalateMapUnavailable,
 } from "@/lib/map/is-ignorable-map-error";
 import { mapPerfMark, mapPerfMeasure, PERF_MARKS } from "@/lib/map/map-perf";
-import { MAP_INTERACTION_OPTIONS } from "@/lib/map/maplibre-interaction";
+import { MAP_INTERACTION_OPTIONS, isMapCameraBusy } from "@/lib/map/maplibre-interaction";
+import { logMapInteractionSnapshot } from "@/lib/map/log-map-interaction-snapshot";
 import {
   MAP_MAX_ZOOM,
   MAP_MIN_ZOOM,
@@ -41,6 +42,8 @@ type BaseMapProps = {
   /** Fires when the map is usable (style loaded + first paint). */
   onVisuallyReady?: () => void;
   onMapUnavailable?: () => void;
+  /** Dev-only label for interaction snapshot logs (find-parking / share-spot). */
+  interactionDebugLabel?: string;
 };
 
 const loggedMissingStyleImageIds = new Set<string>();
@@ -134,12 +137,14 @@ export function BaseMap({
   onMapReady,
   onVisuallyReady,
   onMapUnavailable,
+  interactionDebugLabel,
 }: BaseMapProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const onMapReadyRef = useRef(onMapReady);
   const onVisuallyReadyRef = useRef(onVisuallyReady);
   const onMapUnavailableRef = useRef(onMapUnavailable);
+  const interactionDebugLabelRef = useRef(interactionDebugLabel);
   // Capture construction camera once — do not recreate the map when parents
   // pass new center/zoom arrays after moveend or re-render.
   const initialViewRef = useRef({ center, zoom });
@@ -157,6 +162,10 @@ export function BaseMap({
   useEffect(() => {
     onMapUnavailableRef.current = onMapUnavailable;
   }, [onMapUnavailable]);
+
+  useEffect(() => {
+    interactionDebugLabelRef.current = interactionDebugLabel;
+  }, [interactionDebugLabel]);
 
   useEffect(() => {
     if (!visuallyReady) {
@@ -277,10 +286,7 @@ export function BaseMap({
         }
         // Never resize mid-gesture / mid-inertia — it interrupts MapLibre easing
         // (Share a Spot layout shifts used to trigger this via ResizeObserver).
-        if (
-          typeof mapRef.current.isMoving === "function" &&
-          mapRef.current.isMoving()
-        ) {
+        if (isMapCameraBusy(mapRef.current)) {
           if (!resizeWhileMovingScheduled) {
             resizeWhileMovingScheduled = true;
             mapRef.current.once("moveend", () => {
@@ -313,6 +319,12 @@ export function BaseMap({
         requestResize();
         logContainerMetrics("BaseMap load", containerRef.current, true);
         logSpriteDiagnostics(mapRef.current);
+        if (interactionDebugLabelRef.current) {
+          logMapInteractionSnapshot(
+            interactionDebugLabelRef.current,
+            mapRef.current,
+          );
+        }
         onMapReadyRef.current(mapRef.current);
 
         // Double rAF ≈ first painted frame after load handlers run.

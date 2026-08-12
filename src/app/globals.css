@@ -480,7 +480,9 @@ html[data-native-status-bar="inset"] .app-shell-header {
 
 .leaver-map-picker-shell {
   height: clamp(280px, 48dvh, 400px);
+  /* Same touch ownership as Find Parking's BaseMap canvas (touch-none). */
   touch-action: none;
+  overscroll-behavior: none;
 }
 
 .publisher-preview-map-shell {
@@ -1316,7 +1318,8 @@ html[data-native-status-bar="inset"] .app-shell-header {
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    /* none — not translateY(0) — so fill-mode does not leave a containing block. */
+    transform: none;
   }
 }
 
@@ -1580,7 +1583,7 @@ html.app-boot-splash-exiting #app-boot-splash {
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -1592,7 +1595,7 @@ html.app-boot-splash-exiting #app-boot-splash {
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -1604,7 +1607,7 @@ html.app-boot-splash-exiting #app-boot-splash {
 
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: none;
   }
 }
 

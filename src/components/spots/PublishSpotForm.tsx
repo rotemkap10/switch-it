@@ -586,7 +586,7 @@ export function PublishSpotForm() {
   return (
     <form
       action={formAction}
-      className="publisher-compose mx-auto w-full max-w-lg motion-fade-slide-up md:max-w-xl"
+      className="publisher-compose mx-auto w-full max-w-lg md:max-w-xl"
       data-testid="publish-spot-form"
     >
       <div className="publisher-compose-surface">

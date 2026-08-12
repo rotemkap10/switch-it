@@ -24,6 +24,7 @@ const {
     remove: vi.fn(),
     resize: vi.fn(),
     isMoving: vi.fn(() => false),
+    isEasing: vi.fn(() => false),
     getStyle: vi.fn(() => ({})),
     getSprite: vi.fn(() => []),
     __emitOnce(event: string) {
@@ -45,6 +46,8 @@ const {
       mapInstance.resize.mockClear();
       mapInstance.isMoving.mockClear();
       mapInstance.isMoving.mockReturnValue(false);
+      mapInstance.isEasing.mockClear();
+      mapInstance.isEasing.mockReturnValue(false);
     },
   };
 
@@ -323,9 +326,52 @@ describe("BaseMap loading lifecycle", () => {
     );
 
     mapInstance.isMoving.mockReturnValue(false);
+    mapInstance.isEasing.mockReturnValue(false);
     act(() => {
       mapInstance.__emitOnce("moveend");
     });
     expect(mapInstance.resize).toHaveBeenCalled();
+  });
+
+  it("also defers resize while isEasing even if isMoving is false", () => {
+    let resizeCallback: (() => void) | null = null;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(cb: () => void) {
+          resizeCallback = cb;
+        }
+        observe() {}
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+
+    render(
+      <BaseMap
+        styleUrl="https://example.test/style.json"
+        center={[34.78, 32.08]}
+        zoom={14}
+        onMapReady={vi.fn()}
+      />,
+    );
+
+    act(() => {
+      mapInstance.__emitOnce("load");
+    });
+    mapInstance.resize.mockClear();
+    mapInstance.once.mockClear();
+    mapInstance.isMoving.mockReturnValue(false);
+    mapInstance.isEasing.mockReturnValue(true);
+
+    act(() => {
+      resizeCallback?.();
+    });
+
+    expect(mapInstance.resize).not.toHaveBeenCalled();
+    expect(mapInstance.once).toHaveBeenCalledWith(
+      "moveend",
+      expect.any(Function),
+    );
   });
 });

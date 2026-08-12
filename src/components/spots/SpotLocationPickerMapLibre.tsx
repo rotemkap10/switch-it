@@ -13,9 +13,7 @@ import { centerMapOnLocation } from "@/lib/map/center-on-location";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
 import { useMapRecenter } from "@/lib/map/use-map-recenter";
 import { usePrefersReducedMotion } from "@/lib/motion/use-prefers-reduced-motion";
-import {
-  applyMapInteractionMode,
-} from "@/lib/map/maplibre-interaction";
+import { isMapCameraBusy } from "@/lib/map/maplibre-interaction";
 import {
   MAP_SELECTED_SPOT_ZOOM,
   assertMapTilerStyleUrlOrNull,
@@ -72,19 +70,10 @@ function coordsNearlyEqual(
 }
 
 /**
- * Enable pan/zoom for the center-pin picker (shared inertia with Find Parking).
- * Rotation stays disabled so mobile gestures stay simple.
- */
-export function setPickerMapInteractionEnabled(
-  map: MapLibreMap,
-  enabled: boolean,
-) {
-  applyMapInteractionMode(map, { enabled, allowRotation: false });
-}
-
-/**
  * Leaver parking-location picker (MapLibre).
- * Fixed center pin; map pans underneath; coords update from map.getCenter().
+ * Fixed center pin; map pans underneath; coords commit from map.getCenter()
+ * only after moveend. Gesture handlers come solely from BaseMap — this picker
+ * must not disable/re-enable dragPan.
  */
 export function SpotLocationPickerMapLibre({
   latitude,
@@ -217,17 +206,9 @@ export function SpotLocationPickerMapLibre({
     });
   }, [pickerLayersReady, userAccuracy, userLatitude, userLongitude]);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map) {
-      return;
-    }
-    setPickerMapInteractionEnabled(map, !disabled);
-  }, [disabled]);
-
-  // Sync external coordinate changes (GPS / address / Current Location) into
-  // the map camera — only when MapLibre is fully idle. Never fight a user pan
-  // or its post-release inertia (Find Parking owns the camera the same way).
+  // Sync external coordinate changes (GPS / address) into the map camera —
+  // only when MapLibre is fully idle. Never fight a user pan or inertia.
+  // Current Location uses centerMapOnLocation separately.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !pickerLayersReady || disabled) {
@@ -237,7 +218,7 @@ export function SpotLocationPickerMapLibre({
     if (
       programmaticMoveRef.current ||
       userGestureActiveRef.current ||
-      (typeof map.isMoving === "function" && map.isMoving())
+      isMapCameraBusy(map)
     ) {
       pendingCameraSyncRef.current = true;
       return;
@@ -252,8 +233,6 @@ export function SpotLocationPickerMapLibre({
     let cancelled = false;
     programmaticMoveRef.current = true;
     pendingCameraSyncRef.current = false;
-    // External intent only (GPS / address). User pans never enter here while
-    // active; Current Location uses centerMapOnLocation separately.
     map.jumpTo({ center: [longitude, latitude] });
     const releaseProgrammaticMove = () => {
       if (cancelled) {
@@ -275,7 +254,7 @@ export function SpotLocationPickerMapLibre({
       ) {
         return;
       }
-      if (userGestureActiveRef.current || map.isMoving?.()) {
+      if (userGestureActiveRef.current || isMapCameraBusy(map)) {
         pendingCameraSyncRef.current = true;
         return;
       }
@@ -311,7 +290,7 @@ export function SpotLocationPickerMapLibre({
   if (styleUrl === null) {
     return (
       <div
-        className={`motion-fade-slide-up flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border p-4 ${LEAVER_MAP_SHELL_HEIGHT_CLASS}`}
+        className={`flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border p-4 ${LEAVER_MAP_SHELL_HEIGHT_CLASS}`}
         aria-label="Map to adjust your parking spot location"
       >
         <MapUnavailable reason="configuration" />
@@ -322,7 +301,7 @@ export function SpotLocationPickerMapLibre({
   if (mapUnavailable) {
     return (
       <div
-        className={`motion-fade-slide-up flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border p-4 ${LEAVER_MAP_SHELL_HEIGHT_CLASS}`}
+        className={`flex items-center justify-center overflow-hidden rounded-[var(--radius-card)] border border-border p-4 ${LEAVER_MAP_SHELL_HEIGHT_CLASS}`}
         aria-label="Map to adjust your parking spot location"
       >
         <MapUnavailable
@@ -344,12 +323,14 @@ export function SpotLocationPickerMapLibre({
     <div
       ref={shellRef}
       className={[
-        // No motion-fade-slide-up here: a transform ancestor hurts MapLibre
-        // compositing / gesture fluidity vs Find Parking's plain BaseMap host.
         "relative w-full overflow-hidden",
         "rounded-[var(--radius-card)] border border-border",
         LEAVER_MAP_SHELL_HEIGHT_CLASS,
-      ].join(" ")}
+        // Lock gestures without touching BaseMap's dragPan handlers.
+        disabled ? "pointer-events-none" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-label="Map to adjust your parking spot location"
       data-testid="leaver-map-picker"
     >
@@ -360,12 +341,12 @@ export function SpotLocationPickerMapLibre({
         center={initialCenter}
         zoom={initialZoom}
         className="absolute inset-0 z-0 h-full w-full"
+        interactionDebugLabel="share-spot"
         onMapUnavailable={() => setMapUnavailable(true)}
         onVisuallyReady={() => setMapVisuallyReady(true)}
         onMapReady={(map) => {
           mapRef.current = map;
-          map.resize();
-          setPickerMapInteractionEnabled(map, !disabled);
+          // Do NOT call dragPan.enable/disable here — BaseMap owns gestures.
 
           if (
             shouldShowLeaverMapZoomControls() &&
@@ -413,8 +394,6 @@ export function SpotLocationPickerMapLibre({
           handlersBoundRef.current = true;
 
           map.on("movestart", (e) => {
-            // Recenter and GPS jumpTo are programmatic. Only a real gesture
-            // should soft-pause GPS (ref-only — no React work mid-gesture).
             const isUserGesture = Boolean(
               (e as unknown as { originalEvent?: unknown } | undefined)
                 ?.originalEvent,
@@ -423,7 +402,6 @@ export function SpotLocationPickerMapLibre({
               return;
             }
             userGestureActiveRef.current = true;
-            // DOM-only pin lift — avoid setState during drag/inertia.
             pinRef.current?.classList.add("is-lifting");
             onMapInteractionStartRef.current?.();
           });
@@ -441,8 +419,6 @@ export function SpotLocationPickerMapLibre({
               onMapInteractionSettledRef.current?.();
               return;
             }
-            // Align refs before parent setState so prop-sync cannot jumpTo
-            // the pre-gesture center after inertia finishes.
             latitudeRef.current = center.lat;
             longitudeRef.current = center.lng;
             pendingCameraSyncRef.current = false;
@@ -450,8 +426,6 @@ export function SpotLocationPickerMapLibre({
               center: [center.lng, center.lat],
               zoom: map.getZoom(),
             });
-            // Commit form coordinates only after MapLibre finished
-            // (finger drag + inertia). Never feed camera during the gesture.
             onUserMovedMapRef.current?.();
             onLocationChangeRef.current(center.lat, center.lng);
             setShowSelectedHint(true);

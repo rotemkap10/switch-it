@@ -1,65 +1,50 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  MAP_DRAG_PAN_INERTIA_OPTIONS,
   MAP_INTERACTION_OPTIONS,
-  applyMapInteractionMode,
+  isMapCameraBusy,
 } from "@/lib/map/maplibre-interaction";
 
 describe("maplibre interaction config", () => {
-  it("exports the MapLibre default pan-inertia profile for shared use", () => {
-    expect(MAP_DRAG_PAN_INERTIA_OPTIONS).toEqual({
-      linearity: 0.3,
-      deceleration: 2500,
-      maxSpeed: 1400,
+  it("exports a single BaseMap constructor interaction profile", () => {
+    expect(MAP_INTERACTION_OPTIONS).toEqual({
+      dragPan: {
+        linearity: 0.3,
+        deceleration: 2500,
+        maxSpeed: 1400,
+      },
+      dragRotate: false,
+      touchPitch: false,
+      pitchWithRotate: false,
+      maxPitch: 0,
     });
-    expect(MAP_INTERACTION_OPTIONS.dragPan).toEqual(MAP_DRAG_PAN_INERTIA_OPTIONS);
-    expect(MAP_INTERACTION_OPTIONS.dragRotate).toBe(false);
-    expect(MAP_INTERACTION_OPTIONS.touchPitch).toBe(false);
   });
 
-  it("enables touch pan and pinch zoom with explicit inertia options", () => {
-    const map = {
-      dragPan: { enable: vi.fn(), disable: vi.fn() },
-      scrollZoom: { enable: vi.fn(), disable: vi.fn() },
-      boxZoom: { enable: vi.fn(), disable: vi.fn() },
-      doubleClickZoom: { enable: vi.fn(), disable: vi.fn() },
-      touchZoomRotate: {
-        enable: vi.fn(),
-        disable: vi.fn(),
-        disableRotation: vi.fn(),
-      },
-      keyboard: { enable: vi.fn(), disable: vi.fn() },
-    };
-
-    applyMapInteractionMode(map as never, { enabled: true });
-
-    expect(map.dragPan.enable).toHaveBeenCalledWith({
-      ...MAP_DRAG_PAN_INERTIA_OPTIONS,
-    });
-    expect(map.scrollZoom.enable).toHaveBeenCalled();
-    expect(map.touchZoomRotate.enable).toHaveBeenCalled();
-    expect(map.touchZoomRotate.disableRotation).toHaveBeenCalled();
+  it("treats isMoving or isEasing as a busy camera", () => {
+    expect(
+      isMapCameraBusy({
+        isMoving: () => true,
+        isEasing: () => false,
+      } as never),
+    ).toBe(true);
+    expect(
+      isMapCameraBusy({
+        isMoving: () => false,
+        isEasing: () => true,
+      } as never),
+    ).toBe(true);
+    expect(
+      isMapCameraBusy({
+        isMoving: () => false,
+        isEasing: () => false,
+      } as never),
+    ).toBe(false);
   });
 
-  it("disables pan/zoom when the picker is locked", () => {
-    const map = {
-      dragPan: { enable: vi.fn(), disable: vi.fn() },
-      scrollZoom: { enable: vi.fn(), disable: vi.fn() },
-      boxZoom: { enable: vi.fn(), disable: vi.fn() },
-      doubleClickZoom: { enable: vi.fn(), disable: vi.fn() },
-      touchZoomRotate: {
-        enable: vi.fn(),
-        disable: vi.fn(),
-        disableRotation: vi.fn(),
-      },
-      keyboard: { enable: vi.fn(), disable: vi.fn() },
-    };
-
-    applyMapInteractionMode(map as never, { enabled: false });
-
-    expect(map.dragPan.disable).toHaveBeenCalled();
-    expect(map.scrollZoom.disable).toHaveBeenCalled();
-    expect(map.touchZoomRotate.disable).toHaveBeenCalled();
+  it("does not expose a picker-specific dragPan.enable helper", async () => {
+    const mod = await import("@/lib/map/maplibre-interaction");
+    expect("applyMapInteractionMode" in mod).toBe(false);
+    expect("MAP_DRAG_PAN_INERTIA_OPTIONS" in mod).toBe(false);
+    expect(vi).toBeTruthy();
   });
 });

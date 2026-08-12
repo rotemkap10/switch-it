@@ -69,6 +69,8 @@ describe("mobile shell CSS foundation", () => {
   it("defines publisher compose and leaver picker shell utilities", () => {
     expect(css).toContain(".leaver-map-picker-shell");
     expect(css).toContain("clamp(280px, 48dvh, 400px)");
+    expect(css).toContain("touch-action: none");
+    expect(css).toContain("overscroll-behavior: none");
     expect(css).toContain(".publisher-compose");
     expect(css).toContain(".publisher-compose-surface");
     expect(css).not.toContain(".publisher-compose-actions--viewport");
@@ -84,6 +86,15 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".publisher-live-map-shell--collapsed");
     expect(css).toContain(".publisher-live-map-shell--expanded");
     expect(css).toContain(".publisher-spot-card");
+  });
+
+  it("clears motion entrance transforms so MapLibre is not left in a containing block", () => {
+    expect(css).toMatch(
+      /@keyframes motion-fade-slide-up[\s\S]*?to\s*\{[^}]*transform:\s*none/s,
+    );
+    expect(css).toMatch(
+      /@keyframes motion-mode-content[\s\S]*?to\s*\{[^}]*transform:\s*none/s,
+    );
   });
 
   it("defines mobile account form utilities", () => {
