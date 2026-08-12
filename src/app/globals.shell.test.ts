@@ -71,6 +71,10 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain("clamp(280px, 48dvh, 400px)");
     expect(css).toContain(".publisher-compose");
     expect(css).toContain(".publisher-compose-surface");
+    expect(css).toContain(".publisher-compose-actions");
+    expect(css).toContain("--publisher-compose-actions-height");
+    expect(css).toContain(".publisher-compose:has(.publisher-compose-actions)");
+    expect(css).toContain("position: fixed");
     expect(css).toContain(".publisher-leave-time-grid");
     expect(css).toContain(".leave-time-range");
     expect(css).toContain(".leave-time-slider-track");

@@ -586,6 +586,9 @@ export function PublishSpotForm() {
     setLocationConfirmed(true);
   }
 
+  const shareDisabled =
+    pending || !locationConfirmed || awaitingInitialGps;
+
   return (
     <form
       action={formAction}
@@ -593,9 +596,19 @@ export function PublishSpotForm() {
       data-testid="publish-spot-form"
     >
       <div className="publisher-compose-surface">
+        <section aria-labelledby="leave-time-label" data-testid="leave-time-section">
+          <LeaveTimeSlider
+            value={leaveInMinutes}
+            onChange={setLeaveInMinutes}
+            disabled={pending}
+            error={state.fieldErrors?.available_in_minutes?.[0]}
+          />
+        </section>
+
         <section
           className="flex flex-col gap-3"
           aria-label="Parking spot location"
+          data-testid="parking-location-section"
         >
           <p className="text-sm font-medium text-foreground">
             Parking spot location
@@ -613,7 +626,10 @@ export function PublishSpotForm() {
           />
 
           {canRenderPicker ? (
-            <div className="flex flex-col gap-2">
+            <div
+              className="flex flex-col gap-2"
+              data-testid="publish-spot-address-search"
+            >
               <label htmlFor="address-search" className="sr-only">
                 Search an address
               </label>
@@ -661,6 +677,25 @@ export function PublishSpotForm() {
             onChooseOnMap={chooseOnMap}
           />
 
+          {canRenderPicker ? (
+            <div data-testid="publish-spot-map-section">
+              <SpotLocationPickerLoader
+                latitude={parsedLat}
+                longitude={parsedLng}
+                onLocationChange={handleMapLocationChange}
+                onMapInteractionStart={handleMapInteractionStart}
+                onMapInteractionSettled={handleMapInteractionSettled}
+                onUserMovedMap={handleUserMovedMap}
+                onCurrentLocationRequested={handleCurrentLocationRequested}
+                disabled={pending}
+                userLatitude={detectedLocation?.latitude ?? null}
+                userLongitude={detectedLocation?.longitude ?? null}
+                userAccuracy={accuracyMeters}
+                onCurrentLocationResolved={handleCurrentLocationResolved}
+              />
+            </div>
+          ) : null}
+
           <input
             type="hidden"
             name="latitude"
@@ -689,46 +724,21 @@ export function PublishSpotForm() {
             </p>
           ) : null}
         </section>
+      </div>
 
-        <section aria-labelledby="leave-time-label" data-testid="leave-time-section">
-          <LeaveTimeSlider
-            value={leaveInMinutes}
-            onChange={setLeaveInMinutes}
-            disabled={pending}
-            error={state.fieldErrors?.available_in_minutes?.[0]}
-          />
-        </section>
-
-        {canRenderPicker ? (
-          <div data-testid="publish-spot-map-section">
-            <SpotLocationPickerLoader
-              latitude={parsedLat}
-              longitude={parsedLng}
-              onLocationChange={handleMapLocationChange}
-              onMapInteractionStart={handleMapInteractionStart}
-              onMapInteractionSettled={handleMapInteractionSettled}
-              onUserMovedMap={handleUserMovedMap}
-              onCurrentLocationRequested={handleCurrentLocationRequested}
-              disabled={pending}
-              userLatitude={detectedLocation?.latitude ?? null}
-              userLongitude={detectedLocation?.longitude ?? null}
-              userAccuracy={accuracyMeters}
-              onCurrentLocationResolved={handleCurrentLocationResolved}
-            />
-          </div>
-        ) : null}
-
-        <div className="flex flex-col gap-2">
-          <Button
-            type="submit"
-            disabled={pending || !locationConfirmed || awaitingInitialGps}
-            loading={pending}
-            aria-busy={pending}
-            className="publisher-share-cta"
-          >
-            {pending ? "Sharing…" : "Share spot"}
-          </Button>
-        </div>
+      <div
+        className="publisher-compose-actions"
+        data-testid="publish-spot-actions"
+      >
+        <Button
+          type="submit"
+          disabled={shareDisabled}
+          loading={pending}
+          aria-busy={pending}
+          className="publisher-share-cta"
+        >
+          {pending ? "Sharing…" : "Share spot"}
+        </Button>
       </div>
     </form>
   );

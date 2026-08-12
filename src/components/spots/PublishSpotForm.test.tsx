@@ -263,11 +263,37 @@ describe("PublishSpotForm", () => {
     expect(screen.queryByLabelText("Longitude")).not.toBeInTheDocument();
 
     const leaveSection = screen.getByTestId("leave-time-section");
+    const locationSection = screen.getByTestId("parking-location-section");
+    const addressSearch = screen.getByTestId("publish-spot-address-search");
     const mapSection = screen.getByTestId("publish-spot-map-section");
+    const actions = screen.getByTestId("publish-spot-actions");
+
     expect(
-      leaveSection.compareDocumentPosition(mapSection) &
+      leaveSection.compareDocumentPosition(locationSection) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+    expect(locationSection.contains(addressSearch)).toBe(true);
+    expect(locationSection.contains(mapSection)).toBe(true);
+    expect(
+      addressSearch.compareDocumentPosition(mapSection) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(leaveSection.contains(addressSearch)).toBe(false);
+    expect(
+      addressSearch.compareDocumentPosition(leaveSection) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeFalsy();
+    // Leave-time must not sit between address search and map.
+    const betweenAddressAndMap =
+      addressSearch.compareDocumentPosition(leaveSection) &
+        Node.DOCUMENT_POSITION_FOLLOWING &&
+      leaveSection.compareDocumentPosition(mapSection) &
+        Node.DOCUMENT_POSITION_FOLLOWING;
+    expect(betweenAddressAndMap).toBeFalsy();
+
+    expect(actions.className).toContain("publisher-compose-actions");
+    expect(actions.querySelector(".publisher-share-cta")).not.toBeNull();
+    expect(form.contains(actions)).toBe(true);
   });
 
   it("updates hidden coordinates from the map picker callback", async () => {

@@ -16,6 +16,7 @@ let package = Package(
         .package(name: "CapacitorGeolocation", path: "../../../node_modules/@capacitor/geolocation"),
         .package(name: "CapacitorHaptics", path: "../../../node_modules/@capacitor/haptics"),
         .package(name: "CapacitorSplashScreen", path: "../../../node_modules/@capacitor/splash-screen"),
+        .package(name: "CapacitorStatusBar", path: "../../../node_modules/@capacitor/status-bar"),
         .package(name: "SwitchItHandoffBackgroundLocation", path: "../../../native/handoff-background-location")
     ],
     targets: [
@@ -28,6 +29,7 @@ let package = Package(
                 .product(name: "CapacitorGeolocation", package: "CapacitorGeolocation"),
                 .product(name: "CapacitorHaptics", package: "CapacitorHaptics"),
                 .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
+                .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar"),
                 .product(name: "SwitchItHandoffBackgroundLocation", package: "SwitchItHandoffBackgroundLocation")
             ]
         )
