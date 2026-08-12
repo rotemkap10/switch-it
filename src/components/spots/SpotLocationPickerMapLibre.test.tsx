@@ -101,6 +101,7 @@ import {
   setPickerMapInteractionEnabled,
   SpotLocationPickerMapLibre,
 } from "@/components/spots/SpotLocationPickerMapLibre";
+import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
 describe("SpotLocationPickerMapLibre", () => {
   beforeEach(() => {
@@ -224,10 +225,35 @@ describe("SpotLocationPickerMapLibre", () => {
       (call) => call[0] === "movestart",
     )?.[1] as (() => void) | undefined;
     expect(movestartHandler).toBeTypeOf("function");
-    movestartHandler?.();
+    movestartHandler?.({ originalEvent: { type: "pointerdown" } });
 
     expect(onMapInteractionStart).toHaveBeenCalledTimes(1);
     expect(onUserMovedMap).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not treat programmatic map movement as a user pin move", async () => {
+    const onUserMovedMap = vi.fn();
+
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+        onUserMovedMap={onUserMovedMap}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalled();
+    });
+
+    const movestartHandler = mockMap.on.mock.calls.find(
+      (call) => call[0] === "movestart",
+    )?.[1] as ((event?: unknown) => void) | undefined;
+    movestartHandler?.({});
+    movestartHandler?.({ originalEvent: undefined });
+
+    expect(onUserMovedMap).not.toHaveBeenCalled();
   });
 
   it("settles reverse geocode when moveend does not change the pin", async () => {
@@ -355,5 +381,36 @@ describe("SpotLocationPickerMapLibre", () => {
     const picker = await screen.findByTestId("leaver-map-picker");
     expect(picker.className).toContain("leaver-map-picker-shell");
     expect(picker.className).not.toContain("h-[260px]");
+  });
+
+  it("moves the camera when GPS updates the selected coordinates", async () => {
+    mockMap.getCenter.mockReturnValue({
+      lat: MAP_DEFAULT_CENTER.lat,
+      lng: MAP_DEFAULT_CENTER.lng,
+    });
+
+    const { rerender } = render(
+      <SpotLocationPickerMapLibre
+        latitude={MAP_DEFAULT_CENTER.lat}
+        longitude={MAP_DEFAULT_CENTER.lng}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalled();
+    });
+
+    rerender(
+      <SpotLocationPickerMapLibre
+        latitude={32.26}
+        longitude={34.89}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    expect(mockMap.jumpTo).toHaveBeenCalledWith({
+      center: [34.89, 32.26],
+    });
   });
 });

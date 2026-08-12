@@ -116,7 +116,7 @@ describe("VehicleForm", () => {
       "hero",
     );
     expect(
-      screen.getByRole("button", { name: "Add vehicle photo" }),
+      screen.getByRole("button", { name: "Add photo" }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Edit vehicle details" }),
@@ -142,6 +142,9 @@ describe("VehicleForm", () => {
     );
     expect(screen.getByRole("button", { name: "Change photo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Remove photo" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Take Photo" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
   });
 

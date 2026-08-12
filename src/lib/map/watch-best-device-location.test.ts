@@ -3,8 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   classifyGpsAccuracy,
   formatGpsAccuracyLabel,
+  GPS_MIN_WATCH_MS,
+  GPS_STALE_FIX_MAX_AGE_MS,
   GPS_WATCH_TIMEOUT_MS,
   isBetterGpsFix,
+  isStaleGpsFix,
   watchBestDeviceLocation,
 } from "@/lib/map/watch-best-device-location";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
@@ -42,21 +45,60 @@ describe("gps accuracy helpers", () => {
     expect(
       isBetterGpsFix(
         fix({ latitude: 1, longitude: 1, accuracy: 8 }),
-        fix({ latitude: 2, longitude: 2, accuracy: 20 }),
+        fix({ latitude: 1, longitude: 1, accuracy: 20 }),
       ),
     ).toBe(true);
     expect(
       isBetterGpsFix(
         fix({ latitude: 1, longitude: 1, accuracy: 25 }),
-        fix({ latitude: 2, longitude: 2, accuracy: 12 }),
+        fix({ latitude: 1, longitude: 1, accuracy: 12 }),
       ),
     ).toBe(false);
+  });
+
+  it("flags old timestamps as stale", () => {
+    const now = Date.now();
+    expect(
+      isStaleGpsFix(
+        fix({
+          latitude: 1,
+          longitude: 1,
+          timestamp: now - GPS_STALE_FIX_MAX_AGE_MS - 1,
+        }),
+        now,
+      ),
+    ).toBe(true);
+    expect(
+      isStaleGpsFix(fix({ latitude: 1, longitude: 1, timestamp: now }), now),
+    ).toBe(false);
+  });
+
+  it("prefers a fresh sample over a stale cached fix", () => {
+    const now = Date.now();
+    expect(
+      isBetterGpsFix(
+        fix({
+          latitude: 32.26,
+          longitude: 34.89,
+          accuracy: 20,
+          timestamp: now,
+        }),
+        fix({
+          latitude: 32.08,
+          longitude: 34.78,
+          accuracy: 8,
+          timestamp: now - 60_000,
+        }),
+        now,
+      ),
+    ).toBe(true);
   });
 });
 
 describe("watchBestDeviceLocation", () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-12T12:00:00.000Z"));
   });
 
   afterEach(() => {
@@ -92,7 +134,7 @@ describe("watchBestDeviceLocation", () => {
         heading: null,
         speed: null,
       },
-      timestamp: 1,
+      timestamp: Date.now(),
     } as GeolocationPosition);
 
     success?.({
@@ -105,7 +147,7 @@ describe("watchBestDeviceLocation", () => {
         heading: null,
         speed: null,
       },
-      timestamp: 2,
+      timestamp: Date.now(),
     } as GeolocationPosition);
 
     expect(onUpdate).toHaveBeenCalledTimes(2);
@@ -123,7 +165,44 @@ describe("watchBestDeviceLocation", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it("ignores a worse later fix", () => {
+  it("waits a minimum window before stopping on the first good fix", () => {
+    let success: PositionCallback | null = null;
+    const clearWatch = vi.fn();
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          return 8;
+        }),
+        clearWatch,
+      },
+    });
+
+    watchBestDeviceLocation({
+      onUpdate: vi.fn(),
+      onError: vi.fn(),
+      onSettled: vi.fn(),
+    });
+
+    success?.({
+      coords: {
+        latitude: 32.26,
+        longitude: 34.89,
+        accuracy: 8,
+        altitude: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      },
+      timestamp: Date.now(),
+    } as GeolocationPosition);
+
+    expect(clearWatch).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(GPS_MIN_WATCH_MS);
+    expect(clearWatch).toHaveBeenCalledWith(8);
+  });
+
+  it("ignores a worse later fix at the same place", () => {
     let success: PositionCallback | null = null;
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -153,19 +232,19 @@ describe("watchBestDeviceLocation", () => {
         heading: null,
         speed: null,
       },
-      timestamp: 1,
+      timestamp: Date.now(),
     } as GeolocationPosition);
     success?.({
       coords: {
-        latitude: 32.09,
-        longitude: 34.79,
+        latitude: 32.08001,
+        longitude: 34.78001,
         accuracy: 28,
         altitude: null,
         altitudeAccuracy: null,
         heading: null,
         speed: null,
       },
-      timestamp: 2,
+      timestamp: Date.now(),
     } as GeolocationPosition);
 
     expect(onUpdate).toHaveBeenCalledTimes(1);
@@ -229,7 +308,7 @@ describe("watchBestDeviceLocation", () => {
         heading: null,
         speed: null,
       },
-      timestamp: 1,
+      timestamp: Date.now(),
     } as GeolocationPosition);
 
     vi.advanceTimersByTime(2_000);
@@ -290,5 +369,110 @@ describe("watchBestDeviceLocation", () => {
     });
 
     expect(onError).toHaveBeenCalledWith("denied");
+  });
+
+  it("does not publish a stale cached sample and lets a fresh location win", () => {
+    let success: PositionCallback | null = null;
+    const clearWatch = vi.fn();
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          return 11;
+        }),
+        clearWatch,
+      },
+    });
+
+    const onUpdate = vi.fn();
+    const onError = vi.fn();
+    watchBestDeviceLocation({
+      onUpdate,
+      onError,
+      onSettled: vi.fn(),
+    });
+
+    success?.({
+      coords: {
+        latitude: 32.08,
+        longitude: 34.78,
+        accuracy: 8,
+        altitude: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      },
+      timestamp: Date.now() - GPS_STALE_FIX_MAX_AGE_MS - 1_000,
+    } as GeolocationPosition);
+
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(clearWatch).not.toHaveBeenCalled();
+
+    success?.({
+      coords: {
+        latitude: 32.26,
+        longitude: 34.89,
+        accuracy: 18,
+        altitude: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      },
+      timestamp: Date.now(),
+    } as GeolocationPosition);
+
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        latitude: 32.26,
+        longitude: 34.89,
+        accuracy: 18,
+      }),
+    );
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("times out instead of settling on a stale-only cached fix", () => {
+    let success: PositionCallback | null = null;
+    vi.stubGlobal("navigator", {
+      geolocation: {
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          return 12;
+        }),
+        clearWatch: vi.fn(),
+      },
+    });
+
+    const onUpdate = vi.fn();
+    const onError = vi.fn();
+    const onSettled = vi.fn();
+    watchBestDeviceLocation({
+      onUpdate,
+      onError,
+      onSettled,
+      timeoutMs: 3_000,
+    });
+
+    success?.({
+      coords: {
+        latitude: 32.08,
+        longitude: 34.78,
+        accuracy: 8,
+        altitude: null,
+        altitudeAccuracy: null,
+        heading: null,
+        speed: null,
+      },
+      timestamp: Date.now() - GPS_STALE_FIX_MAX_AGE_MS - 1_000,
+    } as GeolocationPosition);
+
+    vi.advanceTimersByTime(3_000);
+
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith("timeout");
+    expect(onSettled).toHaveBeenCalledWith(
+      expect.objectContaining({ accuracy: 8 }),
+    );
   });
 });

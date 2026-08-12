@@ -240,6 +240,7 @@ export function PublishSpotForm() {
   const [geoError, setGeoError] = useState<GeolocationReason | null>(null);
   const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
   const [manualOverride, setManualOverride] = useState(false);
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
   const stopWatchRef = useRef<(() => void) | null>(null);
   const manualOverrideRef = useRef(false);
   const hasLocationRef = useRef(false);
@@ -401,6 +402,7 @@ export function PublishSpotForm() {
       setLocation(fix.latitude, fix.longitude);
       setGeoError(null);
       setGeoStatus("success");
+      setLocationConfirmed(true);
     },
     [setLocation],
   );
@@ -481,6 +483,7 @@ export function PublishSpotForm() {
       setLocation(MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng);
     }
     setGeoStatus("manual");
+    setLocationConfirmed(true);
   }
 
   function handleMapLocationChange(lat: number, lng: number) {
@@ -499,6 +502,7 @@ export function PublishSpotForm() {
     setManualAddressLabel(null);
     setManualAddressLatLng(null);
     setAccuracyMeters(null);
+    setLocationConfirmed(true);
   }
 
   function handleCurrentLocationResolved(fix: DeviceLocationFix) {
@@ -534,6 +538,7 @@ export function PublishSpotForm() {
     setAddressQuery("");
     setAddressSuggestions([]);
     setAddressSearchPending(false);
+    setLocationConfirmed(true);
   }
 
   return (
@@ -629,8 +634,16 @@ export function PublishSpotForm() {
             onChooseOnMap={chooseOnMap}
           />
 
-          <input type="hidden" name="latitude" value={latitude} />
-          <input type="hidden" name="longitude" value={longitude} />
+          <input
+            type="hidden"
+            name="latitude"
+            value={locationConfirmed ? latitude : ""}
+          />
+          <input
+            type="hidden"
+            name="longitude"
+            value={locationConfirmed ? longitude : ""}
+          />
           <input type="hidden" name="address" value={addressForPublishValue} />
           <input
             type="hidden"
@@ -662,7 +675,7 @@ export function PublishSpotForm() {
         <div className="flex flex-col gap-2">
           <Button
             type="submit"
-            disabled={pending || !hasLocation || awaitingInitialGps}
+            disabled={pending || !locationConfirmed || awaitingInitialGps}
             loading={pending}
             aria-busy={pending}
             className="publisher-share-cta"

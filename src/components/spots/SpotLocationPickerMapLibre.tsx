@@ -19,7 +19,7 @@ import {
 } from "@/lib/map/seekerMapConfig";
 import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
 import {
-  readSessionMapCamera,
+  clearSessionMapCamera,
   writeSessionMapCamera,
 } from "@/lib/map/session-camera";
 
@@ -128,21 +128,18 @@ export function SpotLocationPickerMapLibre({
   const prefersReducedMotion = usePrefersReducedMotion();
 
   // Stable initial camera for BaseMap — never recreate from moveend updates.
-  // Prefer live form coords; fall back to in-memory session camera for continuity.
-  const [initialCenter] = useState<[number, number]>(() => {
-    const session = readSessionMapCamera("publisher");
-    if (
-      Number.isFinite(longitude) &&
-      Number.isFinite(latitude) &&
-      (longitude !== 0 || latitude !== 0)
-    ) {
-      return [longitude, latitude];
-    }
-    return session?.center ?? [longitude, latitude];
-  });
-  const [initialZoom] = useState(
-    () => readSessionMapCamera("publisher")?.zoom ?? MAP_SELECTED_SPOT_ZOOM,
-  );
+  // Always start at the caller-provided fallback; GPS/recenter move the camera.
+  const [initialCenter] = useState<[number, number]>(() => [
+    longitude,
+    latitude,
+  ]);
+  const [initialZoom] = useState(() => MAP_SELECTED_SPOT_ZOOM);
+
+  useEffect(() => {
+    return () => {
+      clearSessionMapCamera("publisher");
+    };
+  }, []);
 
   useEffect(() => {
     onLocationChangeRef.current = onLocationChange;
@@ -333,16 +330,13 @@ export function SpotLocationPickerMapLibre({
           handlersBoundRef.current = true;
 
           map.on("movestart", (e) => {
-            // Recenter uses programmatic camera moves. Only treat a movestart as
-            // an intentional pin move when the user actually started the gesture.
+            // Recenter and GPS jumpTo are programmatic. Only a real gesture
+            // should lock out automatic current-location initialization.
             const isUserGesture = Boolean(
               (e as unknown as { originalEvent?: unknown } | undefined)
                 ?.originalEvent,
             );
-            if (disabled) {
-              return;
-            }
-            if (programmaticMoveRef.current && !isUserGesture) {
+            if (disabled || !isUserGesture) {
               return;
             }
             setPinLifting(true);

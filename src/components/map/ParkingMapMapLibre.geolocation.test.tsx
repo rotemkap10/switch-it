@@ -7,7 +7,12 @@ import type { MapSpot } from "@/types/map-spot";
 import {
   MAP_LAYERS,
   MAP_SOURCES,
+  MAP_DEFAULT_CENTER_TEL_AVIV,
 } from "@/lib/map/seekerMapConfig";
+import {
+  resetSessionMapCameras,
+  writeSessionMapCamera,
+} from "@/lib/map/session-camera";
 
 const spot: MapSpot = {
   id: "550e8400-e29b-41d4-a716-446655440000",
@@ -128,6 +133,7 @@ import { ParkingMapMapLibre } from "@/components/map/ParkingMapMapLibre";
 describe("ParkingMapMapLibre geolocation", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_MAPTILER_API_KEY = "test-key";
+    resetSessionMapCameras();
 
     const sources = new Map<string, { type: string; setData: (d: unknown) => void }>();
     const layers = new Set<string>();
@@ -567,5 +573,88 @@ describe("ParkingMapMapLibre geolocation", () => {
     expect(
       screen.queryByTestId("current-location-unavailable-notice"),
     ).not.toBeInTheDocument();
+  });
+
+  it("renders at the fallback center even when a previous session camera exists", async () => {
+    writeSessionMapCamera("seeker", {
+      center: [34.78, 32.08],
+      zoom: 16,
+    });
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    expect(mockBaseMapProps.center).toEqual([
+      MAP_DEFAULT_CENTER_TEL_AVIV.lng,
+      MAP_DEFAULT_CENTER_TEL_AVIV.lat,
+    ]);
+    expect(screen.getByTestId("base-map")).toBeInTheDocument();
+  });
+
+  it("lets a restored session camera be replaced by a fresh GPS fix", async () => {
+    writeSessionMapCamera("seeker", {
+      center: [34.78, 32.08],
+      zoom: 16,
+    });
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(mockMap.addLayer).toHaveBeenCalled();
+    });
+
+    watchOnUpdate?.(deviceFix(32.26, 34.89));
+
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: [34.89, 32.26],
+      }),
+    );
+  });
+
+  it("lets a later GPS sample replace the first auto-center during initialization", async () => {
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(mockMap.addLayer).toHaveBeenCalled();
+    });
+
+    watchOnUpdate?.(deviceFix(32.08, 34.78));
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({ center: [34.78, 32.08] }),
+    );
+
+    mockMap.easeTo.mockClear();
+    watchOnUpdate?.(deviceFix(32.26, 34.89));
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({ center: [34.89, 32.26] }),
+    );
+  });
+
+  it("starts a new location watch when the screen is opened again", async () => {
+    mockedStatus = "loading";
+    const { unmount } = render(
+      <ParkingMapMapLibre spots={[spot]} destination={null} />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.addLayer).toHaveBeenCalled();
+    });
+    watchOnUpdate?.(deviceFix(32.08, 34.78));
+
+    unmount();
+    expect(stopWatchMock).toHaveBeenCalled();
+
+    mockMap.easeTo.mockClear();
+    stopWatchMock.mockClear();
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(mockMap.addLayer).toHaveBeenCalled();
+    });
+    watchOnUpdate?.(deviceFix(32.26, 34.89));
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({ center: [34.89, 32.26] }),
+    );
   });
 });

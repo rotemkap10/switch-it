@@ -44,7 +44,7 @@ import {
   isWithinSupportedMapBounds,
 } from "@/lib/map/seekerMapConfig";
 import {
-  readSessionMapCamera,
+  clearSessionMapCamera,
   writeSessionMapCamera,
 } from "@/lib/map/session-camera";
 import {
@@ -230,12 +230,11 @@ export function ParkingMapMapLibre({
   );
 
   const styleFallback = mapTilerStyleUrl === null;
-  const sessionCamera = readSessionMapCamera("seeker");
-  const initialCenter: [number, number] = sessionCamera?.center ?? [
+  const initialCenter: [number, number] = [
     MAP_DEFAULT_CENTER_TEL_AVIV.lng,
     MAP_DEFAULT_CENTER_TEL_AVIV.lat,
   ];
-  const initialZoom = sessionCamera?.zoom ?? MAP_DEFAULT_ZOOM;
+  const initialZoom = MAP_DEFAULT_ZOOM;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapUnavailable, setMapUnavailable] = useState(false);
@@ -303,7 +302,6 @@ export function ParkingMapMapLibre({
   const interactionHandlersBoundRef = useRef(false);
   const lastFocusedSpotIdRef = useRef<string | null>(null);
   const userMovedMapRef = useRef(false);
-  const hasAutoCenteredRef = useRef(false);
   const autoCenterGenerationRef = useRef(0);
   const pendingAutoCenterFixRef = useRef<DeviceLocationFix | null>(null);
   const lastKnownFixRef = useRef<DeviceLocationFix | null>(null);
@@ -337,7 +335,7 @@ export function ParkingMapMapLibre({
     if (generation !== autoCenterGenerationRef.current) {
       return;
     }
-    if (userMovedMapRef.current || hasAutoCenteredRef.current) {
+    if (userMovedMapRef.current) {
       return;
     }
     if (!isWithinSupportedMapBounds(fix.longitude, fix.latitude)) {
@@ -350,7 +348,6 @@ export function ParkingMapMapLibre({
       return;
     }
 
-    hasAutoCenteredRef.current = true;
     pendingAutoCenterFixRef.current = null;
     centerMapOnLocation(map, fix.longitude, fix.latitude, {
       reducedMotion: prefersReducedMotionRef.current,
@@ -377,7 +374,6 @@ export function ParkingMapMapLibre({
   const applyExplicitRecenterFix = (fix: DeviceLocationFix) => {
     // Explicit Current Location always wins over pan / auto-center guards.
     autoCenterGenerationRef.current += 1;
-    hasAutoCenteredRef.current = true;
     pendingAutoCenterFixRef.current = null;
     lastKnownFixRef.current = fix;
     applyFreshFixRef.current(fix);
@@ -446,6 +442,7 @@ export function ParkingMapMapLibre({
     return () => {
       stop();
       stopExplicitRecenterWatchRef.current?.();
+      clearSessionMapCamera("seeker");
     };
   }, []);
 

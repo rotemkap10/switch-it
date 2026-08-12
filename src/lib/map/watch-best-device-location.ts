@@ -1,3 +1,4 @@
+import { haversineDistanceMeters } from "@/lib/map/distance";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
 import {
   geolocationErrorCodeToReason,
@@ -11,6 +12,15 @@ export const GPS_ACCURACY_ACCEPTABLE_MAX_M = 30;
 export const GPS_ACCURACY_GOOD_ENOUGH_M = 10;
 /** Wall-clock cap for watchPosition during publish. */
 export const GPS_WATCH_TIMEOUT_MS = 12_000;
+/**
+ * iOS WKWebView often delivers a cached sample as the first watchPosition
+ * callback even with maximumAge: 0. Treat older timestamps as not current.
+ */
+export const GPS_STALE_FIX_MAX_AGE_MS = 15_000;
+/** Keep listening briefly so a cached first sample can be replaced. */
+export const GPS_MIN_WATCH_MS = 2_000;
+/** A later sample this far away is a new place, not GPS jitter. */
+export const GPS_MOVED_SIGNIFICANTLY_M = 50;
 
 export type GpsAccuracyBand = "good" | "acceptable" | "poor" | "unknown";
 
@@ -38,13 +48,54 @@ export function formatGpsAccuracyLabel(
   return `Location accuracy: ±${Math.round(accuracyM)} m`;
 }
 
+export function isStaleGpsFix(
+  fix: DeviceLocationFix,
+  now = Date.now(),
+): boolean {
+  if (!Number.isFinite(fix.timestamp) || fix.timestamp <= 0) {
+    return false;
+  }
+  return now - fix.timestamp > GPS_STALE_FIX_MAX_AGE_MS;
+}
+
 export function isBetterGpsFix(
   candidate: DeviceLocationFix,
   current: DeviceLocationFix | null,
+  now = Date.now(),
 ): boolean {
   if (!current) {
     return true;
   }
+
+  const candidateStale = isStaleGpsFix(candidate, now);
+  const currentStale = isStaleGpsFix(current, now);
+  if (!candidateStale && currentStale) {
+    return true;
+  }
+  if (candidateStale && !currentStale) {
+    return false;
+  }
+
+  const moved =
+    haversineDistanceMeters(
+      { latitude: candidate.latitude, longitude: candidate.longitude },
+      { latitude: current.latitude, longitude: current.longitude },
+    ) >= GPS_MOVED_SIGNIFICANTLY_M;
+  const newerBy = candidate.timestamp - current.timestamp;
+
+  // Cached high-accuracy point at the old place must not beat a live sample
+  // after the user has moved. iOS may stamp both with "now".
+  if (!candidateStale && moved && newerBy >= 0) {
+    const next = candidate.accuracy;
+    if (
+      next != null &&
+      Number.isFinite(next) &&
+      next <= GPS_ACCURACY_ACCEPTABLE_MAX_M * 2
+    ) {
+      return true;
+    }
+  }
+
   const next = candidate.accuracy;
   const prev = current.accuracy;
   if (next == null || !Number.isFinite(next)) {
@@ -80,7 +131,9 @@ export function watchBestDeviceLocation(
   let stopped = false;
   let watchId: number | null = null;
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let minWatchStopId: ReturnType<typeof setTimeout> | null = null;
   let bestFix: DeviceLocationFix | null = null;
+  const watchStartedAt = Date.now();
 
   const stop = (settled = true) => {
     if (stopped) {
@@ -94,6 +147,10 @@ export function watchBestDeviceLocation(
     if (timeoutId !== null) {
       clearTimeout(timeoutId);
       timeoutId = null;
+    }
+    if (minWatchStopId !== null) {
+      clearTimeout(minWatchStopId);
+      minWatchStopId = null;
     }
     if (settled) {
       options.onSettled?.(bestFix);
@@ -131,22 +188,51 @@ export function watchBestDeviceLocation(
           return;
         }
 
+        const hadPreviousPublished = bestFix != null && !isStaleGpsFix(bestFix);
         bestFix = fix;
+
+        if (isStaleGpsFix(fix)) {
+          return;
+        }
+
         options.onUpdate(fix);
 
-        if (
+        const goodEnough =
           fix.accuracy != null &&
           Number.isFinite(fix.accuracy) &&
-          fix.accuracy <= goodEnoughAccuracyM
-        ) {
+          fix.accuracy <= goodEnoughAccuracyM;
+        if (!goodEnough) {
+          return;
+        }
+
+        const elapsed = Date.now() - watchStartedAt;
+        if (hadPreviousPublished || elapsed >= GPS_MIN_WATCH_MS) {
           stop(true);
+          return;
+        }
+
+        if (minWatchStopId === null) {
+          minWatchStopId = setTimeout(() => {
+            minWatchStopId = null;
+            if (stopped) {
+              return;
+            }
+            if (
+              bestFix &&
+              !isStaleGpsFix(bestFix) &&
+              bestFix.accuracy != null &&
+              bestFix.accuracy <= goodEnoughAccuracyM
+            ) {
+              stop(true);
+            }
+          }, GPS_MIN_WATCH_MS - elapsed);
         }
       },
       (error) => {
         if (stopped) {
           return;
         }
-        if (bestFix) {
+        if (bestFix && !isStaleGpsFix(bestFix)) {
           stop(true);
           return;
         }
@@ -169,7 +255,7 @@ export function watchBestDeviceLocation(
     if (stopped) {
       return;
     }
-    if (bestFix) {
+    if (bestFix && !isStaleGpsFix(bestFix)) {
       stop(true);
       return;
     }

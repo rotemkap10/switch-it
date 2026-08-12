@@ -156,6 +156,7 @@ function position(
   latitude: number,
   longitude: number,
   accuracy: number,
+  timestamp = Date.now(),
 ): GeolocationPosition {
   return {
     coords: {
@@ -167,7 +168,7 @@ function position(
       heading: null,
       speed: null,
     },
-    timestamp: Date.now(),
+    timestamp,
   } as GeolocationPosition;
 }
 
@@ -342,6 +343,94 @@ describe("PublishSpotForm", () => {
       );
     });
     expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
+  });
+
+  it("does not publish fallback coordinates when GPS fails", async () => {
+    stubGeolocation((_success, error) => {
+      error?.({
+        code: 3,
+        message: "Timeout",
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+    });
+    expect(publishSpotMock).not.toHaveBeenCalled();
+  });
+
+  it("lets a fresh GPS sample replace a stale cached location during init", async () => {
+    let success: PositionCallback | null = null;
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: vi.fn(),
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          return 1;
+        }),
+        clearWatch: vi.fn(),
+      },
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
+
+    success?.(
+      position(32.08, 34.78, 8, Date.now() - 60_000),
+    );
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
+
+    success?.(position(32.26, 34.89, 18));
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+        "Map at 32.26, 34.89",
+      );
+    });
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
+  });
+
+  it("starts a new GPS watch when the screen is opened again", async () => {
+    const watchPosition = vi.fn((nextSuccess: PositionCallback) => {
+      nextSuccess(position(32.085312, 34.781812, 10));
+      return 1;
+    });
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: vi.fn(),
+        watchPosition,
+        clearWatch: vi.fn(),
+      },
+    });
+
+    const { unmount } = render(
+      <FeedbackShell><PublishSpotForm /></FeedbackShell>,
+    );
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+        "Map at 32.085312, 34.781812",
+      );
+    });
+    expect(watchPosition).toHaveBeenCalledTimes(1);
+
+    unmount();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+    await waitFor(() => {
+      expect(watchPosition).toHaveBeenCalledTimes(2);
+    });
   });
 
   it("does not let a late GPS fix overwrite an early manual pin move", async () => {

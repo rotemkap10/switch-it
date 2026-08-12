@@ -49,7 +49,7 @@ describe("OnboardingVehicleForm", () => {
       ),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Add vehicle photo" }),
+      screen.getByRole("button", { name: "Add photo" }),
     ).toBeInTheDocument();
     expect(screen.getByText("Start finding parking")).toBeInTheDocument();
     expect(screen.getByLabelText("Vehicle type")).toHaveClass("app-form-control");

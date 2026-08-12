@@ -35,6 +35,10 @@ export function writeSessionMapCamera(
   };
 }
 
+export function clearSessionMapCamera(role: MapCameraRole): void {
+  delete cameras[role];
+}
+
 /** Test helper */
 export function resetSessionMapCameras(): void {
   delete cameras.seeker;
