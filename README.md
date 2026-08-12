@@ -124,3 +124,7 @@ Then show: credits moved by exactly one, and a **History** entry.
 
 - [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)
 - [`docs/TECHNICAL_DESIGN.md`](docs/TECHNICAL_DESIGN.md)
+
+## Usage Notice
+
+This repository is publicly available for academic review and course evaluation purposes. All source code, branding, product concepts, and related materials remain the property of the author unless otherwise stated. No permission is granted to copy, redistribute, modify, publish, sublicense, or use this project or substantial portions of it for commercial purposes without prior written permission.
