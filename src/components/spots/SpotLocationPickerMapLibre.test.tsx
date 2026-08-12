@@ -20,6 +20,7 @@ const mockMap = {
   addLayer: vi.fn(),
   getLayer: vi.fn(),
   project: vi.fn(() => ({ x: 0, y: 0 })),
+  isMoving: vi.fn(() => false),
   dragPan: { enable: vi.fn(), disable: vi.fn() },
   scrollZoom: { enable: vi.fn(), disable: vi.fn() },
   boxZoom: { enable: vi.fn(), disable: vi.fn() },
@@ -338,10 +339,42 @@ describe("SpotLocationPickerMapLibre", () => {
     movestartHandler?.({ originalEvent: { type: "pointerdown" } });
     expect(onMapInteractionStart).toHaveBeenCalledTimes(1);
     expect(onUserMovedMap).not.toHaveBeenCalled();
+    expect(onLocationChange).not.toHaveBeenCalled();
 
     moveendHandler?.();
     expect(onUserMovedMap).toHaveBeenCalledTimes(1);
     expect(onLocationChange).toHaveBeenCalledWith(32.1, 34.8);
+  });
+
+  it("lifts the center pin via DOM class without React state during a gesture", async () => {
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalled();
+    });
+
+    const pin = document.querySelector(".leaver-center-pin");
+    expect(pin).not.toBeNull();
+    expect(pin?.classList.contains("is-lifting")).toBe(false);
+
+    const movestartHandler = mockMap.on.mock.calls.find(
+      (call) => call[0] === "movestart",
+    )?.[1] as ((event?: unknown) => void) | undefined;
+    const moveendHandler = mockMap.on.mock.calls.find(
+      (call) => call[0] === "moveend",
+    )?.[1] as (() => void) | undefined;
+
+    movestartHandler?.({ originalEvent: { type: "pointerdown" } });
+    expect(pin?.classList.contains("is-lifting")).toBe(true);
+
+    moveendHandler?.();
+    expect(pin?.classList.contains("is-lifting")).toBe(false);
   });
 
   it("does not treat programmatic map movement as a user pin move", async () => {

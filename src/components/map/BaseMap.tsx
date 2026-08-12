@@ -188,6 +188,7 @@ export function BaseMap({
     let visualReadyMarked = false;
     let paintFrame = 0;
     let idleFallbackTimer = 0;
+    let resizeWhileMovingScheduled = false;
 
     const markVisuallyReady = (reason: string) => {
       if (cancelled || visualReadyMarked) {
@@ -272,6 +273,23 @@ export function BaseMap({
 
       const requestResize = () => {
         if (cancelled || !mapRef.current) {
+          return;
+        }
+        // Never resize mid-gesture / mid-inertia — it interrupts MapLibre easing
+        // (Share a Spot layout shifts used to trigger this via ResizeObserver).
+        if (
+          typeof mapRef.current.isMoving === "function" &&
+          mapRef.current.isMoving()
+        ) {
+          if (!resizeWhileMovingScheduled) {
+            resizeWhileMovingScheduled = true;
+            mapRef.current.once("moveend", () => {
+              resizeWhileMovingScheduled = false;
+              if (!cancelled && mapRef.current) {
+                mapRef.current.resize();
+              }
+            });
+          }
           return;
         }
         mapRef.current.resize();

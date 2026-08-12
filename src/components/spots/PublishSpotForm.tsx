@@ -285,7 +285,6 @@ export function PublishSpotForm() {
     label: addressLabel,
     addressForPublish,
     isUpdating,
-    notifyMapMoveStart,
     notifyMapMoveSettled,
   } = useReverseGeocode(
     canRenderPicker ? parsedLat : null,
@@ -509,10 +508,9 @@ export function PublishSpotForm() {
   }
 
   function handleMapInteractionStart() {
-    notifyMapMoveStart();
-    // Soft-pause GPS during a gesture so a late fix cannot yank the pin mid-drag.
-    // Do not set permanent manualOverride / locationConfirmed yet — a tiny touch
-    // that does not change coordinates must not lock the Tel Aviv fallback.
+    // Soft-pause GPS only. Do NOT flip reverse-geocode React state here —
+    // that re-renders Share a Spot mid-gesture and can ResizeObserver→resize
+    // the map, killing MapLibre inertia (Find Parking has no such path).
     if (!manualOverrideRef.current) {
       gesturePausedGpsRef.current = true;
       stopGpsWatch();

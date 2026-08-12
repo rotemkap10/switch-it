@@ -319,6 +319,8 @@ describe("PublishSpotForm", () => {
     });
 
     await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    // Gesture start must not flip reverse-geocode React state (layout thrash).
+    expect(reverseGeocodeState.notifyMapMoveStart).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Share spot" }));
 
     await waitFor(() => {
