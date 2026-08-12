@@ -72,9 +72,12 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".publisher-compose");
     expect(css).toContain(".publisher-compose-surface");
     expect(css).toContain(".publisher-compose-actions");
+    expect(css).toContain(".publisher-compose-actions--viewport");
+    expect(css).toContain(".publisher-compose--viewport-cta");
     expect(css).toContain("--publisher-compose-actions-height");
-    expect(css).toContain(".publisher-compose:has(.publisher-compose-actions)");
-    expect(css).toContain("position: fixed");
+    expect(css).toMatch(
+      /\.publisher-compose-actions--viewport\s*\{[^}]*position:\s*fixed/s,
+    );
     expect(css).toContain(".publisher-leave-time-grid");
     expect(css).toContain(".leave-time-range");
     expect(css).toContain(".leave-time-slider-track");

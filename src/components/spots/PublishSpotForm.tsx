@@ -8,6 +8,11 @@ import {
 } from "@/actions/spots";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { LeaveTimeSlider } from "@/components/spots/LeaveTimeSlider";
+import {
+  PUBLISH_SPOT_FORM_ID,
+  PublishSpotShareActions,
+  usePublisherMobileViewportCta,
+} from "@/components/spots/PublishSpotShareActions";
 import { SpotLocationPickerLoader } from "@/components/spots/SpotLocationPickerLoader";
 import { Button } from "@/components/ui/Button";
 import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
@@ -588,23 +593,21 @@ export function PublishSpotForm() {
 
   const shareDisabled =
     pending || !locationConfirmed || awaitingInitialGps;
+  const viewportFixedCta = usePublisherMobileViewportCta();
 
   return (
     <form
+      id={PUBLISH_SPOT_FORM_ID}
       action={formAction}
-      className="publisher-compose mx-auto w-full max-w-lg motion-fade-slide-up md:max-w-xl"
+      className={[
+        "publisher-compose mx-auto w-full max-w-lg md:max-w-xl",
+        viewportFixedCta ? "publisher-compose--viewport-cta" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       data-testid="publish-spot-form"
     >
-      <div className="publisher-compose-surface">
-        <section aria-labelledby="leave-time-label" data-testid="leave-time-section">
-          <LeaveTimeSlider
-            value={leaveInMinutes}
-            onChange={setLeaveInMinutes}
-            disabled={pending}
-            error={state.fieldErrors?.available_in_minutes?.[0]}
-          />
-        </section>
-
+      <div className="publisher-compose-surface motion-fade-slide-up">
         <section
           className="flex flex-col gap-3"
           aria-label="Parking spot location"
@@ -724,14 +727,21 @@ export function PublishSpotForm() {
             </p>
           ) : null}
         </section>
+
+        <section aria-labelledby="leave-time-label" data-testid="leave-time-section">
+          <LeaveTimeSlider
+            value={leaveInMinutes}
+            onChange={setLeaveInMinutes}
+            disabled={pending}
+            error={state.fieldErrors?.available_in_minutes?.[0]}
+          />
+        </section>
       </div>
 
-      <div
-        className="publisher-compose-actions"
-        data-testid="publish-spot-actions"
-      >
+      <PublishSpotShareActions viewportFixed={viewportFixedCta}>
         <Button
           type="submit"
+          form={PUBLISH_SPOT_FORM_ID}
           disabled={shareDisabled}
           loading={pending}
           aria-busy={pending}
@@ -739,7 +749,7 @@ export function PublishSpotForm() {
         >
           {pending ? "Sharing…" : "Share spot"}
         </Button>
-      </div>
+      </PublishSpotShareActions>
     </form>
   );
 }
