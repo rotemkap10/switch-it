@@ -22,6 +22,7 @@ type MapTilerForwardFeature = {
   context?: Array<{ id?: string; text?: string }>;
   center?: [number, number]; // [lng, lat]
   place_name?: string;
+  relevance?: number;
 };
 
 type MapTilerSearchResults = {
@@ -46,9 +47,22 @@ export function buildMapTilerForwardGeocodeUrl(
     limit?: number;
     country?: string;
     bbox?: { west: number; south: number; east: number; north: number };
+    proximity?: { lon: number; lat: number } | string;
+    types?: string[];
+    autocomplete?: boolean;
+    fuzzyMatch?: boolean;
   },
 ): string {
-  const { language = DEFAULT_LANGUAGE, limit = DEFAULT_LIMIT, country, bbox } =
+  const {
+    language = DEFAULT_LANGUAGE,
+    limit = DEFAULT_LIMIT,
+    country,
+    bbox,
+    proximity,
+    types,
+    autocomplete,
+    fuzzyMatch,
+  } =
     options ?? {};
 
   const params = new URLSearchParams({
@@ -58,10 +72,26 @@ export function buildMapTilerForwardGeocodeUrl(
   });
 
   if (country) {
-    params.set("country", country);
+    params.set("country", country.toLowerCase());
   }
   if (bbox) {
     params.set("bbox", buildBboxParam(bbox));
+  }
+  if (proximity) {
+    const value =
+      typeof proximity === "string"
+        ? proximity
+        : `${proximity.lon},${proximity.lat}`;
+    params.set("proximity", value);
+  }
+  if (types && types.length > 0) {
+    params.set("types", types.join(","));
+  }
+  if (autocomplete !== undefined) {
+    params.set("autocomplete", String(Boolean(autocomplete)));
+  }
+  if (fuzzyMatch !== undefined) {
+    params.set("fuzzyMatch", String(Boolean(fuzzyMatch)));
   }
 
   // MapTiler forward geocoding: /geocoding/<query>.json
@@ -75,6 +105,11 @@ export async function mapTilerForwardGeocodeSearch(
     limit?: number;
     country?: string;
     bbox?: { west: number; south: number; east: number; north: number };
+    proximity?: { lon: number; lat: number } | string;
+    language?: string;
+    types?: string[];
+    autocomplete?: boolean;
+    fuzzyMatch?: boolean;
     signal?: AbortSignal;
     fetchImpl?: typeof fetch;
   },
@@ -114,7 +149,8 @@ export async function mapTilerForwardGeocodeSearch(
     }
 
     const features = payload.features ?? [];
-    const results: ForwardGeocodeResult[] = [];
+    type Scored = ForwardGeocodeResult & { score: number };
+    const results: Scored[] = [];
 
     for (const feature of features) {
       const center = feature.center;
@@ -123,6 +159,27 @@ export async function mapTilerForwardGeocodeSearch(
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
         continue;
       }
+
+      const relevance =
+        feature.relevance != null && Number.isFinite(feature.relevance)
+          ? feature.relevance
+          : null;
+      // MapTiler returns relevance (0..1). Use it as a soft signal; avoid
+      // filtering too aggressively so street-only centroids still work.
+      if (relevance != null && relevance < 0.2) {
+        continue;
+      }
+
+      const placeTypes = feature.place_type ?? [];
+      const kindBoost = placeTypes.includes("address")
+        ? 1.6
+        : placeTypes.includes("road")
+          ? 1.3
+          : placeTypes.includes("street")
+            ? 1.2
+            : placeTypes.includes("locality") || placeTypes.includes("place")
+              ? 1.0
+              : 0.7;
 
       const parts = extractLocationLabelParts([
         feature as Parameters<typeof extractLocationLabelParts>[0][number],
@@ -137,9 +194,11 @@ export async function mapTilerForwardGeocodeSearch(
         continue;
       }
 
-      results.push({ latitude, longitude, label });
+      const score = kindBoost + (relevance ?? 0);
+      results.push({ latitude, longitude, label, score });
     }
 
+    results.sort((a, b) => b.score - a.score);
     return results.slice(0, options?.limit ?? DEFAULT_LIMIT);
   } finally {
     clearTimeout(timeoutId);

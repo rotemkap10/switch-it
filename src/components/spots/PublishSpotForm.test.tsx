@@ -224,9 +224,10 @@ describe("PublishSpotForm", () => {
     ).not.toBeInTheDocument();
     expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Enter coordinates manually" }),
-    ).toHaveAttribute("aria-expanded", "false");
+      screen.queryByRole("button", { name: "Enter coordinates manually" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Latitude")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Longitude")).not.toBeInTheDocument();
   });
 
   it("updates hidden coordinates from the map picker callback", async () => {
@@ -271,35 +272,6 @@ describe("PublishSpotForm", () => {
     expect(formData.get("latitude")).toBe("32.085312");
     expect(formData.get("longitude")).toBe("34.781812");
     expect(formData.get("available_in_minutes")).toBe("10");
-  });
-
-  it("shows validation feedback for invalid coordinates via manual entry", async () => {
-    const user = userEvent.setup();
-    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
-    });
-
-    await user.click(screen.getByRole("button", { name: "Enter coordinates manually" }));
-    await user.clear(screen.getByLabelText("Latitude"));
-    await user.type(screen.getByLabelText("Latitude"), "91");
-    await user.clear(screen.getByLabelText("Longitude"));
-    await user.type(screen.getByLabelText("Longitude"), "181");
-
-    const form = screen
-      .getByRole("button", { name: "Share spot" })
-      .closest("form");
-    form!.noValidate = true;
-
-    await user.click(screen.getByRole("button", { name: "Share spot" }));
-
-    expect(
-      await screen.findByText("Latitude must be between -90 and 90."),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Longitude must be between -180 and 180."),
-    ).toBeInTheDocument();
   });
 
   it("requests geolocation automatically on load", async () => {
@@ -752,6 +724,140 @@ describe("PublishSpotForm", () => {
     const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
     expect(formData.get("latitude")).toBe("32.400000");
     expect(formData.get("longitude")).toBe("34.500000");
+  });
+
+  it("hebrew search prioritizes Israeli results, renders RTL suggestions, and moves the marker", async () => {
+    mapTilerForwardGeocodeSearchMock.mockClear();
+    mapTilerForwardGeocodeSearchMock.mockResolvedValueOnce([
+      {
+        latitude: 32.085,
+        longitude: 34.79,
+        label: "דיזנגוף, תל אביב-יפו",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    const searchInput = await screen.findByPlaceholderText(
+      "Search an address",
+    );
+
+    await user.type(searchInput, "דיזינגוף תל אביב");
+
+    expect(searchInput).toHaveAttribute("dir", "rtl");
+
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+
+    // Provider label should be Hebrew and shown in the dropdown.
+    await screen.findByText("דיזנגוף, תל אביב-יפו");
+    expect(screen.getByRole("listbox")).toHaveAttribute("dir", "rtl");
+
+    expect(mapTilerForwardGeocodeSearchMock).toHaveBeenCalled();
+    const lastCall = mapTilerForwardGeocodeSearchMock.mock.calls.at(-1);
+    const [query, options] = lastCall ?? [];
+    expect(query).toBe("דיזינגוף תל אביב");
+    expect(options).toEqual(
+      expect.objectContaining({
+        language: "he",
+        country: "il",
+        types: expect.arrayContaining(["address", "road"]),
+      }),
+    );
+
+    await user.click(screen.getByText("דיזנגוף, תל אביב-יפו"));
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.085, 34.79",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("hebrew selection works with street-only results (house number not required)", async () => {
+    mapTilerForwardGeocodeSearchMock.mockResolvedValueOnce([
+      {
+        latitude: 32.086,
+        longitude: 34.788,
+        label: "דיזנגוף, תל אביב-יפו",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    const searchInput = await screen.findByPlaceholderText(
+      "Search an address",
+    );
+
+    await user.type(searchInput, "דיזנגוף 100 תל אביב");
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+
+    await screen.findByText("דיזנגוף, תל אביב-יפו");
+    await user.click(screen.getByText("דיזנגוף, תל אביב-יפו"));
+
+    // Marker should update even without a house-number-specific match.
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.086, 34.788",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("stale hebrew autocomplete responses cannot overwrite a newer query", async () => {
+    let resolveFirst:
+      | ((value: Array<{ latitude: number; longitude: number; label: string }>) => void)
+      | null = null;
+    let resolveSecond:
+      | ((value: Array<{ latitude: number; longitude: number; label: string }>) => void)
+      | null = null;
+
+    mapTilerForwardGeocodeSearchMock.mockImplementation((q: string) => {
+      if (q.includes("דיזינגוף")) {
+        return new Promise((res) => {
+          resolveFirst = res;
+        });
+      }
+      return new Promise((res) => {
+        resolveSecond = res;
+      });
+    });
+
+    const user = userEvent.setup();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    const searchInput = await screen.findByPlaceholderText(
+      "Search an address",
+    );
+
+    await user.type(searchInput, "דיזינגוף תל אביב");
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+
+    await user.clear(searchInput);
+    await user.type(searchInput, "אבן גבירול תל אביב");
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+
+    resolveSecond?.([
+      { latitude: 32.1, longitude: 34.78, label: "אבן גבירול, תל אביב-יפו" },
+    ]);
+    await Promise.resolve();
+
+    expect(
+      await screen.findByText("אבן גבירול, תל אביב-יפו"),
+    ).toBeInTheDocument();
+
+    resolveFirst?.([
+      { latitude: 32.0, longitude: 34.9, label: "דיזינגוף, תל אביב-יפו" },
+    ]);
+    await Promise.resolve();
+
+    expect(screen.queryByText("דיזינגוף, תל אביב-יפו")).not.toBeInTheDocument();
   });
 
   it("publishes coordinates when reverse geocoding is unavailable", async () => {

@@ -11,7 +11,6 @@ import { MapLoadingState } from "@/components/map/MapLoadingState";
 import { LeaveTimeSlider } from "@/components/spots/LeaveTimeSlider";
 import { SpotLocationPickerLoader } from "@/components/spots/SpotLocationPickerLoader";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { useReverseGeocode } from "@/lib/geocoding/use-reverse-geocode";
 import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
@@ -39,6 +38,11 @@ function formatCoord(value: number): string {
 function parseCoord(value: string): number | null {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isHebrewText(value: string): boolean {
+  // Hebrew Unicode block: \u0590-\u05FF
+  return /[\u0590-\u05FF]/.test(value);
 }
 
 function locationErrorCopy(reason: GeolocationReason | null): string {
@@ -271,7 +275,6 @@ export function PublishSpotForm() {
   const [geoError, setGeoError] = useState<GeolocationReason | null>(null);
   const [accuracyMeters, setAccuracyMeters] = useState<number | null>(null);
   const [manualOverride, setManualOverride] = useState(false);
-  const [showManualCoords, setShowManualCoords] = useState(false);
   const stopWatchRef = useRef<(() => void) | null>(null);
   const manualOverrideRef = useRef(false);
   const hasLocationRef = useRef(false);
@@ -363,7 +366,6 @@ export function PublishSpotForm() {
 
     const requestSeq = ++forwardSearchSeqRef.current;
 
-    const delta = 0.03; // ~3km in lat; good enough bias toward the current area.
     const centerLat = detectedLocation?.latitude ?? parsedLat;
     const centerLng = detectedLocation?.longitude ?? parsedLng;
 
@@ -382,13 +384,14 @@ export function PublishSpotForm() {
 
       void mapTilerForwardGeocodeSearch(query, {
         limit: 5,
-        country: "IL",
-        bbox: {
-          west: centerLng - delta,
-          south: centerLat - delta,
-          east: centerLng + delta,
-          north: centerLat + delta,
-        },
+        language: "he",
+        country: "il",
+        // Prefer results near the current map/region, but do not overly
+        // constrain the search area (street search must work across IL).
+        proximity: { lon: centerLng, lat: centerLat },
+        types: ["address", "road", "locality", "place"],
+        fuzzyMatch: true,
+        autocomplete: true,
       })
         .then((results) => {
           if (requestSeq !== forwardSearchSeqRef.current) {
@@ -574,21 +577,6 @@ export function PublishSpotForm() {
     setAddressSearchPending(false);
   }
 
-  function handleManualCoordChange(
-    setter: (value: string) => void,
-    value: string,
-  ) {
-    bumpLocationAction();
-    gpsRequestSeqRef.current = null;
-    stopGpsWatch();
-    setManualOverride(true);
-    manualOverrideRef.current = true;
-    setManualAddressLabel(null);
-    setManualAddressLatLng(null);
-    setAccuracyMeters(null);
-    setter(value);
-  }
-
   return (
     <form
       action={formAction}
@@ -630,6 +618,7 @@ export function PublishSpotForm() {
                 disabled={pending}
                 aria-busy={addressSearchPending || undefined}
                 className="app-form-control min-h-[var(--app-tap-min)] rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-foreground placeholder:text-muted/70 disabled:opacity-60"
+                dir={isHebrewText(addressQuery) ? "rtl" : "ltr"}
                 aria-autocomplete="list"
               />
 
@@ -637,6 +626,7 @@ export function PublishSpotForm() {
                 <ul
                   className="max-h-44 overflow-auto rounded-[var(--radius-card)] border border-border bg-surface p-1"
                   role="listbox"
+                  dir={addressSuggestions[0] && isHebrewText(addressSuggestions[0].label) ? "rtl" : "ltr"}
                 >
                   {addressSuggestions.map((s, idx) => (
                     <li key={`${s.label}-${idx}`}>
@@ -684,80 +674,21 @@ export function PublishSpotForm() {
             onChooseOnMap={chooseOnMap}
           />
 
-          {!showManualCoords ? (
-            <>
-              <input type="hidden" name="latitude" value={latitude} />
-              <input type="hidden" name="longitude" value={longitude} />
-              <input
-                type="hidden"
-                name="address"
-                value={addressForPublishValue}
-              />
-            </>
-          ) : null}
+          <input type="hidden" name="latitude" value={latitude} />
+          <input type="hidden" name="longitude" value={longitude} />
+          <input type="hidden" name="address" value={addressForPublishValue} />
           <input
             type="hidden"
             name="available_in_minutes"
             value={String(leaveInMinutes)}
           />
 
-          <div>
-            <button
-              type="button"
-              aria-expanded={showManualCoords}
-              onClick={() => setShowManualCoords((open) => !open)}
-              className="w-fit text-left text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
-            >
-              Enter coordinates manually
-            </button>
-            {showManualCoords ? (
-              <div className="motion-reveal-panel is-open">
-                <div className="motion-reveal-panel-inner grid gap-4 border-t border-border pt-4 sm:grid-cols-2">
-                  <Input
-                    id="latitude-manual"
-                    name="latitude"
-                    label="Latitude"
-                    type="number"
-                    inputMode="decimal"
-                    step="any"
-                    required
-                    min={-90}
-                    max={90}
-                    value={latitude}
-                    onChange={(event) =>
-                      handleManualCoordChange(setLatitude, event.target.value)
-                    }
-                    disabled={pending}
-                    error={state.fieldErrors?.latitude?.[0]}
-                  />
-                  <Input
-                    id="longitude-manual"
-                    name="longitude"
-                    label="Longitude"
-                    type="number"
-                    inputMode="decimal"
-                    step="any"
-                    required
-                    min={-180}
-                    max={180}
-                    value={longitude}
-                    onChange={(event) =>
-                      handleManualCoordChange(setLongitude, event.target.value)
-                    }
-                    disabled={pending}
-                    error={state.fieldErrors?.longitude?.[0]}
-                  />
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          {!showManualCoords && state.fieldErrors?.latitude?.[0] ? (
+          {state.fieldErrors?.latitude?.[0] ? (
             <p className="text-sm text-danger" role="alert">
               {state.fieldErrors.latitude[0]}
             </p>
           ) : null}
-          {!showManualCoords && state.fieldErrors?.longitude?.[0] ? (
+          {state.fieldErrors?.longitude?.[0] ? (
             <p className="text-sm text-danger" role="alert">
               {state.fieldErrors.longitude[0]}
             </p>

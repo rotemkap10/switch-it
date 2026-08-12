@@ -75,7 +75,10 @@ function applyFeatureParts(
   const text = feature.text?.trim() ?? null;
 
   if (
-    (types.includes("address") || types.includes("street")) &&
+    // Forward geocoding can return streets as `road` (not `street`).
+    (types.includes("address") ||
+      types.includes("street") ||
+      types.includes("road")) &&
     text &&
     !parts.street
   ) {
