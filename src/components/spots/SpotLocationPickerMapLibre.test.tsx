@@ -15,6 +15,11 @@ const mockMap = {
   getZoom: vi.fn(() => 16),
   getContainer: vi.fn(() => document.createElement("div")),
   addControl: vi.fn(),
+  addSource: vi.fn(),
+  getSource: vi.fn(),
+  addLayer: vi.fn(),
+  getLayer: vi.fn(),
+  project: vi.fn(() => ({ x: 0, y: 0 })),
   dragPan: { enable: vi.fn(), disable: vi.fn() },
   scrollZoom: { enable: vi.fn(), disable: vi.fn() },
   boxZoom: { enable: vi.fn(), disable: vi.fn() },
@@ -102,6 +107,7 @@ import {
   SpotLocationPickerMapLibre,
 } from "@/components/spots/SpotLocationPickerMapLibre";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
+import { PICKER_USER_LOCATION_IDS } from "@/lib/map/user-location-dot";
 
 describe("SpotLocationPickerMapLibre", () => {
   beforeEach(() => {
@@ -123,6 +129,24 @@ describe("SpotLocationPickerMapLibre", () => {
     mockMap.addControl.mockReset();
     mockMap.getContainer.mockReturnValue(document.createElement("div"));
     mockMap.getZoom.mockReturnValue(16);
+    const sources = new Map<string, { type: string; setData: ReturnType<typeof vi.fn> }>();
+    const layers = new Set<string>();
+    mockMap.addSource.mockReset();
+    mockMap.addSource.mockImplementation((id: string) => {
+      sources.set(id, { type: "geojson", setData: vi.fn() });
+    });
+    mockMap.getSource.mockReset();
+    mockMap.getSource.mockImplementation((id: string) => sources.get(id));
+    mockMap.addLayer.mockReset();
+    mockMap.addLayer.mockImplementation((layer: { id: string }) => {
+      layers.add(layer.id);
+    });
+    mockMap.getLayer.mockReset();
+    mockMap.getLayer.mockImplementation((id: string) =>
+      layers.has(id) ? { id } : undefined,
+    );
+    mockMap.project.mockReset();
+    mockMap.project.mockReturnValue({ x: 0, y: 0 });
     for (const handler of [
       mockMap.dragPan,
       mockMap.scrollZoom,
@@ -412,5 +436,124 @@ describe("SpotLocationPickerMapLibre", () => {
     expect(mockMap.jumpTo).toHaveBeenCalledWith({
       center: [34.89, 32.26],
     });
+  });
+
+  it("does not render a current-location dot until a device location exists", async () => {
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalled();
+    });
+
+    expect(mockMap.addLayer).not.toHaveBeenCalled();
+    expect(mockMap.getSource(PICKER_USER_LOCATION_IDS.dotSource)).toBeUndefined();
+  });
+
+  it("shows the current-location dot from the initial device location without clicking Current Location", async () => {
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        userLatitude={32.085312}
+        userLongitude={34.781812}
+        userAccuracy={12}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.addLayer).toHaveBeenCalledWith(
+        expect.objectContaining({ id: PICKER_USER_LOCATION_IDS.dotLayer }),
+      );
+    });
+
+    const dotSource = mockMap.getSource(PICKER_USER_LOCATION_IDS.dotSource) as {
+      setData: ReturnType<typeof vi.fn>;
+    };
+    expect(dotSource.setData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        features: [
+          expect.objectContaining({
+            geometry: {
+              type: "Point",
+              coordinates: [34.781812, 32.085312],
+            },
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("keeps the current-location dot after a user pan without treating GPS as a camera lock", async () => {
+    const onUserMovedMap = vi.fn();
+    const { rerender } = render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        userLatitude={32.085312}
+        userLongitude={34.781812}
+        onLocationChange={vi.fn()}
+        onUserMovedMap={onUserMovedMap}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.addLayer).toHaveBeenCalled();
+    });
+
+    const movestartHandler = mockMap.on.mock.calls.find(
+      (call) => call[0] === "movestart",
+    )?.[1] as ((event?: unknown) => void) | undefined;
+    movestartHandler?.({ originalEvent: { type: "pointerdown" } });
+    expect(onUserMovedMap).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <SpotLocationPickerMapLibre
+        latitude={32.1}
+        longitude={34.8}
+        userLatitude={32.085312}
+        userLongitude={34.781812}
+        onLocationChange={vi.fn()}
+        onUserMovedMap={onUserMovedMap}
+      />,
+    );
+
+    const dotSource = mockMap.getSource(PICKER_USER_LOCATION_IDS.dotSource) as {
+      setData: ReturnType<typeof vi.fn>;
+    };
+    expect(dotSource.setData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        features: [
+          expect.objectContaining({
+            geometry: {
+              type: "Point",
+              coordinates: [34.781812, 32.085312],
+            },
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("uses a parking P mark in the center pin instead of a tiny car", async () => {
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+      />,
+    );
+
+    const overlay = await screen.findByTestId("leaver-center-pin-overlay");
+    const svg = overlay.querySelector("svg");
+    expect(svg?.innerHTML).toContain("M16.1 12.6h5.1");
+    expect(svg?.innerHTML).not.toContain("M12.8 19.2");
+    expect(svg?.querySelectorAll("circle")).toHaveLength(1);
   });
 });

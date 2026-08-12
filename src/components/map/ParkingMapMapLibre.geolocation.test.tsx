@@ -111,20 +111,51 @@ vi.mock("@/components/map/BaseMap", () => {
 type LocationStatus =
   | "idle"
   | "loading"
+  | "ready"
   | "denied"
   | "unavailable"
   | "timeout"
   | "unsupported";
 
 let mockedStatus: LocationStatus = "denied";
+const mockedReadyFix = {
+  latitude: 32.085312,
+  longitude: 34.781812,
+  accuracy: 10,
+  timestamp: 1,
+};
 
 vi.mock("@/lib/map/use-user-location", () => {
   return {
-    useUserLocation: () => ({
-      state: { status: mockedStatus },
-      applyFreshFix: applyFreshFixMock,
-      applyError: applyErrorMock,
-    }),
+    useUserLocation: () => {
+      const [state, setState] = React.useState(() =>
+        mockedStatus === "ready"
+          ? { status: "ready" as const, ...mockedReadyFix }
+          : { status: mockedStatus },
+      );
+      return {
+        state,
+        applyFreshFix: (fix: {
+          latitude: number;
+          longitude: number;
+          accuracy: number | null;
+          timestamp: number;
+        }) => {
+          applyFreshFixMock(fix);
+          setState({
+            status: "ready",
+            latitude: fix.latitude,
+            longitude: fix.longitude,
+            accuracy: fix.accuracy,
+            timestamp: fix.timestamp,
+          });
+        },
+        applyError: (reason: LocationStatus) => {
+          applyErrorMock(reason);
+          setState({ status: reason });
+        },
+      };
+    },
   };
 });
 
@@ -371,6 +402,104 @@ describe("ParkingMapMapLibre geolocation", () => {
       }),
     );
     expect(screen.getByTestId("base-map")).toBeInTheDocument();
+  });
+
+  it("shows the current-location dot on the initial GPS fix without clicking Current Location", async () => {
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(mockMap.addLayer).toHaveBeenCalled();
+    });
+
+    watchOnUpdate?.(deviceFix());
+
+    await waitFor(() => {
+      const layerIds = mockMap.addLayer.mock.calls.map((call) => {
+        const firstArg = call[0] as { id?: string } | undefined;
+        return firstArg?.id;
+      });
+      expect(layerIds).toContain(MAP_LAYERS.userDot);
+      expect(layerIds).toContain(MAP_LAYERS.userAccuracy);
+    });
+
+    const dotSource = mockMap.getSource(MAP_SOURCES.userLocation) as {
+      setData: ReturnType<typeof vi.fn>;
+    };
+    expect(dotSource.setData).toHaveBeenCalledWith(
+      expect.objectContaining({
+        features: [
+          expect.objectContaining({
+            geometry: {
+              type: "Point",
+              coordinates: [34.781812, 32.085312],
+            },
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("shows the current-location dot when GPS arrives before the map is ready", async () => {
+    deferMapReady = true;
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    watchOnUpdate?.(deviceFix());
+    expect(mockMap.addLayer).not.toHaveBeenCalled();
+
+    flushDeferredMapReady?.();
+
+    await waitFor(() => {
+      const layerIds = mockMap.addLayer.mock.calls.map((call) => {
+        const firstArg = call[0] as { id?: string } | undefined;
+        return firstArg?.id;
+      });
+      expect(layerIds).toContain(MAP_LAYERS.userDot);
+    });
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: [34.781812, 32.085312],
+      }),
+    );
+  });
+
+  it("keeps updating the current-location dot after a user pan without recentering", async () => {
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
+    });
+
+    watchOnUpdate?.(deviceFix());
+    await waitFor(() => {
+      expect(mockMap.getSource(MAP_SOURCES.userLocation)).toBeTruthy();
+    });
+
+    latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
+    mockMap.easeTo.mockClear();
+
+    watchOnUpdate?.(deviceFix(32.09, 34.8));
+
+    expect(mockMap.easeTo).not.toHaveBeenCalled();
+    const dotSource = mockMap.getSource(MAP_SOURCES.userLocation) as {
+      setData: ReturnType<typeof vi.fn>;
+    };
+    await waitFor(() => {
+      expect(dotSource.setData).toHaveBeenCalledWith(
+        expect.objectContaining({
+          features: [
+            expect.objectContaining({
+              geometry: {
+                type: "Point",
+                coordinates: [34.8, 32.09],
+              },
+            }),
+          ],
+        }),
+      );
+    });
   });
 
   it("centers after map ready when GPS arrives first", async () => {

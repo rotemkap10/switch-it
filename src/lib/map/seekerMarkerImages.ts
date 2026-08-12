@@ -69,7 +69,7 @@ export type SeekerMarkerImagePixels = {
 };
 
 /**
- * Build a circular vehicle marker as raw RGBA pixels.
+ * Build a circular parking / live marker as raw RGBA pixels.
  * Avoids SVG / map.loadImage — MapLibre does not reliably decode SVG for icons.
  * MapLibre accepts { width, height, data } the same as ImageData.
  */
@@ -96,7 +96,7 @@ export function createSeekerMarkerImageData(
     }
   }
 
-  drawVehicleGlyph(data, size, glyph);
+  drawInnerDot(data, size, glyph, id === SEEKER_MARKER_IMAGE_IDS.seekerLive);
 
   return { width: size, height: size, data };
 }
@@ -121,49 +121,67 @@ function fillRect(
   }
 }
 
-/** Compact top-down car — readable at map marker sizes. */
-function drawVehicleGlyph(
+/** Compact “P” for parking pins; a simple disc for the live seeker puck. */
+function drawInnerDot(
+  data: Uint8ClampedArray,
+  size: number,
+  color: Rgba,
+  discOnly: boolean,
+) {
+  const cx = (size - 1) / 2;
+  const cy = (size - 1) / 2;
+
+  if (discOnly) {
+    const radius = size * 0.16;
+    for (let y = 0; y < size; y += 1) {
+      for (let x = 0; x < size; x += 1) {
+        if (Math.hypot(x - cx, y - cy) <= radius) {
+          setPixel(data, (y * size + x) * 4, color);
+        }
+      }
+    }
+    return;
+  }
+
+  drawParkingP(data, size, color);
+}
+
+function drawParkingP(
   data: Uint8ClampedArray,
   size: number,
   color: Rgba,
 ) {
-  const cx = (size - 1) / 2;
-  const bodyTop = size * 0.29;
-  const bodyBottom = size * 0.71;
-  const bodyHalf = size * 0.16;
-  const cabinTop = size * 0.35;
-  const cabinBottom = size * 0.54;
-  const cabinHalf = size * 0.11;
-  const wheelY = size * 0.52;
-  const wheelH = size * 0.09;
-  const wheelHalf = size * 0.21;
+  const stemLeft = size * 0.33;
+  const stemRight = size * 0.46;
+  const top = size * 0.27;
+  const bottom = size * 0.73;
+  fillRect(data, size, stemLeft, top, stemRight, bottom, color);
 
-  fillRect(data, size, cx - bodyHalf, bodyTop, cx + bodyHalf, bodyBottom, color);
+  const bowlCx = stemRight + size * 0.01;
+  const bowlCy = top + size * 0.22;
+  const outerR = size * 0.2;
+  const innerR = size * 0.07;
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      if (x < bowlCx) {
+        continue;
+      }
+      const d = Math.hypot(x - bowlCx, y - bowlCy);
+      if (d <= outerR && d >= innerR) {
+        setPixel(data, (y * size + x) * 4, color);
+      }
+    }
+  }
+
+  fillRect(data, size, stemRight - 1, top, bowlCx + 1, top + size * 0.13, color);
   fillRect(
     data,
     size,
-    cx - cabinHalf,
-    cabinTop,
-    cx + cabinHalf,
-    cabinBottom,
-    color,
-  );
-  fillRect(
-    data,
-    size,
-    cx - wheelHalf,
-    wheelY,
-    cx - bodyHalf + 1,
-    wheelY + wheelH,
-    color,
-  );
-  fillRect(
-    data,
-    size,
-    cx + bodyHalf - 1,
-    wheelY,
-    cx + wheelHalf,
-    wheelY + wheelH,
+    stemRight - 1,
+    bowlCy + innerR - 1,
+    bowlCx + 1,
+    bowlCy + outerR,
     color,
   );
 }

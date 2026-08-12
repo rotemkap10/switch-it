@@ -17,6 +17,10 @@ import {
 } from "@/components/map/CurrentLocationControl";
 import { centerMapOnLocation } from "@/lib/map/center-on-location";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
+import {
+  SEEKER_USER_LOCATION_IDS,
+  syncUserLocationDot,
+} from "@/lib/map/user-location-dot";
 import { watchBestDeviceLocation } from "@/lib/map/watch-best-device-location";
 import { usePrefersReducedMotion } from "@/lib/motion/use-prefers-reduced-motion";
 import {
@@ -198,24 +202,6 @@ function clearDestinationLayer(map: MapLibreMap) {
   }
 }
 
-function haversineApproxDegDeltaFromMeters(lat: number, meters: number) {
-  const metersPerDegLat = 111_320;
-  return meters / metersPerDegLat;
-}
-
-function metersToPixels(map: MapLibreMap, lng: number, lat: number, m: number) {
-  if (!Number.isFinite(m) || m <= 0) {
-    return 0;
-  }
-
-  const dLat = haversineApproxDegDeltaFromMeters(lat, m);
-  const p1 = map.project([lng, lat]);
-  const p2 = map.project([lng, lat + dLat]);
-  const dx = p2.x - p1.x;
-  const dy = p2.y - p1.y;
-  return Math.sqrt(dx * dx + dy * dy);
-}
-
 export function ParkingMapMapLibre({
   spots,
   destination = null,
@@ -294,11 +280,11 @@ export function ParkingMapMapLibre({
   });
 
   const [recenterNoticeVisible, setRecenterNoticeVisible] = useState(false);
+  const [layersReady, setLayersReady] = useState(false);
 
   const mapRef = useRef<MapLibreMap | null>(null);
   const hasInitializedLayersRef = useRef(false);
   const hasInitialDestinationViewRef = useRef(false);
-  const userLayersAddedRef = useRef(false);
   const interactionHandlersBoundRef = useRef(false);
   const lastFocusedSpotIdRef = useRef<string | null>(null);
   const userMovedMapRef = useRef(false);
@@ -586,114 +572,26 @@ export function ParkingMapMapLibre({
   ]);
 
   useEffect(() => {
-    if (!mapRef.current || !hasInitializedLayersRef.current) {
-      return;
-    }
-
-    if (userLocation.status !== "ready") {
-      // Geolocation is optional: do nothing until we have coordinates.
+    if (!layersReady) {
       return;
     }
 
     const map = mapRef.current;
-
-    // Add user-location sources/layers only when location is ready.
-    if (!userLayersAddedRef.current) {
-      userLayersAddedRef.current = true;
-
-      if (!map.getSource(MAP_SOURCES.userLocation)) {
-        map.addSource(MAP_SOURCES.userLocation, {
-          type: "geojson",
-          data: emptyFeatureCollection(),
-        });
-      }
-
-      if (!map.getSource(MAP_SOURCES.userAccuracy)) {
-        map.addSource(MAP_SOURCES.userAccuracy, {
-          type: "geojson",
-          data: emptyFeatureCollection(),
-        });
-      }
-
-      if (!map.getLayer(MAP_LAYERS.userAccuracy)) {
-        map.addLayer({
-          id: MAP_LAYERS.userAccuracy,
-          type: "circle",
-          source: MAP_SOURCES.userAccuracy,
-          paint: {
-            "circle-radius": ["get", "radiusPx"],
-            "circle-color": "rgba(85,191,243,0.18)",
-            "circle-stroke-color": "rgba(85,191,243,0.55)",
-            "circle-stroke-width": 1,
-            "circle-opacity": [
-              "case",
-              [">", ["get", "radiusPx"], 0],
-              1,
-              0,
-            ],
-          },
-        });
-      }
-
-      if (!map.getLayer(MAP_LAYERS.userDot)) {
-        map.addLayer({
-          id: MAP_LAYERS.userDot,
-          type: "circle",
-          source: MAP_SOURCES.userLocation,
-          paint: {
-            "circle-radius": 6,
-            "circle-color": "#55bff3",
-            "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 2,
-          },
-        });
-      }
-    }
-
-    const dotSource = map.getSource(MAP_SOURCES.userLocation);
-    const ringSource = map.getSource(MAP_SOURCES.userAccuracy);
-    if (!dotSource || !ringSource) {
-      return;
-    }
-    if (dotSource.type !== "geojson" || ringSource.type !== "geojson") {
+    if (!map || !hasInitializedLayersRef.current) {
       return;
     }
 
-    (dotSource as GeoJSONSource).setData({
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [userLocation.longitude, userLocation.latitude],
-          },
-          properties: {},
-        },
-      ],
-    });
+    if (userLocation.status !== "ready") {
+      syncUserLocationDot(map, SEEKER_USER_LOCATION_IDS, null);
+      return;
+    }
 
-    const radiusPx = metersToPixels(
-      map,
-      userLocation.longitude,
-      userLocation.latitude,
-      userLocation.accuracy ?? 0,
-    );
-
-    (ringSource as GeoJSONSource).setData({
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [userLocation.longitude, userLocation.latitude],
-          },
-          properties: { radiusPx },
-        },
-      ],
+    syncUserLocationDot(map, SEEKER_USER_LOCATION_IDS, {
+      latitude: userLocation.latitude,
+      longitude: userLocation.longitude,
+      accuracy: userLocation.accuracy,
     });
-  }, [userLocation]);
+  }, [userLocation, layersReady]);
 
   if (styleFallback) {
     return (
@@ -709,6 +607,9 @@ export function ParkingMapMapLibre({
         <MapUnavailable
           reason="temporary"
           onRetry={() => {
+            hasInitializedLayersRef.current = false;
+            interactionHandlersBoundRef.current = false;
+            setLayersReady(false);
             setMapVisuallyReady(false);
             setMapUnavailable(false);
             setMapInstanceKey((key) => key + 1);
@@ -850,6 +751,7 @@ export function ParkingMapMapLibre({
               }
 
               hasInitializedLayersRef.current = true;
+              setLayersReady(true);
 
               const pendingExplicit = pendingExplicitRecenterFixRef.current;
               if (pendingExplicit) {

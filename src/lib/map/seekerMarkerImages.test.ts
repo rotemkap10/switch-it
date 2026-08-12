@@ -24,13 +24,34 @@ describe("seekerMarkerImages", () => {
     expect(createSeekerMarkerImageData("seeker-live").width).toBe(56);
   });
 
-  it("builds non-empty ImageData for each marker", () => {
-    for (const id of SEEKER_MARKER_IMAGE_ID_LIST) {
-      const image = createSeekerMarkerImageData(id);
-      expect(image.width).toBeGreaterThan(0);
-      expect(image.height).toBeGreaterThan(0);
-      expect(image.data.some((v) => v !== 0)).toBe(true);
-    }
+  it("uses a parking P mark instead of a vehicle glyph", () => {
+    const unselected = createSeekerMarkerImageData("spot-unselected");
+    const size = unselected.width;
+    const cx = Math.round((size - 1) / 2);
+    const cy = Math.round((size - 1) / 2);
+    const center = (cy * size + cx) * 4;
+    // Inner disc/P uses the cyan glyph, not a car-shaped block at center-right wheels.
+    expect(unselected.data[center]).toBe(255);
+    expect(unselected.data[center + 1]).toBe(255);
+    expect(unselected.data[center + 2]).toBe(255);
+
+    const stemX = Math.round(size * 0.4);
+    const stemY = Math.round(size * 0.5);
+    const stem = (stemY * size + stemX) * 4;
+    expect(unselected.data[stem]).toBe(37);
+    expect(unselected.data[stem + 1]).toBe(168);
+    expect(unselected.data[stem + 2]).toBe(230);
+  });
+
+  it("keeps the live seeker marker as a simple disc without a parking P", () => {
+    const live = createSeekerMarkerImageData("seeker-live");
+    const size = live.width;
+    const cx = Math.round((size - 1) / 2);
+    const cy = Math.round((size - 1) / 2);
+    const center = (cy * size + cx) * 4;
+    expect(live.data[center]).toBe(255);
+    expect(live.data[center + 1]).toBe(255);
+    expect(live.data[center + 2]).toBe(255);
   });
 
   it("never uses an empty icon-image fallback in the spots expression", () => {

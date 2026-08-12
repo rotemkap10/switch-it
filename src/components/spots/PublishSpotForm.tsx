@@ -620,6 +620,7 @@ export function PublishSpotForm() {
               disabled={pending}
               userLatitude={detectedLocation?.latitude ?? null}
               userLongitude={detectedLocation?.longitude ?? null}
+              userAccuracy={accuracyMeters}
               onCurrentLocationResolved={handleCurrentLocationResolved}
             />
           ) : null}

@@ -22,6 +22,10 @@ import {
   clearSessionMapCamera,
   writeSessionMapCamera,
 } from "@/lib/map/session-camera";
+import {
+  PICKER_USER_LOCATION_IDS,
+  syncUserLocationDot,
+} from "@/lib/map/user-location-dot";
 
 export type SpotLocationPickerProps = {
   latitude: number;
@@ -36,9 +40,10 @@ export type SpotLocationPickerProps = {
   /** Fired immediately when the user taps "Current location" (before GPS resolves). */
   onCurrentLocationRequested?: () => void;
   disabled?: boolean;
-  /** Optional detected user location for legacy callers — recenter uses fresh GPS. */
+  /** Optional detected user location for the live current-location puck. */
   userLatitude?: number | null;
   userLongitude?: number | null;
+  userAccuracy?: number | null;
   /** Called when recenter obtains a fresh device fix (updates parent cache). */
   onCurrentLocationResolved?: (fix: DeviceLocationFix) => void;
 };
@@ -105,6 +110,7 @@ export function SpotLocationPickerMapLibre({
   disabled = false,
   userLatitude = null,
   userLongitude = null,
+  userAccuracy = null,
   onCurrentLocationRequested,
   onCurrentLocationResolved,
 }: SpotLocationPickerProps) {
@@ -123,6 +129,7 @@ export function SpotLocationPickerMapLibre({
   const [mapUnavailable, setMapUnavailable] = useState(false);
   const [mapInstanceKey, setMapInstanceKey] = useState(0);
   const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
+  const [pickerLayersReady, setPickerLayersReady] = useState(false);
   const [showSelectedHint, setShowSelectedHint] = useState(false);
   const [recenterNoticeVisible, setRecenterNoticeVisible] = useState(false);
   const prefersReducedMotion = usePrefersReducedMotion();
@@ -201,9 +208,25 @@ export function SpotLocationPickerMapLibre({
     return () => window.clearTimeout(id);
   }, [recenterNoticeVisible]);
 
-  // Legacy props retained for callers; control visibility no longer depends on them.
-  void userLatitude;
-  void userLongitude;
+  useEffect(() => {
+    if (!pickerLayersReady) {
+      return;
+    }
+    if (
+      userLatitude == null ||
+      userLongitude == null ||
+      !Number.isFinite(userLatitude) ||
+      !Number.isFinite(userLongitude)
+    ) {
+      syncUserLocationDot(mapRef.current, PICKER_USER_LOCATION_IDS, null);
+      return;
+    }
+    syncUserLocationDot(mapRef.current, PICKER_USER_LOCATION_IDS, {
+      latitude: userLatitude,
+      longitude: userLongitude,
+      accuracy: userAccuracy,
+    });
+  }, [pickerLayersReady, userAccuracy, userLatitude, userLongitude]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -281,6 +304,7 @@ export function SpotLocationPickerMapLibre({
             handlersBoundRef.current = false;
             mapRef.current = null;
             setMapVisuallyReady(false);
+            setPickerLayersReady(false);
             setMapUnavailable(false);
             setMapInstanceKey((key) => key + 1);
           }}
@@ -323,6 +347,8 @@ export function SpotLocationPickerMapLibre({
               "bottom-right",
             );
           }
+
+          setPickerLayersReady(true);
 
           if (handlersBoundRef.current) {
             return;
@@ -401,11 +427,9 @@ export function SpotLocationPickerMapLibre({
             />
             <circle cx="20" cy="18" r="8" fill="#ffffff" />
             <path
-              d="M12.8 19.2c.6-2.4 3.2-4 6.2-4h3.4c3.2 0 5.5 1.4 7.2 3.4l2.2.9c.5.2.9.7.9 1.2v1.1H12.2v-1.3c0-.5.3-1 .8-1.2l-.2-.1Z"
-              fill="#55bff3"
+              d="M16.1 12.6h5.1c2.5 0 4.2 1.55 4.2 3.85 0 2.2-1.7 3.75-4.2 3.75h-2.55V23.4h-2.55V12.6Zm2.55 2.05v3.4h2.35c1.15 0 1.85-.7 1.85-1.7 0-1-.7-1.7-1.85-1.7h-2.35Z"
+              fill="#2fa9e6"
             />
-            <circle cx="16.2" cy="21.8" r="1.35" fill="#12324a" />
-            <circle cx="25.6" cy="21.8" r="1.35" fill="#12324a" />
           </svg>
         </div>
       </div>

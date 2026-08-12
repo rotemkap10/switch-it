@@ -62,6 +62,12 @@ describe("VehiclePhotoControls", () => {
   it("labels the picker Add photo when no photo exists", () => {
     render(<VehiclePhotoControls />);
     expect(screen.getByRole("button", { name: "Add photo" })).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-photo-picker").className).toContain(
+      "border-border",
+    );
+    expect(screen.getByTestId("vehicle-photo-picker").className).toContain(
+      "appearance-none",
+    );
     expect(
       screen.queryByRole("button", { name: "Change photo" }),
     ).not.toBeInTheDocument();
@@ -75,6 +81,12 @@ describe("VehiclePhotoControls", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "Change photo" })).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-photo-picker").className).toContain(
+      "border-border",
+    );
+    expect(screen.getByTestId("vehicle-photo-picker").className).toContain(
+      "appearance-none",
+    );
     expect(
       screen.queryByRole("button", { name: "Add photo" }),
     ).not.toBeInTheDocument();

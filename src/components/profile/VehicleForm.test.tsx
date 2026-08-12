@@ -141,6 +141,9 @@ describe("VehicleForm", () => {
       "https://example.test/car.jpg",
     );
     expect(screen.getByRole("button", { name: "Change photo" })).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-photo-picker").className).toContain(
+      "border-border",
+    );
     expect(screen.getByRole("button", { name: "Remove photo" })).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Take Photo" }),

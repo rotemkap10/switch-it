@@ -10,11 +10,11 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-accent text-foreground hover:bg-accent-hover disabled:bg-accent/60",
+    "border border-transparent bg-accent text-foreground hover:bg-accent-hover disabled:bg-accent/60",
   secondary:
-    "border border-border bg-surface text-foreground hover:bg-accent-soft disabled:opacity-60",
+    "border border-solid border-border bg-surface text-foreground hover:bg-accent-soft disabled:opacity-60",
   ghost:
-    "bg-transparent text-foreground hover:bg-accent-soft disabled:opacity-60",
+    "border border-transparent bg-transparent text-foreground hover:bg-accent-soft disabled:opacity-60",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -39,7 +39,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       aria-busy={loading || undefined}
       aria-disabled={isDisabled || undefined}
       className={[
-        "inline-flex items-center justify-center gap-2 rounded-[var(--radius-card)] px-4 py-2 text-sm font-medium",
+        "inline-flex appearance-none items-center justify-center gap-2 rounded-[var(--radius-card)] px-4 py-2 text-sm font-medium",
         "motion-interactive-press transition-[color,background-color,border-color,opacity] duration-[var(--motion-fast)]",
         "disabled:cursor-not-allowed disabled:transform-none",
         variantClasses[variant],

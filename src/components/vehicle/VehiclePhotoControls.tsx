@@ -142,13 +142,13 @@ export function VehiclePhotoControls({
         }}
       />
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2">
         <Button
           type="button"
           variant="secondary"
           disabled={disabled || pending}
           loading={action === "upload"}
-          className="min-h-[var(--app-tap-min)]"
+          className="mobile-form-primary min-h-[var(--app-tap-min)] sm:!mx-0 sm:!w-auto"
           data-testid="vehicle-photo-picker"
           onClick={() => inputRef.current?.click()}
         >
