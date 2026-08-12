@@ -6,6 +6,10 @@ import {
   safeAreaBootstrapScript,
   syncSafeAreaInsetCssVars,
 } from "@/lib/native/safe-area";
+import {
+  markNativeStatusBarInsetOwned,
+  NATIVE_STATUS_BAR_INSET_ATTR,
+} from "@/lib/native/status-bar";
 
 describe("safe-area helpers", () => {
   afterEach(() => {
@@ -13,6 +17,7 @@ describe("safe-area helpers", () => {
     document.documentElement.style.removeProperty("--app-safe-bottom");
     document.documentElement.style.removeProperty("--app-safe-left");
     document.documentElement.style.removeProperty("--app-safe-right");
+    document.documentElement.removeAttribute(NATIVE_STATUS_BAR_INSET_ATTR);
     document.head.innerHTML = "";
   });
 
@@ -66,5 +71,14 @@ describe("safe-area helpers", () => {
     expect(script).toContain("viewport-fit=cover");
     expect(script).toContain("--app-safe-top");
     expect(script).toContain("safe-area-inset-top");
+  });
+
+  it("zeros --app-safe-top when native iOS status bar already insets the WebView", () => {
+    markNativeStatusBarInsetOwned();
+    const insets = syncSafeAreaInsetCssVars();
+    expect(insets.top).toBe(0);
+    expect(document.documentElement.style.getPropertyValue("--app-safe-top")).toBe(
+      "0px",
+    );
   });
 });

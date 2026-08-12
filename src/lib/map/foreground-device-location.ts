@@ -29,7 +29,7 @@ export type ForegroundWatchCallbacks = {
 
 const DEFAULT_WATCH: Required<ForegroundWatchOptions> = {
   enableHighAccuracy: true,
-  timeoutMs: 12_000,
+  timeoutMs: 15_000,
   maximumAgeMs: 0,
   intervalMs: 1_000,
   minimumUpdateIntervalMs: 500,
@@ -84,14 +84,19 @@ async function ensureCapacitorLocationPermission(): Promise<GeolocationReason | 
   const { Geolocation } = await import("@capacitor/geolocation");
   try {
     let status = await Geolocation.checkPermissions();
-    if (status.location === "granted" || status.coarseLocation === "granted") {
+    // Prefer fine/current location. Coarse-only is not enough for parking pin accuracy.
+    if (status.location === "granted") {
       return null;
     }
     status = await Geolocation.requestPermissions({
       permissions: ["location", "coarseLocation"],
     });
-    if (status.location === "granted" || status.coarseLocation === "granted") {
+    if (status.location === "granted") {
       return null;
+    }
+    if (status.coarseLocation === "granted") {
+      // Approximate multi-km location is not acceptable for handoff maps.
+      return "unavailable";
     }
     return "denied";
   } catch (error) {

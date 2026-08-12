@@ -1,3 +1,5 @@
+import { isNativeStatusBarInsetOwned } from "@/lib/native/status-bar";
+
 export type SafeAreaInsets = {
   top: number;
   bottom: number;
@@ -80,11 +82,22 @@ export function syncSafeAreaInsetCssVars(): SafeAreaInsets {
   ensureViewportFitCover();
   const insets = measureSafeAreaInsets();
   const root = document.documentElement;
-  root.style.setProperty("--app-safe-top", `${insets.top}px`);
+
+  // Native iOS non-overlay StatusBar already insets the WebView below the
+  // system bar. Zero --app-safe-top so CSS does not add a second gap.
+  const top =
+    isNativeStatusBarInsetOwned() ? 0 : insets.top;
+
+  root.style.setProperty("--app-safe-top", `${top}px`);
   root.style.setProperty("--app-safe-bottom", `${insets.bottom}px`);
   root.style.setProperty("--app-safe-left", `${insets.left}px`);
   root.style.setProperty("--app-safe-right", `${insets.right}px`);
-  return insets;
+  return {
+    top,
+    bottom: insets.bottom,
+    left: insets.left,
+    right: insets.right,
+  };
 }
 
 /**

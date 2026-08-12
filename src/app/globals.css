@@ -167,10 +167,17 @@ body {
 
 .app-shell-header {
   flex: none;
-  /* Single shell owner for top inset on authenticated pages. */
+  /* Single shell owner for top inset on authenticated pages.
+     Native iOS with StatusBar overlaysWebView=false zeros --app-safe-top
+     (native layout already clears the status bar). PWA/Safari keep env(). */
   padding-top: constant(safe-area-inset-top);
   padding-top: var(--app-safe-top, env(safe-area-inset-top, 0px));
   background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+}
+
+html[data-native-status-bar="inset"] .app-shell-header {
+  /* Native owns the physical gap; do not re-apply env(safe-area-inset-top). */
+  padding-top: 0;
 }
 
 .app-shell-header-inner {

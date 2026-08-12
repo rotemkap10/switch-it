@@ -12,10 +12,9 @@ export const GPS_ACCURACY_GOOD_ENOUGH_M = 10;
 export const GPS_WATCH_TIMEOUT_MS = 12_000;
 /**
  * Samples older than this are clearly cached and must not be published as
- * the current parking / map location. Android WebView and Fused Location
- * often deliver last-known fixes first.
+ * the current parking / map location. Aligns with trusted-fix max age.
  */
-export const GPS_STALE_FIX_MAX_AGE_MS = 15_000;
+export const GPS_STALE_FIX_MAX_AGE_MS = 5_000;
 /**
  * A fix must be at least this fresh before we allow an early watch stop.
  * Prevents locking onto a high-accuracy last-known sample that Android

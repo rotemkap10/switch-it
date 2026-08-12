@@ -53,30 +53,116 @@ let flushDeferredMapReady: (() => void) | null = null;
 
 const applyFreshFixMock = vi.fn();
 const applyErrorMock = vi.fn();
-let watchOnUpdate: ((fix: {
+let sharedListener:
+  | ((snap: {
+      trustedFix: {
+        latitude: number;
+        longitude: number;
+        accuracy: number | null;
+        timestamp: number;
+      } | null;
+      status: string;
+      error: string | null;
+    }) => void)
+  | null = null;
+const releaseSharedMock = vi.fn();
+const stopExplicitRefMock = vi.fn();
+let peekTrustedFix: {
   latitude: number;
   longitude: number;
   accuracy: number | null;
   timestamp: number;
-}) => void) | null = null;
-let watchOnError: ((reason: string) => void) | null = null;
-const stopWatchMock = vi.fn();
+} | null = null;
+const pendingTrustedWaiters: Array<
+  (
+    result:
+      | {
+          ok: true;
+          fix: {
+            latitude: number;
+            longitude: number;
+            accuracy: number | null;
+            timestamp: number;
+          };
+        }
+      | { ok: false; reason: string },
+  ) => void
+> = [];
+
+vi.mock("@/lib/map/shared-foreground-location", () => ({
+  acquireSharedForegroundLocation: () => releaseSharedMock,
+  subscribeSharedForegroundLocation: (
+    listener: (snap: {
+      trustedFix: {
+        latitude: number;
+        longitude: number;
+        accuracy: number | null;
+        timestamp: number;
+      } | null;
+      status: string;
+      error: string | null;
+    }) => void,
+  ) => {
+    sharedListener = listener;
+    listener({
+      trustedFix: peekTrustedFix,
+      status: peekTrustedFix ? "ready" : "acquiring",
+      error: null,
+    });
+    return () => {
+      sharedListener = null;
+    };
+  },
+  peekTrustedSharedForegroundFix: () => peekTrustedFix,
+  waitForTrustedSharedForegroundFix: vi.fn(
+    async (
+      _consumerId: string,
+      options?: {
+        afterFix?: {
+          latitude: number;
+          longitude: number;
+          accuracy: number | null;
+          timestamp: number;
+        } | null;
+      },
+    ) => {
+      const after = options?.afterFix ?? null;
+      const isUsable = (fix: typeof peekTrustedFix) => {
+        if (!fix) {
+          return false;
+        }
+        if (!after) {
+          return true;
+        }
+        return (
+          fix.timestamp > after.timestamp ||
+          Math.abs(fix.latitude - after.latitude) > 0.0001 ||
+          Math.abs(fix.longitude - after.longitude) > 0.0001
+        );
+      };
+      if (isUsable(peekTrustedFix)) {
+        return { ok: true as const, fix: peekTrustedFix! };
+      }
+      return await new Promise<
+        | {
+            ok: true;
+            fix: {
+              latitude: number;
+              longitude: number;
+              accuracy: number | null;
+              timestamp: number;
+            };
+          }
+        | { ok: false; reason: string }
+      >((resolve) => {
+        pendingTrustedWaiters.push(resolve);
+      });
+    },
+  ),
+}));
 
 vi.mock("@/lib/map/watch-best-device-location", () => ({
-  watchBestDeviceLocation: (options: {
-    onUpdate: (fix: {
-      latitude: number;
-      longitude: number;
-      accuracy: number | null;
-      timestamp: number;
-    }) => void;
-    onError: (reason: string) => void;
-    onSettled?: (fix: unknown) => void;
-  }) => {
-    watchOnUpdate = options.onUpdate;
-    watchOnError = options.onError;
-    return stopWatchMock;
-  },
+  watchBestDeviceLocation: () => stopExplicitRefMock,
 }));
 
 vi.mock("@/components/map/BaseMap", () => {
@@ -161,6 +247,36 @@ vi.mock("@/lib/map/use-user-location", () => {
 
 import { ParkingMapMapLibre } from "@/components/map/ParkingMapMapLibre";
 
+function emitSharedTrusted(fix: {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  timestamp: number;
+}) {
+  peekTrustedFix = fix;
+  sharedListener?.({
+    trustedFix: fix,
+    status: "ready",
+    error: null,
+  });
+  const waiters = pendingTrustedWaiters.splice(0);
+  for (const resolve of waiters) {
+    resolve({ ok: true, fix });
+  }
+}
+
+function emitSharedError(reason: string) {
+  sharedListener?.({
+    trustedFix: null,
+    status: "error",
+    error: reason,
+  });
+  const waiters = pendingTrustedWaiters.splice(0);
+  for (const resolve of waiters) {
+    resolve({ ok: false, reason });
+  }
+}
+
 describe("ParkingMapMapLibre geolocation", () => {
   beforeEach(() => {
     process.env.NEXT_PUBLIC_MAPTILER_API_KEY = "test-key";
@@ -205,9 +321,11 @@ describe("ParkingMapMapLibre geolocation", () => {
     mockedStatus = "denied";
     applyFreshFixMock.mockReset();
     applyErrorMock.mockReset();
-    watchOnUpdate = null;
-    watchOnError = null;
-    stopWatchMock.mockReset();
+    sharedListener = null;
+    peekTrustedFix = null;
+    pendingTrustedWaiters.length = 0;
+    releaseSharedMock.mockReset();
+    stopExplicitRefMock.mockReset();
     mockBaseMapProps.center = undefined;
     mockBaseMapProps.zoom = undefined;
     deferMapReady = false;
@@ -329,22 +447,24 @@ describe("ParkingMapMapLibre geolocation", () => {
       await screen.findByRole("button", { name: "Center on my location" }),
     );
 
-    watchOnUpdate?.({
+    emitSharedTrusted({
       latitude: 32.08,
       longitude: 34.78,
       accuracy: 10,
       timestamp: Date.now(),
     });
 
-    expect(applyFreshFixMock).toHaveBeenCalledWith(
-      expect.objectContaining({ latitude: 32.08, longitude: 34.78 }),
-    );
-    expect(mockMap.stop).toHaveBeenCalled();
-    expect(mockMap.easeTo).toHaveBeenCalledWith(
-      expect.objectContaining({
-        center: [34.78, 32.08],
-      }),
-    );
+    await waitFor(() => {
+      expect(applyFreshFixMock).toHaveBeenCalledWith(
+        expect.objectContaining({ latitude: 32.08, longitude: 34.78 }),
+      );
+      expect(mockMap.stop).toHaveBeenCalled();
+      expect(mockMap.easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          center: [34.78, 32.08],
+        }),
+      );
+    });
     expect(screen.getByTestId("base-map")).toBeInTheDocument();
   });
 
@@ -357,7 +477,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       await screen.findByRole("button", { name: "Center on my location" }),
     );
 
-    watchOnError?.("timeout");
+    emitSharedError("timeout");
 
     expect(
       await screen.findByTestId("current-location-unavailable-notice"),
@@ -391,7 +511,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
 
-    watchOnUpdate?.(deviceFix());
+    emitSharedTrusted(deviceFix());
 
     expect(applyFreshFixMock).toHaveBeenCalledWith(
       expect.objectContaining({ latitude: 32.085312, longitude: 34.781812 }),
@@ -412,7 +532,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
 
-    watchOnUpdate?.(deviceFix());
+    emitSharedTrusted(deviceFix());
 
     await waitFor(() => {
       const layerIds = mockMap.addLayer.mock.calls.map((call) => {
@@ -445,7 +565,7 @@ describe("ParkingMapMapLibre geolocation", () => {
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
 
-    watchOnUpdate?.(deviceFix());
+    emitSharedTrusted(deviceFix());
     expect(mockMap.addLayer).not.toHaveBeenCalled();
 
     flushDeferredMapReady?.();
@@ -472,7 +592,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
     });
 
-    watchOnUpdate?.(deviceFix());
+    emitSharedTrusted(deviceFix());
     await waitFor(() => {
       expect(mockMap.getSource(MAP_SOURCES.userLocation)).toBeTruthy();
     });
@@ -480,7 +600,7 @@ describe("ParkingMapMapLibre geolocation", () => {
     latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
     mockMap.easeTo.mockClear();
 
-    watchOnUpdate?.(deviceFix(32.09, 34.8));
+    emitSharedTrusted(deviceFix(32.09, 34.8));
 
     expect(mockMap.easeTo).not.toHaveBeenCalled();
     const dotSource = mockMap.getSource(MAP_SOURCES.userLocation) as {
@@ -506,7 +626,7 @@ describe("ParkingMapMapLibre geolocation", () => {
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
 
-    watchOnUpdate?.(deviceFix());
+    emitSharedTrusted(deviceFix());
 
     await waitFor(() => {
       expect(mockMap.easeTo).toHaveBeenCalledWith(
@@ -525,7 +645,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect(screen.getByTestId("base-map")).toBeInTheDocument();
     });
 
-    watchOnError?.("denied");
+    emitSharedError("denied");
 
     expect(applyErrorMock).toHaveBeenCalledWith("denied");
     expect(screen.getByTestId("base-map")).toBeInTheDocument();
@@ -544,7 +664,7 @@ describe("ParkingMapMapLibre geolocation", () => {
     latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
     mockMap.easeTo.mockClear();
 
-    watchOnUpdate?.(deviceFix());
+    emitSharedTrusted(deviceFix());
 
     expect(applyFreshFixMock).toHaveBeenCalled();
     expect(mockMap.easeTo).not.toHaveBeenCalled();
@@ -561,7 +681,7 @@ describe("ParkingMapMapLibre geolocation", () => {
     latestMapHandler("zoomstart")?.({ originalEvent: { type: "wheel" } });
     mockMap.easeTo.mockClear();
 
-    watchOnUpdate?.(deviceFix(32.09, 34.80));
+    emitSharedTrusted(deviceFix(32.09, 34.80));
 
     expect(mockMap.easeTo).not.toHaveBeenCalled();
   });
@@ -577,7 +697,7 @@ describe("ParkingMapMapLibre geolocation", () => {
     latestMapHandler("zoomstart")?.({});
     mockMap.easeTo.mockClear();
 
-    watchOnUpdate?.(deviceFix());
+    emitSharedTrusted(deviceFix());
 
     expect(mockMap.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -595,7 +715,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
     });
 
-    watchOnUpdate?.(deviceFix(32.085312, 34.781812));
+    emitSharedTrusted(deviceFix(32.085312, 34.781812));
     latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
     mockMap.easeTo.mockClear();
     mockMap.stop.mockClear();
@@ -611,13 +731,15 @@ describe("ParkingMapMapLibre geolocation", () => {
     );
 
     mockMap.easeTo.mockClear();
-    watchOnUpdate?.(deviceFix(32.08, 34.78));
+    emitSharedTrusted(deviceFix(32.08, 34.78));
 
-    expect(mockMap.easeTo).toHaveBeenCalledWith(
-      expect.objectContaining({
-        center: [34.78, 32.08],
-      }),
-    );
+    await waitFor(() => {
+      expect(mockMap.easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          center: [34.78, 32.08],
+        }),
+      );
+    });
   });
 
   it("explicit current-location recenters repeatedly after manual pans", async () => {
@@ -629,7 +751,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
 
-    watchOnUpdate?.(deviceFix(32.085, 34.782));
+    emitSharedTrusted(deviceFix(32.085, 34.782));
     const button = await screen.findByRole("button", {
       name: "Center on my location",
     });
@@ -659,7 +781,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       await screen.findByRole("button", { name: "Center on my location" }),
     );
     expect(() => {
-      watchOnUpdate?.(deviceFix(32.1, 34.8));
+      emitSharedTrusted(deviceFix(32.1, 34.8));
     }).not.toThrow();
     expect(mockMap.easeTo).not.toHaveBeenCalled();
 
@@ -684,7 +806,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
     });
 
-    watchOnUpdate?.(deviceFix(32.085, 34.782));
+    emitSharedTrusted(deviceFix(32.085, 34.782));
     latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
     mockMap.easeTo.mockClear();
 
@@ -695,7 +817,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect.objectContaining({ center: [34.782, 32.085] }),
     );
 
-    watchOnError?.("timeout");
+    emitSharedError("timeout");
 
     expect(screen.getByTestId("base-map")).toBeInTheDocument();
     expect(screen.queryByText(/Map is unavailable/i)).not.toBeInTheDocument();
@@ -731,7 +853,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
 
-    watchOnUpdate?.(deviceFix(32.26, 34.89));
+    emitSharedTrusted(deviceFix(32.26, 34.89));
 
     expect(mockMap.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -748,13 +870,13 @@ describe("ParkingMapMapLibre geolocation", () => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
 
-    watchOnUpdate?.(deviceFix(32.08, 34.78));
+    emitSharedTrusted(deviceFix(32.08, 34.78));
     expect(mockMap.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({ center: [34.78, 32.08] }),
     );
 
     mockMap.easeTo.mockClear();
-    watchOnUpdate?.(deviceFix(32.26, 34.89));
+    emitSharedTrusted(deviceFix(32.26, 34.89));
     expect(mockMap.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({ center: [34.89, 32.26] }),
     );
@@ -769,19 +891,19 @@ describe("ParkingMapMapLibre geolocation", () => {
     await waitFor(() => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
-    watchOnUpdate?.(deviceFix(32.08, 34.78));
+    emitSharedTrusted(deviceFix(32.08, 34.78));
 
     unmount();
-    expect(stopWatchMock).toHaveBeenCalled();
+    expect(releaseSharedMock).toHaveBeenCalled();
 
     mockMap.easeTo.mockClear();
-    stopWatchMock.mockClear();
+    releaseSharedMock.mockClear();
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
 
     await waitFor(() => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
-    watchOnUpdate?.(deviceFix(32.26, 34.89));
+    emitSharedTrusted(deviceFix(32.26, 34.89));
     expect(mockMap.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({ center: [34.89, 32.26] }),
     );

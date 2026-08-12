@@ -19,9 +19,11 @@ import {
   type ForwardGeocodeResult,
 } from "@/lib/geocoding/maptiler-forward-geocode";
 import {
-  classifyGpsAccuracy,
-  watchBestDeviceLocation,
-} from "@/lib/map/watch-best-device-location";
+  acquireSharedForegroundLocation,
+  peekTrustedSharedForegroundFix,
+  subscribeSharedForegroundLocation,
+} from "@/lib/map/shared-foreground-location";
+import { classifyGpsAccuracy } from "@/lib/map/watch-best-device-location";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
 export const PUBLISHER_POOR_LOCATION_WARNING =
@@ -416,21 +418,30 @@ export function PublishSpotForm() {
 
   const subscribeGpsWatch = useCallback(() => {
     stopGpsWatch();
-    stopWatchRef.current = watchBestDeviceLocation({
-      onUpdate: (fix) => {
-        if (manualOverrideRef.current) {
-          return;
-        }
-        applyGpsFixRef.current(fix);
-      },
-      onError: (reason) => {
-        if (manualOverrideRef.current) {
-          return;
-        }
-        setGeoError(reason);
+    const release = acquireSharedForegroundLocation("share-spot");
+    const existing = peekTrustedSharedForegroundFix();
+    if (existing && !manualOverrideRef.current) {
+      applyGpsFixRef.current(existing);
+    }
+
+    const unsub = subscribeSharedForegroundLocation((snap) => {
+      if (manualOverrideRef.current) {
+        return;
+      }
+      if (snap.trustedFix) {
+        applyGpsFixRef.current(snap.trustedFix);
+        return;
+      }
+      if (snap.status === "error" && snap.error) {
+        setGeoError(snap.error);
         setGeoStatus("error");
-      },
+      }
     });
+
+    stopWatchRef.current = () => {
+      unsub();
+      release();
+    };
   }, [stopGpsWatch]);
 
   const startGpsWatch = useCallback(() => {
@@ -642,25 +653,6 @@ export function PublishSpotForm() {
             </div>
           ) : null}
 
-          {canRenderPicker ? (
-            <SpotLocationPickerLoader
-              latitude={parsedLat}
-              longitude={parsedLng}
-              onLocationChange={handleMapLocationChange}
-              onMapInteractionStart={handleMapInteractionStart}
-              onMapInteractionSettled={handleMapInteractionSettled}
-              onUserMovedMap={handleUserMovedMap}
-              onCurrentLocationRequested={handleCurrentLocationRequested}
-              disabled={pending}
-              userLatitude={detectedLocation?.latitude ?? null}
-              userLongitude={detectedLocation?.longitude ?? null}
-              userAccuracy={accuracyMeters}
-              onCurrentLocationResolved={handleCurrentLocationResolved}
-            />
-          ) : null}
-
-          {/* Pin dragging is self-explanatory on the map. */}
-
           <LocationStatus
             geoStatus={geoStatus}
             geoError={geoError}
@@ -698,7 +690,7 @@ export function PublishSpotForm() {
           ) : null}
         </section>
 
-        <section aria-labelledby="leave-time-label">
+        <section aria-labelledby="leave-time-label" data-testid="leave-time-section">
           <LeaveTimeSlider
             value={leaveInMinutes}
             onChange={setLeaveInMinutes}
@@ -706,6 +698,25 @@ export function PublishSpotForm() {
             error={state.fieldErrors?.available_in_minutes?.[0]}
           />
         </section>
+
+        {canRenderPicker ? (
+          <div data-testid="publish-spot-map-section">
+            <SpotLocationPickerLoader
+              latitude={parsedLat}
+              longitude={parsedLng}
+              onLocationChange={handleMapLocationChange}
+              onMapInteractionStart={handleMapInteractionStart}
+              onMapInteractionSettled={handleMapInteractionSettled}
+              onUserMovedMap={handleUserMovedMap}
+              onCurrentLocationRequested={handleCurrentLocationRequested}
+              disabled={pending}
+              userLatitude={detectedLocation?.latitude ?? null}
+              userLongitude={detectedLocation?.longitude ?? null}
+              userAccuracy={accuracyMeters}
+              onCurrentLocationResolved={handleCurrentLocationResolved}
+            />
+          </div>
+        ) : null}
 
         <div className="flex flex-col gap-2">
           <Button

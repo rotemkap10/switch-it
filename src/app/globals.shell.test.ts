@@ -30,6 +30,7 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".app-shell-header");
     expect(css).toContain("padding-top: constant(safe-area-inset-top)");
     expect(css).toContain("padding-top: var(--app-safe-top, env(safe-area-inset-top, 0px))");
+    expect(css).toContain('html[data-native-status-bar="inset"] .app-shell-header');
     expect(css).toContain(".app-shell-main");
     expect(css).toContain("min-height: 0");
     expect(css).toContain(".app-shell-main--map");

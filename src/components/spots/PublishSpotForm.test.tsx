@@ -7,6 +7,7 @@ import {
   PUBLISHER_POOR_LOCATION_WARNING,
   PublishSpotForm,
 } from "@/components/spots/PublishSpotForm";
+import { resetSharedForegroundLocationForTests } from "@/lib/map/shared-foreground-location";
 import { publishSpotSchema } from "@/lib/validations/spot";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
@@ -195,6 +196,7 @@ function position(
 
 describe("PublishSpotForm", () => {
   beforeEach(() => {
+    resetSharedForegroundLocationForTests();
     publishSpotMock.mockReset();
     mockPublishWithSchemaValidation();
     reverseGeocodeState.status = "idle";
@@ -209,6 +211,7 @@ describe("PublishSpotForm", () => {
   });
 
   afterEach(() => {
+    resetSharedForegroundLocationForTests();
     vi.unstubAllGlobals();
   });
 
@@ -258,6 +261,13 @@ describe("PublishSpotForm", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Latitude")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Longitude")).not.toBeInTheDocument();
+
+    const leaveSection = screen.getByTestId("leave-time-section");
+    const mapSection = screen.getByTestId("publish-spot-map-section");
+    expect(
+      leaveSection.compareDocumentPosition(mapSection) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("updates hidden coordinates from the map picker callback", async () => {
@@ -423,7 +433,7 @@ describe("PublishSpotForm", () => {
     expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
   });
 
-  it("starts a new GPS watch when the screen is opened again", async () => {
+  it("reuses the shared GPS session when Share a Spot is remounted quickly", async () => {
     const watchPosition = vi.fn((nextSuccess: PositionCallback) => {
       nextSuccess(position(32.085312, 34.781812, 10));
       return 1;
@@ -450,8 +460,12 @@ describe("PublishSpotForm", () => {
     unmount();
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
     await waitFor(() => {
-      expect(watchPosition).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+        "Map at 32.085312, 34.781812",
+      );
     });
+    // Grace window keeps the shared watch alive across remount.
+    expect(watchPosition).toHaveBeenCalledTimes(1);
   });
 
   it("does not let a late GPS fix overwrite an early manual pin move", async () => {
@@ -486,9 +500,9 @@ describe("PublishSpotForm", () => {
 
   it("does not lock the Tel Aviv fallback from a touch that does not move the pin", async () => {
     const user = userEvent.setup();
+    let success: PositionCallback | null = null;
     const watchPosition = vi.fn((nextSuccess: PositionCallback) => {
-      // Do not resolve immediately — keep pending during the touch.
-      void nextSuccess;
+      success = nextSuccess;
       return 1;
     });
     const clearWatch = vi.fn();
@@ -516,9 +530,14 @@ describe("PublishSpotForm", () => {
     expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
       `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
     );
+    // Shared session stays acquired; a later trusted fix can still publish.
+    success?.(position(32.085312, 34.781812, 10));
     await waitFor(() => {
-      expect(watchPosition).toHaveBeenCalledTimes(2);
+      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+        "Map at 32.085312, 34.781812",
+      );
     });
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
   });
 
   it("shows the blue current-location dot when initial GPS arrives", async () => {
@@ -677,6 +696,7 @@ describe("PublishSpotForm", () => {
       screen.getByRole("button", { name: "Use my current location" }),
     ).toBeInTheDocument();
     unmount();
+    resetSharedForegroundLocationForTests();
 
     stubGeolocation((_success, error) => {
       error?.({
@@ -689,9 +709,10 @@ describe("PublishSpotForm", () => {
     });
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
-    await user.click(
+    expect(
       await screen.findByRole("button", { name: "Choose on map" }),
-    );
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Choose on map" }));
     expect(
       screen.getByRole("button", { name: "Use my current location" }),
     ).toBeInTheDocument();

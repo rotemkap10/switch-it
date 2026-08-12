@@ -63,6 +63,16 @@ const config: CapacitorConfig = {
       androidSplashResourceName: "splash",
       showSpinner: false,
     },
+    /**
+     * iOS: WebView must not draw under the system status bar.
+     * Style LIGHT = dark icons/text for Switch It's light chrome.
+     * Android overlays behavior is left to the platform (no iOS-style gap).
+     */
+    StatusBar: {
+      overlaysWebView: false,
+      style: "LIGHT",
+      backgroundColor: NATIVE_SPLASH_BACKGROUND,
+    },
   },
   ios: {
     backgroundColor: NATIVE_SPLASH_BACKGROUND,

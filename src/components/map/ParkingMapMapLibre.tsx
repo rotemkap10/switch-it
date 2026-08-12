@@ -19,10 +19,16 @@ import {
 import { centerMapOnLocation } from "@/lib/map/center-on-location";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
 import {
+  acquireSharedForegroundLocation,
+  peekTrustedSharedForegroundFix,
+  subscribeSharedForegroundLocation,
+  waitForTrustedSharedForegroundFix,
+} from "@/lib/map/shared-foreground-location";
+import { isMateriallyDifferentFix } from "@/lib/map/trusted-foreground-fix";
+import {
   SEEKER_USER_LOCATION_IDS,
   syncUserLocationDot,
 } from "@/lib/map/user-location-dot";
-import { watchBestDeviceLocation } from "@/lib/map/watch-best-device-location";
 import { usePrefersReducedMotion } from "@/lib/motion/use-prefers-reduced-motion";
 import {
   MAP_FLOATING_CONTROL_CLASS,
@@ -379,36 +385,46 @@ export function ParkingMapMapLibre({
     const seq = ++explicitRecenterSeqRef.current;
     setRecenterNoticeVisible(false);
 
-    const known = lastKnownFixRef.current;
-    if (known) {
-      applyExplicitRecenterFix(known);
+    const immediate = peekTrustedSharedForegroundFix();
+    if (immediate) {
+      applyExplicitRecenterFix(immediate);
     }
 
     stopExplicitRecenterWatchRef.current?.();
     setRecenterPending(true);
-    stopExplicitRecenterWatchRef.current = watchBestDeviceLocation({
-      onUpdate: (fix) => {
-        if (seq !== explicitRecenterSeqRef.current) {
-          return;
-        }
-        applyExplicitRecenterFix(fix);
-      },
-      onError: () => {
-        if (seq !== explicitRecenterSeqRef.current) {
-          return;
-        }
-        setRecenterPending(false);
-        if (!lastKnownFixRef.current) {
+    let cancelled = false;
+    stopExplicitRecenterWatchRef.current = () => {
+      cancelled = true;
+    };
+
+    void (async () => {
+      const result = immediate
+        ? await waitForTrustedSharedForegroundFix("find-parking-recenter-refine", {
+            timeoutMs: 2_500,
+            afterFix: immediate,
+          })
+        : await waitForTrustedSharedForegroundFix("find-parking-recenter", {
+            timeoutMs: 12_000,
+          });
+
+      if (cancelled || seq !== explicitRecenterSeqRef.current) {
+        return;
+      }
+      setRecenterPending(false);
+      if (!result.ok) {
+        if (!lastKnownFixRef.current && !immediate) {
           setRecenterNoticeVisible(true);
         }
-      },
-      onSettled: () => {
-        if (seq !== explicitRecenterSeqRef.current) {
-          return;
-        }
-        setRecenterPending(false);
-      },
-    });
+        return;
+      }
+      if (
+        !immediate ||
+        result.fix.timestamp > immediate.timestamp ||
+        isMateriallyDifferentFix(result.fix, immediate)
+      ) {
+        applyExplicitRecenterFix(result.fix);
+      }
+    })();
   };
 
   useEffect(() => {
@@ -423,18 +439,32 @@ export function ParkingMapMapLibre({
 
   useEffect(() => {
     const watchGeneration = autoCenterGenerationRef.current;
-    const stop = watchBestDeviceLocation({
-      onUpdate: (fix) => {
-        lastKnownFixRef.current = fix;
-        applyFreshFixRef.current(fix);
-        tryAutoCenterOnFix(fix, watchGeneration);
-      },
-      onError: (reason) => {
-        applyErrorRef.current(reason);
-      },
+    const release = acquireSharedForegroundLocation("find-parking");
+
+    const applyTrusted = (fix: DeviceLocationFix) => {
+      lastKnownFixRef.current = fix;
+      applyFreshFixRef.current(fix);
+      tryAutoCenterOnFix(fix, watchGeneration);
+    };
+
+    const existing = peekTrustedSharedForegroundFix();
+    if (existing) {
+      applyTrusted(existing);
+    }
+
+    const unsub = subscribeSharedForegroundLocation((snap) => {
+      if (snap.trustedFix) {
+        applyTrusted(snap.trustedFix);
+        return;
+      }
+      if (snap.status === "error" && snap.error) {
+        applyErrorRef.current(snap.error);
+      }
     });
+
     return () => {
-      stop();
+      unsub();
+      release();
       stopExplicitRecenterWatchRef.current?.();
       clearSessionMapCamera("seeker");
     };

@@ -1,4 +1,7 @@
-import { getForegroundDeviceLocation } from "@/lib/map/foreground-device-location";
+import {
+  peekTrustedSharedForegroundFix,
+  waitForTrustedSharedForegroundFix,
+} from "@/lib/map/shared-foreground-location";
 import type { GeolocationReason } from "@/lib/map/use-user-location";
 
 export type DeviceLocationFix = {
@@ -25,26 +28,24 @@ const DEFAULT_OPTIONS: Required<RequestCurrentDeviceLocationOptions> = {
 };
 
 /**
- * One-shot device location for explicit recenter actions.
- * Native Capacitor Geolocation on iOS/Android; browser on Web/PWA.
- * Does not start a long-lived watch and does not use background handoff GPS.
+ * Prefer the shared foreground session's trusted fix (immediate on Android when
+ * Find Parking / Share already warmed GPS). Falls back to waiting on that same
+ * shared watch — avoids competing one-shot getCurrentPosition cold starts.
  */
 export async function requestCurrentDeviceLocation(
   options: RequestCurrentDeviceLocationOptions = {},
 ): Promise<DeviceLocationResult> {
-  const { enableHighAccuracy, timeoutMs, maximumAgeMs } = {
+  const { timeoutMs } = {
     ...DEFAULT_OPTIONS,
     ...options,
   };
 
-  const result = await getForegroundDeviceLocation({
-    enableHighAccuracy,
-    timeoutMs,
-    maximumAgeMs,
-  });
-
-  if (result.ok) {
-    return { ok: true, fix: result.fix };
+  const trusted = peekTrustedSharedForegroundFix();
+  if (trusted) {
+    return { ok: true, fix: trusted };
   }
-  return { ok: false, reason: result.reason };
+
+  return waitForTrustedSharedForegroundFix("request-current-location", {
+    timeoutMs,
+  });
 }

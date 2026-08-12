@@ -1,9 +1,11 @@
 import { useCallback, useRef, useState } from "react";
 
+import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
 import {
-  requestCurrentDeviceLocation,
-  type DeviceLocationFix,
-} from "@/lib/map/request-current-device-location";
+  peekTrustedSharedForegroundFix,
+  waitForTrustedSharedForegroundFix,
+} from "@/lib/map/shared-foreground-location";
+import { isMateriallyDifferentFix } from "@/lib/map/trusted-foreground-fix";
 import type { GeolocationReason } from "@/lib/map/use-user-location";
 
 export const MAP_RECENTER_UNAVAILABLE_MESSAGE =
@@ -17,8 +19,8 @@ type UseMapRecenterOptions = {
 };
 
 /**
- * One-shot recenter: fresh geolocation per click, no watchPosition.
- * Ignores stale results when a newer request is in flight.
+ * Explicit Current Location: use shared trusted fix immediately when available,
+ * then optionally refine once from the same shared watch.
  */
 export function useMapRecenter(options: UseMapRecenterOptions = {}) {
   const { onFix, onError } = options;
@@ -36,24 +38,50 @@ export function useMapRecenter(options: UseMapRecenterOptions = {}) {
     pendingRef.current = true;
     setPending(true);
 
-    const result = await requestCurrentDeviceLocation({
-      enableHighAccuracy: true,
-      maximumAgeMs: 0,
-    });
+    try {
+      const trusted = peekTrustedSharedForegroundFix();
+      if (trusted) {
+        onFix?.(trusted);
+        const refined = await waitForTrustedSharedForegroundFix(
+          "map-recenter-refine",
+          {
+            timeoutMs: 2_500,
+            afterFix: trusted,
+          },
+        );
+        if (sequence !== sequenceRef.current) {
+          return;
+        }
+        if (
+          refined.ok &&
+          (refined.fix.timestamp > trusted.timestamp ||
+            isMateriallyDifferentFix(refined.fix, trusted))
+        ) {
+          onFix?.(refined.fix);
+        }
+        return;
+      }
 
-    if (sequence !== sequenceRef.current) {
-      return;
+      const result = await waitForTrustedSharedForegroundFix("map-recenter", {
+        timeoutMs: 12_000,
+      });
+
+      if (sequence !== sequenceRef.current) {
+        return;
+      }
+
+      if (result.ok) {
+        onFix?.(result.fix);
+        return;
+      }
+
+      onError?.(result.reason);
+    } finally {
+      if (sequence === sequenceRef.current) {
+        pendingRef.current = false;
+        setPending(false);
+      }
     }
-
-    pendingRef.current = false;
-    setPending(false);
-
-    if (result.ok) {
-      onFix?.(result.fix);
-      return;
-    }
-
-    onError?.(result.reason);
   }, [onFix, onError]);
 
   return { recenter, pending };
