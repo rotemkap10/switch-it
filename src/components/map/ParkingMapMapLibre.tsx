@@ -16,7 +16,9 @@ import {
   CurrentLocationUnavailableNotice,
 } from "@/components/map/CurrentLocationControl";
 import { centerMapOnLocation } from "@/lib/map/center-on-location";
+import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
 import { useMapRecenter } from "@/lib/map/use-map-recenter";
+import { watchBestDeviceLocation } from "@/lib/map/watch-best-device-location";
 import { usePrefersReducedMotion } from "@/lib/motion/use-prefers-reduced-motion";
 import {
   MAP_FLOATING_CONTROL_CLASS,
@@ -118,6 +120,10 @@ function isValidDestination(
     Number.isFinite(destination.latitude) &&
     Number.isFinite(destination.longitude)
   );
+}
+
+function isUserMapGesture(event: { originalEvent?: unknown } | undefined): boolean {
+  return Boolean(event?.originalEvent);
 }
 
 /**
@@ -285,15 +291,10 @@ export function ParkingMapMapLibre({
     };
   }, [bottomStack, bottomStackOverride]);
 
-  const { state: userLocation, applyFreshFix } = useUserLocation({
-    enableHighAccuracy: true,
-    watch: true,
-    timeoutMs: 10_000,
-    maximumAgeMs: 60_000,
+  const { state: userLocation, applyFreshFix, applyError } = useUserLocation({
+    autoRequest: false,
   });
 
-  const [followMode, setFollowMode] = useState(false);
-  const hasCenteredOnUserOnceRef = useRef(false);
   const [recenterNoticeVisible, setRecenterNoticeVisible] = useState(false);
 
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -302,22 +303,68 @@ export function ParkingMapMapLibre({
   const userLayersAddedRef = useRef(false);
   const interactionHandlersBoundRef = useRef(false);
   const lastFocusedSpotIdRef = useRef<string | null>(null);
+  const userMovedMapRef = useRef(false);
+  const hasAutoCenteredRef = useRef(false);
+  const autoCenterGenerationRef = useRef(0);
+  const pendingAutoCenterFixRef = useRef<DeviceLocationFix | null>(null);
+  const prefersReducedMotionRef = useRef(prefersReducedMotion);
+  const applyFreshFixRef = useRef(applyFreshFix);
+  const applyErrorRef = useRef(applyError);
 
-  const disableFollowOnUserMove = () => {
-    setFollowMode(false);
+  useEffect(() => {
+    prefersReducedMotionRef.current = prefersReducedMotion;
+  }, [prefersReducedMotion]);
+
+  useEffect(() => {
+    applyFreshFixRef.current = applyFreshFix;
+  }, [applyFreshFix]);
+
+  useEffect(() => {
+    applyErrorRef.current = applyError;
+  }, [applyError]);
+
+  const markUserMovedMap = () => {
+    userMovedMapRef.current = true;
+    autoCenterGenerationRef.current += 1;
+    pendingAutoCenterFixRef.current = null;
+  };
+
+  const tryAutoCenterOnFix = (fix: DeviceLocationFix, generation: number) => {
+    if (generation !== autoCenterGenerationRef.current) {
+      return;
+    }
+    if (userMovedMapRef.current || hasAutoCenteredRef.current) {
+      return;
+    }
+    if (!isWithinSupportedMapBounds(fix.longitude, fix.latitude)) {
+      return;
+    }
+
+    const map = mapRef.current;
+    if (!map || !hasInitializedLayersRef.current) {
+      pendingAutoCenterFixRef.current = fix;
+      return;
+    }
+
+    hasAutoCenteredRef.current = true;
+    pendingAutoCenterFixRef.current = null;
+    centerMapOnLocation(map, fix.longitude, fix.latitude, {
+      reducedMotion: prefersReducedMotionRef.current,
+    });
   };
 
   const { recenter: recenterOnDeviceLocation, pending: recenterPending } =
     useMapRecenter({
       onFix: (fix) => {
+        autoCenterGenerationRef.current += 1;
+        hasAutoCenteredRef.current = true;
+        pendingAutoCenterFixRef.current = null;
         setRecenterNoticeVisible(false);
         applyFreshFix(fix);
         const map = mapRef.current;
         if (!map) {
           return;
         }
-        // One-shot camera move — does not enable continuous follow.
-        setFollowMode(false);
         centerMapOnLocation(map, fix.longitude, fix.latitude, {
           reducedMotion: prefersReducedMotion,
         });
@@ -336,6 +383,22 @@ export function ParkingMapMapLibre({
     }, 6000);
     return () => window.clearTimeout(id);
   }, [recenterNoticeVisible]);
+
+  useEffect(() => {
+    const watchGeneration = autoCenterGenerationRef.current;
+    const stop = watchBestDeviceLocation({
+      onUpdate: (fix) => {
+        applyFreshFixRef.current(fix);
+        tryAutoCenterOnFix(fix, watchGeneration);
+      },
+      onError: (reason) => {
+        applyErrorRef.current(reason);
+      },
+    });
+    return () => {
+      stop();
+    };
+  }, []);
 
   const locationFailure =
     userLocation.status === "denied" ||
@@ -369,27 +432,6 @@ export function ParkingMapMapLibre({
     return () => window.clearTimeout(id);
   }, [showLocationNotice, locationNoticeKey]);
 
-  useEffect(() => {
-    if (userLocation.status !== "ready" || hasCenteredOnUserOnceRef.current) {
-      return;
-    }
-    hasCenteredOnUserOnceRef.current = true;
-    // Only auto-follow when the fix is inside the supported product area.
-    if (
-      !isWithinSupportedMapBounds(
-        userLocation.longitude,
-        userLocation.latitude,
-      )
-    ) {
-      return;
-    }
-    // Defer so we don't cascade render synchronously inside the effect.
-    const id = window.setTimeout(() => {
-      setFollowMode(true);
-    }, 0);
-    return () => window.clearTimeout(id);
-  }, [userLocation]);
-
   const spotsGeoJson = useMemo(
     () => createGeoJsonSpots(spots, selectedId),
     [spots, selectedId],
@@ -407,7 +449,7 @@ export function ParkingMapMapLibre({
       return;
     }
     lastFocusedSpotIdRef.current = selectedId;
-    setFollowMode(false);
+    markUserMovedMap();
     focusSelectedSpot(mapRef.current, {
       longitude: selectedSpot.longitude,
       latitude: selectedSpot.latitude,
@@ -605,31 +647,7 @@ export function ParkingMapMapLibre({
         },
       ],
     });
-
-    const userInBounds = isWithinSupportedMapBounds(
-      userLocation.longitude,
-      userLocation.latitude,
-    );
-
-    // Follow only inside the supported area — never chase an out-of-bounds fix
-    // (avoids maxBounds clamp loops without flipping React state here).
-    if (followMode && userInBounds) {
-      const center = map.getCenter();
-      const px = map.project([userLocation.longitude, userLocation.latitude]);
-      const pxCenter = map.project([center.lng, center.lat]);
-      const dx = px.x - pxCenter.x;
-      const dy = px.y - pxCenter.y;
-      const distPx = Math.sqrt(dx * dx + dy * dy);
-
-      if (distPx > 35) {
-        map.easeTo({
-          center: [userLocation.longitude, userLocation.latitude],
-          duration: prefersReducedMotion ? 0 : 450,
-          essential: true,
-        });
-      }
-    }
-  }, [userLocation, followMode, prefersReducedMotion]);
+  }, [userLocation]);
 
   if (styleFallback) {
     return (
@@ -755,7 +773,6 @@ export function ParkingMapMapLibre({
                     return;
                   }
 
-                  setFollowMode(false);
                   setSelectedId((prev) => (prev === id ? prev : id));
                 });
 
@@ -766,9 +783,16 @@ export function ParkingMapMapLibre({
                   map.getCanvas().style.cursor = "";
                 });
 
-                map.on("dragstart", disableFollowOnUserMove);
-                map.on("touchstart", disableFollowOnUserMove);
-                map.on("zoomstart", disableFollowOnUserMove);
+                map.on("dragstart", (event) => {
+                  if (isUserMapGesture(event)) {
+                    markUserMovedMap();
+                  }
+                });
+                map.on("zoomstart", (event) => {
+                  if (isUserMapGesture(event)) {
+                    markUserMovedMap();
+                  }
+                });
 
                 map.on("moveend", () => {
                   const center = map.getCenter();
@@ -780,6 +804,14 @@ export function ParkingMapMapLibre({
               }
 
               hasInitializedLayersRef.current = true;
+
+              const pendingFix = pendingAutoCenterFixRef.current;
+              if (pendingFix) {
+                tryAutoCenterOnFix(
+                  pendingFix,
+                  autoCenterGenerationRef.current,
+                );
+              }
             } catch (error) {
               if (process.env.NODE_ENV === "development") {
                 const message =

@@ -52,6 +52,15 @@ let recenterOnFix: ((fix: {
 }) => void) | null = null;
 let recenterOnError: (() => void) | null = null;
 const applyFreshFixMock = vi.fn();
+const applyErrorMock = vi.fn();
+let watchOnUpdate: ((fix: {
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  timestamp: number;
+}) => void) | null = null;
+let watchOnError: ((reason: string) => void) | null = null;
+const stopWatchMock = vi.fn();
 
 vi.mock("@/lib/map/use-map-recenter", () => ({
   useMapRecenter: (options: {
@@ -69,6 +78,22 @@ vi.mock("@/lib/map/use-map-recenter", () => ({
       recenter: recenterMock,
       pending: recenterPending,
     };
+  },
+}));
+
+vi.mock("@/lib/map/watch-best-device-location", () => ({
+  watchBestDeviceLocation: (options: {
+    onUpdate: (fix: {
+      latitude: number;
+      longitude: number;
+      accuracy: number | null;
+      timestamp: number;
+    }) => void;
+    onError: (reason: string) => void;
+  }) => {
+    watchOnUpdate = options.onUpdate;
+    watchOnError = options.onError;
+    return stopWatchMock;
   },
 }));
 
@@ -109,6 +134,7 @@ vi.mock("@/lib/map/use-user-location", () => {
     useUserLocation: () => ({
       state: { status: mockedStatus },
       applyFreshFix: applyFreshFixMock,
+      applyError: applyErrorMock,
     }),
   };
 });
@@ -160,6 +186,10 @@ describe("ParkingMapMapLibre geolocation", () => {
     recenterOnFix = null;
     recenterOnError = null;
     applyFreshFixMock.mockReset();
+    applyErrorMock.mockReset();
+    watchOnUpdate = null;
+    watchOnError = null;
+    stopWatchMock.mockReset();
     mockBaseMapProps.center = undefined;
     mockBaseMapProps.zoom = undefined;
   });
@@ -309,5 +339,154 @@ describe("ParkingMapMapLibre geolocation", () => {
       await screen.findByTestId("current-location-unavailable-notice"),
     ).toHaveTextContent("Current location is unavailable.");
     expect(screen.getByTestId("base-map")).toBeInTheDocument();
+  });
+
+  function latestMapHandler(event: string) {
+    const calls = mockMap.on.mock.calls.filter((call) => call[0] === event);
+    const last = calls.at(-1);
+    return last?.[last.length - 1] as ((event?: unknown) => void) | undefined;
+  }
+
+  function deviceFix(
+    latitude = 32.085312,
+    longitude = 34.781812,
+  ) {
+    return {
+      latitude,
+      longitude,
+      accuracy: 10,
+      timestamp: Date.now(),
+    };
+  }
+
+  it("centers the map on a successful device geolocation fix", async () => {
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(mockMap.addLayer).toHaveBeenCalled();
+    });
+
+    watchOnUpdate?.(deviceFix());
+
+    expect(applyFreshFixMock).toHaveBeenCalledWith(
+      expect.objectContaining({ latitude: 32.085312, longitude: 34.781812 }),
+    );
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: [34.781812, 32.085312],
+      }),
+    );
+    expect(screen.getByTestId("base-map")).toBeInTheDocument();
+  });
+
+  it("centers after map ready when GPS arrives first", async () => {
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    watchOnUpdate?.(deviceFix());
+
+    await waitFor(() => {
+      expect(mockMap.easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          center: [34.781812, 32.085312],
+        }),
+      );
+    });
+  });
+
+  it("keeps the map usable when geolocation fails", async () => {
+    mockedStatus = "denied";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("base-map")).toBeInTheDocument();
+    });
+
+    watchOnError?.("denied");
+
+    expect(applyErrorMock).toHaveBeenCalledWith("denied");
+    expect(screen.getByTestId("base-map")).toBeInTheDocument();
+    expect(screen.queryByText(/Map is unavailable/i)).not.toBeInTheDocument();
+    expect(mockMap.easeTo).not.toHaveBeenCalled();
+  });
+
+  it("does not let a later GPS update overwrite a user pan", async () => {
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
+    });
+
+    latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
+    mockMap.easeTo.mockClear();
+
+    watchOnUpdate?.(deviceFix());
+
+    expect(applyFreshFixMock).toHaveBeenCalled();
+    expect(mockMap.easeTo).not.toHaveBeenCalled();
+  });
+
+  it("does not let a stale GPS result override a later user interaction", async () => {
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalledWith("zoomstart", expect.any(Function));
+    });
+
+    latestMapHandler("zoomstart")?.({ originalEvent: { type: "wheel" } });
+    mockMap.easeTo.mockClear();
+
+    watchOnUpdate?.(deviceFix(32.09, 34.80));
+
+    expect(mockMap.easeTo).not.toHaveBeenCalled();
+  });
+
+  it("still auto-centers after a programmatic zoom that is not a user gesture", async () => {
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalledWith("zoomstart", expect.any(Function));
+    });
+
+    latestMapHandler("zoomstart")?.({});
+    mockMap.easeTo.mockClear();
+
+    watchOnUpdate?.(deviceFix());
+
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: [34.781812, 32.085312],
+      }),
+    );
+  });
+
+  it("explicit current-location action recenters even after the user panned", async () => {
+    mockedStatus = "ready";
+    const user = userEvent.setup();
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
+    });
+
+    latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
+    mockMap.easeTo.mockClear();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Center on my location" }),
+    );
+    expect(recenterMock).toHaveBeenCalledTimes(1);
+
+    recenterOnFix?.(deviceFix(32.08, 34.78));
+
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: [34.78, 32.08],
+      }),
+    );
   });
 });

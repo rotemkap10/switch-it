@@ -42,6 +42,12 @@ type UseUserLocationOptions = {
   timeoutMs?: number;
   maximumAgeMs?: number;
   watch?: boolean;
+  /**
+   * When false, the hook does not call the Geolocation API itself.
+   * The caller feeds fixes/errors via applyFreshFix / applyError
+   * (e.g. from watchBestDeviceLocation).
+   */
+  autoRequest?: boolean;
 };
 
 function normalizeCoords(
@@ -60,8 +66,11 @@ export function useUserLocation({
   timeoutMs = 10_000,
   maximumAgeMs = 60_000,
   watch = true,
+  autoRequest = true,
 }: UseUserLocationOptions = {}) {
-  const [state, setState] = useState<UserLocationState>({ status: "idle" });
+  const [state, setState] = useState<UserLocationState>(() =>
+    autoRequest ? { status: "idle" } : { status: "loading" },
+  );
   const watchIdRef = useRef<number | null>(null);
   const autoRequestedRef = useRef(false);
 
@@ -150,6 +159,9 @@ export function useUserLocation({
   }, [enableHighAccuracy, maximumAgeMs, timeoutMs, watch, stopWatch]);
 
   useEffect(() => {
+    if (!autoRequest) {
+      return;
+    }
     const id = window.setTimeout(() => {
       request();
     }, 0);
@@ -157,7 +169,7 @@ export function useUserLocation({
     return () => {
       window.clearTimeout(id);
     };
-  }, [request]);
+  }, [request, autoRequest]);
 
   useEffect(() => {
     return () => {
@@ -183,10 +195,15 @@ export function useUserLocation({
     [],
   );
 
+  const applyError = useCallback((reason: GeolocationReason) => {
+    setState({ status: reason });
+  }, []);
+
   return {
     state,
     requestLocation: request,
     applyFreshFix,
+    applyError,
   };
 }
 
