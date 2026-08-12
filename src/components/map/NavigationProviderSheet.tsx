@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef } from "react";
 
+import { WEB_HANDOFF_LOCATION_DISCLOSURE } from "@/lib/location/handoff-disclosures";
 import { logPostClaimNavigationDev } from "@/lib/map/post-claim-navigation";
 import type {
   ExternalNavigationLinks,
@@ -36,7 +37,7 @@ export function NavigationProviderSheet({
   onChoose,
   returnFocusRef,
   title = "Open in",
-  description = "Live location is shared with the other driver during the handoff.",
+  description = WEB_HANDOFF_LOCATION_DISCLOSURE,
   dismissLabel = "Dismiss",
 }: NavigationProviderSheetProps) {
   const titleId = useId();

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Switch It</string>
+    <string name="title_activity_main">Switch It</string>
+    <string name="package_name">il.ac.runi.switchit</string>
+    <string name="custom_url_scheme">il.ac.runi.switchit</string>
+</resources>

@@ -51,7 +51,7 @@ describe("handoff countdown copy", () => {
     expect(formatHandoffClock(222_000)).toBe("3:42");
   });
 
-  it("shows seeker remaining time from the shared expiry window", () => {
+  it("shows remaining time from the shared expiry window", () => {
     expect(handoffSeekerWindowCopy(8 * 60_000)).toBe("8 min remaining");
     expect(handoffSeekerWindowCopy(90_000)).toBe("2 min remaining");
     expect(handoffSeekerWindowCopy(45_000)).toBe("0:45 left");

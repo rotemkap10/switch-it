@@ -33,6 +33,8 @@ export type SpotLocationPickerProps = {
   onMapInteractionSettled?: () => void;
   /** Fired when the user intentionally moved the map (not GPS / recenter). */
   onUserMovedMap?: () => void;
+  /** Fired immediately when the user taps "Current location" (before GPS resolves). */
+  onCurrentLocationRequested?: () => void;
   disabled?: boolean;
   /** Optional detected user location for legacy callers — recenter uses fresh GPS. */
   userLatitude?: number | null;
@@ -103,6 +105,7 @@ export function SpotLocationPickerMapLibre({
   disabled = false,
   userLatitude = null,
   userLongitude = null,
+  onCurrentLocationRequested,
   onCurrentLocationResolved,
 }: SpotLocationPickerProps) {
   const styleUrl = useMemo(() => assertMapTilerStyleUrlOrNull(), []);
@@ -220,6 +223,12 @@ export function SpotLocationPickerMapLibre({
       return;
     }
 
+    // Prevent prop-driven pin sync from racing against an in-flight
+    // programmatic recenter (the recenter handler will set coords on moveend).
+    if (programmaticMoveRef.current) {
+      return;
+    }
+
     const center = map.getCenter();
     if (coordsNearlyEqual(center.lat, center.lng, latitude, longitude)) {
       return;
@@ -323,8 +332,17 @@ export function SpotLocationPickerMapLibre({
           }
           handlersBoundRef.current = true;
 
-          map.on("movestart", () => {
-            if (programmaticMoveRef.current || disabled) {
+          map.on("movestart", (e) => {
+            // Recenter uses programmatic camera moves. Only treat a movestart as
+            // an intentional pin move when the user actually started the gesture.
+            const isUserGesture = Boolean(
+              (e as unknown as { originalEvent?: unknown } | undefined)
+                ?.originalEvent,
+            );
+            if (disabled) {
+              return;
+            }
+            if (programmaticMoveRef.current && !isUserGesture) {
               return;
             }
             setPinLifting(true);
@@ -415,6 +433,7 @@ export function SpotLocationPickerMapLibre({
           pending={recenterPending}
           disabled={disabled}
           onClick={() => {
+            onCurrentLocationRequested?.();
             void recenterOnDeviceLocation();
           }}
         />

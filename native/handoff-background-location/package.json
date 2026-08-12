@@ -1,0 +1,26 @@
+{
+  "name": "@switch-it/handoff-background-location",
+  "version": "0.1.0",
+  "description": "Switch It native background location for an active parking handoff",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "ios/Sources",
+    "ios/Tests",
+    "SwitchItHandoffBackgroundLocation.podspec",
+    "Package.swift",
+    "index.js",
+    "index.d.ts"
+  ],
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "license": "UNLICENSED"
+}

@@ -12,6 +12,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { NavigationProviderSheet } from "@/components/map/NavigationProviderSheet";
+import { getHandoffLocationDisclosure } from "@/lib/location/handoff-disclosures";
 import { requestSeekerLiveLocationStart } from "@/lib/location/seeker-live-location-intent";
 import {
   logPostClaimNavigationDev,
@@ -139,7 +140,7 @@ export function PostClaimNavigationProvider({
               onClose={closeChooser}
               links={links}
               title="Open in"
-              description="Live location is shared with the other driver during the handoff."
+              description={getHandoffLocationDisclosure()}
               dismissLabel="Dismiss"
               onChoose={(url, providerId) => {
                 openExternalNavigationUrl(url);

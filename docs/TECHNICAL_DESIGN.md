@@ -6,7 +6,8 @@ assignment. Aligns with `PROJECT_CONTEXT.md` and `docs/PRODUCT_SPEC.md`.
 ## 1. Technical overview
 
 Switch It is a Next.js App Router web app with a Supabase backend
-(Auth + PostgreSQL + Row Level Security), deployed on Vercel.
+(Auth + PostgreSQL + Row Level Security), deployed on Vercel. A Capacitor
+native pilot adds background seeker location during an active handoff only.
 
 | Layer | Choice |
 |-------|--------|
@@ -19,6 +20,7 @@ Switch It is a Next.js App Router web app with a Supabase backend
 | Validation | Zod |
 | Maps (when implemented) | Leaflet + react-leaflet |
 | Testing (when implemented) | Vitest + Testing Library; Playwright for E2E |
+| Native pilot | Capacitor 8 + custom handoff location plugin (iOS/Android) |
 
 Critical business rules (claim races, credits, completion idempotency) are
 enforced in PostgreSQL via constraints, partial unique indexes, and
@@ -30,20 +32,18 @@ No ORM, repository layer, queue, microservice, or client state library.
 ## 2. System architecture
 
 ```text
-Browser
-  │  RSC pages / Client Components (map, forms)
-  ▼
-Next.js on Vercel
-  │  Server Actions (mutations)
-  │  Middleware (session refresh + route protection)
-  │  Optional Route Handler: auth callback only
-  ▼
-Supabase
-  ├── Auth (email/password sessions)
-  └── PostgreSQL
-        ├── Tables + CHECK constraints + indexes
-        ├── Row Level Security policies
-        └── RPC functions (claim, complete, cancel with auth.uid() checks)
+Browser / PWA                         Native iOS/Android (pilot)
+  │  RSC / Client Components            │  Capacitor WebView + custom plugin
+  ▼                                     ▼
+Next.js on Vercel                     Native GPS (handoff only)
+  │  Server Actions                     │  native HTTP (user JWT)
+  │  Middleware                         ▼
+  │  Optional auth callback           Edge Function handoff-seeker-location
+  ▼                                     │  can_send_claim_location + Broadcast
+Supabase ◄──────────────────────────────┘
+  ├── Auth
+  ├── Realtime private Broadcast (claim-location:<uuid>)
+  └── PostgreSQL (RLS / RPC)
 ```
 
 **Data flow for a mutation**
@@ -355,8 +355,11 @@ Application constants (window lengths) are validated in Zod and stored as
 - “I’m leaving” reuses `cancel_spot` (no credits). Lazy RPCs:
   `expire_claim_if_needed`, `expire_spot_if_needed` (unclaimed).
 
-**Phase 9B live location (foreground private Broadcast):**
+**Phase 9B live location (private Broadcast + platform transport):**
 - Topic: `claim-location:<claim_uuid>` with `config.private = true`.
+- Event: `seeker-location`. Status: `seeker-location-status` (`paused` /
+  `stopped`). Publisher UI (`PublisherLiveProgressMap` /
+  `usePublisherLiveLocation`) is unchanged.
 - Authorization: RLS on `realtime.messages` — seeker INSERT only, publisher
   SELECT only, for the active claimed handoff before `spot.expires_at`.
 - Helpers: `claim_location_topic_claim_id(text)` parses topics safely;
@@ -364,10 +367,35 @@ Application constants (window lengths) are validated in Zod and stored as
   booleans (needed because parking_spots RLS hides claimed spots from non-owners,
   which would break an inline seeker EXISTS join).
 - Payload: `{ latitude, longitude, accuracyMeters, headingDegrees, sequence, sentAt }`
-  (no user/vehicle/address). Optional `seeker-location-status` paused/stopped.
+  (no user/vehicle/address). Same parser for web and native. Accuracy worse
+  than 150 m is not transmitted.
 - No location tables, history, localStorage, IndexedDB, or SW cache of coords.
 - Keep Realtime “Allow public access” enabled so existing public
   `postgres_changes` channels continue; location channels remain private.
+- **Web / PWA transport:** `HandoffLocationService` web implementation.
+  `useSeekerLiveLocationShare` uses `watchPosition` + private Realtime channel.
+  Visibility hidden → pause (`seeker-location-status: paused`) and clear watch.
+  Visibility visible → rejoin + restart watch. This is expected PWA behavior.
+- **Native iOS / Android transport:** `HandoffLocationService` native
+  implementation + custom Capacitor plugin `HandoffBackgroundLocation`
+  (not `@capacitor-community/background-geolocation`). Native GPS continues
+  when Waze / Maps is foreground. Native HTTP posts to Edge Function
+  `handoff-seeker-location` (user JWT → `can_send_claim_location` →
+  service-role private Broadcast). WebView timers are not used. One GPS
+  source only: native path does not also run `watchPosition`. Hiding Switch It
+  does **not** send `paused`. Refresh the Supabase access token immediately
+  before start; refresh token is never written to native disk. Native expiry
+  timer stops tracking at `spot.expires_at` even if the WebView is gone.
+- **Start:** in-context after Open in Waze / Google / Apple (same tap as
+  today). Permission is not requested at random app startup. Disclosure:
+  share live location while driving to the spot so the other driver knows
+  when you are approaching.
+- **Stop immediately:** complete, cancel, claim/spot expiry, explicit Stop
+  sharing, logout, or active claim change. On app restart, reconcile native
+  state with the current claim before continuing; do not resume background
+  GPS outside an active handoff.
+- **Permission denied:** claim + navigation still work; seeker sees Live
+  location off; no repeated nag.
 - Routing / ETA is **not implemented** (deferred; MapTiler basemap + MapLibre
   rendering remain). After a **successful Claim**, the seeker immediately sees
   `NavigationProviderSheet` once via `PostClaimNavigationProvider` (in-memory
@@ -376,20 +404,28 @@ Application constants (window lengths) are validated in Zod and stored as
   then Google Maps, then Apple Maps; the user must tap a provider. Reloading /
   returning from Waze / an existing active claim does **not** auto-open.
   After a provider tap, ephemeral in-memory UI state switches the sheet CTA to a
-  compact **Change** action (not DB / localStorage). The same tap starts
-  foreground live location (`watchPosition` in the gesture, then Realtime
-  channel). **Dismiss** keeps a prominent **Navigate to spot** action. Deep links
+  compact **Change** action (not DB / localStorage). **Dismiss** keeps a
+  prominent **Navigate to spot** action. Deep links
   (Waze `waze.com/ul`, Apple Maps `maps.apple.com`, Google Maps `/maps/dir/?api=1`)
   use only claimed-spot `latitude` / `longitude` — never the display address.
   Optional Haversine distance (“120 m away”) is shown when seeker location is
   available and omitted when permission is denied. Publisher live-progress UI
-  shows status + last-update freshness (`updatedLabel`); explicit pause while the
-  seeker navigates is expected PWA foreground-only behavior. Realtime
-  `CHANNEL_ERROR` / `TIMED_OUT` / `CLOSED` surface as **Live location temporarily
-  unavailable** without dropping the last known marker. No Google Routes API, no origin,
-  no stored provider preference, no background GPS while another app is
-  foregrounded. Nearby users/cars are not rendered on the map (deferred; privacy
+  shows status + last-update freshness (`updatedLabel`). PWA pause-while-
+  navigating remains; native app continues updating. Realtime
+  `CHANNEL_ERROR` / `TIMED_OUT` / `CLOSED` (and native GPS/network loss)
+  surface as **Live location temporarily unavailable** without dropping the
+  last known marker. No Google Routes API, no origin, no stored provider
+  preference. Nearby users/cars are not rendered on the map (deferred; privacy
   and minimalism).
+
+**Native packaging constraint:** Next.js Server Actions cannot be bundled as
+static Capacitor `webDir` assets. Vercel/PWA production is unchanged.
+`capacitor.config.ts` uses `native/web-placeholder` only so `cap sync` has a
+directory. Do **not** hard-code `server.url` in committed config. For native
+device testing only, `CAPACITOR_SERVER_URL` may temporarily set `server.url`
+during `cap sync`; if the env var is unset, no remote server is emitted.
+App Store production still needs a hosted Next origin or a later packaging
+pass. See `native/README.md`.
 
 ## 10. Authentication flow
 
@@ -582,14 +618,18 @@ blocking.
   block publish. Coordinates remain authoritative for
   claims, navigation, and distance. Seeker UI reads stored labels only — no
   per-card geocoding.
-- Active publisher card mobile order: status + handoff countdown → handoff code →
-  “Look for this driver” (+ reciprocal own-vehicle line) → map preview → quiet
-  cancel. Desktop may use two-column grid. Preview height varies by
-  `publisher-preview-map-shell--available|claimed`.
+- Active publisher claimed card mobile order: **Your spot has been claimed** +
+  stay/nearby instruction + shared `HandoffWindowCountdown` → **Look for this
+  vehicle** (photo or illustration) → live driver location (Phase 9B map,
+  freshness, optional straight-line “Driver is about N m away”) → parking spot
+  context (address or “Exact location marked on map”) → handoff code → quiet
+  cancel / optional **Wait N more min**. Desktop may use two-column grid.
+  Publisher never receives seeker Complete. Distance is informational only
+  from the existing Broadcast sample — no ETA, routing, or extra watcher.
 - Shared handoff countdown derives from `available_at` / `expires_at`
-  (`HandoffWindowCountdown`). Publisher cancel uses confirm dialogs; claimed
-  copy “I’m leaving”. Extension uses `ExtendHandoffWaitButton` +
-  `extend_handoff_wait`.
+  (`HandoffWindowCountdown`, “N min remaining” during the window). Publisher
+  cancel uses confirm dialogs; claimed copy “I’m leaving”. Extension uses
+  `ExtendHandoffWaitButton` + `extend_handoff_wait`.
 
 ### Mobile account forms (presentation)
 

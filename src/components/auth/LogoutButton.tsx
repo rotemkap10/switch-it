@@ -4,6 +4,7 @@ import { useFormStatus } from "react-dom";
 
 import { logout } from "@/actions/auth";
 import { Button } from "@/components/ui/Button";
+import { onLogoutSubmit } from "@/lib/location/stop-handoff-on-logout";
 
 function LogoutSubmitButton() {
   const { pending } = useFormStatus();
@@ -17,7 +18,7 @@ function LogoutSubmitButton() {
 
 export function LogoutButton() {
   return (
-    <form action={logout}>
+    <form action={logout} onSubmit={onLogoutSubmit}>
       <LogoutSubmitButton />
     </form>
   );

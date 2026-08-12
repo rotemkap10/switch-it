@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Capacitor local live-reload override (never commit server.url)
+capacitor.config.local.ts
+capacitor.config.local.json
+.env.capacitor

@@ -1,0 +1,14 @@
+<!--
+  Merge into ios/App/App/Info.plist after `npx cap add ios`.
+  Background Modes → Location updates must also be enabled.
+-->
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>Switch It shares your live location with the leaving driver during an active parking handoff so they know when you are approaching.</string>
+<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+<string>Switch It continues sharing your live location with the leaving driver while you navigate in Waze or Maps during an active parking handoff.</string>
+<key>NSLocationAlwaysUsageDescription</key>
+<string>Switch It continues sharing your live location with the leaving driver while you navigate in Waze or Maps during an active parking handoff.</string>
+<key>UIBackgroundModes</key>
+<array>
+  <string>location</string>
+</array>

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CLAIM_ARRIVAL_NEAR_METERS,
   formatDistanceAway,
+  formatPublisherDriverProgress,
   haversineDistanceMeters,
   isCloseToSpot,
   isValidLatLng,
@@ -37,5 +38,16 @@ describe("distance helpers", () => {
     expect(isCloseToSpot(40)).toBe(true);
     expect(isCloseToSpot(120)).toBe(false);
     expect(isCloseToSpot(null)).toBe(false);
+  });
+
+  it("formats publisher driver progress without ETA", () => {
+    expect(formatPublisherDriverProgress(650)).toBe(
+      "Driver is about 650 m away",
+    );
+    expect(formatPublisherDriverProgress(1400)).toBe(
+      "Driver is about 1.4 km away",
+    );
+    expect(formatPublisherDriverProgress(40)).toBe("Driver is nearby");
+    expect(formatPublisherDriverProgress(-1)).toBeNull();
   });
 });

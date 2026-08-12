@@ -473,7 +473,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(within(sheet).getByRole("button", { name: "Waze" })).toBeInTheDocument();
     expect(
       within(sheet).getByText(
-        "Live location is shared with the other driver during the handoff.",
+        /Share your live location while you drive to the parking spot/,
       ),
     ).toBeInTheDocument();
 

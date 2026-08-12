@@ -10,6 +10,10 @@ const { publishSpotMock } = vi.hoisted(() => ({
   publishSpotMock: vi.fn(),
 }));
 
+const { mapTilerForwardGeocodeSearchMock } = vi.hoisted(() => ({
+  mapTilerForwardGeocodeSearchMock: vi.fn(),
+}));
+
 vi.mock("@/actions/spots", () => ({
   publishSpot: publishSpotMock,
 }));
@@ -34,18 +38,24 @@ vi.mock("@/lib/geocoding/use-reverse-geocode", () => ({
   }),
 }));
 
+vi.mock("@/lib/geocoding/maptiler-forward-geocode", () => ({
+  mapTilerForwardGeocodeSearch: mapTilerForwardGeocodeSearchMock,
+}));
+
 vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
   SpotLocationPickerLoader: ({
     latitude,
     longitude,
     onLocationChange,
     onUserMovedMap,
+    onCurrentLocationRequested,
     onCurrentLocationResolved,
   }: {
     latitude: number;
     longitude: number;
     onLocationChange?: (latitude: number, longitude: number) => void;
     onUserMovedMap?: () => void;
+    onCurrentLocationRequested?: () => void;
     onCurrentLocationResolved?: (fix: {
       latitude: number;
       longitude: number;
@@ -74,6 +84,7 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
         type="button"
         aria-label="Use my current location"
         onClick={() => {
+          onCurrentLocationRequested?.();
           onCurrentLocationResolved?.({
             latitude: 32.085312,
             longitude: 34.781812,
@@ -191,17 +202,20 @@ describe("PublishSpotForm", () => {
     expect(screen.queryByText("Share my parking spot")).not.toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
-        "Exact location marked on map",
-      );
+      // Address label is display-only; we no longer show the exact fallback.
+      expect(screen.queryByText("Exact location marked on map")).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Finding the address…"),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText("Finding the address..."),
+      ).not.toBeInTheDocument();
     });
     expect(screen.getByText("Parking spot location")).toBeInTheDocument();
     expect(screen.getByTestId("publisher-location-accuracy")).toHaveTextContent(
       "Location accuracy: ±10 m",
     );
-    expect(screen.getByTestId("publisher-pin-hint")).toHaveTextContent(
-      "Drag the pin if needed to mark the exact parking spot.",
-    );
+    expect(screen.queryByTestId("publisher-pin-hint")).not.toBeInTheDocument();
     expect(
       screen.queryByText("You can move the map to adjust the spot."),
     ).not.toBeInTheDocument();
@@ -599,6 +613,147 @@ describe("PublishSpotForm", () => {
     );
   });
 
+  it("search an address, select a result, and updates marker + publish coordinates", async () => {
+    mapTilerForwardGeocodeSearchMock.mockResolvedValueOnce([
+      {
+        latitude: 32.1,
+        longitude: 34.2,
+        label: "Dizengoff 120, Tel Aviv",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    const searchInput = await screen.findByPlaceholderText(
+      "Search an address",
+    );
+    await user.type(searchInput, "Dizengoff 100, Tel Aviv");
+
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+
+    const suggestion = await screen.findByText(
+      "Dizengoff 120, Tel Aviv",
+    );
+    await user.click(suggestion);
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.1, 34.2",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
+
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+
+    const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
+    expect(formData.get("latitude")).toBe("32.100000");
+    expect(formData.get("longitude")).toBe("34.200000");
+  });
+
+  it("manual pin movement after address selection overrides the chosen coordinates and clears the address", async () => {
+    mapTilerForwardGeocodeSearchMock.mockResolvedValueOnce([
+      {
+        latitude: 32.2,
+        longitude: 34.3,
+        label: "Dizengoff 200, Tel Aviv",
+      },
+    ]);
+
+    const user = userEvent.setup();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    const searchInput = await screen.findByPlaceholderText(
+      "Search an address",
+    );
+    await user.type(searchInput, "Dizengoff 200");
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+
+    const suggestion = await screen.findByText("Dizengoff 200, Tel Aviv");
+    await user.click(suggestion);
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.2, 34.3",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.111111, 34.222222",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+
+    const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
+    expect(formData.get("latitude")).toBe("32.111111");
+    expect(formData.get("longitude")).toBe("34.222222");
+    expect(formData.get("address")).toBe("");
+  });
+
+  it("stale address search results cannot overwrite a newer manual selection", async () => {
+    let resolveFirst:
+      | ((value: Array<{ latitude: number; longitude: number; label: string }>) => void)
+      | null = null;
+    let resolveSecond:
+      | ((value: Array<{ latitude: number; longitude: number; label: string }>) => void)
+      | null = null;
+
+    mapTilerForwardGeocodeSearchMock.mockImplementation((q: string) => {
+      if (q.includes("First")) {
+        return new Promise((res) => {
+          resolveFirst = res;
+        });
+      }
+      return new Promise((res) => {
+        resolveSecond = res;
+      });
+    });
+
+    const user = userEvent.setup();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    const searchInput = await screen.findByPlaceholderText(
+      "Search an address",
+    );
+
+    await user.type(searchInput, "First address");
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+
+    await user.clear(searchInput);
+    await user.type(searchInput, "Second address");
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+
+    resolveSecond?.([
+      { latitude: 32.4, longitude: 34.5, label: "Result 2" },
+    ]);
+    const result2 = await screen.findByText("Result 2");
+    expect(result2).toBeInTheDocument();
+
+    await user.click(screen.getByText("Result 2"));
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.4, 34.5",
+    );
+
+    resolveFirst?.([
+      { latitude: 31.0, longitude: 35.0, label: "Result 1" },
+    ]);
+    await Promise.resolve();
+
+    // The stale result should not appear as a suggestion.
+    expect(screen.queryByText("Result 1")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Share spot" }));
+    await waitFor(() => {
+      expect(publishSpotMock).toHaveBeenCalledTimes(1);
+    });
+    const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
+    expect(formData.get("latitude")).toBe("32.400000");
+    expect(formData.get("longitude")).toBe("34.500000");
+  });
+
   it("publishes coordinates when reverse geocoding is unavailable", async () => {
     const user = userEvent.setup();
     reverseGeocodeState.status = "unavailable";
@@ -607,9 +762,10 @@ describe("PublishSpotForm", () => {
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
+    // Address is display-only and never blocks publishing.
     expect(
-      await screen.findByText("Exact location marked on map"),
-    ).toBeInTheDocument();
+      screen.queryByText("Exact location marked on map"),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Share spot" }));
     await waitFor(() => {

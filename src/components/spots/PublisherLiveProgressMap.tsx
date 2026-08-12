@@ -1,11 +1,12 @@
 "use client";
 
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BaseMap } from "@/components/map/BaseMap";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
 import type { SeekerLocationPayload } from "@/lib/location/payload";
+import { focusPublisherHandoffCamera } from "@/lib/map/focus-publisher-handoff";
 import { publisherPreviewShellClass } from "@/lib/map/leaverMapShell";
 import {
   MAP_SELECTED_SPOT_ZOOM,
@@ -30,6 +31,7 @@ export type PublisherLiveProgressMapProps = {
   statusLabel: string;
   updatedLabel: string;
   pauseHint?: string | null;
+  progressLabel?: string | null;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
 };
@@ -45,26 +47,6 @@ function emptyCollection(): GeoJSON.FeatureCollection {
   return { type: "FeatureCollection", features: [] };
 }
 
-function fitParkingAndSeeker(
-  map: MapLibreMap,
-  parkingLng: number,
-  parkingLat: number,
-  seekerLng: number,
-  seekerLat: number,
-) {
-  map.fitBounds(
-    [
-      [Math.min(parkingLng, seekerLng), Math.min(parkingLat, seekerLat)],
-      [Math.max(parkingLng, seekerLng), Math.max(parkingLat, seekerLat)],
-    ],
-    {
-      padding: 48,
-      maxZoom: 16,
-      duration: prefersReducedMotion() ? 0 : 400,
-    },
-  );
-}
-
 /**
  * Compact publisher live-progress map: parking marker + ephemeral seeker vehicle.
  * Updates GeoJSON via setData — does not recreate MapLibre.
@@ -76,15 +58,20 @@ export function PublisherLiveProgressMap({
   statusLabel,
   updatedLabel,
   pauseHint = null,
+  progressLabel = null,
   expanded = false,
   onExpandedChange,
 }: PublisherLiveProgressMapProps) {
   const styleUrl = useMemo(() => assertMapTilerStyleUrlOrNull(), []);
   const mapRef = useRef<MapLibreMap | null>(null);
   const initializedRef = useRef(false);
-  const followRef = useRef(true);
-  const didInitialFitRef = useRef(false);
-  const [follow, setFollow] = useState(true);
+  const pendingFocusRef = useRef(false);
+  const parkingRef = useRef({
+    latitude: parkingLatitude,
+    longitude: parkingLongitude,
+  });
+  const seekerRef = useRef(seekerLocation);
+  const [mapReady, setMapReady] = useState(false);
   const [mapUnavailable, setMapUnavailable] = useState(false);
   const [mapInstanceKey, setMapInstanceKey] = useState(0);
   const displaySeekerRef = useRef<{ lat: number; lng: number } | null>(null);
@@ -101,8 +88,15 @@ export function PublisherLiveProgressMap({
     : "publisher-live-map-shell publisher-live-map-shell--collapsed";
 
   useEffect(() => {
-    followRef.current = follow;
-  }, [follow]);
+    parkingRef.current = {
+      latitude: parkingLatitude,
+      longitude: parkingLongitude,
+    };
+  }, [parkingLatitude, parkingLongitude]);
+
+  useEffect(() => {
+    seekerRef.current = seekerLocation;
+  }, [seekerLocation]);
 
   useEffect(() => {
     return () => {
@@ -115,6 +109,34 @@ export function PublisherLiveProgressMap({
   useEffect(() => {
     mapRef.current?.resize();
   }, [expanded]);
+
+  const focusHandoff = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !initializedRef.current) {
+      pendingFocusRef.current = true;
+      return;
+    }
+    pendingFocusRef.current = false;
+    const seeker = seekerRef.current;
+    focusPublisherHandoffCamera(
+      map,
+      parkingRef.current,
+      seeker
+        ? {
+            longitude: seeker.longitude,
+            latitude: seeker.latitude,
+          }
+        : null,
+      { reducedMotion: prefersReducedMotion() },
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!mapReady || !pendingFocusRef.current) {
+      return;
+    }
+    focusHandoff();
+  }, [mapReady, focusHandoff]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -146,7 +168,6 @@ export function PublisherLiveProgressMap({
       displaySeekerRef.current = null;
       seekerSource?.setData(emptyCollection());
       accuracySource?.setData(emptyCollection());
-      didInitialFitRef.current = false;
       return;
     }
 
@@ -206,18 +227,7 @@ export function PublisherLiveProgressMap({
       };
       animFrameRef.current = requestAnimationFrame(tick);
     }
-
-    if (!didInitialFitRef.current) {
-      didInitialFitRef.current = true;
-      fitParkingAndSeeker(
-        map,
-        parkingLongitude,
-        parkingLatitude,
-        seekerLocation.longitude,
-        seekerLocation.latitude,
-      );
-    }
-  }, [parkingLatitude, parkingLongitude, seekerLocation]);
+  }, [mapReady, parkingLatitude, parkingLongitude, seekerLocation]);
 
   if (styleUrl === null) {
     return (
@@ -243,9 +253,10 @@ export function PublisherLiveProgressMap({
           reason="temporary"
           onRetry={() => {
             initializedRef.current = false;
-            didInitialFitRef.current = false;
             displaySeekerRef.current = null;
             mapRef.current = null;
+            pendingFocusRef.current = false;
+            setMapReady(false);
             setMapUnavailable(false);
             setMapInstanceKey((key) => key + 1);
           }}
@@ -268,6 +279,14 @@ export function PublisherLiveProgressMap({
         >
           {statusLabel}
         </p>
+        {progressLabel ? (
+          <p
+            className="mt-0.5 text-sm font-medium text-foreground"
+            data-testid="publisher-driver-distance"
+          >
+            {progressLabel}
+          </p>
+        ) : null}
         {pauseHint ? (
           <p
             className="mt-0.5 text-xs text-muted"
@@ -284,6 +303,10 @@ export function PublisherLiveProgressMap({
             {updatedLabel}
           </p>
         ) : null}
+        <p className="mt-1 text-xs text-muted" data-testid="publisher-live-legend">
+          Parking spot
+          {seekerLocation ? " · Approaching driver" : ""}
+        </p>
       </div>
 
       <div
@@ -306,6 +329,7 @@ export function PublisherLiveProgressMap({
           onMapReady={(map) => {
             mapRef.current = map;
             if (initializedRef.current) {
+              setMapReady(true);
               return;
             }
             initializedRef.current = true;
@@ -375,15 +399,8 @@ export function PublisherLiveProgressMap({
               });
             }
 
-            const disableFollow = () => setFollow(false);
-            map.on("dragstart", disableFollow);
-            map.on("zoomstart", (e) => {
-              if (e.originalEvent) {
-                disableFollow();
-              }
-            });
-
             map.resize();
+            setMapReady(true);
           }}
         />
       </div>
@@ -399,29 +416,19 @@ export function PublisherLiveProgressMap({
             {expanded ? "Collapse map" : "Expand map"}
           </button>
         ) : null}
-        {seekerLocation ? (
-          <button
-            type="button"
-            className="motion-interactive-press min-h-10 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground"
-            aria-pressed={follow}
-            onClick={() => {
-              setFollow(true);
-              const map = mapRef.current;
-              if (!map) {
-                return;
-              }
-              fitParkingAndSeeker(
-                map,
-                parkingLongitude,
-                parkingLatitude,
-                seekerLocation.longitude,
-                seekerLocation.latitude,
-              );
-            }}
-          >
-            Follow
-          </button>
-        ) : null}
+        <button
+          type="button"
+          data-testid="publisher-handoff-focus"
+          className="motion-interactive-press min-h-10 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground"
+          aria-label={
+            seekerLocation
+              ? "Focus parking spot and approaching driver"
+              : "Focus parking spot"
+          }
+          onClick={focusHandoff}
+        >
+          Follow
+        </button>
       </div>
     </div>
   );

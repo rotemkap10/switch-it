@@ -60,3 +60,22 @@ export function isCloseToSpot(meters: number | null | undefined): boolean {
     meters <= CLAIM_ARRIVAL_NEAR_METERS
   );
 }
+
+/**
+ * Informational publisher progress from an already-received seeker Broadcast
+ * sample. Not ETA and not a geofence.
+ */
+export function formatPublisherDriverProgress(
+  meters: number,
+): string | null {
+  if (!Number.isFinite(meters) || meters < 0) {
+    return null;
+  }
+  if (isCloseToSpot(meters)) {
+    return "Driver is nearby";
+  }
+  if (meters < 1000) {
+    return `Driver is about ${Math.round(meters)} m away`;
+  }
+  return `Driver is about ${(meters / 1000).toFixed(1)} km away`;
+}

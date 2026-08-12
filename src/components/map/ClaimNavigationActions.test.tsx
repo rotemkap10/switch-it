@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ClaimNavigationActions } from "@/components/map/ClaimNavigationActions";
+import { WEB_HANDOFF_LOCATION_DISCLOSURE } from "@/lib/location/handoff-disclosures";
 import { PostClaimNavigationProvider } from "@/components/map/PostClaimNavigationProvider";
 import {
   registerSeekerLiveLocationStarter,
@@ -71,9 +72,7 @@ describe("ClaimNavigationActions", () => {
     const sheet = screen.getByTestId("navigation-provider-sheet");
     expect(within(sheet).getByText("Open in")).toBeInTheDocument();
     expect(
-      within(sheet).getByText(
-        "Live location is shared with the other driver during the handoff.",
-      ),
+      within(sheet).getByText(WEB_HANDOFF_LOCATION_DISCLOSURE),
     ).toBeInTheDocument();
     expect(within(sheet).getByRole("button", { name: "Waze" })).toBeInTheDocument();
     expect(

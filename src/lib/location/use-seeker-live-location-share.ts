@@ -8,6 +8,9 @@ import {
   SEEKER_LOCATION_EVENT,
   SEEKER_LOCATION_STATUS_EVENT,
 } from "@/lib/location/constants";
+import { getHandoffLocationService } from "@/lib/location/handoff-location-service";
+import { decideNativeTrackingReconcile } from "@/lib/location/handoff-native-reconcile";
+import { getNativeHandoffPlugin } from "@/lib/location/native-handoff-plugin";
 import {
   isUsableAccuracy,
   type SeekerLocationPayload,
@@ -45,8 +48,20 @@ function isSecureGeolocationAvailable(): boolean {
   return "geolocation" in navigator && !!navigator.geolocation;
 }
 
+async function refreshSeekerAccessToken(): Promise<string | null> {
+  const client = createClient();
+  const refreshed = await client.auth.refreshSession();
+  const token =
+    refreshed.data.session?.access_token ??
+    (await client.auth.getSession()).data.session?.access_token ??
+    null;
+  return token;
+}
+
 /**
- * Foreground-only seeker live-location share for one active claim.
+ * Seeker live-location share for one active claim.
+ * Web/PWA: foreground-only watchPosition + private Broadcast.
+ * Native app: single background GPS + HTTP bridge; does not pause when hidden.
  * Consent is in-memory for this claim only — never persisted.
  */
 export function useSeekerLiveLocationShare({
@@ -75,6 +90,9 @@ export function useSeekerLiveLocationShare({
   const expiresAtRef = useRef(spotExpiresAtIso);
   const terminalRef = useRef(false);
   const uiEpochRef = useRef(0);
+  const nativeListenerRef = useRef<{ remove: () => Promise<void> } | null>(
+    null,
+  );
 
   useEffect(() => {
     claimIdRef.current = claimId;
@@ -98,15 +116,26 @@ export function useSeekerLiveLocationShare({
     }
   }, []);
 
+  const detachNativeListener = useCallback(async () => {
+    const listener = nativeListenerRef.current;
+    nativeListenerRef.current = null;
+    try {
+      await listener?.remove();
+    } catch {
+      // ignore
+    }
+  }, []);
+
   const shutdown = useCallback(
     async (next: SeekerShareUiState = "off") => {
       sharingEnabledRef.current = false;
       clearWatch();
       lastSentRef.current = null;
+      await detachNativeListener();
       await leaveChannel();
       setUiState(next);
     },
-    [clearWatch, leaveChannel],
+    [clearWatch, detachNativeListener, leaveChannel],
   );
 
   const sendStatus = useCallback(async (status: "paused" | "stopped") => {
@@ -283,6 +312,86 @@ export function useSeekerLiveLocationShare({
     });
   }, [leaveChannel]);
 
+  const attachNativeUiListener = useCallback(async () => {
+    await detachNativeListener();
+    const plugin = await getNativeHandoffPlugin();
+    if (!plugin?.addListener) {
+      return;
+    }
+    try {
+      nativeListenerRef.current = await plugin.addListener(
+        "handoffLocationState",
+        (event) => {
+          if (!sharingEnabledRef.current || terminalRef.current) {
+            return;
+          }
+          if (event.uiState === "sharing") {
+            hasUsableFixRef.current = true;
+            setUiState("sharing");
+            return;
+          }
+          if (event.uiState === "weak" && !hasUsableFixRef.current) {
+            setUiState("weak");
+            return;
+          }
+          if (event.uiState === "acquiring" && !hasUsableFixRef.current) {
+            setUiState("acquiring");
+          }
+        },
+      );
+    } catch {
+      nativeListenerRef.current = null;
+    }
+  }, [detachNativeListener]);
+
+  const startNativeSharing = useCallback(async () => {
+    const service = getHandoffLocationService();
+    sharingEnabledRef.current = true;
+    hasUsableFixRef.current = false;
+    setUiState("acquiring");
+
+    try {
+      const existing = await service.getTrackingState();
+      if (existing.active && existing.claimId === claimIdRef.current) {
+        sharingEnabledRef.current = true;
+        hasUsableFixRef.current = true;
+        setUiState("sharing");
+        await attachNativeUiListener();
+        return;
+      }
+
+      const accessToken = await refreshSeekerAccessToken();
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+      if (!accessToken || !supabaseUrl || !publishableKey) {
+        sharingEnabledRef.current = false;
+        setUiState("unavailable");
+        return;
+      }
+
+      const result = await service.startHandoffTracking({
+        claimId: claimIdRef.current,
+        expiresAtIso: expiresAtRef.current,
+        accessToken,
+        supabaseUrl,
+        supabasePublishableKey: publishableKey,
+      });
+
+      if (!result.ok) {
+        sharingEnabledRef.current = false;
+        setUiState(
+          result.reason === "permission_denied" ? "denied" : "unavailable",
+        );
+        return;
+      }
+
+      await attachNativeUiListener();
+    } catch {
+      sharingEnabledRef.current = false;
+      setUiState("unavailable");
+    }
+  }, [attachNativeUiListener]);
+
   const startSharing = useCallback(async () => {
     if (!enabled || terminalRef.current) {
       return;
@@ -291,6 +400,13 @@ export function useSeekerLiveLocationShare({
     if (new Date(expiresAtRef.current).getTime() <= Date.now()) {
       return;
     }
+
+    const service = getHandoffLocationService();
+    if (service.isNative) {
+      await startNativeSharing();
+      return;
+    }
+
     if (!isSecureGeolocationAvailable()) {
       setUiState("unavailable");
       return;
@@ -308,11 +424,12 @@ export function useSeekerLiveLocationShare({
       clearWatch();
       setUiState("unavailable");
     }
-  }, [clearWatch, enabled, ensureChannel, startWatch]);
+  }, [clearWatch, enabled, ensureChannel, startNativeSharing, startWatch]);
 
   const stopSharing = useCallback(async () => {
     uiEpochRef.current += 1;
     await sendStatus("stopped");
+    await getHandoffLocationService().stopHandoffTracking("explicit_stop");
     await shutdown("off");
   }, [sendStatus, shutdown]);
 
@@ -325,6 +442,7 @@ export function useSeekerLiveLocationShare({
     uiEpochRef.current += 1;
     void (async () => {
       await sendStatus("stopped");
+      await getHandoffLocationService().stopHandoffTracking("terminal");
       await shutdown("idle");
     })();
   }, [sendStatus, shutdown]);
@@ -335,6 +453,9 @@ export function useSeekerLiveLocationShare({
     }
 
     const onVisibility = () => {
+      if (getHandoffLocationService().isNative) {
+        return;
+      }
       if (document.visibilityState === "hidden") {
         if (sharingEnabledRef.current) {
           clearWatch();
@@ -376,19 +497,59 @@ export function useSeekerLiveLocationShare({
     clearWatch();
     void leaveChannel();
     const epoch = ++uiEpochRef.current;
-    const id = window.setTimeout(() => {
-      if (uiEpochRef.current !== epoch) {
+    let cancelled = false;
+    let idleTimer: number | null = null;
+
+    void (async () => {
+      const service = getHandoffLocationService();
+      if (service.isNative) {
+        try {
+          const state = await service.getTrackingState();
+          if (cancelled || uiEpochRef.current !== epoch) {
+            return;
+          }
+          const decision = decideNativeTrackingReconcile({
+            enabled,
+            currentClaimId: claimId,
+            expiresAtIso: expiresAtRef.current,
+            nativeActive: state.active,
+            nativeClaimId: state.claimId,
+          });
+          if (decision.action === "stop") {
+            await service.stopHandoffTracking(decision.reason);
+          } else if (decision.action === "keep") {
+            sharingEnabledRef.current = true;
+            hasUsableFixRef.current = true;
+            setUiState("sharing");
+            setResumedOnce(false);
+            return;
+          }
+        } catch {
+          // Fall through to idle.
+        }
+      }
+      if (cancelled || uiEpochRef.current !== epoch) {
         return;
       }
-      setUiState("idle");
-      setResumedOnce(false);
-    }, 0);
+      idleTimer = window.setTimeout(() => {
+        if (uiEpochRef.current !== epoch) {
+          return;
+        }
+        setUiState("idle");
+        setResumedOnce(false);
+      }, 0);
+    })();
+
     return () => {
-      window.clearTimeout(id);
+      cancelled = true;
+      if (idleTimer !== null) {
+        window.clearTimeout(idleTimer);
+      }
       terminalRef.current = true;
       sharingEnabledRef.current = false;
       clearWatch();
       void leaveChannel();
+      // Native tracker outlives React remounts (revalidatePath / navigation).
     };
   }, [claimId, enabled, clearWatch, leaveChannel]);
 

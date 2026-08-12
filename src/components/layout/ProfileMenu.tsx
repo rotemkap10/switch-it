@@ -6,6 +6,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { logout } from "@/actions/auth";
 import { InstallAppSheet } from "@/components/pwa/InstallAppSheet";
+import { onLogoutSubmit } from "@/lib/location/stop-handoff-on-logout";
 import { UserInitialAvatar } from "@/components/illustrations/UserInitialAvatar";
 import { usePwaInstall } from "@/lib/pwa/use-pwa-install";
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
@@ -139,7 +140,7 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
                 Install app
               </button>
             ) : null}
-            <form action={logout} role="none">
+            <form action={logout} role="none" onSubmit={onLogoutSubmit}>
               <button
                 type="submit"
                 role="menuitem"

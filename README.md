@@ -2,7 +2,7 @@
 
 Phone-first web app that helps drivers coordinate a **public street parking handoff**.
 
-A driver about to leave can share when their spot will free up. Another driver can claim it for a short window, navigate there, optionally share live location while Switch It is open, verify with a 5-digit code, and complete the handoff. Credits (virtual points for this course MVP—not money) transfer only on successful completion.
+A driver about to leave can share when their spot will free up. Another driver can claim it for a short window, navigate there, optionally share live location (PWA: while Switch It is open; native app: throughout the active handoff, including Waze/Maps), verify with a 5-digit code, and complete the handoff. Credits (virtual points for this course MVP—not money) transfer only on successful completion.
 
 Switch It does **not** sell, reserve, or guarantee a parking spot.
 
@@ -12,7 +12,8 @@ Switch It does **not** sell, reserve, or guarantee a parking spot.
 - Shared handoff deadline with publisher-controlled waiting (initial 2 min,
   extend up to 5 min total after departure; Phase 9A + extend RPC)
 - Handoff verification code + mutual vehicle recognition
-- Optional foreground live-location sharing (Phase 9B)
+- Optional live-location sharing (Phase 9B): PWA foreground-only; native
+  iOS/Android background during an active handoff only
 - Credits, History, Profile, PWA install
 - Branded parking-pin loading for routes and maps
 
@@ -31,9 +32,15 @@ Browser / PWA
   → Supabase Auth + Postgres (RLS/RPC)
   → Supabase Realtime (postgres_changes + private Broadcast for live location)
   → MapLibre rendering + MapTiler style/geocoding
+
+Native iOS/Android (pilot)
+  → Capacitor shell + HandoffBackgroundLocation plugin
+  → native GPS + HTTP → Edge Function → same private Broadcast topic
 ```
 
-Live seeker location is ephemeral (memory + private Broadcast only). No location/route history is stored.
+Live seeker location is ephemeral (memory + private Broadcast only). No location/route history is stored. Native background GPS exists only during an active handoff.
+
+Native pilot setup: `native/README.md`. Do not set Capacitor `server.url` in production config. Next.js Server Actions cannot be bundled as static Capacitor assets; Vercel/PWA remains the production web app.
 
 ## Local setup
 

@@ -22,12 +22,21 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 2. Recenter to current location (or pan pin)
 3. Confirm leave slider is **0–10 min** (not 20); publish available in **2 minutes**
 4. Confirm spot card countdown (initial grace **2 minutes** after departure)
-5. After claim: see claimed UI, counterpart vehicle, handoff code (no helper prose)
+5. After claim: **Your spot has been claimed**, stay-until-arrival instruction,
+   remaining time, **Look for this vehicle** (photo or illustration), parking
+   address or **Exact location marked on map**, handoff code. No Complete action.
 6. Observe seeker live location (**Waiting for driver location** /
    **Driver location live** + **Updated just now** / **Location update delayed** /
-   **Live location paused**). Opening Waze/Google/Apple may pause sharing; this
-   is intentional foreground-only PWA behavior. Sharing resumes when Switch It
-   returns to the foreground. Last-known marker stays visible while delayed/paused.
+   **Live location paused** / **Live location temporarily unavailable**).
+   Optional **Driver is about N m away** / **Driver is nearby** is
+   informational only. Last-known marker stays visible while delayed/paused.
+   **Web/PWA:** Opening Waze/Google/Apple may pause sharing; hint **Live
+   location paused while the driver is navigating** is expected. Sharing
+   resumes when Switch It returns to the foreground.
+   **Native iOS/Android:** Opening Waze/Google/Apple must **not** pause.
+   Publisher should stay on **Driver location live** / **Updated just now**
+   as native updates arrive. Android shows a persistent notification:
+   “Switch It — Sharing location for active parking handoff”.
 7. Optionally **Wait N more min** (truthful label; never past 5-minute hard cap)
 8. Give 5-digit code verbally when you meet
 
@@ -42,9 +51,11 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
    Denied permission still opens navigation; claim stays active (**Live location off**).
 6. After a provider is chosen, the giant Open in CTA is gone; use **Waze · Change**
    (or **Navigate to spot** if dismissed) to reopen the chooser.
-7. Return from Waze; claim still active. Live location resumes if Switch It is
-   foregrounded again (publisher returns to **Driver location live** /
-   **Updated just now**). Pause while navigating is expected, not a defect.
+7. Return from Waze; claim still active.
+   **Web/PWA:** Live location resumes if Switch It is foregrounded again.
+   Pause while navigating is expected, not a defect.
+   **Native:** tracking never stopped; returning to Switch It must not start
+   a second GPS stream.
 8. Reload `/map` with the active claim: chooser does **not** auto-open again
 9. Confirm the active-claim sheet: remaining time, **Navigate to spot**,
    parking address or **Exact location marked on map**, optional distance,
@@ -64,7 +75,11 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 - [ ] Extension itself created **no** History row and **no** credit tx
 - [ ] Live location stops after complete (publisher map clears / ages out)
 - [ ] Publisher last-update freshness is visible (**Updated just now** / seconds ago)
-- [ ] Pause while seeker is in Waze/Maps is expected; last marker remains
+- [ ] Web/PWA: pause while seeker is in Waze/Maps is expected; last marker remains
+- [ ] Native app: Waze/Maps open → publisher stays live (no pause merely because Switch It is hidden)
+- [ ] Native tracking stops immediately on complete / cancel / expire / Stop sharing / logout
+- [ ] Native: claim expires while Switch It is backgrounded → tracking stops (notification gone)
+- [ ] No location permission: claim + navigation still work; live progress unavailable; no nag
 - [ ] Weak GPS on seeker shows **Getting an accurate location…** / **Location signal is weak** without cancelling the claim
 - [ ] Seeker claim sheet uses exact spot lat/lng for Navigate + preview; missing address still works
 - [ ] No seeker location permission: claim UI still usable, distance omitted
@@ -205,6 +220,17 @@ Automated tests cover many races; this matrix covers real devices, GPS, and mult
 - [ ] Unrelated user cannot see counterpart vehicles
 - [ ] History never shows codes, emails, counterpart IDs, or live coordinates
 - [ ] Live Broadcast: unrelated account cannot subscribe to `claim-location:<uuid>`
+
+---
+
+## Native handoff location smoke (iOS / Android pilot)
+
+- [ ] Capacitor sync succeeds; Info.plist location strings + Background Modes → Location updates
+- [ ] Android FGS notification copy is clear during an active handoff only
+- [ ] Edge Function `handoff-seeker-location` deployed; unauthorized JWT / non-seeker cannot broadcast
+- [ ] Poor GPS samples are not transmitted; network blip does not crash or store a route
+- [ ] Committed `capacitor.config.ts` has **no** hard-coded `server.url`
+- [ ] Device testing uses `CAPACITOR_SERVER_URL` only for `cap sync` (unset → no remote server)
 
 ---
 

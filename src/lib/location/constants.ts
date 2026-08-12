@@ -1,4 +1,4 @@
-/** Phase 9B live-location constants (foreground private Broadcast). */
+/** Phase 9B live-location constants (private Broadcast; web foreground / native background). */
 
 /** Geolocation watch options — tuned for outdoor handoff walking/driving approach. */
 export const LIVE_LOCATION_GEO_OPTIONS = {

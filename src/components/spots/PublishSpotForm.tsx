@@ -12,11 +12,15 @@ import { LeaveTimeSlider } from "@/components/spots/LeaveTimeSlider";
 import { SpotLocationPickerLoader } from "@/components/spots/SpotLocationPickerLoader";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { PUBLISHER_SPOT_ADDRESS_FALLBACK } from "@/lib/geocoding/location-display";
+import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { useReverseGeocode } from "@/lib/geocoding/use-reverse-geocode";
 import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
 import type { GeolocationReason } from "@/lib/map/use-user-location";
+import {
+  mapTilerForwardGeocodeSearch,
+  type ForwardGeocodeResult,
+} from "@/lib/geocoding/maptiler-forward-geocode";
 import {
   classifyGpsAccuracy,
   formatGpsAccuracyLabel,
@@ -71,6 +75,7 @@ function AddressLookupSummary({
   isUpdating,
   accuracyMeters,
   pinPlacedManually,
+  manualAddressLabel,
 }: {
   geoStatus: GeoStatus;
   hasLocation: boolean;
@@ -79,6 +84,7 @@ function AddressLookupSummary({
   isUpdating: boolean;
   accuracyMeters: number | null;
   pinPlacedManually: boolean;
+  manualAddressLabel: string | null;
 }) {
   if (geoStatus === "loading" && !hasLocation) {
     return (
@@ -96,14 +102,6 @@ function AddressLookupSummary({
   if (!hasLocation || geoStatus === "error") {
     return null;
   }
-
-  const showResolved =
-    lookupStatus === "success" && addressLabel && !isUpdating;
-  const showLoading = lookupStatus === "loading" || isUpdating;
-  const showFallback =
-    lookupStatus === "unavailable" ||
-    (lookupStatus === "success" && !addressLabel && !isUpdating) ||
-    (lookupStatus === "idle" && !addressLabel && !isUpdating);
 
   const accuracyLabel = pinPlacedManually
     ? null
@@ -142,34 +140,31 @@ function AddressLookupSummary({
       </>
     ) : null;
 
-  if (showLoading) {
+  const showManualAddress =
+    pinPlacedManually && Boolean(manualAddressLabel?.trim());
+  if (showManualAddress) {
+    const display = publisherSpotAddressLabel(manualAddressLabel);
     return (
       <div
-        className="publisher-location-summary"
+        className="publisher-location-summary motion-fade-in"
         role="status"
         aria-live="polite"
         data-testid="publisher-address-summary"
       >
-        {addressLabel ? (
-          <p className="publisher-location-summary__previous motion-location-indicator">
-            {addressLabel}
-          </p>
-        ) : (
-          <p
-            className="publisher-location-status publisher-location-status--success"
-            data-testid="publisher-location-status"
-          >
-            {PUBLISHER_SPOT_ADDRESS_FALLBACK}
-          </p>
-        )}
-        <p className="publisher-location-summary__loading motion-location-indicator">
-          Finding the address…
+        <p
+          className="publisher-location-summary__value"
+          data-testid="publisher-address-label"
+          title={display ?? undefined}
+        >
+          {display}
         </p>
         {accuracyBlock}
       </div>
     );
   }
 
+  const showResolved =
+    lookupStatus === "success" && addressLabel && !isUpdating;
   if (showResolved) {
     return (
       <div
@@ -190,26 +185,18 @@ function AddressLookupSummary({
     );
   }
 
-  if (showFallback) {
-    return (
-      <div
-        className="publisher-location-summary"
-        role="status"
-        aria-live="polite"
-        data-testid="publisher-address-summary"
-      >
-        <p
-          className="publisher-location-status publisher-location-status--success"
-          data-testid="publisher-location-status"
-        >
-          {PUBLISHER_SPOT_ADDRESS_FALLBACK}
-        </p>
-        {accuracyBlock}
-      </div>
-    );
-  }
-
-  return null;
+  // Do not show "Finding the address…" or fallbacks. Address is
+  // display-only; publishing always uses marker coordinates.
+  return accuracyBlock ? (
+    <div
+      className="publisher-location-summary"
+      role="status"
+      aria-live="polite"
+      data-testid="publisher-address-summary"
+    >
+      {accuracyBlock}
+    </div>
+  ) : null;
 }
 
 function LocationStatus({
@@ -289,7 +276,33 @@ export function PublishSpotForm() {
   const manualOverrideRef = useRef(false);
   const hasLocationRef = useRef(false);
 
+  const [addressQuery, setAddressQuery] = useState("");
+  const [addressSuggestions, setAddressSuggestions] = useState<
+    ForwardGeocodeResult[]
+  >([]);
+  const [addressSearchPending, setAddressSearchPending] = useState(false);
+  const [manualAddressLabel, setManualAddressLabel] = useState<string | null>(
+    null,
+  );
+  const [manualAddressLatLng, setManualAddressLatLng] = useState<{
+    lat: string;
+    lng: string;
+  } | null>(null);
+
+  const locationActionSeqRef = useRef(0);
+  const gpsRequestSeqRef = useRef<number | null>(null);
+  const forwardSearchSeqRef = useRef(0);
+
+  const bumpLocationAction = useCallback(() => {
+    locationActionSeqRef.current += 1;
+    return locationActionSeqRef.current;
+  }, []);
+
   const hasLocation = latitude !== "" && longitude !== "";
+  const manualAddressMatchesCoords =
+    manualAddressLatLng != null &&
+    manualAddressLatLng.lat === latitude &&
+    manualAddressLatLng.lng === longitude;
   const showMap =
     geoStatus === "success" || geoStatus === "manual" || hasLocation;
 
@@ -311,10 +324,99 @@ export function PublishSpotForm() {
     canRenderPicker,
   );
 
+  const addressForPublishValue =
+    manualAddressMatchesCoords && manualAddressLabel
+      ? manualAddressLabel
+      : addressForPublish ?? "";
+
   const setLocation = useCallback((lat: number, lng: number) => {
     setLatitude(formatCoord(lat));
     setLongitude(formatCoord(lng));
   }, []);
+
+  // Debounced forward geocoding for address search (label-only).
+  useEffect(() => {
+    const scheduleReset = () => {
+      const runner = () => {
+        setAddressSuggestions([]);
+        setAddressSearchPending(false);
+      };
+
+      if (typeof queueMicrotask === "function") {
+        queueMicrotask(runner);
+        return;
+      }
+
+      window.setTimeout(runner, 0);
+    };
+
+    if (!canRenderPicker) {
+      scheduleReset();
+      return;
+    }
+
+    const query = addressQuery.trim();
+    if (query.length < 3) {
+      scheduleReset();
+      return;
+    }
+
+    const requestSeq = ++forwardSearchSeqRef.current;
+
+    const delta = 0.03; // ~3km in lat; good enough bias toward the current area.
+    const centerLat = detectedLocation?.latitude ?? parsedLat;
+    const centerLng = detectedLocation?.longitude ?? parsedLng;
+
+    const id = window.setTimeout(() => {
+      if (requestSeq !== forwardSearchSeqRef.current) {
+        return;
+      }
+
+      setAddressSearchPending(true);
+
+      if (!Number.isFinite(centerLat) || !Number.isFinite(centerLng)) {
+        setAddressSuggestions([]);
+        setAddressSearchPending(false);
+        return;
+      }
+
+      void mapTilerForwardGeocodeSearch(query, {
+        limit: 5,
+        country: "IL",
+        bbox: {
+          west: centerLng - delta,
+          south: centerLat - delta,
+          east: centerLng + delta,
+          north: centerLat + delta,
+        },
+      })
+        .then((results) => {
+          if (requestSeq !== forwardSearchSeqRef.current) {
+            return;
+          }
+          setAddressSuggestions(results);
+          setAddressSearchPending(false);
+        })
+        .catch(() => {
+          if (requestSeq !== forwardSearchSeqRef.current) {
+            return;
+          }
+          setAddressSuggestions([]);
+          setAddressSearchPending(false);
+        });
+    }, 350);
+
+    return () => {
+      window.clearTimeout(id);
+    };
+  }, [
+    addressQuery,
+    canRenderPicker,
+    detectedLocation?.latitude,
+    detectedLocation?.longitude,
+    parsedLat,
+    parsedLng,
+  ]);
 
   const stopGpsWatch = useCallback(() => {
     stopWatchRef.current?.();
@@ -328,6 +430,9 @@ export function PublishSpotForm() {
         longitude: fix.longitude,
       });
       setAccuracyMeters(fix.accuracy);
+      // GPS-driven marker placement invalidates any prior manual address selection.
+      setManualAddressLabel(null);
+      setManualAddressLatLng(null);
       setLocation(fix.latitude, fix.longitude);
       setGeoError(null);
       setGeoStatus("success");
@@ -388,10 +493,27 @@ export function PublishSpotForm() {
     };
   }, [subscribeGpsWatch]);
 
+  function handleCurrentLocationRequested() {
+    const seq = bumpLocationAction();
+    gpsRequestSeqRef.current = seq;
+    setAddressQuery("");
+    setAddressSuggestions([]);
+    setAddressSearchPending(false);
+    // Clear manual label immediately; the coordinates will come from GPS.
+    setManualAddressLabel(null);
+    setManualAddressLatLng(null);
+  }
+
   function chooseOnMap() {
+    bumpLocationAction();
+    gpsRequestSeqRef.current = null;
     stopGpsWatch();
     setManualOverride(true);
     manualOverrideRef.current = true;
+    setManualAddressLabel(null);
+    setManualAddressLatLng(null);
+    setAddressQuery("");
+    setAddressSuggestions([]);
     setAccuracyMeters(null);
     if (!hasLocation) {
       setLocation(MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng);
@@ -407,26 +529,62 @@ export function PublishSpotForm() {
   }
 
   function handleUserMovedMap() {
+    bumpLocationAction();
+    gpsRequestSeqRef.current = null;
     stopGpsWatch();
     setManualOverride(true);
     manualOverrideRef.current = true;
+    setManualAddressLabel(null);
+    setManualAddressLatLng(null);
     setAccuracyMeters(null);
   }
 
   function handleCurrentLocationResolved(fix: DeviceLocationFix) {
+    const expectedSeq = gpsRequestSeqRef.current;
+    if (expectedSeq == null || expectedSeq !== locationActionSeqRef.current) {
+      return;
+    }
+    gpsRequestSeqRef.current = null;
     stopGpsWatch();
     setManualOverride(false);
     manualOverrideRef.current = false;
     applyGpsFix(fix);
   }
 
+  function handleAddressSearchSelect(result: ForwardGeocodeResult) {
+    bumpLocationAction();
+    gpsRequestSeqRef.current = null;
+
+    stopGpsWatch();
+    setManualOverride(true);
+    manualOverrideRef.current = true;
+    setAccuracyMeters(null);
+    setGeoStatus("manual");
+
+    const latStr = formatCoord(result.latitude);
+    const lngStr = formatCoord(result.longitude);
+    setLatitude(latStr);
+    setLongitude(lngStr);
+
+    setManualAddressLabel(result.label);
+    setManualAddressLatLng({ lat: latStr, lng: lngStr });
+
+    setAddressQuery("");
+    setAddressSuggestions([]);
+    setAddressSearchPending(false);
+  }
+
   function handleManualCoordChange(
     setter: (value: string) => void,
     value: string,
   ) {
+    bumpLocationAction();
+    gpsRequestSeqRef.current = null;
     stopGpsWatch();
     setManualOverride(true);
     manualOverrideRef.current = true;
+    setManualAddressLabel(null);
+    setManualAddressLatLng(null);
     setAccuracyMeters(null);
     setter(value);
   }
@@ -454,7 +612,47 @@ export function PublishSpotForm() {
             isUpdating={isUpdating}
             accuracyMeters={accuracyMeters}
             pinPlacedManually={manualOverride || geoStatus === "manual"}
+            manualAddressLabel={manualAddressLabel}
           />
+
+          {canRenderPicker ? (
+            <div className="flex flex-col gap-2">
+              <label htmlFor="address-search" className="sr-only">
+                Search an address
+              </label>
+              <input
+                id="address-search"
+                type="text"
+                inputMode="search"
+                placeholder="Search an address"
+                value={addressQuery}
+                onChange={(e) => setAddressQuery(e.target.value)}
+                disabled={pending}
+                aria-busy={addressSearchPending || undefined}
+                className="app-form-control min-h-[var(--app-tap-min)] rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-foreground placeholder:text-muted/70 disabled:opacity-60"
+                aria-autocomplete="list"
+              />
+
+              {addressSuggestions.length > 0 ? (
+                <ul
+                  className="max-h-44 overflow-auto rounded-[var(--radius-card)] border border-border bg-surface p-1"
+                  role="listbox"
+                >
+                  {addressSuggestions.map((s, idx) => (
+                    <li key={`${s.label}-${idx}`}>
+                      <button
+                        type="button"
+                        className="block w-full rounded-[var(--radius-card)] px-3 py-2 text-left text-sm text-foreground hover:bg-accent-soft"
+                        onClick={() => handleAddressSearchSelect(s)}
+                      >
+                        {s.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
 
           {geoStatus === "loading" && !canRenderPicker ? (
             <MapShellSkeleton message="Loading map…" />
@@ -468,6 +666,7 @@ export function PublishSpotForm() {
               onMapInteractionStart={notifyMapMoveStart}
               onMapInteractionSettled={notifyMapMoveSettled}
               onUserMovedMap={handleUserMovedMap}
+              onCurrentLocationRequested={handleCurrentLocationRequested}
               disabled={pending}
               userLatitude={detectedLocation?.latitude ?? null}
               userLongitude={detectedLocation?.longitude ?? null}
@@ -475,14 +674,7 @@ export function PublishSpotForm() {
             />
           ) : null}
 
-          {canRenderPicker ? (
-            <p
-              className="publisher-pin-hint"
-              data-testid="publisher-pin-hint"
-            >
-              Drag the pin if needed to mark the exact parking spot.
-            </p>
-          ) : null}
+          {/* Pin dragging is self-explanatory on the map. */}
 
           <LocationStatus
             geoStatus={geoStatus}
@@ -499,7 +691,7 @@ export function PublishSpotForm() {
               <input
                 type="hidden"
                 name="address"
-                value={addressForPublish ?? ""}
+                value={addressForPublishValue}
               />
             </>
           ) : null}

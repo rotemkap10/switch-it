@@ -159,9 +159,7 @@ export function HandoffWindowCountdown({
   const line =
     phase === "waiting"
       ? waitingCopy(role, formatWaitingMinutes(remainingMs))
-      : role === "seeker"
-        ? seekerWindowCopy(remainingMs)
-        : windowCopy(role, formatClock(remainingMs));
+      : seekerWindowCopy(remainingMs);
 
   return (
     <div

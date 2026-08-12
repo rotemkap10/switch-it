@@ -155,26 +155,47 @@ During an active handoff, both participants see counterpart vehicle identity
 participant-only RPC. Plate and text remain authoritative. A vehicle photo is
 optional; without one, the existing illustrated vehicle is shown.
 
-**Live location (Phase 9B — foreground-only):** After claiming, the seeker sees
-an **Open in** chooser (Waze / Google Maps / Apple Maps). Choosing a provider
-opens external navigation and starts the existing foreground live-location
-share in the same tap (native geolocation permission if needed). There is no
-standalone **Share live location** button. A one-line disclosure in the
-chooser states that live location is shared during the handoff. While Switch It
-is open and visible, a throttled private Broadcast updates the publisher’s
-progress map. Opening Waze / Google Maps / Apple Maps may background the PWA;
-GPS sharing **pauses by design** and resumes when Switch It returns to the
-foreground. This is intentional PWA behavior, not a defect. Denied
-permission still opens navigation; the claim stays active and the seeker sees
-**Live location off**. Weak GPS shows **Getting an accurate location…** /
-**Location signal is weak** without broadcasting inaccurate coordinates.
-The seeker can **Stop sharing**. Declining, inaccurate
-GPS, backgrounding, or stale updates never auto-cancel the claim. Publisher UI
-shows freshness (**Driver location live** + **Updated just now**, delayed /
-paused with last-update age, or **Live location temporarily unavailable** on
-Realtime failure) and never exposes permission-denied details. Intent is per
-app session (not DB / localStorage). Coordinates are never stored in the
-database, local storage, caches, or analytics.
+**Live location (Phase 9B):** After claiming, the seeker sees an **Open in**
+chooser (Waze / Google Maps / Apple Maps). Choosing a provider opens external
+navigation and starts live-location share in the same tap (permission if
+needed). There is no standalone **Share live location** button. The chooser
+explains that location is shared so the leaving driver knows when the seeker
+is approaching.
+
+Platforms:
+
+- **Web / PWA:** foreground-only. While Switch It is visible, a throttled
+  private Broadcast updates the publisher’s progress map. Opening Waze /
+  Google Maps / Apple Maps backgrounds the PWA; sharing **pauses** and
+  resumes when Switch It returns. This is intentional PWA behavior, not a
+  defect.
+- **Native iOS / Android app:** background sharing during the **active
+  handoff only**. Switching to Waze / Maps does **not** pause tracking.
+  The publisher continues to see live progress until the handoff ends.
+  Native tracking is not permanent and is never used outside an active
+  claim.
+
+Stop conditions (all platforms; native GPS must stop immediately):
+
+- handoff completed
+- claim cancelled
+- claim or spot expired
+- seeker taps **Stop sharing**
+- seeker logs out
+- active claim changes
+
+Denied permission still opens navigation; the claim stays active and the
+seeker sees **Live location off** (no repeated nag). Weak GPS shows
+**Getting an accurate location…** / **Location signal is weak** without
+broadcasting inaccurate coordinates. Declining, inaccurate GPS, network
+loss, or stale updates never auto-cancel the claim. Publisher UI shows
+freshness (**Driver location live** + **Updated just now**, delayed /
+paused with last-update age, or **Live location temporarily unavailable**
+on Realtime / GPS / network failure) and never exposes permission-denied
+details. Intent is per app session (not DB / localStorage). Coordinates
+are never stored in the database, local storage, caches, analytics, or a
+route-history table. Sharing is temporary, claim-scoped, and
+participant-only.
 Switch It does **not** provide turn-by-turn navigation or ETA. No Google Routes
 API. Nearby users/cars are not shown on the map — only available spots and the
 relevant counterpart during an active handoff.
@@ -199,10 +220,14 @@ No maps, live locations, handoff codes, or counterpart personal data.
    not submit absolute timestamps.
 4. Spot appears on the map for other users; the publisher sees a compact
    **Waiting for a driver** card (no map preview) until claimed, cancelled, or
-   expired. After a seeker claims, the live handoff map is shown.
+   expired. After a seeker claims, the publisher sees **Your spot has been
+   claimed**, remaining time, the seeker’s vehicle identity, live driver
+   location (with last-update freshness), parking-spot context, and the handoff
+   code. Optional straight-line “Driver is about N m away” may appear from the
+   existing live sample — never ETA or a geofence.
 5. Both sides see a compact countdown:
    before `available_at` (“Ready in N min”), then during the waiting window
-   (“M:SS left”). After expiry the UI transitions to a terminal state (no frozen
+   (“N min remaining”). After expiry the UI transitions to a terminal state (no frozen
    00:00).
 6. The publisher is **not** expected to wait five minutes automatically.
    Initial grace is **2 minutes**. During a claimed handoff after

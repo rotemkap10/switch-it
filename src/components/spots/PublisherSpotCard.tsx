@@ -15,6 +15,12 @@ import {
 } from "@/components/ui/HandoffWindowCountdown";
 import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { usePublisherLiveLocation } from "@/lib/location/use-publisher-live-location";
+import {
+  formatPublisherDriverProgress,
+  haversineDistanceMeters,
+  isCloseToSpot,
+  isValidLatLng,
+} from "@/lib/map/distance";
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
 import { canOfferHandoffExtension } from "@/lib/spots/constants";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
@@ -28,6 +34,13 @@ export type PublisherSpotSummary = {
   latitude: number;
   longitude: number;
 };
+
+export const PUBLISHER_WAITING_STATUS = "Waiting for a driver";
+export const PUBLISHER_CLAIMED_STATUS = "Your spot has been claimed";
+export const PUBLISHER_CLAIMED_STAY_INSTRUCTION =
+  "Stay at the parking spot until the driver arrives.";
+export const PUBLISHER_CLAIMED_NEARBY_INSTRUCTION =
+  "Driver is approaching the parking spot";
 
 type PublisherSpotCardProps = {
   spot: PublisherSpotSummary;
@@ -57,8 +70,12 @@ export function PublisherSpotCard({
   const [claimedEmphasis, setClaimedEmphasis] = useState(false);
   const [liveMapExpanded, setLiveMapExpanded] = useState(false);
   const destinationLabel = publisherSpotTitleLabel(spot.address);
-  const hasValidCoords =
-    Number.isFinite(spot.latitude) && Number.isFinite(spot.longitude);
+  const parkingLatLng = isValidLatLng({
+    latitude: spot.latitude,
+    longitude: spot.longitude,
+  })
+    ? { latitude: spot.latitude, longitude: spot.longitude }
+    : null;
   const waitingPin = useOneShotAnimation(
     !claimed ? `publisher-waiting-pin:${spot.id}` : null,
   );
@@ -67,6 +84,19 @@ export function PublisherSpotCard({
     enabled: claimed && !!activeClaimId,
   });
   const clearLiveLocation = liveLocation.clear;
+  const seekerLatLng = liveLocation.location
+    ? {
+        latitude: liveLocation.location.latitude,
+        longitude: liveLocation.location.longitude,
+      }
+    : null;
+  const driverMeters =
+    parkingLatLng && isValidLatLng(seekerLatLng)
+      ? haversineDistanceMeters(seekerLatLng, parkingLatLng)
+      : null;
+  const driverNearby = isCloseToSpot(driverMeters);
+  const driverProgressLabel =
+    driverMeters == null ? null : formatPublisherDriverProgress(driverMeters);
 
   const onExpired = useCallback(() => {
     clearLiveLocation();
@@ -111,8 +141,18 @@ export function PublisherSpotCard({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold text-foreground sm:text-xl">
-            {claimed ? "A driver is on the way" : "Waiting for a driver"}
+            {claimed ? PUBLISHER_CLAIMED_STATUS : PUBLISHER_WAITING_STATUS}
           </h2>
+          {claimed ? (
+            <p
+              className="mt-1 text-sm text-muted"
+              data-testid="publisher-claimed-instruction"
+            >
+              {driverNearby
+                ? PUBLISHER_CLAIMED_NEARBY_INSTRUCTION
+                : PUBLISHER_CLAIMED_STAY_INSTRUCTION}
+            </p>
+          ) : null}
         </div>
         {!claimed ? (
           <ParkingPinSettle
@@ -122,36 +162,31 @@ export function PublisherSpotCard({
         ) : null}
       </div>
 
-      <p
-        className="mt-3 truncate text-sm font-medium text-foreground"
-        title={destinationLabel}
-      >
-        {destinationLabel}
-      </p>
-      <div className="mt-3">
-          <HandoffWindowCountdown
-            key={spot.expires_at}
-            availableAtIso={spot.available_at}
-            expiresAtIso={spot.expires_at}
-            role="publisher"
-            onExpired={onExpired}
-          />
+      {!claimed ? (
+        <p
+          className="mt-3 truncate text-sm font-medium text-foreground"
+          title={destinationLabel}
+        >
+          {destinationLabel}
+        </p>
+      ) : null}
+      <div className={claimed ? "mt-2" : "mt-3"}>
+        <HandoffWindowCountdown
+          key={spot.expires_at}
+          availableAtIso={spot.available_at}
+          expiresAtIso={spot.expires_at}
+          role="publisher"
+          onExpired={onExpired}
+        />
       </div>
     </div>
   );
-
-  const handoffBlock =
-    claimed && handoffCode ? (
-      <div className="motion-fade-in" data-testid="publisher-handoff-priority">
-        <HandoffCodeSection code={handoffCode} />
-      </div>
-    ) : null;
 
   const vehicleBlock =
     claimed && counterpartVehicle ? (
       <div className="border-t border-border/60 pt-3">
         <HandoffVehicleSection
-          title="Look for this driver"
+          title="Look for this vehicle"
           vehicle={counterpartVehicle}
           approachAnimationKey={`publisher-${spot.id}`}
         />
@@ -159,18 +194,42 @@ export function PublisherSpotCard({
     ) : null;
 
   const mapBlock =
-    claimed && activeClaimId && hasValidCoords ? (
-      <div className="border-t border-border/60 pt-3">
+    claimed && activeClaimId && parkingLatLng ? (
+      <div className="border-t border-border/60 pt-3 md:border-t-0 md:pt-0">
         <PublisherLiveProgressMapLoader
-          parkingLatitude={spot.latitude}
-          parkingLongitude={spot.longitude}
+          parkingLatitude={parkingLatLng.latitude}
+          parkingLongitude={parkingLatLng.longitude}
           seekerLocation={liveLocation.location}
           statusLabel={liveLocation.statusLabel}
           updatedLabel={liveLocation.updatedLabel}
           pauseHint={liveLocation.pauseHint}
+          progressLabel={driverProgressLabel}
           expanded={liveMapExpanded}
           onExpandedChange={setLiveMapExpanded}
         />
+      </div>
+    ) : null;
+
+  const parkingContextBlock = claimed ? (
+    <div
+      className="border-t border-border/60 pt-3"
+      data-testid="publisher-parking-context"
+    >
+      <p className="text-xs font-medium text-muted">Parking spot</p>
+      <p
+        className="truncate text-sm font-medium text-foreground"
+        title={destinationLabel}
+        data-testid="publisher-parking-address"
+      >
+        {destinationLabel}
+      </p>
+    </div>
+  ) : null;
+
+  const handoffBlock =
+    claimed && handoffCode ? (
+      <div className="motion-fade-in" data-testid="publisher-handoff-priority">
+        <HandoffCodeSection code={handoffCode} />
       </div>
     ) : null;
 
@@ -204,23 +263,28 @@ export function PublisherSpotCard({
       ].join(" ")}
       data-testid="publisher-spot-card"
       data-status={spot.status}
+      data-driver-nearby={claimed && driverNearby ? "true" : "false"}
     >
       {usePageGrid && mapBlock ? (
         <div className="grid gap-3 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] md:items-start md:gap-4">
           <div className="flex flex-col gap-3 md:col-start-1">
             {statusBlock}
-            {handoffBlock}
             {vehicleBlock}
           </div>
           <div className="md:col-start-2 md:row-start-1">{mapBlock}</div>
-          <div className="md:col-span-2">{cancelBlock}</div>
+          <div className="flex flex-col gap-3 md:col-span-2">
+            {parkingContextBlock}
+            {handoffBlock}
+            {cancelBlock}
+          </div>
         </div>
       ) : (
         <>
           {statusBlock}
-          {handoffBlock}
           {vehicleBlock}
           {mapBlock}
+          {parkingContextBlock}
+          {handoffBlock}
           {cancelBlock}
         </>
       )}

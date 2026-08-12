@@ -33,8 +33,23 @@ vi.mock("@/components/ui/HandoffWindowCountdown", async () => {
   >("@/components/ui/HandoffWindowCountdown");
   return {
     ...actual,
-    HandoffWindowCountdown: ({ role }: { role: string }) => (
-      <div data-testid="handoff-window-countdown">{role}</div>
+    HandoffWindowCountdown: ({
+      role,
+      availableAtIso,
+      expiresAtIso,
+    }: {
+      role: string;
+      availableAtIso: string;
+      expiresAtIso: string;
+    }) => (
+      <div
+        data-testid="handoff-window-countdown"
+        data-role={role}
+        data-available={availableAtIso}
+        data-expires={expiresAtIso}
+      >
+        {role}
+      </div>
     ),
   };
 });
@@ -63,28 +78,88 @@ vi.mock("@/components/spots/PublisherSpotPreviewMapLoader", () => ({
 vi.mock("@/components/spots/PublisherLiveProgressMapLoader", () => ({
   PublisherLiveProgressMapLoader: ({
     statusLabel,
+    updatedLabel,
+    pauseHint,
+    progressLabel,
+    seekerLocation,
+    parkingLatitude,
+    parkingLongitude,
   }: {
     statusLabel: string;
+    updatedLabel?: string;
+    pauseHint?: string | null;
+    progressLabel?: string | null;
+    seekerLocation?: { latitude: number; longitude: number } | null;
+    parkingLatitude: number;
+    parkingLongitude: number;
   }) => (
     <div data-testid="publisher-live-progress">
-      <p>{statusLabel}</p>
+      <p data-testid="publisher-live-status">{statusLabel}</p>
+      {progressLabel ? (
+        <p data-testid="publisher-driver-distance">{progressLabel}</p>
+      ) : null}
+      {pauseHint ? (
+        <p data-testid="publisher-live-pause-hint">{pauseHint}</p>
+      ) : null}
+      {updatedLabel && updatedLabel !== "Waiting" ? (
+        <p data-testid="publisher-live-updated">{updatedLabel}</p>
+      ) : null}
+      <div
+        data-testid="publisher-live-progress-map"
+        data-has-destination="true"
+        data-has-seeker={seekerLocation ? "true" : "false"}
+        data-parking-lat={String(parkingLatitude)}
+        data-parking-lng={String(parkingLongitude)}
+      />
     </div>
   ),
 }));
 
-vi.mock("@/lib/location/use-publisher-live-location", () => ({
-  usePublisherLiveLocation: () => ({
+type LiveLocationMock = {
+  freshness: string;
+  statusLabel: string;
+  updatedLabel: string;
+  pauseHint: string | null;
+  location: {
+    latitude: number;
+    longitude: number;
+    accuracyMeters: number;
+    headingDegrees: number | null;
+    sequence: number;
+    sentAt: number;
+  } | null;
+  clear: ReturnType<typeof vi.fn>;
+};
+
+const liveLocationState = vi.hoisted(
+  (): LiveLocationMock => ({
     freshness: "waiting",
     statusLabel: "Waiting for driver location",
     updatedLabel: "Waiting",
     pauseHint: null,
     location: null,
-    lastReceivedAtMs: null,
     clear: vi.fn(),
+  }),
+);
+
+vi.mock("@/lib/location/use-publisher-live-location", () => ({
+  usePublisherLiveLocation: () => ({
+    freshness: liveLocationState.freshness,
+    statusLabel: liveLocationState.statusLabel,
+    updatedLabel: liveLocationState.updatedLabel,
+    pauseHint: liveLocationState.pauseHint,
+    location: liveLocationState.location,
+    lastReceivedAtMs: liveLocationState.location ? Date.now() : null,
+    clear: liveLocationState.clear,
   }),
 }));
 
+import { LIVE_LOCATION_PAUSE_WHILE_NAVIGATING } from "@/lib/location/stale";
 import {
+  PUBLISHER_CLAIMED_NEARBY_INSTRUCTION,
+  PUBLISHER_CLAIMED_STATUS,
+  PUBLISHER_CLAIMED_STAY_INSTRUCTION,
+  PUBLISHER_WAITING_STATUS,
   PublisherSpotCard,
   publisherSpotTitleLabel,
 } from "@/components/spots/PublisherSpotCard";
@@ -121,6 +196,12 @@ describe("PublisherSpotCard", () => {
   beforeEach(() => {
     sessionStore.clear();
     resetSessionHandoffAnimationForTests();
+    liveLocationState.freshness = "waiting";
+    liveLocationState.statusLabel = "Waiting for driver location";
+    liveLocationState.updatedLabel = "Waiting";
+    liveLocationState.pauseHint = null;
+    liveLocationState.location = null;
+    liveLocationState.clear.mockReset();
     vi.stubGlobal("sessionStorage", {
       getItem: (key: string) => sessionStore.get(key) ?? null,
       setItem: (key: string, value: string) => {
@@ -158,7 +239,7 @@ describe("PublisherSpotCard", () => {
       "data-status",
       "available",
     );
-    expect(screen.getByText("Waiting for a driver")).toBeInTheDocument();
+    expect(screen.getByText(PUBLISHER_WAITING_STATUS)).toBeInTheDocument();
     expect(
       screen.queryByText("Your spot is visible to nearby drivers."),
     ).not.toBeInTheDocument();
@@ -176,7 +257,22 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("A driver is on the way")).toBeInTheDocument();
+    expect(screen.getByText(PUBLISHER_CLAIMED_STATUS)).toBeInTheDocument();
+    expect(
+      screen.getByText(PUBLISHER_CLAIMED_STAY_INSTRUCTION),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
+      "data-role",
+      "publisher",
+    );
+    expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
+      "data-expires",
+      baseSpot.expires_at,
+    );
+    expect(screen.getByTestId("publisher-parking-address")).toHaveTextContent(
+      "Dizengoff 50",
+    );
+    expect(screen.queryByText("A driver is on the way")).not.toBeInTheDocument();
     expect(screen.queryByText(/^Driver coming$/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
     expect(screen.queryByText(/seeker/i)).not.toBeInTheDocument();
@@ -193,7 +289,14 @@ describe("PublisherSpotCard", () => {
 
     expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
     expect(screen.getByText("Dizengoff 50")).toBeInTheDocument();
-    expect(screen.getByTestId("handoff-window-countdown")).toBeInTheDocument();
+    expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
+      "data-role",
+      "publisher",
+    );
+    expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
+      "data-expires",
+      baseSpot.expires_at,
+    );
     expect(screen.getByRole("button", { name: "Cancel spot" })).toBeInTheDocument();
   });
 
@@ -255,7 +358,7 @@ describe("PublisherSpotCard", () => {
     expect(screen.getByText("Exact location marked on map")).toBeInTheDocument();
   });
 
-  it("prioritizes handoff code before live progress map in claimed state", () => {
+  it("orders claimed glanceable info before code and cancel", () => {
     render(
       <PublisherSpotCard
         spot={{ ...baseSpot, status: "claimed" }}
@@ -270,11 +373,23 @@ describe("PublisherSpotCard", () => {
     const testIds = Array.from(card.querySelectorAll("[data-testid]")).map(
       (element) => element.getAttribute("data-testid"),
     );
-    expect(testIds.indexOf("handoff-code-section")).toBeLessThan(
+    expect(testIds.indexOf("publisher-spot-status")).toBeLessThan(
+      testIds.indexOf("handoff-vehicle-section"),
+    );
+    expect(testIds.indexOf("handoff-vehicle-section")).toBeLessThan(
       testIds.indexOf("publisher-live-progress"),
+    );
+    expect(testIds.indexOf("publisher-live-progress")).toBeLessThan(
+      testIds.indexOf("publisher-parking-context"),
+    );
+    expect(testIds.indexOf("publisher-parking-context")).toBeLessThan(
+      testIds.indexOf("handoff-code-section"),
     );
     expect(screen.getByText("Waiting for driver location")).toBeInTheDocument();
     expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Complete handoff" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the live handoff map only after a seeker claims", () => {
@@ -301,7 +416,7 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("Look for this driver")).toBeInTheDocument();
+    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
     expect(
       screen.queryByText("Recognize this vehicle when the driver arrives."),
     ).not.toBeInTheDocument();
@@ -349,7 +464,7 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.queryByText("Look for this driver")).not.toBeInTheDocument();
+    expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
     expect(screen.queryByText("Red · 76-543-21")).not.toBeInTheDocument();
     expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
   });
@@ -368,7 +483,7 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("Look for this driver")).toBeInTheDocument();
+    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
     const identity = screen.getByTestId("vehicle-identity-card");
     expect(within(identity).getByTestId("vehicle-photo")).toBeInTheDocument();
     expect(within(identity).getByRole("img", { name: "Mazda 3" })).toHaveAttribute(
@@ -395,10 +510,170 @@ describe("PublisherSpotCard", () => {
       />,
     );
 
-    expect(screen.getByText("Look for this driver")).toBeInTheDocument();
+    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
     expect(
       screen.getByText("Vehicle details not added yet"),
     ).toBeInTheDocument();
+  });
+
+  it("shows parking context fallback when address is missing", () => {
+    render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed", address: null }}
+        layout="page"
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-parking-context")).toBeInTheDocument();
+    expect(screen.getByTestId("publisher-parking-address")).toHaveTextContent(
+      "Exact location marked on map",
+    );
+  });
+
+  it("does not give the publisher a seeker Complete action", () => {
+    render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        layout="page"
+        counterpartVehicle={seekerVehicle}
+        handoffCode="48291"
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: /Complete handoff/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Handoff code")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "I’m leaving" }),
+    ).toBeInTheDocument();
+  });
+
+  it("renders live freshness and keeps last-known progress during pause", () => {
+    liveLocationState.freshness = "paused";
+    liveLocationState.statusLabel = "Live location paused";
+    liveLocationState.updatedLabel = "Last update 28 seconds ago";
+    liveLocationState.pauseHint = LIVE_LOCATION_PAUSE_WHILE_NAVIGATING;
+    liveLocationState.location = {
+      latitude: 32.09114,
+      longitude: 34.7818,
+      accuracyMeters: 12,
+      headingDegrees: null,
+      sequence: 4,
+      sentAt: Date.now() - 28_000,
+    };
+
+    render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        layout="page"
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-live-status")).toHaveTextContent(
+      "Live location paused",
+    );
+    expect(screen.getByTestId("publisher-live-pause-hint")).toHaveTextContent(
+      LIVE_LOCATION_PAUSE_WHILE_NAVIGATING,
+    );
+    expect(screen.getByTestId("publisher-live-updated")).toHaveTextContent(
+      "Last update 28 seconds ago",
+    );
+    expect(screen.getByTestId("publisher-live-progress-map")).toHaveAttribute(
+      "data-has-seeker",
+      "true",
+    );
+    expect(screen.getByTestId("publisher-driver-distance")).toHaveTextContent(
+      /Driver is about \d+ m away/,
+    );
+  });
+
+  it("renders delayed and unavailable live-location copy", () => {
+    liveLocationState.freshness = "delayed";
+    liveLocationState.statusLabel = "Location update delayed";
+    liveLocationState.updatedLabel = "Updated 14 seconds ago";
+    liveLocationState.location = {
+      latitude: 32.09114,
+      longitude: 34.7818,
+      accuracyMeters: 18,
+      headingDegrees: null,
+      sequence: 3,
+      sentAt: Date.now() - 14_000,
+    };
+
+    const { rerender } = render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        layout="page"
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-live-status")).toHaveTextContent(
+      "Location update delayed",
+    );
+    expect(screen.getByTestId("publisher-live-updated")).toHaveTextContent(
+      "Updated 14 seconds ago",
+    );
+
+    liveLocationState.freshness = "unavailable";
+    liveLocationState.statusLabel = "Live location temporarily unavailable";
+    liveLocationState.updatedLabel = "Last update 28 seconds ago";
+    rerender(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        layout="page"
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-live-status")).toHaveTextContent(
+      "Live location temporarily unavailable",
+    );
+    expect(screen.getByTestId("publisher-live-progress-map")).toHaveAttribute(
+      "data-has-seeker",
+      "true",
+    );
+  });
+
+  it("shifts nearby copy when the seeker is very close", () => {
+    liveLocationState.freshness = "live";
+    liveLocationState.statusLabel = "Driver location live";
+    liveLocationState.updatedLabel = "Updated just now";
+    liveLocationState.location = {
+      latitude: 32.0856,
+      longitude: 34.7818,
+      accuracyMeters: 8,
+      headingDegrees: null,
+      sequence: 6,
+      sentAt: Date.now(),
+    };
+
+    render(
+      <PublisherSpotCard
+        spot={{ ...baseSpot, status: "claimed" }}
+        layout="page"
+        counterpartVehicle={seekerVehicle}
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-spot-card")).toHaveAttribute(
+      "data-driver-nearby",
+      "true",
+    );
+    expect(
+      screen.getByText(PUBLISHER_CLAIMED_NEARBY_INSTRUCTION),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("publisher-driver-distance")).toHaveTextContent(
+      "Driver is nearby",
+    );
+    expect(
+      screen.queryByRole("button", { name: /Complete handoff/i }),
+    ).not.toBeInTheDocument();
   });
 });
 

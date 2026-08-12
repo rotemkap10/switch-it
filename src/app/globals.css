@@ -463,6 +463,20 @@ body {
   touch-action: none;
 }
 
+/* MapLibre navigation zoom buttons: hide on mobile to avoid clutter.
+   Pinch-to-zoom and map gestures remain enabled. */
+[data-testid="leaver-map-picker"] .maplibregl-ctrl-zoom-in,
+[data-testid="leaver-map-picker"] .maplibregl-ctrl-zoom-out {
+  display: none !important;
+}
+
+@media (min-width: 640px) {
+  [data-testid="leaver-map-picker"] .maplibregl-ctrl-zoom-in,
+  [data-testid="leaver-map-picker"] .maplibregl-ctrl-zoom-out {
+    display: block !important;
+  }
+}
+
 .publisher-preview-map-shell {
   width: 100%;
   overflow: hidden;
