@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { PublishSpotForm } from "@/components/spots/PublishSpotForm";
 import { publishSpotSchema } from "@/lib/validations/spot";
+import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
 const { publishSpotMock } = vi.hoisted(() => ({
   publishSpotMock: vi.fn(),
@@ -301,6 +302,69 @@ describe("PublishSpotForm", () => {
     );
   });
 
+  it("renders the map at the fallback center immediately while GPS is pending", async () => {
+    let success: PositionCallback | null = null;
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: vi.fn(),
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          return 1;
+        }),
+        clearWatch: vi.fn(),
+      },
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
+    expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
+      "Finding your location…",
+    );
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+
+    success?.(position(32.085312, 34.781812, 10));
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+        "Map at 32.085312, 34.781812",
+      );
+    });
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
+  });
+
+  it("does not let a late GPS fix overwrite an early manual pin move", async () => {
+    const user = userEvent.setup();
+    let success: PositionCallback | null = null;
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      geolocation: {
+        getCurrentPosition: vi.fn(),
+        watchPosition: vi.fn((nextSuccess: PositionCallback) => {
+          success = nextSuccess;
+          return 1;
+        }),
+        clearWatch: vi.fn(),
+      },
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.111111, 34.222222",
+    );
+
+    success?.(position(32.085312, 34.781812, 8));
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.111111, 34.222222",
+    );
+  });
+
   it("offers map fallback when geolocation is denied", async () => {
     const user = userEvent.setup();
     stubGeolocation((_success, error) => {
@@ -315,6 +379,9 @@ describe("PublishSpotForm", () => {
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
     expect(
       await screen.findByText(
         "Location permission denied. Place the pin on the map yourself.",

@@ -7,13 +7,11 @@ import {
   type PublishSpotActionState,
 } from "@/actions/spots";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
-import { MapLoadingState } from "@/components/map/MapLoadingState";
 import { LeaveTimeSlider } from "@/components/spots/LeaveTimeSlider";
 import { SpotLocationPickerLoader } from "@/components/spots/SpotLocationPickerLoader";
 import { Button } from "@/components/ui/Button";
 import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { useReverseGeocode } from "@/lib/geocoding/use-reverse-geocode";
-import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
 import type { GeolocationReason } from "@/lib/map/use-user-location";
 import {
@@ -56,21 +54,6 @@ function locationErrorCopy(reason: GeolocationReason | null): string {
   }
 }
 
-function MapShellSkeleton({ message }: { message: string }) {
-  return (
-    <div
-      className={[
-        "overflow-hidden rounded-[var(--radius-card)] border border-border",
-        LEAVER_MAP_SHELL_HEIGHT_CLASS,
-      ].join(" ")}
-      aria-label="Map to adjust your parking spot location"
-    >
-      <MapLoadingState className="h-full min-h-[inherit]" />
-      <span className="sr-only">{message}</span>
-    </div>
-  );
-}
-
 function AddressLookupSummary({
   geoStatus,
   hasLocation,
@@ -90,7 +73,7 @@ function AddressLookupSummary({
   pinPlacedManually: boolean;
   manualAddressLabel: string | null;
 }) {
-  if (geoStatus === "loading" && !hasLocation) {
+  if (geoStatus === "loading" && !pinPlacedManually) {
     return (
       <p
         className="publisher-location-status publisher-location-status--muted motion-location-indicator"
@@ -264,8 +247,12 @@ export function PublishSpotForm() {
     toastErrors: true,
   });
 
-  const [latitude, setLatitude] = useState("");
-  const [longitude, setLongitude] = useState("");
+  const [latitude, setLatitude] = useState(() =>
+    formatCoord(MAP_DEFAULT_CENTER.lat),
+  );
+  const [longitude, setLongitude] = useState(() =>
+    formatCoord(MAP_DEFAULT_CENTER.lng),
+  );
   const [detectedLocation, setDetectedLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -302,17 +289,14 @@ export function PublishSpotForm() {
   }, []);
 
   const hasLocation = latitude !== "" && longitude !== "";
+  const awaitingInitialGps = geoStatus === "loading" && !manualOverride;
   const manualAddressMatchesCoords =
     manualAddressLatLng != null &&
     manualAddressLatLng.lat === latitude &&
     manualAddressLatLng.lng === longitude;
-  const showMap =
-    geoStatus === "success" || geoStatus === "manual" || hasLocation;
-
   const parsedLat = parseCoord(latitude);
   const parsedLng = parseCoord(longitude);
-  const canRenderPicker =
-    showMap && parsedLat !== null && parsedLng !== null;
+  const canRenderPicker = parsedLat !== null && parsedLng !== null;
 
   const {
     status: addressLookupStatus,
@@ -459,9 +443,6 @@ export function PublishSpotForm() {
       },
       onError: (reason) => {
         if (manualOverrideRef.current) {
-          return;
-        }
-        if (hasLocationRef.current) {
           return;
         }
         setGeoError(reason);
@@ -644,10 +625,6 @@ export function PublishSpotForm() {
             </div>
           ) : null}
 
-          {geoStatus === "loading" && !canRenderPicker ? (
-            <MapShellSkeleton message="Loading map…" />
-          ) : null}
-
           {canRenderPicker ? (
             <SpotLocationPickerLoader
               latitude={parsedLat}
@@ -707,7 +684,7 @@ export function PublishSpotForm() {
         <div className="flex flex-col gap-2">
           <Button
             type="submit"
-            disabled={pending || !hasLocation}
+            disabled={pending || !hasLocation || awaitingInitialGps}
             loading={pending}
             aria-busy={pending}
             className="publisher-share-cta"
