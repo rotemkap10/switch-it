@@ -10,22 +10,44 @@ import {
 const validUuid = "550e8400-e29b-41d4-a716-446655440000";
 
 describe("claimSpotSchema", () => {
-  it("accepts a valid spot_id uuid", () => {
-    const result = claimSpotSchema.safeParse({ spot_id: validUuid });
+  it("accepts a valid spot_id and seeker coordinates", () => {
+    const result = claimSpotSchema.safeParse({
+      spot_id: validUuid,
+      seeker_latitude: "32.0853",
+      seeker_longitude: "34.7818",
+    });
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.spot_id).toBe(validUuid);
+      expect(result.data.seeker_latitude).toBeCloseTo(32.0853);
+      expect(result.data.seeker_longitude).toBeCloseTo(34.7818);
     }
   });
 
   it("rejects a non-uuid spot_id", () => {
-    expect(claimSpotSchema.safeParse({ spot_id: "not-a-uuid" }).success).toBe(
+    expect(
+      claimSpotSchema.safeParse({
+        spot_id: "not-a-uuid",
+        seeker_latitude: 32.08,
+        seeker_longitude: 34.78,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects missing seeker coordinates", () => {
+    expect(claimSpotSchema.safeParse({ spot_id: validUuid }).success).toBe(
       false,
     );
   });
 
-  it("rejects a missing spot_id", () => {
-    expect(claimSpotSchema.safeParse({}).success).toBe(false);
+  it("rejects invalid seeker coordinates", () => {
+    expect(
+      claimSpotSchema.safeParse({
+        spot_id: validUuid,
+        seeker_latitude: 999,
+        seeker_longitude: 34.78,
+      }).success,
+    ).toBe(false);
   });
 });
 

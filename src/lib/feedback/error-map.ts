@@ -18,6 +18,8 @@ export const APP_ERROR_MESSAGES = {
   OPEN_SPOT_EXISTS: "You already have an active parking spot.",
   INSUFFICIENT_CREDITS:
     "You need at least one parking credit to claim a spot.",
+  CLAIM_TOO_FAR: "This spot is too far away to claim.",
+  LOCATION_REQUIRED: "We need your current location to claim this spot.",
   INVALID_HANDOFF_CODE: "That handoff code isn’t correct.",
   HANDOFF_TEMPORARILY_LOCKED: "Too many attempts. Try again shortly.",
   HANDOFF_UNAVAILABLE: "This handoff can no longer be completed.",

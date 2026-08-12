@@ -2,8 +2,45 @@ import { z } from "zod";
 
 import { handoffCodeSchema } from "@/lib/validations/handoff-code";
 
+const LOCATION_REQUIRED_MESSAGE =
+  "We need your current location to claim this spot.";
+
+function seekerCoordinateField() {
+  return z.preprocess(
+    (value) => {
+      if (value == null || value === "") {
+        return undefined;
+      }
+      return value;
+    },
+    z.coerce
+      .number({ error: LOCATION_REQUIRED_MESSAGE })
+      .finite(LOCATION_REQUIRED_MESSAGE)
+      .min(-90, LOCATION_REQUIRED_MESSAGE)
+      .max(90, LOCATION_REQUIRED_MESSAGE),
+  );
+}
+
+function seekerLongitudeField() {
+  return z.preprocess(
+    (value) => {
+      if (value == null || value === "") {
+        return undefined;
+      }
+      return value;
+    },
+    z.coerce
+      .number({ error: LOCATION_REQUIRED_MESSAGE })
+      .finite(LOCATION_REQUIRED_MESSAGE)
+      .min(-180, LOCATION_REQUIRED_MESSAGE)
+      .max(180, LOCATION_REQUIRED_MESSAGE),
+  );
+}
+
 export const claimSpotSchema = z.object({
   spot_id: z.uuid("Choose a valid parking spot."),
+  seeker_latitude: seekerCoordinateField(),
+  seeker_longitude: seekerLongitudeField(),
 });
 
 export const completeClaimSchema = z.object({

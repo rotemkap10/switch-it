@@ -70,4 +70,49 @@ describe("SelectedSpotCard bottom sheet", () => {
     expect(host.className).toContain("map-bottom-sheet-host");
     expect(host.className).not.toContain("bottom-28");
   });
+
+  it("hides the claim button when the seeker is outside the max claim radius", () => {
+    render(
+      <SelectedSpotCard
+        spot={spot}
+        onClose={vi.fn()}
+        seekerLocation={{ latitude: 32.12, longitude: 34.7818 }}
+      />,
+    );
+
+    expect(screen.getByTestId("claim-too-far-notice")).toHaveTextContent(
+      "This spot is too far away to claim.",
+    );
+    expect(screen.getByTestId("selected-spot-distance")).toHaveTextContent(
+      "Too far to claim",
+    );
+    expect(
+      screen.queryByRole("button", { name: "I’m on my way" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("re-enables claim when the seeker moves inside the radius", () => {
+    const { rerender } = render(
+      <SelectedSpotCard
+        spot={spot}
+        onClose={vi.fn()}
+        seekerLocation={{ latitude: 32.12, longitude: 34.7818 }}
+      />,
+    );
+
+    expect(screen.getByTestId("claim-too-far-notice")).toBeInTheDocument();
+
+    rerender(
+      <SelectedSpotCard
+        spot={spot}
+        onClose={vi.fn()}
+        seekerLocation={{ latitude: 32.086, longitude: 34.7818 }}
+      />,
+    );
+
+    expect(screen.queryByTestId("claim-too-far-notice")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "I’m on my way" }),
+    ).toBeInTheDocument();
+  });
 });

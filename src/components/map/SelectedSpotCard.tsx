@@ -10,6 +10,13 @@ import {
   MAP_SHEET_CLASS,
   MAP_SHEET_HOST_CLASS,
 } from "@/lib/map/bottom-stack";
+import {
+  formatClaimDistanceLabel,
+  haversineDistanceMeters,
+  isValidLatLng,
+  isWithinClaimDistance,
+  type LatLng,
+} from "@/lib/map/distance";
 import type { MapSpot } from "@/types/map-spot";
 
 const PANEL_EXIT_MS = 200;
@@ -19,12 +26,15 @@ type SelectedSpotCardProps = {
   onClose: () => void;
   /** Straight-line distance label when user location is known. */
   distanceLabel?: string | null;
+  /** Latest seeker fix for claim eligibility UX. */
+  seekerLocation?: LatLng | null;
 };
 
 export function SelectedSpotCard({
   spot,
   onClose,
   distanceLabel = null,
+  seekerLocation = null,
 }: SelectedSpotCardProps) {
   const [closing, setClosing] = useState(false);
   const titleId = useId();
@@ -38,6 +48,18 @@ export function SelectedSpotCard({
   }
 
   const addressLabel = seekerSpotAddressLabel(spot.address);
+  const spotCoords = { latitude: spot.latitude, longitude: spot.longitude };
+  const distanceMeters =
+    isValidLatLng(seekerLocation) && isValidLatLng(spotCoords)
+      ? haversineDistanceMeters(seekerLocation, spotCoords)
+      : null;
+  const resolvedDistanceLabel =
+    distanceMeters != null
+      ? formatClaimDistanceLabel(distanceMeters) || null
+      : distanceLabel;
+  const tooFar =
+    distanceMeters != null &&
+    !isWithinClaimDistance(seekerLocation, spotCoords);
 
   return (
     <div
@@ -73,8 +95,13 @@ export function SelectedSpotCard({
                 readyLabel="Available now"
               />
             </p>
-            {distanceLabel ? (
-              <p className="mt-1 truncate text-xs text-muted">{distanceLabel}</p>
+            {resolvedDistanceLabel ? (
+              <p
+                className="mt-1 truncate text-xs text-muted"
+                data-testid="selected-spot-distance"
+              >
+                {resolvedDistanceLabel}
+              </p>
             ) : null}
           </div>
           <Button
@@ -90,15 +117,28 @@ export function SelectedSpotCard({
 
         {spot.canClaim ? (
           <div className="flex flex-col gap-2" data-testid="selected-spot-claim-action">
-            <p className="text-xs leading-5 text-muted">
-              Claim this shared handoff if you can arrive in time. Parking is not
-              guaranteed against other street drivers.
-            </p>
-            <ClaimSpotButton
-              spotId={spot.id}
-              latitude={spot.latitude}
-              longitude={spot.longitude}
-            />
+            {tooFar ? (
+              <p
+                className="text-sm text-foreground"
+                role="status"
+                data-testid="claim-too-far-notice"
+              >
+                This spot is too far away to claim.
+              </p>
+            ) : (
+              <>
+                <p className="text-xs leading-5 text-muted">
+                  Claim this shared handoff if you can arrive in time. Parking is
+                  not guaranteed against other street drivers.
+                </p>
+                <ClaimSpotButton
+                  spotId={spot.id}
+                  latitude={spot.latitude}
+                  longitude={spot.longitude}
+                  seekerLocation={seekerLocation}
+                />
+              </>
+            )}
           </div>
         ) : (
           <p className="text-sm text-muted">This is your published spot.</p>

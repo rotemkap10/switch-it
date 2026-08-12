@@ -31,7 +31,7 @@ import {
   type MapBottomStack,
 } from "@/lib/map/bottom-stack";
 import {
-  formatDistanceAway,
+  formatClaimDistanceLabel,
   haversineDistanceMeters,
   isValidLatLng,
 } from "@/lib/map/distance";
@@ -822,13 +822,25 @@ export function ParkingMapMapLibre({
         <SelectedSpotCard
           spot={selectedSpot}
           onClose={() => setSelectedId(null)}
+          seekerLocation={
+            userLocation.status === "ready" &&
+            isValidLatLng({
+              latitude: userLocation.latitude,
+              longitude: userLocation.longitude,
+            })
+              ? {
+                  latitude: userLocation.latitude,
+                  longitude: userLocation.longitude,
+                }
+              : null
+          }
           distanceLabel={
             userLocation.status === "ready" &&
             isValidLatLng({
               latitude: userLocation.latitude,
               longitude: userLocation.longitude,
             })
-              ? formatDistanceAway(
+              ? formatClaimDistanceLabel(
                   haversineDistanceMeters(
                     {
                       latitude: userLocation.latitude,

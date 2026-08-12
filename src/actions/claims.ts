@@ -60,9 +60,22 @@ export async function claimSpot(
 ): Promise<ClaimSpotActionState> {
   const parsed = claimSpotSchema.safeParse({
     spot_id: formData.get("spot_id"),
+    seeker_latitude: formData.get("seeker_latitude"),
+    seeker_longitude: formData.get("seeker_longitude"),
   });
 
   if (!parsed.success) {
+    const locationIssue = parsed.error.issues.some(
+      (issue) =>
+        issue.path[0] === "seeker_latitude" ||
+        issue.path[0] === "seeker_longitude",
+    );
+    if (locationIssue) {
+      return {
+        error: APP_ERROR_MESSAGES.LOCATION_REQUIRED,
+        errorCode: "LOCATION_REQUIRED",
+      };
+    }
     return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
   }
 
@@ -81,6 +94,8 @@ export async function claimSpot(
 
   const { data, error } = await supabase.rpc("claim_spot", {
     p_spot_id: parsed.data.spot_id,
+    p_seeker_latitude: parsed.data.seeker_latitude,
+    p_seeker_longitude: parsed.data.seeker_longitude,
   });
 
   if (error) {

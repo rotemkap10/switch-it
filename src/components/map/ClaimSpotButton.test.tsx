@@ -13,24 +13,37 @@ import {
   setSensoryAdaptersForTests,
 } from "@/lib/sensory/feedback";
 
-const { claimSpotMock } = vi.hoisted(() => ({
+const { claimSpotMock, requestLocationMock } = vi.hoisted(() => ({
   claimSpotMock: vi.fn(),
+  requestLocationMock: vi.fn(),
 }));
 
 vi.mock("@/actions/claims", () => ({
   claimSpot: claimSpotMock,
 }));
 
+vi.mock("@/lib/map/request-current-device-location", () => ({
+  requestCurrentDeviceLocation: (...args: unknown[]) =>
+    requestLocationMock(...args),
+}));
+
 const spotId = "550e8400-e29b-41d4-a716-446655440000";
 const destination = { latitude: 32.085312, longitude: 34.781812 };
+const nearbySeeker = { latitude: 32.086, longitude: 34.781812 };
+const farSeeker = { latitude: 32.12, longitude: 34.781812 };
 
-function renderClaimButton() {
+function renderClaimButton(
+  props: Partial<{
+    seekerLocation: { latitude: number; longitude: number } | null;
+  }> = {},
+) {
   return render(
     <FeedbackShell>
       <ClaimSpotButton
         spotId={spotId}
         latitude={destination.latitude}
         longitude={destination.longitude}
+        seekerLocation={props.seekerLocation ?? nearbySeeker}
       />
     </FeedbackShell>,
   );
@@ -39,6 +52,16 @@ function renderClaimButton() {
 describe("ClaimSpotButton", () => {
   beforeEach(() => {
     claimSpotMock.mockReset();
+    requestLocationMock.mockReset();
+    requestLocationMock.mockResolvedValue({
+      ok: true,
+      fix: {
+        latitude: nearbySeeker.latitude,
+        longitude: nearbySeeker.longitude,
+        accuracy: 12,
+        timestamp: Date.now(),
+      },
+    });
     resetPostClaimNavigationForTests();
     resetSensoryAdaptersForTests();
   });
@@ -51,7 +74,7 @@ describe("ClaimSpotButton", () => {
     ).toBeInTheDocument();
   });
 
-  it("invokes the claim action with the correct spot id", async () => {
+  it("requests a fresh location and submits seeker coordinates with the claim", async () => {
     const user = userEvent.setup();
     claimSpotMock.mockResolvedValue({
       success: true,
@@ -63,11 +86,43 @@ describe("ClaimSpotButton", () => {
     await user.click(screen.getByRole("button", { name: "I’m on my way" }));
 
     await waitFor(() => {
+      expect(requestLocationMock).toHaveBeenCalled();
       expect(claimSpotMock).toHaveBeenCalledTimes(1);
     });
 
     const formData = claimSpotMock.mock.calls[0]?.[1] as FormData;
     expect(formData.get("spot_id")).toBe(spotId);
+    expect(formData.get("seeker_latitude")).toBe(String(nearbySeeker.latitude));
+    expect(formData.get("seeker_longitude")).toBe(
+      String(nearbySeeker.longitude),
+    );
+  });
+
+  it("blocks claim when known seeker location is outside the radius", () => {
+    renderClaimButton({ seekerLocation: farSeeker });
+
+    expect(screen.getByTestId("claim-too-far-notice")).toHaveTextContent(
+      "This spot is too far away to claim.",
+    );
+    expect(
+      screen.queryByRole("button", { name: "I’m on my way" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a location-required message when a fresh fix is unavailable", async () => {
+    const user = userEvent.setup();
+    requestLocationMock.mockResolvedValue({
+      ok: false,
+      reason: "denied",
+    });
+
+    renderClaimButton({ seekerLocation: null });
+    await user.click(screen.getByRole("button", { name: "I’m on my way" }));
+
+    expect(await screen.findByTestId("claim-local-error")).toHaveTextContent(
+      "We need your current location to claim this spot.",
+    );
+    expect(claimSpotMock).not.toHaveBeenCalled();
   });
 
   it("shows a pending disabled state that prevents duplicate submits", async () => {
@@ -89,9 +144,13 @@ describe("ClaimSpotButton", () => {
     await user.click(screen.getByRole("button", { name: "I’m on my way" }));
 
     const pendingButton = await screen.findByRole("button", {
-      name: "Claiming…",
+      name: /Claiming…|Getting location…/,
     });
     expect(pendingButton).toBeDisabled();
+
+    await waitFor(() => {
+      expect(claimSpotMock).toHaveBeenCalledTimes(1);
+    });
 
     await user.click(pendingButton);
     expect(claimSpotMock).toHaveBeenCalledTimes(1);

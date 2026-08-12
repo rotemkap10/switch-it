@@ -11,12 +11,18 @@ import {
   resetPostClaimNavigationForTests,
 } from "@/lib/map/post-claim-navigation";
 
-const { claimSpotMock } = vi.hoisted(() => ({
+const { claimSpotMock, requestLocationMock } = vi.hoisted(() => ({
   claimSpotMock: vi.fn(),
+  requestLocationMock: vi.fn(),
 }));
 
 vi.mock("@/actions/claims", () => ({
   claimSpot: claimSpotMock,
+}));
+
+vi.mock("@/lib/map/request-current-device-location", () => ({
+  requestCurrentDeviceLocation: (...args: unknown[]) =>
+    requestLocationMock(...args),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -82,6 +88,16 @@ const claim = {
 describe("post-claim navigation flow", () => {
   beforeEach(() => {
     claimSpotMock.mockReset();
+    requestLocationMock.mockReset();
+    requestLocationMock.mockResolvedValue({
+      ok: true,
+      fix: {
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+        accuracy: 10,
+        timestamp: Date.now(),
+      },
+    });
     resetPostClaimNavigationForTests();
     vi.stubGlobal(
       "matchMedia",
