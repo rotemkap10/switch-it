@@ -17,7 +17,10 @@ import {
 } from "@/lib/map/bottom-stack";
 import { sanitizeLocationLabel } from "@/lib/geocoding/sanitize-location-label";
 import { registerSeekerLiveLocationStarter } from "@/lib/location/seeker-live-location-intent";
-import { useSeekerLiveLocationShare } from "@/lib/location/use-seeker-live-location-share";
+import {
+  useSeekerLiveLocationShare,
+  type SeekerLiveLocationShareApi,
+} from "@/lib/location/use-seeker-live-location-share";
 import { isCloseToSpot } from "@/lib/map/distance";
 import { useDistanceToSpot } from "@/lib/map/use-distance-to-spot";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
@@ -60,6 +63,8 @@ type ActiveClaimPanelProps = {
   variant?: "card" | "overlay";
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
+  /** When provided, sharing is owned by the parent (starts before the map is ready). */
+  liveShare?: SeekerLiveLocationShareApi;
 };
 
 function ExpandChevron({ expanded }: { expanded: boolean }) {
@@ -83,6 +88,7 @@ function ActiveClaimSheetBody({
   expanded,
   onToggleExpanded,
   sheetLabelId,
+  liveShare: liveShareOverride,
 }: {
   claim: ActiveClaimSummary;
   destination: ActiveClaimDestination | null;
@@ -90,27 +96,37 @@ function ActiveClaimSheetBody({
   expanded: boolean;
   onToggleExpanded: () => void;
   sheetLabelId: string;
+  liveShare?: SeekerLiveLocationShareApi;
 }) {
   const router = useRouter();
-  const liveShare = useSeekerLiveLocationShare({
+  const ownedShare = useSeekerLiveLocationShare({
     claimId: claim.claimId,
     spotExpiresAtIso: claim.spotExpiresAt,
-    enabled: true,
+    enabled: !liveShareOverride,
+    manageNativeTracker: !liveShareOverride,
   });
+  const liveShare = liveShareOverride ?? ownedShare;
   const startSharing = liveShare.startSharing;
   const forceStopLiveShare = liveShare.forceStop;
+  const sharingOwnedByParent = Boolean(liveShareOverride);
 
   useEffect(() => {
+    if (sharingOwnedByParent) {
+      return;
+    }
     return registerSeekerLiveLocationStarter(() => {
       void startSharing();
     });
-  }, [startSharing]);
+  }, [sharingOwnedByParent, startSharing]);
 
   // Start live sharing as soon as the active claim is shown — mandatory for
   // every handoff. Navigation-provider taps are independent and optional.
   useEffect(() => {
+    if (sharingOwnedByParent) {
+      return;
+    }
     void startSharing();
-  }, [startSharing]);
+  }, [sharingOwnedByParent, startSharing]);
 
   // Permission revoke / extended outage: keep retrying until sharing resumes
   // or the seeker releases the spot. Short GPS gaps are handled inside the hook.
@@ -314,6 +330,7 @@ export function ActiveClaimPanel({
   variant = "card",
   expanded: expandedProp,
   onExpandedChange,
+  liveShare,
 }: ActiveClaimPanelProps) {
   const [uncontrolledExpanded, setUncontrolledExpanded] = useState(true);
   const expanded = expandedProp ?? uncontrolledExpanded;
@@ -362,6 +379,7 @@ export function ActiveClaimPanel({
       expanded={expanded}
       onToggleExpanded={() => setExpanded(!expanded)}
       sheetLabelId={sheetLabelId}
+      liveShare={liveShare}
     />
   );
 

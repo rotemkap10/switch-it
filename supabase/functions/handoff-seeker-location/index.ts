@@ -7,10 +7,13 @@
  * 3. Broadcasts seeker-location / seeker-location-status on
  *    claim-location:<claimId>
  *
- * Service-role is used only to publish after authorization.
+ * Broadcast uses the seeker's JWT so private-channel RLS
+ * (can_send_claim_location / auth.uid()) matches web channel.send.
+ * Service-role JWT has no auth.uid() and is rejected by realtime.messages.
  * No location history is stored.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { getClaimLocationTopic } from "../_shared/claim-location-topic.ts";
 
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -18,7 +21,6 @@ const CORS: Record<string, string> = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const CLAIM_LOCATION_TOPIC_PREFIX = "claim-location:";
 const SEEKER_LOCATION_EVENT = "seeker-location";
 const SEEKER_LOCATION_STATUS_EVENT = "seeker-location-status";
 const LIVE_LOCATION_MAX_ACCURACY_M = 150;
@@ -180,7 +182,11 @@ Deno.serve(async (req) => {
     return json({ error: "invalid_body" }, 400);
   }
 
-  const topic = `${CLAIM_LOCATION_TOPIC_PREFIX}${claimId}`;
+  const topic = getClaimLocationTopic(claimId);
+  if (!topic) {
+    return json({ error: "invalid_body" }, 400);
+  }
+
   const userClient = createClient(supabaseUrl, anonKey, {
     global: { headers: { Authorization: `Bearer ${jwt}` } },
     auth: { persistSession: false, autoRefreshToken: false },
@@ -190,27 +196,56 @@ Deno.serve(async (req) => {
     jwt,
   );
   if (userError || !userData.user) {
+    console.warn("[switch-it:handoff-live] unauthorized jwt", { claimId });
     return json({ error: "unauthorized" }, 401);
   }
+
+  console.log("[switch-it:handoff-live] location received", {
+    claimId,
+    event,
+    topic,
+    seekerUserId: userData.user.id,
+    sequence: (payload as { sequence?: number }).sequence ?? null,
+    accuracyMeters: (payload as { accuracyMeters?: number }).accuracyMeters ?? null,
+  });
 
   const { data: allowed, error: rpcError } = await userClient.rpc(
     "can_send_claim_location",
     { p_topic: topic },
   );
   if (rpcError) {
+    console.warn("[switch-it:handoff-live] claim authorize rpc failed", {
+      claimId,
+      topic,
+    });
     return json({ error: "unauthorized" }, 403);
   }
   if (allowed !== true) {
+    console.warn("[switch-it:handoff-live] claim not authorized", {
+      claimId,
+      topic,
+      seekerUserId: userData.user.id,
+    });
     return json({ error: "unauthorized" }, 403);
   }
 
+  console.log("[switch-it:handoff-live] claim authorized", {
+    claimId,
+    topic,
+    seekerUserId: userData.user.id,
+  });
+
+  // Broadcast as the seeker so private-channel INSERT RLS
+  // (can_send_claim_location) matches web channel.send. Service-role JWT
+  // has no auth.uid() and is rejected by realtime.messages insert policy.
+  console.log("[switch-it:handoff-live] broadcast attempted", { claimId, topic, event });
   const broadcastResponse = await fetch(
     `${supabaseUrl.replace(/\/$/, "")}/realtime/v1/api/broadcast`,
     {
       method: "POST",
       headers: {
-        apikey: serviceKey,
-        Authorization: `Bearer ${serviceKey}`,
+        apikey: anonKey,
+        Authorization: `Bearer ${jwt}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -227,8 +262,20 @@ Deno.serve(async (req) => {
   );
 
   if (!broadcastResponse.ok) {
+    console.warn("[switch-it:handoff-live] broadcast failed", {
+      claimId,
+      topic,
+      event,
+      status: broadcastResponse.status,
+    });
     return json({ error: "broadcast_failed" }, 502);
   }
+
+  console.log("[switch-it:handoff-live] broadcast succeeded", {
+    claimId,
+    topic,
+    event,
+  });
 
   return json({ ok: true });
 });

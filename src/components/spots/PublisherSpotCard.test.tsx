@@ -654,7 +654,7 @@ describe("PublisherSpotCard", () => {
 
   it("shifts nearby copy when the seeker is very close", () => {
     liveLocationState.freshness = "live";
-    liveLocationState.statusLabel = "Driver location live";
+    liveLocationState.statusLabel = "Live location";
     liveLocationState.updatedLabel = "Updated just now";
     liveLocationState.location = {
       latitude: 32.0856,

@@ -216,4 +216,67 @@ describe("native seeker live location share", () => {
     expect(result.current.uiState).toBe("unavailable");
     expect(window.localStorage?.length ?? 0).toBe(0);
   });
+
+  it("does not require a navigation provider to start native sharing", async () => {
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId,
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(startHandoffTracking).toHaveBeenCalledTimes(1);
+    expect(startHandoffTracking.mock.calls[0]?.[0]).not.toHaveProperty(
+      "navigationProvider",
+    );
+  });
+
+  it("does not stop native tracking when this instance does not manage the plugin", async () => {
+    getTrackingState.mockResolvedValue({
+      active: true,
+      claimId,
+      source: "native",
+    });
+
+    renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId,
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: false,
+        manageNativeTracker: false,
+      }),
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(stopHandoffTracking).not.toHaveBeenCalled();
+  });
+
+  it("stops native tracking when a managing instance is disabled", async () => {
+    getTrackingState.mockResolvedValue({
+      active: true,
+      claimId,
+      source: "native",
+    });
+
+    renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId,
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: false,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(stopHandoffTracking).toHaveBeenCalled();
+    });
+  });
 });

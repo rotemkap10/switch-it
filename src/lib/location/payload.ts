@@ -60,13 +60,16 @@ export function parseSeekerLocationPayload(
   ) {
     return null;
   }
-  if (
-    headingDegrees !== null &&
-    (!isFiniteNumber(headingDegrees) ||
+  let heading: number | null = null;
+  if (headingDegrees !== null && headingDegrees !== undefined) {
+    if (
+      !isFiniteNumber(headingDegrees) ||
       headingDegrees < 0 ||
-      headingDegrees > 360)
-  ) {
-    return null;
+      headingDegrees > 360
+    ) {
+      return null;
+    }
+    heading = headingDegrees;
   }
   if (!isSafePositiveInt(sequence)) {
     return null;
@@ -82,8 +85,7 @@ export function parseSeekerLocationPayload(
     latitude,
     longitude,
     accuracyMeters,
-    headingDegrees:
-      headingDegrees === null ? null : (headingDegrees as number),
+    headingDegrees: heading,
     sequence,
     sentAt,
   };

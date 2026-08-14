@@ -10,6 +10,8 @@ type FakeMap = {
   resize: ReturnType<typeof vi.fn>;
   fitBounds: ReturnType<typeof vi.fn>;
   easeTo: ReturnType<typeof vi.fn>;
+  getBounds: ReturnType<typeof vi.fn>;
+  getZoom: ReturnType<typeof vi.fn>;
   getSource: ReturnType<typeof vi.fn>;
   addSource: ReturnType<typeof vi.fn>;
   addLayer: ReturnType<typeof vi.fn>;
@@ -66,6 +68,10 @@ function createFakeMap(): FakeMap {
     resize: vi.fn(),
     fitBounds: vi.fn(),
     easeTo: vi.fn(),
+    getBounds: vi.fn(() => ({
+      contains: vi.fn(() => true),
+    })),
+    getZoom: vi.fn(() => MAP_SELECTED_SPOT_ZOOM),
     getSource: vi.fn((id: string) => sources.get(id)),
     addSource: vi.fn((id: string) => {
       sources.set(id, { setData: vi.fn() });
@@ -74,6 +80,15 @@ function createFakeMap(): FakeMap {
     hasImage: vi.fn(() => true),
     on: vi.fn(),
   };
+}
+
+function simulateUserPan(map: FakeMap) {
+  const dragstart = map.on.mock.calls.find(
+    (call) => call[0] === "dragstart",
+  )?.[1] as ((event?: { originalEvent?: unknown }) => void) | undefined;
+  act(() => {
+    dragstart?.({ originalEvent: { type: "pointerdown" } });
+  });
 }
 
 function readyMap(map: FakeMap = createFakeMap()) {
@@ -107,7 +122,7 @@ describe("PublisherLiveProgressMap", () => {
         parkingLatitude={parkingLatitude}
         parkingLongitude={parkingLongitude}
         seekerLocation={seekerLocation}
-        statusLabel="Driver location live"
+        statusLabel="Live location"
         updatedLabel="Updated just now"
       />,
     );
@@ -116,7 +131,7 @@ describe("PublisherLiveProgressMap", () => {
     expect(map).toHaveAttribute("data-has-destination", "true");
     expect(map).toHaveAttribute("data-has-seeker", "true");
     expect(screen.getByTestId("publisher-live-status")).toHaveTextContent(
-      "Driver location live",
+      "Live location",
     );
     expect(screen.getByTestId("publisher-live-updated")).toHaveTextContent(
       "Updated just now",
@@ -179,7 +194,7 @@ describe("PublisherLiveProgressMap", () => {
         parkingLatitude={parkingLatitude}
         parkingLongitude={parkingLongitude}
         seekerLocation={seekerLocation}
-        statusLabel="Driver location live"
+        statusLabel="Live location"
         updatedLabel="Updated just now"
         progressLabel="Driver is about 120 m away"
       />,
@@ -239,7 +254,7 @@ describe("PublisherLiveProgressMap", () => {
       "data-has-destination",
       "true",
     );
-    expect(screen.getByTestId("publisher-handoff-focus")).toBeInTheDocument();
+    expect(screen.queryByTestId("publisher-handoff-focus")).not.toBeInTheDocument();
   });
 });
 
@@ -261,6 +276,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
       />,
     );
     const map = readyMap();
+    simulateUserPan(map);
 
     await user.click(screen.getByTestId("publisher-handoff-focus"));
 
@@ -274,20 +290,17 @@ describe("PublisherLiveProgressMap handoff focus", () => {
     expect(map.fitBounds).not.toHaveBeenCalled();
   });
 
-  it("fits parking spot and seeker with [longitude, latitude] order", async () => {
-    const user = userEvent.setup();
+  it("fits parking spot and seeker with [longitude, latitude] order", () => {
     render(
       <PublisherLiveProgressMap
         parkingLatitude={parkingLatitude}
         parkingLongitude={parkingLongitude}
         seekerLocation={seekerLocation}
-        statusLabel="Driver location live"
+        statusLabel="Live location"
         updatedLabel="Updated just now"
       />,
     );
     const map = readyMap();
-
-    await user.click(screen.getByTestId("publisher-handoff-focus"));
 
     expect(map.fitBounds).toHaveBeenCalledWith(
       [
@@ -305,8 +318,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
     expect(map.easeTo).not.toHaveBeenCalled();
   });
 
-  it("uses last-known seeker position when paused or delayed", async () => {
-    const user = userEvent.setup();
+  it("uses last-known seeker position when paused or delayed", () => {
     render(
       <PublisherLiveProgressMap
         parkingLatitude={parkingLatitude}
@@ -319,14 +331,46 @@ describe("PublisherLiveProgressMap handoff focus", () => {
     );
     const map = readyMap();
 
-    await user.click(screen.getByTestId("publisher-handoff-focus"));
-
     expect(map.fitBounds).toHaveBeenCalledWith(
       [
         [parkingLongitude, parkingLatitude],
         [seekerLocation.longitude, seekerLocation.latitude],
       ],
       expect.any(Object),
+    );
+  });
+
+  it("keeps the last known seeker marker when a live update is briefly missing", () => {
+    const { rerender } = render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+    const map = readyMap();
+    const seekerSource = map.getSource("publisher-live-seeker-src") as {
+      setData: ReturnType<typeof vi.fn>;
+    };
+    expect(seekerSource.setData).toHaveBeenCalled();
+    const callsBefore = seekerSource.setData.mock.calls.length;
+
+    rerender(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={null}
+        statusLabel="Location update delayed"
+        updatedLabel="Updated 12 seconds ago"
+      />,
+    );
+
+    expect(seekerSource.setData.mock.calls.length).toBe(callsBefore);
+    expect(screen.getByTestId("publisher-live-progress-map")).toHaveAttribute(
+      "data-has-seeker",
+      "true",
     );
   });
 
@@ -348,7 +392,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
         parkingLatitude={parkingLatitude}
         parkingLongitude={parkingLongitude}
         seekerLocation={seekerLocation}
-        statusLabel="Driver location live"
+        statusLabel="Live location"
         updatedLabel="Updated just now"
       />,
     );
@@ -369,7 +413,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
         parkingLatitude={parkingLatitude}
         parkingLongitude={parkingLongitude}
         seekerLocation={seekerLocation}
-        statusLabel="Driver location live"
+        statusLabel="Live location"
         updatedLabel="Updated just now"
       />,
     );
@@ -379,10 +423,10 @@ describe("PublisherLiveProgressMap handoff focus", () => {
 
     const dragstart = map.on.mock.calls.find(
       (call) => call[0] === "dragstart",
-    )?.[1] as (() => void) | undefined;
+    )?.[1] as ((event?: { originalEvent?: unknown }) => void) | undefined;
     expect(dragstart).toEqual(expect.any(Function));
     act(() => {
-      dragstart?.();
+      dragstart?.({ originalEvent: { type: "pointerdown" } });
     });
 
     rerender(
@@ -395,7 +439,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
           longitude: 34.783,
           sequence: 2,
         }}
-        statusLabel="Driver location live"
+        statusLabel="Live location"
         updatedLabel="Updated just now"
       />,
     );
@@ -411,7 +455,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
         parkingLatitude={parkingLatitude}
         parkingLongitude={parkingLongitude}
         seekerLocation={seekerLocation}
-        statusLabel="Driver location live"
+        statusLabel="Live location"
         updatedLabel="Updated just now"
       />,
     );
@@ -429,12 +473,13 @@ describe("PublisherLiveProgressMap handoff focus", () => {
           longitude: 34.783,
           sequence: 2,
         }}
-        statusLabel="Driver location live"
+        statusLabel="Live location"
         updatedLabel="Updated just now"
       />,
     );
     expect(map.fitBounds).not.toHaveBeenCalled();
 
+    simulateUserPan(map);
     await user.click(screen.getByTestId("publisher-handoff-focus"));
 
     expect(map.fitBounds).toHaveBeenCalledTimes(1);
@@ -447,19 +492,17 @@ describe("PublisherLiveProgressMap handoff focus", () => {
     );
   });
 
-  it("queues focus until the map is ready", async () => {
-    const user = userEvent.setup();
+  it("queues the first live fit until the map is ready", async () => {
     render(
       <PublisherLiveProgressMap
         parkingLatitude={parkingLatitude}
         parkingLongitude={parkingLongitude}
         seekerLocation={seekerLocation}
-        statusLabel="Driver location live"
+        statusLabel="Live location"
         updatedLabel="Updated just now"
       />,
     );
 
-    await user.click(screen.getByTestId("publisher-handoff-focus"));
     expect(lastOnMapReady).toEqual(expect.any(Function));
 
     const map = createFakeMap();
@@ -476,7 +519,75 @@ describe("PublisherLiveProgressMap handoff focus", () => {
     });
   });
 
-  it("keeps the focus control as type=button", () => {
+  it("updates the seeker marker when a later payload arrives", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes("prefers-reduced-motion"),
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    const { rerender } = render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+    const map = readyMap();
+    const seekerSource = map.getSource("publisher-live-seeker-src") as {
+      setData: ReturnType<typeof vi.fn>;
+    };
+    expect(seekerSource.setData).toHaveBeenCalled();
+    seekerSource.setData.mockClear();
+
+    rerender(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={{
+          ...seekerLocation,
+          latitude: 32.087,
+          longitude: 34.783,
+          sequence: 2,
+        }}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+
+    expect(seekerSource.setData).toHaveBeenCalled();
+    const lastData = seekerSource.setData.mock.calls.at(-1)?.[0] as {
+      features: Array<{ geometry: { coordinates: [number, number] } }>;
+    };
+    expect(lastData.features[0]?.geometry.coordinates).toEqual([34.783, 32.087]);
+  });
+
+  it("keeps follow on by default and only shows Follow after a manual pan", () => {
+    render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+    const map = readyMap();
+    expect(screen.queryByTestId("publisher-handoff-focus")).not.toBeInTheDocument();
+    simulateUserPan(map);
+
+    expect(screen.getByTestId("publisher-handoff-focus")).toHaveAttribute(
+      "type",
+      "button",
+    );
+  });
+
+  it("shows Follow only after a manual pan, as type=button", () => {
     render(
       <PublisherLiveProgressMap
         parkingLatitude={parkingLatitude}
@@ -486,6 +597,9 @@ describe("PublisherLiveProgressMap handoff focus", () => {
         updatedLabel="Waiting"
       />,
     );
+    const map = readyMap();
+    expect(screen.queryByTestId("publisher-handoff-focus")).not.toBeInTheDocument();
+    simulateUserPan(map);
 
     expect(screen.getByTestId("publisher-handoff-focus")).toHaveAttribute(
       "type",

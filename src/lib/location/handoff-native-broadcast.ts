@@ -3,7 +3,7 @@ import {
   SEEKER_LOCATION_EVENT,
   SEEKER_LOCATION_STATUS_EVENT,
 } from "@/lib/location/constants";
-import { claimLocationTopic } from "@/lib/location/topic";
+import { getClaimLocationTopic } from "@/lib/location/topic";
 import {
   parseSeekerLocationPayload,
   parseSeekerLocationStatusPayload,
@@ -62,7 +62,7 @@ export function decideHandoffNativeBroadcast(
     return { ok: false, status: 400, error: "invalid_body" };
   }
 
-  const topic = claimLocationTopic(parsed.claimId);
+  const topic = getClaimLocationTopic(parsed.claimId);
   if (!topic) {
     return { ok: false, status: 400, error: "invalid_claim" };
   }

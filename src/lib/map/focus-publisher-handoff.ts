@@ -7,6 +7,10 @@ export type PublisherHandoffFocusPoint = {
 
 export type PublisherHandoffMapCamera = {
   resize?: () => void;
+  getBounds?: () => {
+    contains?: (lngLat: [number, number]) => boolean;
+  } | null;
+  getZoom?: () => number;
   fitBounds: (
     bounds: [[number, number], [number, number]],
     options?: { padding?: number; maxZoom?: number; duration?: number },
@@ -69,5 +73,35 @@ export function focusPublisherHandoffCamera(
     padding: 48,
     maxZoom: options.zoom ?? MAP_SELECTED_SPOT_ZOOM,
     duration,
+  });
+}
+
+/**
+ * After the first fit, keep parking + seeker visible without resetting zoom
+ * on every heartbeat. Only refit when a point has left the current viewport.
+ */
+export function keepPublisherHandoffInView(
+  map: PublisherHandoffMapCamera,
+  parking: PublisherHandoffFocusPoint,
+  seeker: PublisherHandoffFocusPoint,
+  options: FocusPublisherHandoffOptions = {},
+): void {
+  const bounds = map.getBounds?.();
+  const containsFn = bounds?.contains;
+  if (!bounds || typeof containsFn !== "function") {
+    return;
+  }
+
+  const contains = (point: PublisherHandoffFocusPoint) =>
+    containsFn([point.longitude, point.latitude]);
+
+  if (contains(parking) && contains(seeker)) {
+    return;
+  }
+
+  focusPublisherHandoffCamera(map, parking, seeker, {
+    ...options,
+    zoom: map.getZoom?.() ?? options.zoom,
+    durationMs: options.durationMs ?? 500,
   });
 }

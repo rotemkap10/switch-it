@@ -108,7 +108,7 @@ describe("usePublisherLiveLocation", () => {
     });
 
     expect(result.current.freshness).toBe("live");
-    expect(result.current.statusLabel).toBe("Driver location live");
+    expect(result.current.statusLabel).toBe("Live location");
     expect(result.current.updatedLabel).toBe("Updated just now");
     expect(result.current.location?.latitude).toBe(32.0853);
     expect(result.current.pauseHint).toBeNull();
@@ -238,7 +238,7 @@ describe("usePublisherLiveLocation", () => {
       subscribeStatus?.("SUBSCRIBED");
     });
     expect(result.current.freshness).toBe("live");
-    expect(result.current.statusLabel).toBe("Driver location live");
+    expect(result.current.statusLabel).toBe("Live location");
     expect(result.current.location?.latitude).toBe(32.0853);
   });
 

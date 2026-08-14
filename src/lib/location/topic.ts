@@ -21,6 +21,11 @@ export function claimLocationTopic(claimId: string): string | null {
   return `${CLAIM_LOCATION_TOPIC_PREFIX}${id}`;
 }
 
+/** Canonical name used by sender and receiver. */
+export function getClaimLocationTopic(claimId: string): string | null {
+  return claimLocationTopic(claimId);
+}
+
 /** Parse claim id from a topic; null if malformed. */
 export function parseClaimLocationTopic(topic: string): string | null {
   if (!topic.startsWith(CLAIM_LOCATION_TOPIC_PREFIX)) {

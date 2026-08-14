@@ -6,7 +6,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BaseMap } from "@/components/map/BaseMap";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
 import type { SeekerLocationPayload } from "@/lib/location/payload";
-import { focusPublisherHandoffCamera } from "@/lib/map/focus-publisher-handoff";
+import {
+  focusPublisherHandoffCamera,
+  keepPublisherHandoffInView,
+} from "@/lib/map/focus-publisher-handoff";
 import { publisherPreviewShellClass } from "@/lib/map/leaverMapShell";
 import {
   MAP_SELECTED_SPOT_ZOOM,
@@ -71,6 +74,8 @@ export function PublisherLiveProgressMap({
   const pendingFocusRef = useRef(false);
   const userPannedRef = useRef(false);
   const didAutoFocusSeekerRef = useRef(false);
+  const followModeRef = useRef(true);
+  const [followMode, setFollowMode] = useState(true);
   const parkingRef = useRef({
     latitude: parkingLatitude,
     longitude: parkingLongitude,
@@ -82,6 +87,12 @@ export function PublisherLiveProgressMap({
   const displaySeekerRef = useRef<{ lat: number; lng: number } | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const accuracyRef = useRef(20);
+  const [hasKnownSeeker, setHasKnownSeeker] = useState(
+    () => seekerLocation != null,
+  );
+  if (seekerLocation && !hasKnownSeeker) {
+    setHasKnownSeeker(true);
+  }
 
   const center = useMemo(
     (): [number, number] => [parkingLongitude, parkingLatitude],
@@ -91,6 +102,10 @@ export function PublisherLiveProgressMap({
   const shellClass = expanded
     ? "publisher-live-map-shell publisher-live-map-shell--expanded"
     : "publisher-live-map-shell publisher-live-map-shell--collapsed";
+
+  useEffect(() => {
+    followModeRef.current = followMode;
+  }, [followMode]);
 
   useEffect(() => {
     parkingRef.current = {
@@ -123,6 +138,8 @@ export function PublisherLiveProgressMap({
     }
     pendingFocusRef.current = false;
     userPannedRef.current = false;
+    followModeRef.current = true;
+    setFollowMode(true);
     const seeker = seekerRef.current;
     focusPublisherHandoffCamera(
       map,
@@ -183,9 +200,7 @@ export function PublisherLiveProgressMap({
     ) as GeoJSONSource | undefined;
 
     if (!seekerLocation) {
-      displaySeekerRef.current = null;
-      seekerSource?.setData(emptyCollection());
-      accuracySource?.setData(emptyCollection());
+      // Keep the last known marker during brief update gaps.
       return;
     }
 
@@ -245,6 +260,18 @@ export function PublisherLiveProgressMap({
       };
       animFrameRef.current = requestAnimationFrame(tick);
     }
+
+    if (followModeRef.current && didAutoFocusSeekerRef.current) {
+      keepPublisherHandoffInView(
+        map,
+        {
+          longitude: parkingLongitude,
+          latitude: parkingLatitude,
+        },
+        { longitude: target.lng, latitude: target.lat },
+        { reducedMotion: prefersReducedMotion() },
+      );
+    }
   }, [mapReady, parkingLatitude, parkingLongitude, seekerLocation]);
 
   if (styleUrl === null) {
@@ -299,7 +326,7 @@ export function PublisherLiveProgressMap({
             </p>
           ) : (
             <p className="text-xs text-muted" data-testid="publisher-live-legend">
-              {seekerLocation ? "Parking spot · Approaching driver" : "Parking spot"}
+              {hasKnownSeeker ? "Parking spot · Approaching driver" : "Parking spot"}
             </p>
           )}
           {progressLabel ? (
@@ -358,7 +385,7 @@ export function PublisherLiveProgressMap({
           ) : null}
           <p className="mt-1 text-xs text-muted" data-testid="publisher-live-legend">
             Parking spot
-            {seekerLocation ? " · Approaching driver" : ""}
+            {hasKnownSeeker ? " · Approaching driver" : ""}
           </p>
         </div>
       )}
@@ -371,7 +398,7 @@ export function PublisherLiveProgressMap({
         aria-label={statusLabel}
         data-testid="publisher-live-progress-map"
         data-has-destination="true"
-        data-has-seeker={seekerLocation ? "true" : "false"}
+        data-has-seeker={hasKnownSeeker ? "true" : "false"}
       >
         <BaseMap
           key={mapInstanceKey}
@@ -388,8 +415,21 @@ export function PublisherLiveProgressMap({
             }
             initializedRef.current = true;
 
-            map.on("dragstart", () => {
+            map.on("dragstart", (event: { originalEvent?: unknown }) => {
+              if (!event?.originalEvent) {
+                return;
+              }
               userPannedRef.current = true;
+              followModeRef.current = false;
+              setFollowMode(false);
+            });
+            map.on("zoomstart", (event: { originalEvent?: unknown }) => {
+              if (!event?.originalEvent) {
+                return;
+              }
+              userPannedRef.current = true;
+              followModeRef.current = false;
+              setFollowMode(false);
             });
 
             registerSeekerMarkerImages(map);
@@ -475,19 +515,21 @@ export function PublisherLiveProgressMap({
             {expanded ? "Collapse map" : "Expand map"}
           </button>
         ) : null}
-        <button
-          type="button"
-          data-testid="publisher-handoff-focus"
-          className="motion-interactive-press min-h-10 rounded-lg border border-accent bg-surface px-3 text-sm font-medium text-foreground"
-          aria-label={
-            seekerLocation
-              ? "Focus parking spot and approaching driver"
-              : "Focus parking spot"
-          }
-          onClick={focusHandoff}
-        >
-          Follow
-        </button>
+        {!followMode ? (
+          <button
+            type="button"
+            data-testid="publisher-handoff-focus"
+            className="motion-interactive-press min-h-10 rounded-lg border border-accent bg-surface px-3 text-sm font-medium text-foreground"
+            aria-label={
+              seekerLocation
+                ? "Resume following the approaching driver"
+                : "Resume following the parking spot"
+            }
+            onClick={focusHandoff}
+          >
+            Follow
+          </button>
+        ) : null}
       </div>
     </div>
   );

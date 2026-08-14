@@ -20,7 +20,7 @@ describe("live location stale labels", () => {
 
   it("live within 10s", () => {
     expect(liveLocationFreshness(t0, t0 + 5_000)).toBe("live");
-    expect(liveLocationStatusLabel("live")).toBe("Driver location live");
+    expect(liveLocationStatusLabel("live")).toBe("Live location");
     expect(liveLocationUpdatedLabel("live", t0, t0 + 5_000)).toBe(
       "Updated just now",
     );

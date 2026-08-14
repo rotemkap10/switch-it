@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   focusPublisherHandoffCamera,
+  keepPublisherHandoffInView,
   publisherHandoffFitBounds,
 } from "@/lib/map/focus-publisher-handoff";
 import { MAP_SELECTED_SPOT_ZOOM } from "@/lib/map/seekerMapConfig";
@@ -54,6 +55,39 @@ describe("focusPublisherHandoffCamera", () => {
       ],
       expect.objectContaining({ padding: 48, maxZoom: MAP_SELECTED_SPOT_ZOOM }),
     );
+    expect(map.easeTo).not.toHaveBeenCalled();
+  });
+
+  it("refits when a live point leaves the current viewport while follow is on", () => {
+    const map = {
+      resize: vi.fn(),
+      fitBounds: vi.fn(),
+      easeTo: vi.fn(),
+      getZoom: vi.fn(() => 15),
+      getBounds: vi.fn(() => ({
+        contains: (lngLat: [number, number]) => lngLat[0] < 34.79,
+      })),
+    };
+
+    keepPublisherHandoffInView(map, parking, { longitude: 34.8, latitude: 32.09 });
+
+    expect(map.fitBounds).toHaveBeenCalled();
+  });
+
+  it("does not reset zoom when parking and seeker are already visible", () => {
+    const map = {
+      resize: vi.fn(),
+      fitBounds: vi.fn(),
+      easeTo: vi.fn(),
+      getZoom: vi.fn(() => 15),
+      getBounds: vi.fn(() => ({
+        contains: () => true,
+      })),
+    };
+
+    keepPublisherHandoffInView(map, parking, seeker);
+
+    expect(map.fitBounds).not.toHaveBeenCalled();
     expect(map.easeTo).not.toHaveBeenCalled();
   });
 

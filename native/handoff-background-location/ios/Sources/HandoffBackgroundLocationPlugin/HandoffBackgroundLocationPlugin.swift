@@ -23,6 +23,9 @@ public class HandoffBackgroundLocationPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["started": false, "reason": "invalid_claim"])
             return
         }
+        #if DEBUG
+        print("[switch-it:handoff-live] nativePluginStart() claimId=\(claimId)")
+        #endif
 
         let expiresAtEpochMs = call.getDouble("expiresAtEpochMs") ?? 0
         let expiresAt = Date(timeIntervalSince1970: expiresAtEpochMs / 1000.0)
@@ -254,6 +257,9 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
         manager.startUpdatingLocation()
         plugin?.emitUiState("acquiring")
         scheduleExpiry(expiresAt)
+        #if DEBUG
+        print("[switch-it:handoff-live] nativePluginStarted claimId=\(claimId)")
+        #endif
         return nil
     }
 
@@ -275,6 +281,9 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
         manager.stopUpdatingLocation()
         manager.allowsBackgroundLocationUpdates = false
         persistLightweightState(active: false, claimId: nil, expiresAt: nil)
+        #if DEBUG
+        print("[switch-it:handoff-live] nativePluginStop() reason=\(reason)")
+        #endif
 
         guard wasActive, notifyPublisher, let claimId, let token, let url, let key else {
             return
@@ -347,8 +356,16 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
         let accuracy = location.horizontalAccuracy
         if accuracy <= 0 || accuracy > maxAccuracyMeters {
             plugin?.emitUiState("weak")
+            #if DEBUG
+            print("[switch-it:handoff-live] gps rejected provider=corelocation claimId=\(claimId) accuracy=\(accuracy) reason=unusable_accuracy")
+            #endif
             return
         }
+
+        #if DEBUG
+        let ageMs = Int((Date().timeIntervalSince(location.timestamp)) * 1000)
+        print("[switch-it:handoff-live] gps accepted provider=corelocation claimId=\(claimId) lat=\(location.coordinate.latitude) lng=\(location.coordinate.longitude) accuracy=\(accuracy) timestamp=\(location.timestamp.timeIntervalSince1970 * 1000) ageMs=\(ageMs)")
+        #endif
 
         var heading: Double? = nil
         if location.course >= 0 {
@@ -375,7 +392,11 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
             "sequence": seq,
             "sentAt": now.timeIntervalSince1970 * 1000
         ]
-        payload["headingDegrees"] = heading as Any
+        if let heading {
+            payload["headingDegrees"] = heading
+        } else {
+            payload["headingDegrees"] = NSNull()
+        }
         postEvent(
             url: url,
             token: token,
@@ -448,9 +469,18 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
             "payload": payload
         ]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+        if request.httpBody == nil {
+            #if DEBUG
+            print("[switch-it:handoff-live] native post skipped: json serialization failed claimId=\(claimId)")
+            #endif
+            return
+        }
 
         URLSession.shared.dataTask(with: request) { _, response, _ in
             guard let http = response as? HTTPURLResponse else { return }
+            #if DEBUG
+            print("[switch-it:handoff-live] native post status=\(http.statusCode) event=\(event) claimId=\(claimId)")
+            #endif
             if http.statusCode == 401 || http.statusCode == 403 {
                 self.stop(reason: "unauthorized", notifyPublisher: false)
             }

@@ -16,7 +16,8 @@ import {
   type SeekerLocationPayload,
 } from "@/lib/location/payload";
 import { shouldBroadcastLocation } from "@/lib/location/throttle";
-import { claimLocationTopic } from "@/lib/location/topic";
+import { logHandoffLive } from "@/lib/location/log-handoff-live";
+import { getClaimLocationTopic } from "@/lib/location/topic";
 import { geolocationErrorCodeToReason } from "@/lib/map/use-user-location";
 import { createClient } from "@/lib/supabase/client";
 
@@ -36,6 +37,12 @@ type UseSeekerLiveLocationShareOptions = {
   /** ISO expires_at for the shared handoff deadline. */
   spotExpiresAtIso: string;
   enabled: boolean;
+  /**
+   * When false, this instance must not start or stop the native tracker.
+   * Used by the unused duplicate hook inside ActiveClaimPanel when the parent
+   * already owns sharing — otherwise `enabled: false` would kill GPS.
+   */
+  manageNativeTracker?: boolean;
 };
 
 function isSecureGeolocationAvailable(): boolean {
@@ -68,6 +75,7 @@ export function useSeekerLiveLocationShare({
   claimId,
   spotExpiresAtIso,
   enabled,
+  manageNativeTracker = true,
 }: UseSeekerLiveLocationShareOptions) {
   const [uiState, setUiState] = useState<SeekerShareUiState>("idle");
   const [resumedOnce, setResumedOnce] = useState(false);
@@ -229,6 +237,16 @@ export function useSeekerLiveLocationShare({
         }
         const { latitude, longitude, accuracy, heading } = position.coords;
         if (!isUsableAccuracy(accuracy)) {
+          logHandoffLive("gps rejected", {
+            claimId: claimIdRef.current,
+            provider: "geolocation",
+            lat: latitude,
+            lng: longitude,
+            accuracy,
+            timestamp: position.timestamp,
+            ageMs: Date.now() - position.timestamp,
+            reason: "unusable_accuracy",
+          });
           if (!hasUsableFixRef.current) {
             setUiState("weak");
           }
@@ -236,6 +254,15 @@ export function useSeekerLiveLocationShare({
         }
         hasUsableFixRef.current = true;
         setUiState("sharing");
+        logHandoffLive("gps accepted", {
+          claimId: claimIdRef.current,
+          provider: "geolocation",
+          lat: latitude,
+          lng: longitude,
+          accuracy,
+          timestamp: position.timestamp,
+          ageMs: Date.now() - position.timestamp,
+        });
         const headingDegrees =
           typeof heading === "number" && Number.isFinite(heading)
             ? ((heading % 360) + 360) % 360
@@ -297,7 +324,7 @@ export function useSeekerLiveLocationShare({
   }, [startWatch]);
 
   const ensureChannel = useCallback(async (): Promise<boolean> => {
-    const topic = claimLocationTopic(claimIdRef.current);
+    const topic = getClaimLocationTopic(claimIdRef.current);
     if (!topic) {
       return false;
     }
@@ -324,6 +351,11 @@ export function useSeekerLiveLocationShare({
       });
       channelRef.current = nextChannel;
 
+      logHandoffLive("CHANNEL SUBSCRIBING", {
+        claimId: claimIdRef.current,
+        topic,
+        role: "seeker",
+      });
       nextChannel.subscribe((status) => {
         if (settled) {
           return;
@@ -331,6 +363,11 @@ export function useSeekerLiveLocationShare({
         if (status === "SUBSCRIBED") {
           settled = true;
           subscribedRef.current = true;
+          logHandoffLive("CHANNEL SUBSCRIBED", {
+            claimId: claimIdRef.current,
+            topic,
+            role: "seeker",
+          });
           resolve(true);
           return;
         }
@@ -341,6 +378,11 @@ export function useSeekerLiveLocationShare({
         ) {
           settled = true;
           subscribedRef.current = false;
+          logHandoffLive(`CHANNEL ${status}`, {
+            claimId: claimIdRef.current,
+            topic,
+            role: "seeker",
+          });
           resolve(false);
         }
       });
@@ -380,17 +422,28 @@ export function useSeekerLiveLocationShare({
   }, [detachNativeListener]);
 
   const startNativeSharing = useCallback(async () => {
+    if (!manageNativeTracker) {
+      return;
+    }
     const service = getHandoffLocationService();
     sharingEnabledRef.current = true;
     hasUsableFixRef.current = false;
     setUiState("acquiring");
 
+    logHandoffLive("nativePluginStart()", {
+      claimId: claimIdRef.current,
+      provider: "native",
+    });
     try {
       const existing = await service.getTrackingState();
       if (existing.active && existing.claimId === claimIdRef.current) {
         sharingEnabledRef.current = true;
         hasUsableFixRef.current = true;
         setUiState("sharing");
+        logHandoffLive("nativePluginStarted", {
+          claimId: claimIdRef.current,
+          alreadyRunning: true,
+        });
         await attachNativeUiListener();
         return;
       }
@@ -401,6 +454,10 @@ export function useSeekerLiveLocationShare({
       if (!accessToken || !supabaseUrl || !publishableKey) {
         sharingEnabledRef.current = false;
         setUiState("unavailable");
+        logHandoffLive("nativePluginStart() failed", {
+          claimId: claimIdRef.current,
+          reason: "missing_session_or_config",
+        });
         return;
       }
 
@@ -417,15 +474,23 @@ export function useSeekerLiveLocationShare({
         setUiState(
           result.reason === "permission_denied" ? "denied" : "unavailable",
         );
+        logHandoffLive("nativePluginStart() failed", {
+          claimId: claimIdRef.current,
+          reason: result.reason,
+        });
         return;
       }
 
+      logHandoffLive("nativePluginStarted", {
+        claimId: claimIdRef.current,
+        alreadyRunning: false,
+      });
       await attachNativeUiListener();
     } catch {
       sharingEnabledRef.current = false;
       setUiState("unavailable");
     }
-  }, [attachNativeUiListener]);
+  }, [attachNativeUiListener, manageNativeTracker]);
 
   const startSharing = useCallback(async () => {
     if (!enabled || terminalRef.current) {
@@ -437,7 +502,14 @@ export function useSeekerLiveLocationShare({
     }
 
     const service = getHandoffLocationService();
+    const topic = getClaimLocationTopic(claimIdRef.current);
     if (service.isNative) {
+      logHandoffLive("claim active", {
+        claimId: claimIdRef.current,
+        topic,
+        source: "native",
+        provider: "native-plugin",
+      });
       await startNativeSharing();
       return;
     }
@@ -451,6 +523,12 @@ export function useSeekerLiveLocationShare({
     sharingEnabledRef.current = true;
     hasUsableFixRef.current = false;
     setUiState("acquiring");
+    logHandoffLive("claim active", {
+      claimId: claimIdRef.current,
+      topic,
+      source: "web",
+      provider: "geolocation",
+    });
     startWatch();
 
     const joined = await ensureChannel();
@@ -465,6 +543,10 @@ export function useSeekerLiveLocationShare({
     uiEpochRef.current += 1;
     await sendStatus("stopped");
     await getHandoffLocationService().stopHandoffTracking("explicit_stop");
+    logHandoffLive("nativePluginStop()", {
+      claimId: claimIdRef.current,
+      reason: "explicit_stop",
+    });
     await shutdown("off");
   }, [sendStatus, shutdown]);
 
@@ -478,6 +560,10 @@ export function useSeekerLiveLocationShare({
     void (async () => {
       await sendStatus("stopped");
       await getHandoffLocationService().stopHandoffTracking("terminal");
+      logHandoffLive("nativePluginStop()", {
+        claimId: claimIdRef.current,
+        reason: "terminal",
+      });
       await shutdown("idle");
     })();
   }, [sendStatus, shutdown]);
@@ -537,7 +623,7 @@ export function useSeekerLiveLocationShare({
 
     void (async () => {
       const service = getHandoffLocationService();
-      if (service.isNative) {
+      if (service.isNative && manageNativeTracker) {
         try {
           const state = await service.getTrackingState();
           if (cancelled || uiEpochRef.current !== epoch) {
@@ -586,7 +672,7 @@ export function useSeekerLiveLocationShare({
       void leaveChannel();
       // Native tracker outlives React remounts (revalidatePath / navigation).
     };
-  }, [claimId, enabled, clearWatch, leaveChannel]);
+  }, [claimId, enabled, manageNativeTracker, clearWatch, leaveChannel]);
 
   return {
     uiState,
@@ -596,3 +682,7 @@ export function useSeekerLiveLocationShare({
     forceStop,
   };
 }
+
+export type SeekerLiveLocationShareApi = ReturnType<
+  typeof useSeekerLiveLocationShare
+>;

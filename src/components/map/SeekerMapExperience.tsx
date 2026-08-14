@@ -13,6 +13,8 @@ import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
 import { Alert } from "@/components/ui/Alert";
 import { useReportInitialMapReady } from "@/components/shell/AppLaunchReadyContext";
 import { stopHandoffTrackingBestEffort } from "@/lib/location/handoff-location-service";
+import { registerSeekerLiveLocationStarter } from "@/lib/location/seeker-live-location-intent";
+import { useSeekerLiveLocationShare } from "@/lib/location/use-seeker-live-location-share";
 import {
   syncDocumentMapBottomStack,
   type MapBottomStack,
@@ -60,6 +62,29 @@ export function SeekerMapExperience({
       reportInitialMapReady();
     }
   }, [spotsError, reportInitialMapReady]);
+
+  const liveShare = useSeekerLiveLocationShare({
+    claimId: activeClaim?.claimId ?? "",
+    spotExpiresAtIso: activeClaim?.spotExpiresAt ?? "",
+    enabled: Boolean(activeClaim),
+  });
+  const startSharing = liveShare.startSharing;
+
+  useEffect(() => {
+    if (!activeClaim) {
+      return;
+    }
+    void startSharing();
+  }, [activeClaim, startSharing]);
+
+  useEffect(() => {
+    if (!activeClaim) {
+      return;
+    }
+    return registerSeekerLiveLocationStarter(() => {
+      void startSharing();
+    });
+  }, [activeClaim, startSharing]);
 
   // When the active claim ends remotely (publisher cancel / expiry / refresh),
   // ensure native background sharing stops even if the panel didn't call forceStop.
@@ -169,6 +194,7 @@ export function SeekerMapExperience({
                 variant="overlay"
                 expanded={claimExpanded}
                 onExpandedChange={setClaimExpanded}
+                liveShare={liveShare}
               />
             </div>
           ) : null}

@@ -37,7 +37,7 @@ export function liveLocationStatusLabel(
     case "waiting":
       return "Waiting for driver location";
     case "live":
-      return "Driver location live";
+      return "Live location";
     case "delayed":
       return "Location update delayed";
     case "paused":

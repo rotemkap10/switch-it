@@ -22,7 +22,19 @@ describe("seeker location payload", () => {
     expect(parseSeekerLocationPayload(valid, now)).toEqual(valid);
   });
 
-  it("accepts null heading", () => {
+  it("accepts omitted headingDegrees", () => {
+    expect(
+      parseSeekerLocationPayload(
+        {
+          latitude: valid.latitude,
+          longitude: valid.longitude,
+          accuracyMeters: valid.accuracyMeters,
+          sequence: valid.sequence,
+          sentAt: valid.sentAt,
+        },
+        now,
+      )?.headingDegrees,
+    ).toBeNull();
     expect(
       parseSeekerLocationPayload({ ...valid, headingDegrees: null }, now)
         ?.headingDegrees,

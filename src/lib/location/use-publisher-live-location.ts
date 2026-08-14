@@ -19,7 +19,8 @@ import {
   liveLocationUpdatedLabel,
   type LiveLocationFreshness,
 } from "@/lib/location/stale";
-import { claimLocationTopic } from "@/lib/location/topic";
+import { logHandoffLive } from "@/lib/location/log-handoff-live";
+import { getClaimLocationTopic } from "@/lib/location/topic";
 import { createClient } from "@/lib/supabase/client";
 
 export type PublisherLiveLocationState = {
@@ -101,7 +102,7 @@ export function usePublisherLiveLocation({
     lastSequenceRef.current = 0;
     const generation = ++generationRef.current;
 
-    const topic = claimLocationTopic(claimId);
+    const topic = getClaimLocationTopic(claimId);
     if (!topic) {
       return;
     }
@@ -144,12 +145,26 @@ export function usePublisherLiveLocation({
         }
         const parsed = parseSeekerLocationPayload(payload);
         if (!parsed) {
+          logHandoffLive("publisher payload rejected", {
+            claimId,
+            topic,
+            reason: "invalid_payload",
+          });
           return;
         }
         if (parsed.sequence <= lastSequenceRef.current) {
           return;
         }
         lastSequenceRef.current = parsed.sequence;
+        logHandoffLive("publisher location received", {
+          claimId,
+          topic,
+          lat: parsed.latitude,
+          lng: parsed.longitude,
+          accuracy: parsed.accuracyMeters,
+          timestamp: parsed.sentAt,
+          sequence: parsed.sequence,
+        });
         setSnapshot({
           location: parsed,
           lastReceivedAtMs: Date.now(),
@@ -184,11 +199,22 @@ export function usePublisherLiveLocation({
         },
       );
 
+      logHandoffLive("CHANNEL SUBSCRIBING", {
+        claimId,
+        topic,
+        role: "publisher",
+      });
+
       channel.subscribe((status) => {
         if (cancelled || terminalRef.current) {
           return;
         }
         if (status === "SUBSCRIBED") {
+          logHandoffLive("CHANNEL SUBSCRIBED", {
+            claimId,
+            topic,
+            role: "publisher",
+          });
           setSnapshot((prev) =>
             prev.generation === generation
               ? { ...prev, connectionFailed: false }
@@ -201,6 +227,11 @@ export function usePublisherLiveLocation({
           status === "TIMED_OUT" ||
           status === "CLOSED"
         ) {
+          logHandoffLive(`CHANNEL ${status}`, {
+            claimId,
+            topic,
+            role: "publisher",
+          });
           setSnapshot((prev) =>
             prev.generation === generation
               ? { ...prev, connectionFailed: true }

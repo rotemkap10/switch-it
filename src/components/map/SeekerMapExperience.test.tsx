@@ -61,10 +61,31 @@ vi.mock("@/components/map/OwnSpotNotice", () => ({
 }));
 
 const stopHandoffTrackingBestEffortMock = vi.hoisted(() => vi.fn());
+const startSharingMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/location/handoff-location-service", () => ({
   stopHandoffTrackingBestEffort: (...args: unknown[]) =>
     stopHandoffTrackingBestEffortMock(...args),
+  getHandoffLocationService: () => ({
+    isNative: false,
+    startHandoffTracking: vi.fn(),
+    stopHandoffTracking: vi.fn(),
+    getTrackingState: vi.fn(async () => ({
+      active: false,
+      claimId: null,
+      source: null,
+    })),
+  }),
+}));
+
+vi.mock("@/lib/location/use-seeker-live-location-share", () => ({
+  useSeekerLiveLocationShare: () => ({
+    uiState: "acquiring",
+    resumedOnce: false,
+    startSharing: startSharingMock,
+    stopSharing: vi.fn(),
+    forceStop: vi.fn(),
+  }),
 }));
 
 import { SeekerMapExperience } from "@/components/map/SeekerMapExperience";
@@ -117,6 +138,17 @@ describe("SeekerMapExperience overlay hierarchy", () => {
     );
 
     expect(stopHandoffTrackingBestEffortMock).toHaveBeenCalledWith("claim_ended");
+  });
+
+  it("starts mandatory live sharing as soon as a claim exists, before the map is ready", () => {
+    startSharingMock.mockClear();
+    renderExperience({
+      activeClaim: claim,
+      destination: { latitude: 32.08, longitude: 34.78 },
+    });
+
+    expect(startSharingMock).toHaveBeenCalled();
+    expect(screen.queryByTestId("active-claim-panel")).not.toBeInTheDocument();
   });
 
   it("reports initial map ready for cold-launch splash when the map is usable", () => {
