@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BaseMap } from "@/components/map/BaseMap";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
+import { logHandoffLive } from "@/lib/location/log-handoff-live";
 import type { SeekerLocationPayload } from "@/lib/location/payload";
 import {
   focusPublisherHandoffCamera,
@@ -237,6 +238,12 @@ export function PublisherLiveProgressMap({
     };
 
     const from = displaySeekerRef.current;
+    logHandoffLive("publisher marker updated", {
+      lat: target.lat,
+      lng: target.lng,
+      sequence: seekerLocation.sequence,
+      timestamp: seekerLocation.sentAt,
+    });
     if (!from || prefersReducedMotion()) {
       applyPoint(target.lat, target.lng);
     } else {
@@ -491,7 +498,7 @@ export function PublisherLiveProgressMap({
                 source: SEEKER_SOURCE,
                 layout: {
                   "icon-image": SEEKER_MARKER_IMAGE_IDS.seekerLive,
-                  "icon-size": 0.8,
+                  "icon-size": 0.72,
                   "icon-allow-overlap": true,
                 },
               });
@@ -522,12 +529,12 @@ export function PublisherLiveProgressMap({
             className="motion-interactive-press min-h-10 rounded-lg border border-accent bg-surface px-3 text-sm font-medium text-foreground"
             aria-label={
               seekerLocation
-                ? "Resume following the approaching driver"
-                : "Resume following the parking spot"
+                ? "Recenter on the approaching driver and parking spot"
+                : "Recenter on the parking spot"
             }
             onClick={focusHandoff}
           >
-            Follow
+            Recenter
           </button>
         ) : null}
       </div>

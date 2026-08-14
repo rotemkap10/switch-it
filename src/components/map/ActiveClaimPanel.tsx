@@ -8,7 +8,6 @@ import { ClaimNavigationActions } from "@/components/map/ClaimNavigationActions"
 import { useOptionalPostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
 import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 import { SeekerShareLocationCard } from "@/components/map/SeekerShareLocationCard";
-import { PublisherSpotPreviewMapLoader } from "@/components/spots/PublisherSpotPreviewMapLoader";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import { HandoffWindowCountdown } from "@/components/ui/HandoffWindowCountdown";
 import {
@@ -34,6 +33,7 @@ import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
 
 export type ActiveClaimSummary = {
   claimId: string;
+  spotId?: string | null;
   claimExpiresAt: string;
   spotAvailableAt: string;
   spotExpiresAt: string;
@@ -101,6 +101,7 @@ function ActiveClaimSheetBody({
   const router = useRouter();
   const ownedShare = useSeekerLiveLocationShare({
     claimId: claim.claimId,
+    spotId: claim.spotId,
     spotExpiresAtIso: claim.spotExpiresAt,
     enabled: !liveShareOverride,
     manageNativeTracker: !liveShareOverride,
@@ -153,8 +154,7 @@ function ActiveClaimSheetBody({
     forceStopLiveShare();
   }, [forceStopLiveShare]);
 
-  const destinationLabel = activeClaimDestinationLabel(claim.spotAddress);
-  const { label: distanceLabel, meters: distanceMeters } =
+  const { meters: distanceMeters } =
     useDistanceToSpot(destination);
   const closeToSpot = isCloseToSpot(distanceMeters);
   const navigation = useOptionalPostClaimNavigation();
@@ -203,7 +203,10 @@ function ActiveClaimSheetBody({
               closeToSpot ? "bg-success-bg" : "bg-accent-soft",
             ].join(" ")}
           >
-            <p className="text-xs font-semibold text-accent-hover">
+            <p
+              id={sheetLabelId}
+              className="text-xs font-semibold text-accent-hover"
+            >
               {closeToSpot
                 ? ACTIVE_CLAIM_CLOSE_STATUS
                 : ACTIVE_CLAIM_ON_WAY_STATUS}
@@ -240,39 +243,9 @@ function ActiveClaimSheetBody({
           claimId={claim.claimId}
           latitude={navigateDestination.latitude}
           longitude={navigateDestination.longitude}
+          placement="primary"
         />
       ) : null}
-
-      <div data-testid="active-claim-location">
-        <p className="text-xs font-medium text-muted">Parking spot</p>
-        <p
-          id={sheetLabelId}
-          className="truncate text-sm font-medium text-foreground"
-          title={destinationLabel}
-          data-testid="active-claim-address"
-        >
-          {destinationLabel}
-        </p>
-        {distanceLabel ? (
-          <p
-            className="mt-0.5 text-sm font-medium text-foreground"
-            data-testid="active-claim-distance"
-          >
-            {distanceLabel}
-          </p>
-        ) : null}
-        {expanded && canNavigate && navigateDestination ? (
-          <div className="mt-2">
-            <PublisherSpotPreviewMapLoader
-              latitude={navigateDestination.latitude}
-              longitude={navigateDestination.longitude}
-              variant="handoff"
-              ariaLabel="Exact parking location"
-              testId="claim-destination-preview-map"
-            />
-          </div>
-        ) : null}
-      </div>
 
       {!showDetails && compactVehicleLabel ? (
         <p
@@ -293,7 +266,6 @@ function ActiveClaimSheetBody({
           <HandoffVehicleSection
             title="Look for this vehicle"
             vehicle={counterpartVehicle}
-            approachAnimationKey={`seeker-${claim.claimId}`}
           />
         ) : null}
       </div>
@@ -318,6 +290,15 @@ function ActiveClaimSheetBody({
             onCancelled={onHandoffTerminal}
           />
         </div>
+      ) : null}
+
+      {showDetails && canNavigate && navigateDestination ? (
+        <ClaimNavigationActions
+          claimId={claim.claimId}
+          latitude={navigateDestination.latitude}
+          longitude={navigateDestination.longitude}
+          placement="change"
+        />
       ) : null}
     </div>
   );

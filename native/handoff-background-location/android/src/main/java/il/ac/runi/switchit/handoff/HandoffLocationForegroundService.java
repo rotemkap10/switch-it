@@ -17,6 +17,7 @@ import android.os.Looper;
 
 import androidx.core.app.NotificationCompat;
 
+import android.util.Log;
 import org.json.JSONObject;
 
 import java.io.OutputStream;
@@ -245,8 +246,13 @@ public class HandoffLocationForegroundService extends Service implements Locatio
         float accuracy = location.getAccuracy();
         if (accuracy <= 0 || accuracy > MAX_ACCURACY_M) {
             emitUi("weak");
+            Log.i("switch-it", "[switch-it:handoff-live] gps rejected provider=android claimId=" + claimId
+                + " accuracy=" + accuracy + " reason=unusable_accuracy");
             return;
         }
+        Log.i("switch-it", "[switch-it:handoff-live] gps accepted provider=android claimId=" + claimId
+            + " lat=" + location.getLatitude() + " lng=" + location.getLongitude()
+            + " accuracy=" + accuracy + " timestamp=" + location.getTime());
         if (!shouldSend(location)) {
             emitUi("sharing");
             return;
@@ -267,8 +273,6 @@ public class HandoffLocationForegroundService extends Service implements Locatio
                     heading += 360f;
                 }
                 payload.put("headingDegrees", heading);
-            } else {
-                payload.put("headingDegrees", JSONObject.NULL);
             }
             payload.put("sequence", sequence);
             payload.put("sentAt", System.currentTimeMillis());
@@ -327,16 +331,21 @@ public class HandoffLocationForegroundService extends Service implements Locatio
                 connection.setRequestProperty("Authorization", "Bearer " + token);
                 connection.setRequestProperty("apikey", key);
                 connection.setRequestProperty("Content-Type", "application/json");
+                Log.i("switch-it", "[switch-it:handoff-live] native post attempt claimId=" + claim
+                    + " event=" + event);
                 byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
                 try (OutputStream out = connection.getOutputStream()) {
                     out.write(bytes);
                 }
                 int code = connection.getResponseCode();
+                Log.i("switch-it", "[switch-it:handoff-live] native post status=" + code
+                    + " event=" + event + " claimId=" + claim);
                 if (code == 401 || code == 403) {
                     handler.post(() -> stopTracking(false));
                 }
-            } catch (Exception ignored) {
-                // No crash; no route history queue.
+            } catch (Exception error) {
+                Log.w("switch-it", "[switch-it:handoff-live] native post status=error event=" + event
+                    + " claimId=" + claim + " error=" + error.getMessage());
             } finally {
                 if (connection != null) {
                     connection.disconnect();

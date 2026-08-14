@@ -66,6 +66,19 @@ describe("seeker location payload", () => {
     ).toBeNull();
   });
 
+  it("unwraps nested broadcast envelopes from HTTP/phoenix wrappers", () => {
+    expect(
+      parseSeekerLocationPayload(
+        {
+          type: "broadcast",
+          event: "seeker-location",
+          payload: valid,
+        },
+        now,
+      ),
+    ).toEqual(valid);
+  });
+
   it("rejects claim id / user fields leaking into payload shape only via extra keys still ok if core valid", () => {
     expect(
       parseSeekerLocationPayload({ ...valid, userId: "x" }, now),

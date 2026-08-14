@@ -567,7 +567,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
     expect(lastData.features[0]?.geometry.coordinates).toEqual([34.783, 32.087]);
   });
 
-  it("keeps follow on by default and only shows Follow after a manual pan", () => {
+  it("keeps auto-framing on by default and only shows Recenter after a manual pan", () => {
     render(
       <PublisherLiveProgressMap
         parkingLatitude={parkingLatitude}
@@ -581,13 +581,13 @@ describe("PublisherLiveProgressMap handoff focus", () => {
     expect(screen.queryByTestId("publisher-handoff-focus")).not.toBeInTheDocument();
     simulateUserPan(map);
 
-    expect(screen.getByTestId("publisher-handoff-focus")).toHaveAttribute(
-      "type",
-      "button",
+    expect(screen.getByTestId("publisher-handoff-focus")).toHaveTextContent(
+      "Recenter",
     );
+    expect(screen.queryByText("Follow")).not.toBeInTheDocument();
   });
 
-  it("shows Follow only after a manual pan, as type=button", () => {
+  it("shows Recenter only after a manual pan, as type=button", () => {
     render(
       <PublisherLiveProgressMap
         parkingLatitude={parkingLatitude}
@@ -601,9 +601,13 @@ describe("PublisherLiveProgressMap handoff focus", () => {
     expect(screen.queryByTestId("publisher-handoff-focus")).not.toBeInTheDocument();
     simulateUserPan(map);
 
+    expect(screen.getByTestId("publisher-handoff-focus")).toHaveTextContent(
+      "Recenter",
+    );
     expect(screen.getByTestId("publisher-handoff-focus")).toHaveAttribute(
       "type",
       "button",
     );
+    expect(screen.queryByText("Follow")).not.toBeInTheDocument();
   });
 });

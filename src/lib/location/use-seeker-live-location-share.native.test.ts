@@ -260,6 +260,30 @@ describe("native seeker live location share", () => {
     expect(stopHandoffTracking).not.toHaveBeenCalled();
   });
 
+  it("does not stop native tracking when forceStop runs on a non-managing instance", async () => {
+    getTrackingState.mockResolvedValue({
+      active: true,
+      claimId,
+      source: "native",
+    });
+
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId,
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: false,
+        manageNativeTracker: false,
+      }),
+    );
+
+    await act(async () => {
+      result.current.forceStop();
+      await Promise.resolve();
+    });
+
+    expect(stopHandoffTracking).not.toHaveBeenCalled();
+  });
+
   it("stops native tracking when a managing instance is disabled", async () => {
     getTrackingState.mockResolvedValue({
       active: true,

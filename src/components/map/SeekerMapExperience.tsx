@@ -65,6 +65,7 @@ export function SeekerMapExperience({
 
   const liveShare = useSeekerLiveLocationShare({
     claimId: activeClaim?.claimId ?? "",
+    spotId: activeClaim?.spotId ?? null,
     spotExpiresAtIso: activeClaim?.spotExpiresAt ?? "",
     enabled: Boolean(activeClaim),
   });

@@ -53,6 +53,19 @@ const EMPTY_SNAPSHOT: LiveSnapshot = {
   generation: 0,
 };
 
+function publisherStatusLabel(
+  freshness: LiveLocationFreshness,
+  hasLocation: boolean,
+): string {
+  if (!hasLocation) {
+    return liveLocationStatusLabel("waiting");
+  }
+  if (freshness === "live") {
+    return liveLocationStatusLabel("live");
+  }
+  return liveLocationStatusLabel("delayed");
+}
+
 /**
  * Publisher subscription to private seeker-location Broadcast for one claim.
  * Positions exist only in memory — never persisted.
@@ -72,10 +85,16 @@ export function usePublisherLiveLocation({
   const lastSequenceRef = useRef(0);
   const terminalRef = useRef(false);
   const generationRef = useRef(0);
+  const lastKnownRef = useRef<SeekerLocationPayload | null>(null);
+  const lastReceivedAtRef = useRef<number | null>(null);
+  const lastKnownClaimIdRef = useRef<string | null>(null);
 
   const clear = useCallback(() => {
     terminalRef.current = true;
     lastSequenceRef.current = 0;
+    lastKnownRef.current = null;
+    lastReceivedAtRef.current = null;
+    lastKnownClaimIdRef.current = null;
     generationRef.current += 1;
     setSnapshot({
       location: null,
@@ -101,9 +120,15 @@ export function usePublisherLiveLocation({
     terminalRef.current = false;
     lastSequenceRef.current = 0;
     const generation = ++generationRef.current;
+    if (lastKnownClaimIdRef.current !== claimId) {
+      lastKnownRef.current = null;
+      lastReceivedAtRef.current = null;
+      lastKnownClaimIdRef.current = claimId;
+    }
 
     const topic = getClaimLocationTopic(claimId);
     if (!topic) {
+      logHandoffLive("publisher topic invalid", { claimId });
       return;
     }
 
@@ -115,6 +140,7 @@ export function usePublisherLiveLocation({
       const { data } = await client.auth.getSession();
       const token = data.session?.access_token;
       if (!token || cancelled) {
+        logHandoffLive("publisher session missing", { claimId, topic });
         return;
       }
       await client.realtime.setAuth(token);
@@ -122,10 +148,9 @@ export function usePublisherLiveLocation({
         return;
       }
 
-      // Reset visible state asynchronously after join setup (avoids sync setState-in-effect).
       setSnapshot({
-        location: null,
-        lastReceivedAtMs: null,
+        location: lastKnownRef.current,
+        lastReceivedAtMs: lastReceivedAtRef.current,
         explicitPaused: false,
         connectionFailed: false,
         generation,
@@ -156,6 +181,9 @@ export function usePublisherLiveLocation({
           return;
         }
         lastSequenceRef.current = parsed.sequence;
+        const receivedAt = Date.now();
+        lastKnownRef.current = parsed;
+        lastReceivedAtRef.current = receivedAt;
         logHandoffLive("publisher location received", {
           claimId,
           topic,
@@ -163,11 +191,12 @@ export function usePublisherLiveLocation({
           lng: parsed.longitude,
           accuracy: parsed.accuracyMeters,
           timestamp: parsed.sentAt,
+          age: receivedAt - parsed.sentAt,
           sequence: parsed.sequence,
         });
         setSnapshot({
           location: parsed,
-          lastReceivedAtMs: Date.now(),
+          lastReceivedAtMs: receivedAt,
           explicitPaused: false,
           connectionFailed: false,
           generation,
@@ -199,7 +228,7 @@ export function usePublisherLiveLocation({
         },
       );
 
-      logHandoffLive("CHANNEL SUBSCRIBING", {
+      logHandoffLive("publisher channel subscribing", {
         claimId,
         topic,
         role: "publisher",
@@ -210,7 +239,7 @@ export function usePublisherLiveLocation({
           return;
         }
         if (status === "SUBSCRIBED") {
-          logHandoffLive("CHANNEL SUBSCRIBED", {
+          logHandoffLive("publisher channel subscribed", {
             claimId,
             topic,
             role: "publisher",
@@ -278,27 +307,31 @@ export function usePublisherLiveLocation({
   }
 
   const ageFreshness = liveLocationFreshness(snapshot.lastReceivedAtMs, nowMs);
-  let freshness: LiveLocationFreshness = ageFreshness;
+  let freshness: Exclude<LiveLocationFreshness, "unavailable"> = ageFreshness;
   if (snapshot.explicitPaused && ageFreshness !== "waiting") {
-    freshness = "paused";
+    freshness = "delayed";
   }
-  if (snapshot.connectionFailed) {
-    freshness = "unavailable";
+  if (snapshot.connectionFailed && snapshot.location) {
+    freshness = ageFreshness === "live" ? "delayed" : ageFreshness;
+    if (freshness === "waiting") {
+      freshness = "delayed";
+    }
+  } else if (snapshot.connectionFailed && !snapshot.location) {
+    freshness = "waiting";
   }
-
-  const displayFreshness =
-    freshness === "unavailable" ? ageFreshness : freshness;
 
   return {
     freshness,
-    statusLabel: liveLocationStatusLabel(freshness),
+    statusLabel: publisherStatusLabel(freshness, snapshot.location != null),
     updatedLabel: liveLocationUpdatedLabel(
-      displayFreshness,
+      freshness === "waiting" && snapshot.location
+        ? "delayed"
+        : freshness,
       snapshot.lastReceivedAtMs,
       nowMs,
     ),
     pauseHint:
-      snapshot.explicitPaused && !snapshot.connectionFailed
+      snapshot.explicitPaused && !snapshot.connectionFailed && snapshot.location
         ? LIVE_LOCATION_PAUSE_WHILE_NAVIGATING
         : null,
     location: snapshot.location,

@@ -24,6 +24,7 @@ type ActiveClaimRow = {
   claimed_at?: string;
   parking_spots:
     | {
+        id?: string;
         address: string | null;
         available_at: string;
         expires_at: string;
@@ -31,6 +32,7 @@ type ActiveClaimRow = {
         longitude: number;
       }
     | {
+        id?: string;
         address: string | null;
         available_at: string;
         expires_at: string;
@@ -117,6 +119,10 @@ function toActiveClaim(row: unknown): ActiveClaimSummary | null {
 
   return {
     claimId: claim.id,
+    spotId:
+      spotRelation && typeof spotRelation.id === "string"
+        ? spotRelation.id
+        : null,
     claimExpiresAt: claim.expires_at,
     spotAvailableAt,
     spotExpiresAt,
@@ -265,7 +271,7 @@ export default async function MapPage() {
     supabase
       .from("claims")
       .select(
-        "id, expires_at, claimed_at, parking_spots(address, available_at, expires_at, latitude, longitude)",
+        "id, expires_at, claimed_at, parking_spots(id, address, available_at, expires_at, latitude, longitude)",
       )
       .eq("seeker_id", user.id)
       .eq("status", "active")

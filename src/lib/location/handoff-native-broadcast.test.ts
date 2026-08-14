@@ -54,6 +54,17 @@ describe("native handoff broadcast payload", () => {
     });
   });
 
+  it("accepts omitted headingDegrees", () => {
+    const decision = decideHandoffNativeBroadcast(
+      locationBody({ headingDegrees: undefined }),
+      { allowed: true },
+    );
+    expect(decision.ok).toBe(true);
+    if (decision.ok) {
+      expect(decision.payload.headingDegrees).toBeNull();
+    }
+  });
+
   it("rejects unusably inaccurate GPS", () => {
     const decision = decideHandoffNativeBroadcast(
       locationBody({ accuracyMeters: 180 }),

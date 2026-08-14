@@ -7,12 +7,14 @@
  * 3. Broadcasts seeker-location / seeker-location-status on
  *    claim-location:<claimId>
  *
- * Broadcast uses the seeker's JWT so private-channel RLS
- * (can_send_claim_location / auth.uid()) matches web channel.send.
- * Service-role JWT has no auth.uid() and is rejected by realtime.messages.
+ * After can_send_claim_location succeeds, deliver via realtime.send
+ * (SECURITY DEFINER). The Realtime HTTP Broadcast endpoint returns 202 even when
+ * private-channel RLS silently drops the message, so the publisher never
+ * receives live location.
  * No location history is stored.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { broadcastPrivateClaimLocation } from "../_shared/broadcast-claim-location.ts";
 import { getClaimLocationTopic } from "../_shared/claim-location-topic.ts";
 
 const CORS: Record<string, string> = {
@@ -98,14 +100,17 @@ function parseLocationPayload(
     return null;
   }
 
-  return {
+  const parsed: JsonRecord = {
     latitude,
     longitude,
     accuracyMeters,
-    headingDegrees: headingDegrees == null ? null : headingDegrees,
     sequence,
     sentAt,
   };
+  if (headingDegrees != null) {
+    parsed.headingDegrees = headingDegrees;
+  }
+  return parsed;
 }
 
 function parseStatusPayload(
@@ -205,6 +210,8 @@ Deno.serve(async (req) => {
     event,
     topic,
     seekerUserId: userData.user.id,
+    lat: (payload as { latitude?: number }).latitude ?? null,
+    lng: (payload as { longitude?: number }).longitude ?? null,
     sequence: (payload as { sequence?: number }).sequence ?? null,
     accuracyMeters: (payload as { accuracyMeters?: number }).accuracyMeters ?? null,
   });
@@ -235,38 +242,26 @@ Deno.serve(async (req) => {
     seekerUserId: userData.user.id,
   });
 
-  // Broadcast as the seeker so private-channel INSERT RLS
-  // (can_send_claim_location) matches web channel.send. Service-role JWT
-  // has no auth.uid() and is rejected by realtime.messages insert policy.
-  console.log("[switch-it:handoff-live] broadcast attempted", { claimId, topic, event });
-  const broadcastResponse = await fetch(
-    `${supabaseUrl.replace(/\/$/, "")}/realtime/v1/api/broadcast`,
-    {
-      method: "POST",
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${jwt}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messages: [
-          {
-            topic,
-            event,
-            payload,
-            private: true,
-          },
-        ],
-      }),
-    },
-  );
+  console.log("[switch-it:handoff-live] broadcast attempted", {
+    claimId,
+    topic,
+    event,
+    via: "realtime.send",
+  });
+  const broadcastResult = await broadcastPrivateClaimLocation({
+    supabaseUrl,
+    serviceKey,
+    topic,
+    event,
+    payload,
+  });
 
-  if (!broadcastResponse.ok) {
+  if (!broadcastResult.ok) {
     console.warn("[switch-it:handoff-live] broadcast failed", {
       claimId,
       topic,
       event,
-      status: broadcastResponse.status,
+      status: broadcastResult.status,
     });
     return json({ error: "broadcast_failed" }, 502);
   }
@@ -275,6 +270,7 @@ Deno.serve(async (req) => {
     claimId,
     topic,
     event,
+    via: "realtime.send",
   });
 
   return json({ ok: true });

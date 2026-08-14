@@ -305,16 +305,15 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
 
-    const region = screen.getByRole("region", { name: "Rothschild Blvd 1" });
+    const region = screen.getByRole("region", { name: ACTIVE_CLAIM_ON_WAY_STATUS });
     expect(region).toHaveAttribute("aria-labelledby");
     expect(region).not.toHaveAttribute("aria-label");
     expect(
       screen.getByRole("button", { name: /Collapse claim details/i }),
     ).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Parking spot")).toBeInTheDocument();
-    expect(screen.getByTestId("active-claim-address")).toHaveTextContent(
-      "Rothschild Blvd 1",
-    );
+    expect(screen.queryByText("Parking spot")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("active-claim-address")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("claim-destination-preview-map")).not.toBeInTheDocument();
     expect(screen.getByText(ACTIVE_CLAIM_ON_WAY_STATUS)).toBeInTheDocument();
     expect(screen.getByTestId("active-claim-sheet")).toHaveAttribute(
       "data-arrival",
@@ -406,12 +405,13 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(
-      screen.getByRole("region", { name: ACTIVE_CLAIM_DESTINATION_FALLBACK }),
+      screen.getByRole("region", { name: ACTIVE_CLAIM_ON_WAY_STATUS }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Parking spot")).toBeInTheDocument();
-    expect(screen.getByTestId("active-claim-address")).toHaveTextContent(
-      ACTIVE_CLAIM_DESTINATION_FALLBACK,
-    );
+    expect(screen.queryByText("Parking spot")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("claim-destination-preview-map")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText(/32\.085/)).not.toBeInTheDocument();
   });
 
@@ -437,7 +437,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       ).toHaveAttribute("aria-expanded", "false");
     });
     expect(
-      screen.getByRole("region", { name: "Rothschild Blvd 1" }),
+      screen.getByRole("region", { name: ACTIVE_CLAIM_ON_WAY_STATUS }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Navigate to spot" }),
@@ -559,13 +559,19 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(startSharingMock).toHaveBeenCalled();
     expect(forceStopMock).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("button", { name: "Waze · Change" }),
+      screen.getByRole("button", { name: "Open in Waze" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Change navigation app" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Waze · Change" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Open in" }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Waze · Change" }));
+    await user.click(screen.getByRole("button", { name: "Change navigation app" }));
     expect(screen.getByTestId("navigation-provider-sheet")).toBeInTheDocument();
   });
 
@@ -607,7 +613,9 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(screen.getByText("White · 12-345-67")).toBeInTheDocument();
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
     expect(screen.getByText("12-345-67")).toBeInTheDocument();
-    expect(screen.getByTestId("handoff-vehicle-animation")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("handoff-vehicle-animation"),
+    ).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: /Collapse claim details/i }),
@@ -623,7 +631,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not replay the approach animation on expand and collapse", async () => {
+  it("does not show the decorative self-driving car animation", async () => {
     const user = userEvent.setup();
     renderPanel(
       <ActiveClaimPanel
@@ -634,7 +642,10 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
 
-    expect(screen.getByTestId("handoff-vehicle-animation")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("handoff-vehicle-animation"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: /Collapse claim details/i }),
@@ -699,9 +710,9 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
 
-    expect(screen.getByTestId("active-claim-address")).toHaveTextContent(
-      "Wrong Street 99",
-    );
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Navigate to spot" }));
     await user.click(screen.getByRole("button", { name: "Waze" }));
 
@@ -713,16 +724,14 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(String(openSpy.mock.calls[0]?.[0])).not.toContain("Wrong");
   });
 
-  it("shows straight-line distance when seeker location is available", () => {
+  it("does not show straight-line distance copy on the simplified seeker card", () => {
     distanceState.label = "120 m away";
     distanceState.meters = 120;
     renderPanel(
       <ActiveClaimPanel claim={claim} destination={destination} />,
     );
 
-    expect(screen.getByTestId("active-claim-distance")).toHaveTextContent(
-      "120 m away",
-    );
+    expect(screen.queryByTestId("active-claim-distance")).not.toBeInTheDocument();
     expect(screen.getByText(ACTIVE_CLAIM_ON_WAY_STATUS)).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Navigate to spot" }),
@@ -789,7 +798,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
   });
 
-  it("renders a compact destination preview with exact parking coordinates", () => {
+  it("does not render a small parking map; navigation still uses exact coordinates", () => {
     renderPanel(
       <ActiveClaimPanel
         claim={claim}
@@ -799,13 +808,14 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
 
-    const preview = screen.getByTestId("claim-destination-preview-map");
-    expect(preview).toHaveAttribute("data-latitude", String(destination.latitude));
-    expect(preview).toHaveAttribute("data-longitude", String(destination.longitude));
-    expect(preview).toHaveAttribute("data-preview-variant", "handoff");
+    expect(screen.queryByTestId("claim-destination-preview-map")).not.toBeInTheDocument();
+    expect(screen.queryByText("Parking spot")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
   });
 
-  it("still shows the destination preview when the display address is missing", () => {
+  it("still navigates when the display address is missing", () => {
     renderPanel(
       <ActiveClaimPanel
         claim={{ ...claim, spotAddress: null }}
@@ -815,18 +825,14 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
 
-    expect(screen.getByTestId("active-claim-address")).toHaveTextContent(
-      ACTIVE_CLAIM_DESTINATION_FALLBACK,
-    );
+    expect(screen.queryByTestId("active-claim-address")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
-    const preview = screen.getByTestId("claim-destination-preview-map");
-    expect(preview).toHaveAttribute("data-latitude", String(destination.latitude));
-    expect(preview).toHaveAttribute("data-longitude", String(destination.longitude));
+    expect(screen.queryByTestId("claim-destination-preview-map")).not.toBeInTheDocument();
   });
 
-  it("hides the destination preview when collapsed", async () => {
+  it("does not show a destination preview when collapsed", async () => {
     const user = userEvent.setup();
     renderPanel(
       <ActiveClaimPanel
@@ -836,7 +842,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
 
-    expect(screen.getByTestId("claim-destination-preview-map")).toBeInTheDocument();
+    expect(screen.queryByTestId("claim-destination-preview-map")).not.toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: /Collapse claim details/i }),
     );

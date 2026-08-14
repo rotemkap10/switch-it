@@ -43,15 +43,17 @@ describe("seekerMarkerImages", () => {
     expect(unselected.data[stem + 2]).toBe(230);
   });
 
-  it("keeps the live seeker marker as a simple disc without a parking P", () => {
+  it("keeps the live seeker marker as a small car, not a parking P", () => {
     const live = createSeekerMarkerImageData("seeker-live");
+    const parking = createSeekerMarkerImageData("spot-destination");
     const size = live.width;
     const cx = Math.round((size - 1) / 2);
     const cy = Math.round((size - 1) / 2);
     const center = (cy * size + cx) * 4;
-    expect(live.data[center]).toBe(255);
-    expect(live.data[center + 1]).toBe(255);
+    expect(live.data[center]).toBe(230);
+    expect(live.data[center + 1]).toBe(244);
     expect(live.data[center + 2]).toBe(255);
+    expect(parking.data[center]).not.toBe(live.data[center]);
   });
 
   it("never uses an empty icon-image fallback in the spots expression", () => {

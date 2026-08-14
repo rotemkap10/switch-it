@@ -93,7 +93,26 @@ describe("usePublisherLiveLocation", () => {
     expect(subscribe).toHaveBeenCalled();
   });
 
-  it("receives a valid seeker-location event", async () => {
+  it("stays on Waiting for driver location until the first payload", async () => {
+    const { result } = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(subscribe).toHaveBeenCalled();
+    });
+
+    expect(result.current.statusLabel).toBe("Waiting for driver location");
+    expect(result.current.location).toBeNull();
+
+    await act(async () => {
+      subscribeStatus?.("SUBSCRIBED");
+    });
+    expect(result.current.statusLabel).toBe("Waiting for driver location");
+    expect(result.current.location).toBeNull();
+  });
+
+  it("updates the live marker on subsequent broadcasts", async () => {
     const { result } = renderHook(() =>
       usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
     );
@@ -112,6 +131,14 @@ describe("usePublisherLiveLocation", () => {
     expect(result.current.updatedLabel).toBe("Updated just now");
     expect(result.current.location?.latitude).toBe(32.0853);
     expect(result.current.pauseHint).toBeNull();
+
+    await act(async () => {
+      locationHandler?.({
+        payload: validPayload({ sequence: 2, latitude: 32.091 }),
+      });
+    });
+    expect(result.current.location?.latitude).toBe(32.091);
+    expect(result.current.statusLabel).toBe("Live location");
   });
 
   it("ignores older sequence numbers", async () => {
@@ -157,8 +184,8 @@ describe("usePublisherLiveLocation", () => {
       });
     });
 
-    expect(result.current.freshness).toBe("paused");
-    expect(result.current.statusLabel).toBe("Live location paused");
+    expect(result.current.freshness).toBe("delayed");
+    expect(result.current.statusLabel).toBe("Location update delayed");
     expect(result.current.pauseHint).toBe(LIVE_LOCATION_PAUSE_WHILE_NAVIGATING);
     expect(result.current.location?.latitude).toBe(32.0853);
   });
@@ -191,7 +218,7 @@ describe("usePublisherLiveLocation", () => {
         vi.advanceTimersByTime(20_000);
       });
       expect(result.current.freshness).toBe("paused");
-      expect(result.current.statusLabel).toBe("Live location paused");
+      expect(result.current.statusLabel).toBe("Location update delayed");
       expect(result.current.updatedLabel).toMatch(/Last update \d+ seconds ago/);
       expect(result.current.location).not.toBeNull();
     } finally {
@@ -218,21 +245,19 @@ describe("usePublisherLiveLocation", () => {
     await act(async () => {
       subscribeStatus?.("CHANNEL_ERROR");
     });
-    expect(result.current.freshness).toBe("unavailable");
-    expect(result.current.statusLabel).toBe(
-      "Live location temporarily unavailable",
-    );
+    expect(result.current.freshness).toBe("delayed");
+    expect(result.current.statusLabel).toBe("Location update delayed");
     expect(result.current.location?.latitude).toBe(32.0853);
 
     await act(async () => {
       subscribeStatus?.("TIMED_OUT");
     });
-    expect(result.current.freshness).toBe("unavailable");
+    expect(result.current.freshness).toBe("delayed");
 
     await act(async () => {
       subscribeStatus?.("CLOSED");
     });
-    expect(result.current.freshness).toBe("unavailable");
+    expect(result.current.freshness).toBe("delayed");
 
     await act(async () => {
       subscribeStatus?.("SUBSCRIBED");
@@ -240,6 +265,69 @@ describe("usePublisherLiveLocation", () => {
     expect(result.current.freshness).toBe("live");
     expect(result.current.statusLabel).toBe("Live location");
     expect(result.current.location?.latitude).toBe(32.0853);
+  });
+
+  it("accepts nested broadcast envelopes", async () => {
+    const { result } = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(locationHandler).toBeTypeOf("function");
+    });
+
+    await act(async () => {
+      locationHandler?.({
+        payload: {
+          type: "broadcast",
+          event: "seeker-location",
+          payload: validPayload({ sequence: 3, latitude: 32.1 }),
+        },
+      });
+    });
+
+    expect(result.current.location?.latitude).toBe(32.1);
+    expect(result.current.statusLabel).toBe("Live location");
+  });
+
+  it("subscribes using claimId, not spotId", async () => {
+    const spotId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(channel).toHaveBeenCalledWith(
+        TOPIC,
+        expect.anything(),
+      );
+    });
+    expect(channel).not.toHaveBeenCalledWith(
+      expect.stringContaining(spotId),
+      expect.anything(),
+    );
+  });
+
+  it("keeps last known location when a later payload is delayed", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { result } = renderHook(() =>
+        usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+      );
+      await waitFor(() => {
+        expect(locationHandler).toBeTypeOf("function");
+      });
+      await act(async () => {
+        locationHandler?.({ payload: validPayload({ sequence: 1 }) });
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(12_000);
+      });
+      expect(result.current.statusLabel).toBe("Location update delayed");
+      expect(result.current.location?.latitude).toBe(32.0853);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("cleans up the channel on unmount and claim change", async () => {

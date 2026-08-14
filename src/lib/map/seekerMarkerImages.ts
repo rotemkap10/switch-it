@@ -47,11 +47,11 @@ const MARKER_COLORS: Record<
     ringWidth: 5,
   },
   "seeker-live": {
-    ring: [47, 169, 230, 255],
-    fill: [85, 191, 243, 255],
+    ring: [20, 90, 160, 255],
+    fill: [36, 118, 196, 255],
     glyph: [255, 255, 255, 255],
     size: 56,
-    ringWidth: 4,
+    ringWidth: 3,
   },
 };
 
@@ -96,7 +96,7 @@ export function createSeekerMarkerImageData(
     }
   }
 
-  drawInnerDot(data, size, glyph, id === SEEKER_MARKER_IMAGE_IDS.seekerLive);
+  drawInnerGlyph(data, size, glyph, id === SEEKER_MARKER_IMAGE_IDS.seekerLive);
 
   return { width: size, height: size, data };
 }
@@ -121,29 +121,49 @@ function fillRect(
   }
 }
 
-/** Compact “P” for parking pins; a simple disc for the live seeker puck. */
-function drawInnerDot(
+/** Compact “P” for parking pins; a small car for the live seeker vehicle. */
+function drawInnerGlyph(
   data: Uint8ClampedArray,
   size: number,
   color: Rgba,
-  discOnly: boolean,
+  car: boolean,
 ) {
-  const cx = (size - 1) / 2;
-  const cy = (size - 1) / 2;
-
-  if (discOnly) {
-    const radius = size * 0.16;
-    for (let y = 0; y < size; y += 1) {
-      for (let x = 0; x < size; x += 1) {
-        if (Math.hypot(x - cx, y - cy) <= radius) {
-          setPixel(data, (y * size + x) * 4, color);
-        }
-      }
-    }
+  if (car) {
+    drawCarGlyph(data, size, color);
     return;
   }
 
   drawParkingP(data, size, color);
+}
+
+/** Simple top-down car, readable at mobile map scale. */
+function drawCarGlyph(
+  data: Uint8ClampedArray,
+  size: number,
+  color: Rgba,
+) {
+  const bodyLeft = size * 0.32;
+  const bodyRight = size * 0.68;
+  const bodyTop = size * 0.26;
+  const bodyBottom = size * 0.74;
+  fillRect(data, size, bodyLeft, bodyTop, bodyRight, bodyBottom, color);
+
+  const cabin: Rgba = [230, 244, 255, 255];
+  fillRect(
+    data,
+    size,
+    size * 0.38,
+    size * 0.34,
+    size * 0.62,
+    size * 0.52,
+    cabin,
+  );
+
+  const wheel: Rgba = [30, 42, 58, 255];
+  fillRect(data, size, size * 0.26, size * 0.32, size * 0.34, size * 0.42, wheel);
+  fillRect(data, size, size * 0.66, size * 0.32, size * 0.74, size * 0.42, wheel);
+  fillRect(data, size, size * 0.26, size * 0.58, size * 0.34, size * 0.68, wheel);
+  fillRect(data, size, size * 0.66, size * 0.58, size * 0.74, size * 0.68, wheel);
 }
 
 function drawParkingP(

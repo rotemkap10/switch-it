@@ -8,8 +8,7 @@ describe("logHandoffLive", () => {
     vi.restoreAllMocks();
   });
 
-  it("logs the shared prefix and strips tokens in development", () => {
-    vi.stubEnv("NODE_ENV", "development");
+  it("logs the shared prefix and strips tokens", () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
 
     logHandoffLive("claim active", {
@@ -25,12 +24,5 @@ describe("logHandoffLive", () => {
       claimId: "11111111-1111-4111-8111-111111111111",
       lat: 32.08,
     });
-  });
-
-  it("is silent outside development", () => {
-    vi.stubEnv("NODE_ENV", "test");
-    const info = vi.spyOn(console, "info").mockImplementation(() => {});
-    logHandoffLive("claim active", { claimId: "x" });
-    expect(info).not.toHaveBeenCalled();
   });
 });

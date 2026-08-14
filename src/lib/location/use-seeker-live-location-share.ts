@@ -34,6 +34,7 @@ export type SeekerShareUiState =
 
 type UseSeekerLiveLocationShareOptions = {
   claimId: string;
+  spotId?: string | null;
   /** ISO expires_at for the shared handoff deadline. */
   spotExpiresAtIso: string;
   enabled: boolean;
@@ -73,6 +74,7 @@ async function refreshSeekerAccessToken(): Promise<string | null> {
  */
 export function useSeekerLiveLocationShare({
   claimId,
+  spotId = null,
   spotExpiresAtIso,
   enabled,
   manageNativeTracker = true,
@@ -95,6 +97,7 @@ export function useSeekerLiveLocationShare({
   const hasUsableFixRef = useRef(false);
   const subscribedRef = useRef(false);
   const claimIdRef = useRef(claimId);
+  const spotIdRef = useRef(spotId);
   const expiresAtRef = useRef(spotExpiresAtIso);
   const terminalRef = useRef(false);
   const uiEpochRef = useRef(0);
@@ -106,8 +109,9 @@ export function useSeekerLiveLocationShare({
 
   useEffect(() => {
     claimIdRef.current = claimId;
+    spotIdRef.current = spotId;
     expiresAtRef.current = spotExpiresAtIso;
-  }, [claimId, spotExpiresAtIso]);
+  }, [claimId, spotId, spotExpiresAtIso]);
 
   const clearWatch = useCallback(() => {
     if (watchRetryTimerRef.current !== null) {
@@ -506,6 +510,7 @@ export function useSeekerLiveLocationShare({
     if (service.isNative) {
       logHandoffLive("claim active", {
         claimId: claimIdRef.current,
+        spotId: spotIdRef.current,
         topic,
         source: "native",
         provider: "native-plugin",
@@ -525,6 +530,7 @@ export function useSeekerLiveLocationShare({
     setUiState("acquiring");
     logHandoffLive("claim active", {
       claimId: claimIdRef.current,
+      spotId: spotIdRef.current,
       topic,
       source: "web",
       provider: "geolocation",
@@ -542,13 +548,15 @@ export function useSeekerLiveLocationShare({
   const stopSharing = useCallback(async () => {
     uiEpochRef.current += 1;
     await sendStatus("stopped");
-    await getHandoffLocationService().stopHandoffTracking("explicit_stop");
-    logHandoffLive("nativePluginStop()", {
-      claimId: claimIdRef.current,
-      reason: "explicit_stop",
-    });
+    if (manageNativeTracker) {
+      await getHandoffLocationService().stopHandoffTracking("explicit_stop");
+      logHandoffLive("nativePluginStop()", {
+        claimId: claimIdRef.current,
+        reason: "explicit_stop",
+      });
+    }
     await shutdown("off");
-  }, [sendStatus, shutdown]);
+  }, [manageNativeTracker, sendStatus, shutdown]);
 
   /**
    * Terminal handoff paths (complete / cancel / expire): best-effort
@@ -559,14 +567,16 @@ export function useSeekerLiveLocationShare({
     uiEpochRef.current += 1;
     void (async () => {
       await sendStatus("stopped");
-      await getHandoffLocationService().stopHandoffTracking("terminal");
-      logHandoffLive("nativePluginStop()", {
-        claimId: claimIdRef.current,
-        reason: "terminal",
-      });
+      if (manageNativeTracker) {
+        await getHandoffLocationService().stopHandoffTracking("terminal");
+        logHandoffLive("nativePluginStop()", {
+          claimId: claimIdRef.current,
+          reason: "terminal",
+        });
+      }
       await shutdown("idle");
     })();
-  }, [sendStatus, shutdown]);
+  }, [manageNativeTracker, sendStatus, shutdown]);
 
   useEffect(() => {
     if (!enabled) {

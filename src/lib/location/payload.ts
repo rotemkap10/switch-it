@@ -31,15 +31,42 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
+/**
+ * HTTP Broadcast and phoenix wrappers sometimes nest the location object:
+ * `{ type, event, payload: { latitude, ... } }`. Unwrap so sender/receiver
+ * share one parser.
+ */
+export function unwrapBroadcastPayload(value: unknown): unknown {
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+  const raw = value as Record<string, unknown>;
+  const nested = raw.payload;
+  if (!nested || typeof nested !== "object") {
+    return value;
+  }
+  const nestedRecord = nested as Record<string, unknown>;
+  const nestedIsLocation =
+    "latitude" in nestedRecord ||
+    "longitude" in nestedRecord ||
+    "status" in nestedRecord;
+  const outerIsLocation = "latitude" in raw || "status" in raw;
+  if (nestedIsLocation && !outerIsLocation) {
+    return nested;
+  }
+  return value;
+}
+
 export function parseSeekerLocationPayload(
   value: unknown,
   nowMs: number = Date.now(),
 ): SeekerLocationPayload | null {
-  if (!value || typeof value !== "object") {
+  const unwrapped = unwrapBroadcastPayload(value);
+  if (!unwrapped || typeof unwrapped !== "object") {
     return null;
   }
 
-  const raw = value as Record<string, unknown>;
+  const raw = unwrapped as Record<string, unknown>;
   const latitude = raw.latitude;
   const longitude = raw.longitude;
   const accuracyMeters = raw.accuracyMeters;
@@ -95,11 +122,12 @@ export function parseSeekerLocationStatusPayload(
   value: unknown,
   nowMs: number = Date.now(),
 ): SeekerLocationStatusPayload | null {
-  if (!value || typeof value !== "object") {
+  const unwrapped = unwrapBroadcastPayload(value);
+  if (!unwrapped || typeof unwrapped !== "object") {
     return null;
   }
 
-  const raw = value as Record<string, unknown>;
+  const raw = unwrapped as Record<string, unknown>;
   const status = raw.status;
   const sequence = raw.sequence;
   const sentAt = raw.sentAt;
