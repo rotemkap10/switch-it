@@ -67,7 +67,7 @@ describe("PageRouteLoadingChrome", () => {
 describe("loader vs map pin and launch splash", () => {
   it("keeps actual map parking pins and launch logo separate from the car loader", () => {
     const picker = readFileSync(
-      resolve(process.cwd(), "src/components/spots/SpotLocationPickerMapLibre.tsx"),
+      resolve(process.cwd(), "src/components/map/ParkingMapMapLibre.tsx"),
       "utf8",
     );
     const settle = readFileSync(

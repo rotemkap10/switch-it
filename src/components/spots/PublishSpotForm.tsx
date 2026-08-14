@@ -261,6 +261,11 @@ export function PublishSpotForm() {
     lng: string;
   } | null>(null);
 
+  const [pickerExternalRecenter, setPickerExternalRecenter] = useState<{
+    requestId: number;
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const locationActionSeqRef = useRef(0);
   const gpsRequestSeqRef = useRef<number | null>(null);
   const forwardSearchSeqRef = useRef(0);
@@ -581,6 +586,11 @@ export function PublishSpotForm() {
     setAddressSuggestions([]);
     setAddressSearchPending(false);
     setLocationConfirmed(true);
+    setPickerExternalRecenter((prev) => ({
+      requestId: (prev?.requestId ?? 0) + 1,
+      latitude: result.latitude,
+      longitude: result.longitude,
+    }));
   }
 
   return (
@@ -677,6 +687,7 @@ export function PublishSpotForm() {
                 userLongitude={detectedLocation?.longitude ?? null}
                 userAccuracy={accuracyMeters}
                 onCurrentLocationResolved={handleCurrentLocationResolved}
+                externalRecenter={pickerExternalRecenter}
               />
             </div>
           ) : null}

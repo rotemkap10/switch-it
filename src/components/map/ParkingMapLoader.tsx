@@ -48,6 +48,7 @@ export function ParkingMapLoader({
       className="h-full w-full"
     >
       <ParkingMap
+        mode="browse"
         spots={spots}
         destination={destination ?? null}
         onVisuallyReady={onVisuallyReady}

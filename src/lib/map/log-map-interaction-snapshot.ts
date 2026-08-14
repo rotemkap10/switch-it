@@ -60,6 +60,12 @@ export function logMapInteractionSnapshot(
       canvasContainerTouchAction:
         window.getComputedStyle(canvasContainer).touchAction,
       containerTouchAction: window.getComputedStyle(container).touchAction,
+      camera: {
+        zoom: map.getZoom(),
+        center: map.getCenter(),
+        bearing: typeof map.getBearing === "function" ? map.getBearing() : null,
+        pitch: typeof map.getPitch === "function" ? map.getPitch() : null,
+      },
       ancestors,
     });
   } catch (error) {

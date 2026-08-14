@@ -46,6 +46,7 @@ let mockMap: {
 const mockBaseMapProps: {
   center?: unknown;
   zoom?: unknown;
+  className?: unknown;
 } = {};
 
 let deferMapReady = false;
@@ -171,11 +172,13 @@ vi.mock("@/components/map/BaseMap", () => {
       onMapReady: (map: unknown) => void;
       onVisuallyReady?: () => void;
       styleUrl: string;
-      center: unknown;
-      zoom: unknown;
-    }) => {
-      mockBaseMapProps.center = props.center;
-      mockBaseMapProps.zoom = props.zoom;
+    center: unknown;
+    zoom: unknown;
+    className?: string;
+  }) => {
+    mockBaseMapProps.center = props.center;
+    mockBaseMapProps.zoom = props.zoom;
+    mockBaseMapProps.className = props.className;
 
       useEffect(() => {
         if (deferMapReady) {
@@ -328,6 +331,7 @@ describe("ParkingMapMapLibre geolocation", () => {
     stopExplicitRefMock.mockReset();
     mockBaseMapProps.center = undefined;
     mockBaseMapProps.zoom = undefined;
+    mockBaseMapProps.className = undefined;
     deferMapReady = false;
     flushDeferredMapReady = null;
   });

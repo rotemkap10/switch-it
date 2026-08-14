@@ -480,9 +480,6 @@ html[data-native-status-bar="inset"] .app-shell-header {
 
 .leaver-map-picker-shell {
   height: clamp(280px, 48dvh, 400px);
-  /* Same touch ownership as Find Parking's BaseMap canvas (touch-none). */
-  touch-action: none;
-  overscroll-behavior: none;
 }
 
 .publisher-preview-map-shell {

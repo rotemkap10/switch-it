@@ -35,7 +35,7 @@ describe("centerMapOnLocation", () => {
     );
   });
 
-  it("applies minStreetZoom for the publisher picker", () => {
+  it("can apply minStreetZoom when a caller requests street-level floor", () => {
     const easeTo = vi.fn();
     const map = { easeTo, getZoom: () => 14 };
 

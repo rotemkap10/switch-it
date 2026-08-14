@@ -5,7 +5,7 @@ import type {
   Map as MapLibreMap,
   MapGeoJSONFeature,
 } from "maplibre-gl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BaseMap } from "@/components/map/BaseMap";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
@@ -42,6 +42,7 @@ import {
   isValidLatLng,
 } from "@/lib/map/distance";
 import { focusSelectedSpot } from "@/lib/map/focus-selected-spot";
+import { logMapInteractionSnapshot } from "@/lib/map/log-map-interaction-snapshot";
 import type { MapSpot } from "@/types/map-spot";
 
 import {
@@ -67,6 +68,32 @@ import { useUserLocation } from "@/lib/map/use-user-location";
 
 type DestinationCoords = { latitude: number; longitude: number };
 
+export type ParkingMapMode = "browse" | "picker";
+
+export type PickerExternalRecenter = {
+  requestId: number;
+  latitude: number;
+  longitude: number;
+};
+
+/** Exact BaseMap className for Find Parking and Share a Spot. */
+export const PARKING_MAP_BASEMAP_CLASS = "absolute inset-0 h-full w-full";
+
+const COORD_EPSILON = 1e-7;
+const PICKER_LOCATION_SELECTED_MS = 1600;
+
+function coordsNearlyEqual(
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number,
+): boolean {
+  return (
+    Math.abs(aLat - bLat) < COORD_EPSILON &&
+    Math.abs(aLng - bLng) < COORD_EPSILON
+  );
+}
+
 type ParkingMapMapLibreProps = {
   spots: MapSpot[];
   destination?: DestinationCoords | null;
@@ -78,6 +105,20 @@ type ParkingMapMapLibreProps = {
    * floating controls / toast clearance.
    */
   bottomStackOverride?: MapBottomStack | null;
+  /**
+   * `browse` is Find Parking. `picker` is Share a Spot — same MapLibre
+   * path, plus a center pin and observe-only moveend coordinates.
+   */
+  mode?: ParkingMapMode;
+  pickerDisabled?: boolean;
+  onPickerLocationChange?: (latitude: number, longitude: number) => void;
+  onPickerInteractionStart?: () => void;
+  onPickerInteractionSettled?: () => void;
+  onPickerUserMovedMap?: () => void;
+  onPickerCurrentLocationRequested?: () => void;
+  onPickerCurrentLocationResolved?: (fix: DeviceLocationFix) => void;
+  /** Address-search (or other explicit) camera command. Ignored for map-originated coords. */
+  pickerExternalRecenter?: PickerExternalRecenter | null;
 };
 
 function createGeoJsonSpots(
@@ -215,7 +256,17 @@ export function ParkingMapMapLibre({
   onVisuallyReady,
   showDiscoveryCarousel = true,
   bottomStackOverride = null,
+  mode = "browse",
+  pickerDisabled = false,
+  onPickerLocationChange,
+  onPickerInteractionStart,
+  onPickerInteractionSettled,
+  onPickerUserMovedMap,
+  onPickerCurrentLocationRequested,
+  onPickerCurrentLocationResolved,
+  pickerExternalRecenter = null,
 }: ParkingMapMapLibreProps) {
+  const isPicker = mode === "picker";
   const prefersReducedMotion = usePrefersReducedMotion();
   const reportInitialMapReady = useReportInitialMapReady();
   const mapTilerStyleUrl = useMemo(
@@ -279,6 +330,9 @@ export function ParkingMapMapLibre({
     bottomStackOverride ?? discoveryBottomStack;
 
   useEffect(() => {
+    if (isPicker) {
+      return;
+    }
     if (bottomStackOverride) {
       // Claim overlay owns document sync from SeekerMapExperience.
       return;
@@ -287,7 +341,7 @@ export function ParkingMapMapLibre({
     return () => {
       syncDocumentMapBottomStack(null);
     };
-  }, [bottomStack, bottomStackOverride]);
+  }, [bottomStack, bottomStackOverride, isPicker]);
 
   const { state: userLocation, applyFreshFix, applyError } = useUserLocation({
     autoRequest: false,
@@ -312,6 +366,25 @@ export function ParkingMapMapLibre({
   const prefersReducedMotionRef = useRef(prefersReducedMotion);
   const applyFreshFixRef = useRef(applyFreshFix);
   const applyErrorRef = useRef(applyError);
+  const pinRef = useRef<HTMLDivElement | null>(null);
+  const userGestureActiveRef = useRef(false);
+  const lastPickerCommitRef = useRef<{ lat: number; lng: number } | null>(
+    null,
+  );
+  const lastExternalRecenterIdRef = useRef(0);
+  const pendingPickerExternalRecenterRef = useRef<PickerExternalRecenter | null>(
+    null,
+  );
+  const [showPickerSelectedHint, setShowPickerSelectedHint] = useState(false);
+  const pickerCallbacksRef = useRef({
+    onPickerLocationChange,
+    onPickerInteractionStart,
+    onPickerInteractionSettled,
+    onPickerUserMovedMap,
+    onPickerCurrentLocationRequested,
+    onPickerCurrentLocationResolved,
+  });
+  const pickerDisabledRef = useRef(pickerDisabled);
 
   useEffect(() => {
     prefersReducedMotionRef.current = prefersReducedMotion;
@@ -324,6 +397,28 @@ export function ParkingMapMapLibre({
   useEffect(() => {
     applyErrorRef.current = applyError;
   }, [applyError]);
+
+  useEffect(() => {
+    pickerCallbacksRef.current = {
+      onPickerLocationChange,
+      onPickerInteractionStart,
+      onPickerInteractionSettled,
+      onPickerUserMovedMap,
+      onPickerCurrentLocationRequested,
+      onPickerCurrentLocationResolved,
+    };
+  }, [
+    onPickerLocationChange,
+    onPickerInteractionStart,
+    onPickerInteractionSettled,
+    onPickerUserMovedMap,
+    onPickerCurrentLocationRequested,
+    onPickerCurrentLocationResolved,
+  ]);
+
+  useEffect(() => {
+    pickerDisabledRef.current = pickerDisabled;
+  }, [pickerDisabled]);
 
   const markUserMovedMap = () => {
     userMovedMapRef.current = true;
@@ -378,10 +473,22 @@ export function ParkingMapMapLibre({
     lastKnownFixRef.current = fix;
     applyFreshFixRef.current(fix);
     setRecenterNoticeVisible(false);
-    centerFindMapOnFix(fix);
+    const moved = centerFindMapOnFix(fix);
+    if (moved && process.env.NODE_ENV === "development") {
+      const map = mapRef.current;
+      map?.once("moveend", () => {
+        logMapInteractionSnapshot(isPicker ? "share-spot" : "find-parking", map);
+      });
+    }
+    if (isPicker) {
+      pickerCallbacksRef.current.onPickerCurrentLocationResolved?.(fix);
+    }
   };
 
   const handleCurrentLocationClick = () => {
+    if (isPicker) {
+      pickerCallbacksRef.current.onPickerCurrentLocationRequested?.();
+    }
     const seq = ++explicitRecenterSeqRef.current;
     setRecenterNoticeVisible(false);
 
@@ -436,6 +543,48 @@ export function ParkingMapMapLibre({
     }, 6000);
     return () => window.clearTimeout(id);
   }, [recenterNoticeVisible]);
+
+  const applyPickerExternalRecenter = useCallback(
+    (command: PickerExternalRecenter) => {
+      const map = mapRef.current;
+      if (!map || !hasInitializedLayersRef.current) {
+        pendingPickerExternalRecenterRef.current = command;
+        return;
+      }
+      pendingPickerExternalRecenterRef.current = null;
+      lastExternalRecenterIdRef.current = command.requestId;
+      userMovedMapRef.current = true;
+      autoCenterGenerationRef.current += 1;
+      pendingAutoCenterFixRef.current = null;
+      if (typeof map.stop === "function") {
+        map.stop();
+      }
+      centerMapOnLocation(map, command.longitude, command.latitude, {
+        reducedMotion: prefersReducedMotionRef.current,
+      });
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!isPicker || !pickerExternalRecenter) {
+      return;
+    }
+    if (pickerExternalRecenter.requestId === lastExternalRecenterIdRef.current) {
+      return;
+    }
+    applyPickerExternalRecenter(pickerExternalRecenter);
+  }, [applyPickerExternalRecenter, isPicker, pickerExternalRecenter]);
+
+  useEffect(() => {
+    if (!showPickerSelectedHint) {
+      return;
+    }
+    const id = window.setTimeout(() => {
+      setShowPickerSelectedHint(false);
+    }, PICKER_LOCATION_SELECTED_MS);
+    return () => window.clearTimeout(id);
+  }, [showPickerSelectedHint]);
 
   useEffect(() => {
     const watchGeneration = autoCenterGenerationRef.current;
@@ -660,10 +809,12 @@ export function ParkingMapMapLibre({
   return (
     <div
       className="relative h-full w-full"
-      data-map-bottom={bottomStack}
+      data-map-bottom={isPicker ? "none" : bottomStack}
+      data-map-mode={mode}
       data-testid="parking-map-stage"
     >
-      {mapVisuallyReady &&
+      {!isPicker &&
+      mapVisuallyReady &&
       userLocation.status === "loading" &&
       !locationNoticeHidden ? (
         <div
@@ -680,7 +831,10 @@ export function ParkingMapMapLibre({
         </div>
       ) : null}
 
-      {mapVisuallyReady && locationFailure && !locationNoticeHidden ? (
+      {!isPicker &&
+      mapVisuallyReady &&
+      locationFailure &&
+      !locationNoticeHidden ? (
         <div
           className={`${MAP_FLOATING_CONTROL_CLASS} z-[4]`}
           role="status"
@@ -700,7 +854,8 @@ export function ParkingMapMapLibre({
         </div>
       ) : null}
 
-      {mapVisuallyReady &&
+      {!isPicker &&
+      mapVisuallyReady &&
       locationOutsideSupportedArea &&
       !locationNoticeHidden ? (
         <div
@@ -728,8 +883,8 @@ export function ParkingMapMapLibre({
             styleUrl={mapTilerStyleUrl!}
             center={initialCenter}
             zoom={initialZoom}
-            className="absolute inset-0 h-full w-full"
-            interactionDebugLabel="find-parking"
+            className={PARKING_MAP_BASEMAP_CLASS}
+            interactionDebugLabel={isPicker ? "share-spot" : "find-parking"}
             onMapUnavailable={() => setMapUnavailable(true)}
             onVisuallyReady={markVisuallyReady}
             onMapReady={(map) => {
@@ -772,20 +927,65 @@ export function ParkingMapMapLibre({
                 map.on("dragstart", (event) => {
                   if (isUserMapGesture(event)) {
                     markUserMovedMap();
+                    if (isPicker) {
+                      userGestureActiveRef.current = true;
+                      pinRef.current?.classList.add("is-lifting");
+                      pickerCallbacksRef.current.onPickerInteractionStart?.();
+                    }
                   }
                 });
                 map.on("zoomstart", (event) => {
                   if (isUserMapGesture(event)) {
                     markUserMovedMap();
+                    if (isPicker) {
+                      userGestureActiveRef.current = true;
+                      pickerCallbacksRef.current.onPickerInteractionStart?.();
+                    }
                   }
                 });
 
                 map.on("moveend", () => {
                   const center = map.getCenter();
-                  writeSessionMapCamera("seeker", {
+                  writeSessionMapCamera(isPicker ? "publisher" : "seeker", {
                     center: [center.lng, center.lat],
                     zoom: map.getZoom(),
                   });
+
+                  if (!isPicker) {
+                    return;
+                  }
+
+                  pinRef.current?.classList.remove("is-lifting");
+                  if (pickerDisabledRef.current) {
+                    userGestureActiveRef.current = false;
+                    return;
+                  }
+
+                  const wasUserGesture = userGestureActiveRef.current;
+                  userGestureActiveRef.current = false;
+                  const prev = lastPickerCommitRef.current;
+                  if (
+                    prev &&
+                    coordsNearlyEqual(center.lat, center.lng, prev.lat, prev.lng)
+                  ) {
+                    if (wasUserGesture) {
+                      pickerCallbacksRef.current.onPickerInteractionSettled?.();
+                    }
+                    return;
+                  }
+
+                  lastPickerCommitRef.current = {
+                    lat: center.lat,
+                    lng: center.lng,
+                  };
+                  if (wasUserGesture) {
+                    pickerCallbacksRef.current.onPickerUserMovedMap?.();
+                    setShowPickerSelectedHint(true);
+                  }
+                  pickerCallbacksRef.current.onPickerLocationChange?.(
+                    center.lat,
+                    center.lng,
+                  );
                 });
               }
 
@@ -804,6 +1004,11 @@ export function ParkingMapMapLibre({
                   );
                 }
               }
+              const pendingPickerRecenter =
+                pendingPickerExternalRecenterRef.current;
+              if (pendingPickerRecenter) {
+                applyPickerExternalRecenter(pendingPickerRecenter);
+              }
             } catch (error) {
               if (process.env.NODE_ENV === "development") {
                 const message =
@@ -815,10 +1020,57 @@ export function ParkingMapMapLibre({
         />
       </div>
 
+      {isPicker ? (
+        <div
+          className={[
+            "pointer-events-none absolute inset-0 z-[2] flex items-center justify-center overflow-visible map-pin-fade",
+            mapVisuallyReady ? "is-ready" : "",
+          ].join(" ")}
+          aria-hidden="true"
+          data-testid="leaver-center-pin-overlay"
+        >
+          <div ref={pinRef} className="leaver-center-pin">
+            <svg
+              width="40"
+              height="48"
+              viewBox="0 0 40 48"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M20 46c0 0 14-14.2 14-26a14 14 0 1 0-28 0c0 11.8 14 26 14 26Z"
+                fill="#55bff3"
+                stroke="#ffffff"
+                strokeWidth="2.5"
+              />
+              <circle cx="20" cy="18" r="8" fill="#ffffff" />
+              <path
+                d="M16.1 12.6h5.1c2.5 0 4.2 1.55 4.2 3.85 0 2.2-1.7 3.75-4.2 3.75h-2.55V23.4h-2.55V12.6Zm2.55 2.05v3.4h2.35c1.15 0 1.85-.7 1.85-1.7 0-1-.7-1.7-1.85-1.7h-2.35Z"
+                fill="#2fa9e6"
+              />
+            </svg>
+          </div>
+        </div>
+      ) : null}
+
+      {isPicker && showPickerSelectedHint && mapVisuallyReady ? (
+        <p
+          className="pointer-events-none absolute bottom-3 left-3 z-[3] rounded-full border border-border bg-surface/95 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm motion-fade-in"
+          role="status"
+        >
+          Location selected
+        </p>
+      ) : null}
+
       {mapVisuallyReady ? (
         <CurrentLocationControl
-          variant="floating"
-          data-testid="map-recenter-control"
+          variant={isPicker ? "embedded" : "floating"}
+          ariaLabel={
+            isPicker ? "Use my current location" : "Center on my location"
+          }
+          data-testid={
+            isPicker ? "picker-current-location-control" : "map-recenter-control"
+          }
           pending={recenterPending}
           disableWhenPending={false}
           onClick={handleCurrentLocationClick}
