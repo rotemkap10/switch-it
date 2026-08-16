@@ -15,7 +15,9 @@ export type NativeHandoffPlugin = {
   }>;
   addListener?(
     eventName: "handoffLocationState",
-    listener: (event: { uiState: "acquiring" | "weak" | "sharing" }) => void,
+    listener: (event: {
+      uiState: "acquiring" | "weak" | "sharing" | "unavailable";
+    }) => void,
   ): Promise<{ remove: () => Promise<void> }>;
 };
 

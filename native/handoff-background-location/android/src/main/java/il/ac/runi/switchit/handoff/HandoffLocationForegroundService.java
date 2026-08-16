@@ -215,7 +215,7 @@ public class HandoffLocationForegroundService extends Service implements Locatio
         lastSent = null;
 
         if (wasActive && notifyPublisher && stoppingClaim != null && token != null && url != null && key != null) {
-            postEvent(url, token, key, stoppingClaim, "seeker-location-status", statusPayload(stoppedSequence));
+            postEvent(url, token, key, stoppingClaim, "seeker-location-status", statusPayload(stoppedSequence), false);
         }
 
         stopForeground(STOP_FOREGROUND_REMOVE);
@@ -254,13 +254,11 @@ public class HandoffLocationForegroundService extends Service implements Locatio
             + " lat=" + location.getLatitude() + " lng=" + location.getLongitude()
             + " accuracy=" + accuracy + " timestamp=" + location.getTime());
         if (!shouldSend(location)) {
-            emitUi("sharing");
             return;
         }
 
         sequence += 1;
         lastSent = new Location(location);
-        emitUi("sharing");
 
         JSONObject payload = new JSONObject();
         try {
@@ -279,7 +277,7 @@ public class HandoffLocationForegroundService extends Service implements Locatio
         } catch (Exception ignored) {
             return;
         }
-        postEvent(edgeFunctionUrl, accessToken, publishableKey, claimId, "seeker-location", payload);
+        postEvent(edgeFunctionUrl, accessToken, publishableKey, claimId, "seeker-location", payload, true);
     }
 
     private boolean shouldSend(Location next) {
@@ -313,7 +311,8 @@ public class HandoffLocationForegroundService extends Service implements Locatio
         String key,
         String claim,
         String event,
-        JSONObject payload
+        JSONObject payload,
+        boolean markSharingOnSuccess
     ) {
         network.execute(() -> {
             HttpURLConnection connection = null;
@@ -342,10 +341,26 @@ public class HandoffLocationForegroundService extends Service implements Locatio
                     + " event=" + event + " claimId=" + claim);
                 if (code == 401 || code == 403) {
                     handler.post(() -> stopTracking(false));
+                    if (markSharingOnSuccess) {
+                        emitUi("unavailable");
+                    }
+                    return;
+                }
+                if (code >= 200 && code < 300) {
+                    if (markSharingOnSuccess) {
+                        emitUi("sharing");
+                    }
+                    return;
+                }
+                if (markSharingOnSuccess) {
+                    emitUi("unavailable");
                 }
             } catch (Exception error) {
                 Log.w("switch-it", "[switch-it:handoff-live] native post status=error event=" + event
                     + " claimId=" + claim + " error=" + error.getMessage());
+                if (markSharingOnSuccess) {
+                    emitUi("unavailable");
+                }
             } finally {
                 if (connection != null) {
                     connection.disconnect();

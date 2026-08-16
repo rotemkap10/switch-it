@@ -275,7 +275,7 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     );
   });
 
-  it("switches to sharing after a usable GPS fix", async () => {
+  it("switches to sharing only after GPS + successful broadcast", async () => {
     watchPosition.mockImplementation((success: PositionCallback) => {
       success({
         coords: {
@@ -304,7 +304,59 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
       await result.current.startSharing();
     });
 
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "seeker-location" }),
+    );
     expect(result.current.uiState).toBe("sharing");
+  });
+
+  it("does not report sharing from GPS alone before broadcast", async () => {
+    send.mockImplementationOnce(async () => {
+      await new Promise(() => {
+        // Never resolves — transport still in flight.
+      });
+      return "ok";
+    });
+    watchPosition.mockImplementation((success: PositionCallback) => {
+      queueMicrotask(() => {
+        success({
+          coords: {
+            latitude: 32.08,
+            longitude: 34.78,
+            accuracy: 12,
+            altitude: null,
+            altitudeAccuracy: null,
+            heading: null,
+            speed: null,
+          },
+          timestamp: Date.now(),
+        } as GeolocationPosition);
+      });
+      return 42;
+    });
+
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.uiState).not.toBe("sharing");
+    expect(["acquiring", "unavailable"]).toContain(result.current.uiState);
   });
 
   it("keeps sharing intent and retries after a temporary GPS error", async () => {
@@ -346,6 +398,9 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
         timestamp: Date.now(),
       } as GeolocationPosition);
     });
+    await act(async () => {
+      await Promise.resolve();
+    });
     expect(result.current.uiState).toBe("sharing");
 
     await act(async () => {
@@ -378,6 +433,9 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
         },
         timestamp: Date.now(),
       } as GeolocationPosition);
+    });
+    await act(async () => {
+      await Promise.resolve();
     });
     expect(result.current.uiState).toBe("sharing");
     vi.useRealTimers();

@@ -44,10 +44,14 @@ describe("handoff live-location pipeline contracts", () => {
     expect(edge).toContain("getUser");
     expect(edge).toContain("broadcastPrivateClaimLocation");
     expect(broadcast).toContain("realtime.send");
-    expect(broadcast).toContain("/rest/v1/rpc/send");
-    expect(broadcast).toContain("Content-Profile");
+    expect(broadcast).toContain("/rest/v1/rpc/broadcast_claim_location");
+    expect(broadcast).toContain("p_payload");
+    expect(broadcast).toContain("p_topic");
+    expect(broadcast).not.toContain("/rest/v1/rpc/send");
+    expect(broadcast).not.toContain("Content-Profile");
     expect(broadcast).not.toContain("/realtime/v1/api/broadcast");
     expect(edge).not.toContain("/realtime/v1/api/broadcast");
+    expect(edge).toContain("public.broadcast_claim_location");
   });
 
   it("does not persist a location history table or queue", () => {
@@ -92,9 +96,16 @@ describe("handoff live-location pipeline contracts", () => {
     );
     expect(swift).toContain("native post attempt");
     expect(swift).toContain("native post status=");
+    expect(swift).toContain("appState=");
+    expect(swift).toContain('emitUiState("sharing")');
+    expect(swift).toContain("markSharingOnSuccess");
     expect(swift).not.toContain('payload["headingDegrees"] = NSNull()');
     expect(swift).toContain("JSONSerialization.isValidJSONObject");
     expect(swift).toContain("DispatchQueue.main");
+    // Do not claim UI sharing before HTTP success.
+    expect(swift).not.toMatch(
+      /emitUiState\("sharing"\)[\s\S]{0,120}postEvent/,
+    );
   });
 
   it("native sharing starts from the claim session, not a navigation button", () => {
@@ -123,6 +134,30 @@ describe("handoff live-location pipeline contracts", () => {
     );
     expect(share).toContain("if (getHandoffLocationService().isNative)");
     expect(share).toContain("does not pause when hidden");
+  });
+
+  it("publisher and Edge Function share exact claim-location topic helper", () => {
+    const publisherTopic = readFileSync(
+      resolve(root, "src/lib/location/topic.ts"),
+      "utf8",
+    );
+    const edgeTopic = readFileSync(
+      resolve(root, "supabase/functions/_shared/claim-location-topic.ts"),
+      "utf8",
+    );
+    expect(publisherTopic).toContain('CLAIM_LOCATION_TOPIC_PREFIX');
+    expect(edgeTopic).toContain('claim-location:');
+    expect(publisherTopic).toContain("getClaimLocationTopic");
+    expect(edgeTopic).toContain("getClaimLocationTopic");
+  });
+
+  it("terminal claim stop ends native sharing", () => {
+    const share = readFileSync(
+      resolve(root, "src/lib/location/use-seeker-live-location-share.ts"),
+      "utf8",
+    );
+    expect(share).toContain('stopHandoffTracking("terminal")');
+    expect(share).toContain("forceStop");
   });
 
   it("accepted GPS posts include claimId and log non-2xx status", () => {

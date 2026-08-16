@@ -6,8 +6,11 @@
  * 202 even when realtime.messages INSERT RLS silently drops the message
  * (write=false). The publisher then stays on "Waiting for driver location".
  *
- * `realtime.send` is a SECURITY DEFINER database function that fans out to
- * private channel subscribers. Authorization is the Edge Function's job.
+ * Do NOT call the PostgREST realtime-schema send RPC. This project does not
+ * expose the realtime schema to PostgREST (PGRST106), so that path fails
+ * before realtime.send runs.
+ *
+ * Use `public.broadcast_claim_location` (SECURITY DEFINER → realtime.send).
  */
 export async function broadcastPrivateClaimLocation(input: {
   supabaseUrl: string;
@@ -15,28 +18,43 @@ export async function broadcastPrivateClaimLocation(input: {
   topic: string;
   event: string;
   payload: Record<string, unknown>;
-}): Promise<{ ok: true } | { ok: false; status: number; detail: string }> {
+}): Promise<
+  | { ok: true; status: number }
+  | { ok: false; status: number; detail: string }
+> {
   const origin = input.supabaseUrl.replace(/\/$/, "");
-  const response = await fetch(`${origin}/rest/v1/rpc/send`, {
-    method: "POST",
-    headers: {
-      apikey: input.serviceKey,
-      Authorization: `Bearer ${input.serviceKey}`,
-      "Content-Type": "application/json",
-      "Content-Profile": "realtime",
-      "Accept-Profile": "realtime",
+  const response = await fetch(
+    `${origin}/rest/v1/rpc/broadcast_claim_location`,
+    {
+      method: "POST",
+      headers: {
+        apikey: input.serviceKey,
+        Authorization: `Bearer ${input.serviceKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        p_payload: input.payload,
+        p_event: input.event,
+        p_topic: input.topic,
+      }),
     },
-    body: JSON.stringify({
-      payload: input.payload,
-      event: input.event,
-      topic: input.topic,
-      private: true,
-    }),
-  });
+  );
 
+  const detail = (await response.text()).slice(0, 400);
   if (!response.ok) {
-    const detail = (await response.text()).slice(0, 400);
     return { ok: false, status: response.status, detail };
   }
-  return { ok: true };
+  // PostgREST void RPC returns 204 (or 200 empty). Treat both as success;
+  // still surface unexpected bodies for diagnostics.
+  if (detail && detail !== "null") {
+    console.log("[switch-it:handoff-live] realtime.send rpc body", {
+      status: response.status,
+      detail,
+      topic: input.topic,
+      event: input.event,
+      via: "public.broadcast_claim_location",
+    });
+  }
+  return { ok: true, status: response.status };
 }

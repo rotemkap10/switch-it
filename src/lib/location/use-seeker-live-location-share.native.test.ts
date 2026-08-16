@@ -164,7 +164,7 @@ describe("native seeker live location share", () => {
     );
 
     await waitFor(() => {
-      expect(result.current.uiState).toBe("sharing");
+      expect(result.current.uiState).toBe("acquiring");
     });
     expect(startHandoffTracking).not.toHaveBeenCalled();
 
@@ -174,6 +174,7 @@ describe("native seeker live location share", () => {
 
     expect(startHandoffTracking).not.toHaveBeenCalled();
     expect(watchPosition).not.toHaveBeenCalled();
+    expect(result.current.uiState).toBe("acquiring");
   });
 
   it("J. permission denial leaves claim/navigation usable (share unavailable only)", async () => {

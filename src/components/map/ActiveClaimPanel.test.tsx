@@ -912,7 +912,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       <ActiveClaimPanel claim={claim} destination={destination} />,
     );
 
-    expect(screen.getByText("Location update delayed")).toBeInTheDocument();
+    expect(screen.getByText("Live location update delayed")).toBeInTheDocument();
     expect(screen.getByTestId("seeker-share-location-hint")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Stop sharing" }),

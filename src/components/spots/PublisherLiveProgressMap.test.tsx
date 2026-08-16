@@ -17,6 +17,13 @@ type FakeMap = {
   addLayer: ReturnType<typeof vi.fn>;
   hasImage: ReturnType<typeof vi.fn>;
   on: ReturnType<typeof vi.fn>;
+  dragPan: { enable: ReturnType<typeof vi.fn>; isEnabled: ReturnType<typeof vi.fn> };
+  touchZoomRotate: { enable: ReturnType<typeof vi.fn>; isEnabled: ReturnType<typeof vi.fn> };
+  scrollZoom: { enable: ReturnType<typeof vi.fn> };
+  keyboard: { enable: ReturnType<typeof vi.fn> };
+  doubleClickZoom: { enable: ReturnType<typeof vi.fn> };
+  getCanvas: ReturnType<typeof vi.fn>;
+  isMoving: ReturnType<typeof vi.fn>;
 };
 
 let lastOnMapReady: ((map: FakeMap) => void) | null = null;
@@ -79,6 +86,15 @@ function createFakeMap(): FakeMap {
     addLayer: vi.fn(),
     hasImage: vi.fn(() => true),
     on: vi.fn(),
+    dragPan: { enable: vi.fn(), isEnabled: vi.fn(() => true) },
+    touchZoomRotate: { enable: vi.fn(), isEnabled: vi.fn(() => true) },
+    scrollZoom: { enable: vi.fn() },
+    keyboard: { enable: vi.fn() },
+    doubleClickZoom: { enable: vi.fn() },
+    getCanvas: vi.fn(() => ({
+      addEventListener: vi.fn(),
+    })),
+    isMoving: vi.fn(() => false),
   };
 }
 
@@ -578,6 +594,16 @@ describe("PublisherLiveProgressMap handoff focus", () => {
       />,
     );
     const map = readyMap();
+    expect(map.dragPan.enable).toHaveBeenCalled();
+    expect(map.touchZoomRotate.enable).toHaveBeenCalled();
+    expect(screen.getByTestId("publisher-live-progress-map")).toHaveAttribute(
+      "data-drag-pan",
+      "enabled",
+    );
+    expect(screen.getByTestId("publisher-live-progress-map")).toHaveAttribute(
+      "data-pinch-zoom",
+      "enabled",
+    );
     expect(screen.queryByTestId("publisher-handoff-focus")).not.toBeInTheDocument();
     simulateUserPan(map);
 
@@ -585,6 +611,39 @@ describe("PublisherLiveProgressMap handoff focus", () => {
       "Recenter",
     );
     expect(screen.queryByText("Follow")).not.toBeInTheDocument();
+  });
+
+  it("does not move the camera from live updates while the map reports a user move", () => {
+    const { rerender } = render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+    const map = readyMap();
+    map.fitBounds.mockClear();
+    map.isMoving.mockReturnValue(true);
+
+    rerender(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={{
+          ...seekerLocation,
+          latitude: 32.09,
+          longitude: 34.79,
+          sequence: 3,
+        }}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+
+    expect(map.fitBounds).not.toHaveBeenCalled();
+    expect(map.easeTo).not.toHaveBeenCalled();
   });
 
   it("shows Recenter only after a manual pan, as type=button", () => {

@@ -95,6 +95,14 @@ export function useSeekerLiveLocationShare({
   } | null>(null);
   const sharingEnabledRef = useRef(false);
   const hasUsableFixRef = useRef(false);
+  const hasDeliveredRef = useRef(false);
+  const pendingSampleRef = useRef<{
+    latitude: number;
+    longitude: number;
+    accuracyMeters: number;
+    headingDegrees: number | null;
+    atMs: number;
+  } | null>(null);
   const subscribedRef = useRef(false);
   const claimIdRef = useRef(claimId);
   const spotIdRef = useRef(spotId);
@@ -189,6 +197,7 @@ export function useSeekerLiveLocationShare({
         return;
       }
       if (!subscribedRef.current || !channelRef.current) {
+        pendingSampleRef.current = sample;
         return;
       }
       if (new Date(expiresAtRef.current).getTime() <= Date.now()) {
@@ -219,8 +228,20 @@ export function useSeekerLiveLocationShare({
           payload,
         });
         lastSentRef.current = sample;
+        pendingSampleRef.current = null;
+        hasDeliveredRef.current = true;
+        setUiState("sharing");
+        logHandoffLive("web broadcast succeeded", {
+          claimId: claimIdRef.current,
+          sequence: payload.sequence,
+        });
       } catch {
         // Do not queue history.
+        setUiState("unavailable");
+        logHandoffLive("web broadcast failed", {
+          claimId: claimIdRef.current,
+          sequence: payload.sequence,
+        });
       }
     },
     [shutdown],
@@ -257,7 +278,10 @@ export function useSeekerLiveLocationShare({
           return;
         }
         hasUsableFixRef.current = true;
-        setUiState("sharing");
+        // GPS accepted is not enough until the first successful broadcast.
+        if (!hasDeliveredRef.current) {
+          setUiState("acquiring");
+        }
         logHandoffLive("gps accepted", {
           claimId: claimIdRef.current,
           provider: "geolocation",
@@ -372,6 +396,10 @@ export function useSeekerLiveLocationShare({
             topic,
             role: "seeker",
           });
+          const pending = pendingSampleRef.current;
+          if (pending) {
+            void publishSample(pending);
+          }
           resolve(true);
           return;
         }
@@ -391,7 +419,7 @@ export function useSeekerLiveLocationShare({
         }
       });
     });
-  }, [leaveChannel]);
+  }, [leaveChannel, publishSample]);
 
   const attachNativeUiListener = useCallback(async () => {
     await detachNativeListener();
@@ -408,7 +436,12 @@ export function useSeekerLiveLocationShare({
           }
           if (event.uiState === "sharing") {
             hasUsableFixRef.current = true;
+            hasDeliveredRef.current = true;
             setUiState("sharing");
+            return;
+          }
+          if (event.uiState === "unavailable") {
+            setUiState("unavailable");
             return;
           }
           if (event.uiState === "weak" && !hasUsableFixRef.current) {
@@ -442,8 +475,8 @@ export function useSeekerLiveLocationShare({
       const existing = await service.getTrackingState();
       if (existing.active && existing.claimId === claimIdRef.current) {
         sharingEnabledRef.current = true;
-        hasUsableFixRef.current = true;
-        setUiState("sharing");
+        // Tracker running is not proof of successful transport.
+        setUiState("acquiring");
         logHandoffLive("nativePluginStarted", {
           claimId: claimIdRef.current,
           alreadyRunning: true,
@@ -625,6 +658,8 @@ export function useSeekerLiveLocationShare({
     terminalRef.current = false;
     sharingEnabledRef.current = false;
     hasUsableFixRef.current = false;
+    hasDeliveredRef.current = false;
+    pendingSampleRef.current = null;
     clearWatch();
     void leaveChannel();
     const epoch = ++uiEpochRef.current;
@@ -650,9 +685,10 @@ export function useSeekerLiveLocationShare({
             await service.stopHandoffTracking(decision.reason);
           } else if (decision.action === "keep") {
             sharingEnabledRef.current = true;
-            hasUsableFixRef.current = true;
-            setUiState("sharing");
+            // Native tracker alive ≠ publisher receiving. Wait for POST success.
+            setUiState("acquiring");
             setResumedOnce(false);
+            await attachNativeUiListener();
             return;
           }
         } catch {
@@ -682,7 +718,7 @@ export function useSeekerLiveLocationShare({
       void leaveChannel();
       // Native tracker outlives React remounts (revalidatePath / navigation).
     };
-  }, [claimId, enabled, manageNativeTracker, clearWatch, leaveChannel]);
+  }, [claimId, enabled, manageNativeTracker, clearWatch, leaveChannel, attachNativeUiListener]);
 
   return {
     uiState,

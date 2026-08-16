@@ -1,6 +1,7 @@
 import Foundation
 import Capacitor
 import CoreLocation
+import UIKit
 
 @objc(HandoffBackgroundLocationPlugin)
 public class HandoffBackgroundLocationPlugin: CAPPlugin, CAPBridgedPlugin {
@@ -330,7 +331,8 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
                 "status": "stopped",
                 "sequence": nextSequence,
                 "sentAt": Date().timeIntervalSince1970 * 1000
-            ]
+            ],
+            markSharingOnSuccess: false
         )
     }
 
@@ -407,8 +409,9 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
         }
 
         let now = Date()
+        let appState = Self.appStateLabel()
         if !shouldSend(previous: previous, lat: location.coordinate.latitude, lng: location.coordinate.longitude, acc: accuracy, heading: heading, at: now) {
-            plugin?.emitUiState("sharing")
+            print("[switch-it:handoff-live] gps accepted (throttled, awaiting prior transport) claimId=\(claimId) appState=\(appState)")
             return
         }
 
@@ -418,7 +421,6 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
         lastSent = (location.coordinate.latitude, location.coordinate.longitude, accuracy, heading, now)
         lock.unlock()
 
-        plugin?.emitUiState("sharing")
         var payload: [String: Any] = [
             "latitude": location.coordinate.latitude,
             "longitude": location.coordinate.longitude,
@@ -431,15 +433,34 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
         if let heading {
             payload["headingDegrees"] = heading
         }
-        print("[switch-it:handoff-live] native post attempt claimId=\(claimId) lat=\(location.coordinate.latitude) lng=\(location.coordinate.longitude) timestamp=\(now.timeIntervalSince1970 * 1000) sequence=\(seq)")
+        print("[switch-it:handoff-live] native post attempt claimId=\(claimId) lat=\(location.coordinate.latitude) lng=\(location.coordinate.longitude) timestamp=\(now.timeIntervalSince1970 * 1000) sequence=\(seq) appState=\(appState)")
         postEvent(
             url: url,
             token: token,
             publishableKey: key,
             claimId: claimId,
             event: "seeker-location",
-            payload: payload
+            payload: payload,
+            markSharingOnSuccess: true
         )
+    }
+
+    private static func appStateLabel() -> String {
+        var label = "unknown"
+        let read = {
+            switch UIApplication.shared.applicationState {
+            case .active: label = "active"
+            case .inactive: label = "inactive"
+            case .background: label = "background"
+            @unknown default: label = "unknown"
+            }
+        }
+        if Thread.isMainThread {
+            read()
+        } else {
+            DispatchQueue.main.sync(execute: read)
+        }
+        return label
     }
 
     private func shouldSend(
@@ -490,7 +511,8 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
         publishableKey: String,
         claimId: String,
         event: String,
-        payload: [String: Any]
+        payload: [String: Any],
+        markSharingOnSuccess: Bool
     ) {
         guard let endpoint = URL(string: url) else { return }
         var request = URLRequest(url: endpoint)
@@ -498,7 +520,7 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue(publishableKey, forHTTPHeaderField: "apikey")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        print("[switch-it:handoff-live] native post attempt claimId=\(claimId) event=\(event)")
+        print("[switch-it:handoff-live] native post attempt claimId=\(claimId) event=\(event) appState=\(Self.appStateLabel())")
         let body: [String: Any] = [
             "claimId": claimId,
             "event": event,
@@ -507,28 +529,46 @@ final class HandoffLocationTracker: NSObject, CLLocationManagerDelegate {
         guard JSONSerialization.isValidJSONObject(body),
               let httpBody = try? JSONSerialization.data(withJSONObject: body) else {
             print("[switch-it:handoff-live] native post skipped: json serialization failed claimId=\(claimId) event=\(event)")
+            plugin?.emitUiState("unavailable")
             return
         }
         request.httpBody = httpBody
 
         URLSession.shared.dataTask(with: request) { data, response, error in
             if let error {
-                print("[switch-it:handoff-live] native post status=error event=\(event) claimId=\(claimId) error=\(error.localizedDescription)")
+                print("[switch-it:handoff-live] native post status=error event=\(event) claimId=\(claimId) error=\(error.localizedDescription) appState=\(Self.appStateLabel())")
+                if markSharingOnSuccess {
+                    self.plugin?.emitUiState("unavailable")
+                }
                 return
             }
             guard let http = response as? HTTPURLResponse else {
                 print("[switch-it:handoff-live] native post status=error event=\(event) claimId=\(claimId) error=no_http_response")
+                if markSharingOnSuccess {
+                    self.plugin?.emitUiState("unavailable")
+                }
                 return
             }
-            print("[switch-it:handoff-live] native post status=\(http.statusCode) event=\(event) claimId=\(claimId)")
+            print("[switch-it:handoff-live] native post status=\(http.statusCode) event=\(event) claimId=\(claimId) appState=\(Self.appStateLabel())")
             if http.statusCode == 401 || http.statusCode == 403 {
                 self.stop(reason: "unauthorized", notifyPublisher: false)
+                self.plugin?.emitUiState("unavailable")
+                return
             }
-            if !(200...299).contains(http.statusCode), let data {
+            if (200...299).contains(http.statusCode) {
+                if markSharingOnSuccess {
+                    self.plugin?.emitUiState("sharing")
+                }
+                return
+            }
+            if markSharingOnSuccess {
+                self.plugin?.emitUiState("unavailable")
+            }
+            if let data {
                 let snippet = String(data: data, encoding: .utf8) ?? ""
                 print("[switch-it:handoff-live] native post body claimId=\(claimId) snippet=\(snippet.prefix(200))")
             }
-            // Network failures are ignored; no route history queue.
+            // Network failures are ignored for history; UI reflects transport.
         }.resume()
     }
 }

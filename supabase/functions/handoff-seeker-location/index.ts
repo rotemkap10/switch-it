@@ -247,6 +247,7 @@ Deno.serve(async (req) => {
     topic,
     event,
     via: "realtime.send",
+    rpc: "public.broadcast_claim_location",
   });
   const broadcastResult = await broadcastPrivateClaimLocation({
     supabaseUrl,
@@ -262,8 +263,18 @@ Deno.serve(async (req) => {
       topic,
       event,
       status: broadcastResult.status,
+      detail: broadcastResult.detail,
+      via: "realtime.send",
+      rpc: "public.broadcast_claim_location",
     });
-    return json({ error: "broadcast_failed" }, 502);
+    return json(
+      {
+        error: "broadcast_failed",
+        status: broadcastResult.status,
+        detail: broadcastResult.detail,
+      },
+      502,
+    );
   }
 
   console.log("[switch-it:handoff-live] broadcast succeeded", {
@@ -271,7 +282,9 @@ Deno.serve(async (req) => {
     topic,
     event,
     via: "realtime.send",
+    rpc: "public.broadcast_claim_location",
+    httpStatus: broadcastResult.status,
   });
 
-  return json({ ok: true });
+  return json({ ok: true, broadcastStatus: broadcastResult.status });
 });

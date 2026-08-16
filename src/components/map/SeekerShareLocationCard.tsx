@@ -20,7 +20,7 @@ export function SeekerShareLocationCard({
 
   const label =
     uiState === "acquiring"
-      ? "Getting an accurate location…"
+      ? "Starting live location…"
       : uiState === "weak"
         ? "Location signal is weak"
         : uiState === "sharing"
@@ -30,7 +30,7 @@ export function SeekerShareLocationCard({
             : uiState === "denied"
               ? "Location permission needed"
               : uiState === "unavailable" || uiState === "off"
-                ? "Location update delayed"
+                ? "Live location update delayed"
                 : null;
   if (!label) {
     return null;

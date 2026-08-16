@@ -12,6 +12,7 @@ import {
   keepPublisherHandoffInView,
 } from "@/lib/map/focus-publisher-handoff";
 import { publisherPreviewShellClass } from "@/lib/map/leaverMapShell";
+import { isMapCameraBusy } from "@/lib/map/maplibre-interaction";
 import {
   MAP_SELECTED_SPOT_ZOOM,
   assertMapTilerStyleUrlOrNull,
@@ -75,8 +76,9 @@ export function PublisherLiveProgressMap({
   const pendingFocusRef = useRef(false);
   const userPannedRef = useRef(false);
   const didAutoFocusSeekerRef = useRef(false);
-  const followModeRef = useRef(true);
-  const [followMode, setFollowMode] = useState(true);
+  /** Automatic camera assistance (first fit + gentle keep-in-view). Not "Follow". */
+  const autoCameraRef = useRef(true);
+  const [autoCamera, setAutoCamera] = useState(true);
   const parkingRef = useRef({
     latitude: parkingLatitude,
     longitude: parkingLongitude,
@@ -105,8 +107,14 @@ export function PublisherLiveProgressMap({
     : "publisher-live-map-shell publisher-live-map-shell--collapsed";
 
   useEffect(() => {
-    followModeRef.current = followMode;
-  }, [followMode]);
+    autoCameraRef.current = autoCamera;
+  }, [autoCamera]);
+
+  const pauseAutoCamera = useCallback(() => {
+    userPannedRef.current = true;
+    autoCameraRef.current = false;
+    setAutoCamera(false);
+  }, []);
 
   useEffect(() => {
     parkingRef.current = {
@@ -139,8 +147,8 @@ export function PublisherLiveProgressMap({
     }
     pendingFocusRef.current = false;
     userPannedRef.current = false;
-    followModeRef.current = true;
-    setFollowMode(true);
+    autoCameraRef.current = true;
+    setAutoCamera(true);
     const seeker = seekerRef.current;
     focusPublisherHandoffCamera(
       map,
@@ -268,7 +276,12 @@ export function PublisherLiveProgressMap({
       animFrameRef.current = requestAnimationFrame(tick);
     }
 
-    if (followModeRef.current && didAutoFocusSeekerRef.current) {
+    // Marker moves even while the publisher pans; only camera automation pauses.
+    if (
+      autoCameraRef.current &&
+      didAutoFocusSeekerRef.current &&
+      !isMapCameraBusy(map)
+    ) {
       keepPublisherHandoffInView(
         map,
         {
@@ -406,6 +419,9 @@ export function PublisherLiveProgressMap({
         data-testid="publisher-live-progress-map"
         data-has-destination="true"
         data-has-seeker={hasKnownSeeker ? "true" : "false"}
+        data-drag-pan="enabled"
+        data-pinch-zoom="enabled"
+        data-auto-camera={autoCamera ? "on" : "off"}
       >
         <BaseMap
           key={mapInstanceKey}
@@ -422,22 +438,31 @@ export function PublisherLiveProgressMap({
             }
             initializedRef.current = true;
 
-            map.on("dragstart", (event: { originalEvent?: unknown }) => {
+            // Live tracking must never disable MapLibre gestures.
+            map.dragPan.enable();
+            map.touchZoomRotate.enable();
+            map.scrollZoom.enable();
+            map.keyboard.enable();
+            map.doubleClickZoom.enable();
+
+            const onUserGesture = (event: { originalEvent?: unknown }) => {
               if (!event?.originalEvent) {
                 return;
               }
-              userPannedRef.current = true;
-              followModeRef.current = false;
-              setFollowMode(false);
-            });
-            map.on("zoomstart", (event: { originalEvent?: unknown }) => {
-              if (!event?.originalEvent) {
-                return;
-              }
-              userPannedRef.current = true;
-              followModeRef.current = false;
-              setFollowMode(false);
-            });
+              pauseAutoCamera();
+            };
+            map.on("dragstart", onUserGesture);
+            map.on("zoomstart", onUserGesture);
+            map.on("rotatestart", onUserGesture);
+            map.on("pitchstart", onUserGesture);
+            // Wheel / trackpad zoom may not always carry through zoomstart the same way.
+            map.getCanvas().addEventListener(
+              "wheel",
+              () => {
+                pauseAutoCamera();
+              },
+              { passive: true },
+            );
 
             registerSeekerMarkerImages(map);
 
@@ -522,7 +547,7 @@ export function PublisherLiveProgressMap({
             {expanded ? "Collapse map" : "Expand map"}
           </button>
         ) : null}
-        {!followMode ? (
+        {!autoCamera ? (
           <button
             type="button"
             data-testid="publisher-handoff-focus"

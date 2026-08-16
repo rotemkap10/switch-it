@@ -23,12 +23,17 @@ describe("SeekerShareLocationCard", () => {
 
   it("shows acquiring copy without a Stop sharing action", () => {
     render(<SeekerShareLocationCard uiState="acquiring" />);
-    expect(
-      screen.getByText("Getting an accurate location…"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Starting live location…")).toBeInTheDocument();
+    expect(screen.queryByText("Live location on")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Stop sharing" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("does not claim Live location on before transport succeeds", () => {
+    render(<SeekerShareLocationCard uiState="acquiring" />);
+    expect(screen.queryByText("Live location on")).not.toBeInTheDocument();
+    expect(screen.getByText("Starting live location…")).toBeInTheDocument();
   });
 
   it("shows weak-signal copy without cancelling the claim", () => {
@@ -69,7 +74,7 @@ describe("SeekerShareLocationCard", () => {
 
   it("shows delayed copy for temporary location loss", () => {
     render(<SeekerShareLocationCard uiState="unavailable" />);
-    expect(screen.getByText("Location update delayed")).toBeInTheDocument();
+    expect(screen.getByText("Live location update delayed")).toBeInTheDocument();
     expect(screen.getByTestId("seeker-share-location-hint")).toBeInTheDocument();
   });
 });
