@@ -1,6 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "dangerOutline";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -15,6 +15,8 @@ const variantClasses: Record<ButtonVariant, string> = {
     "border border-solid border-border bg-surface text-foreground hover:bg-accent-soft disabled:opacity-60",
   ghost:
     "border border-transparent bg-transparent text-foreground hover:bg-accent-soft disabled:opacity-60",
+  dangerOutline:
+    "border border-solid border-danger/40 bg-surface text-danger hover:bg-danger/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger/40 disabled:opacity-60",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(

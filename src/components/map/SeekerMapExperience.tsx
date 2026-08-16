@@ -19,11 +19,13 @@ import {
   syncDocumentMapBottomStack,
   type MapBottomStack,
 } from "@/lib/map/bottom-stack";
+import { useSeekerDiscoverySpots } from "@/lib/map/use-seeker-discovery-spots";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 import type { MapSpot } from "@/types/map-spot";
 
 type SeekerMapExperienceProps = {
   spots: MapSpot[];
+  userId: string;
   destination: ActiveClaimDestination | null;
   activeClaim: ActiveClaimSummary | null;
   counterpartVehicle?: HandoffVehicle | null;
@@ -35,7 +37,8 @@ type SeekerMapExperienceProps = {
 };
 
 export function SeekerMapExperience({
-  spots,
+  spots: serverSpots,
+  userId,
   destination,
   activeClaim,
   counterpartVehicle = null,
@@ -46,6 +49,11 @@ export function SeekerMapExperience({
   ownedSpotError,
 }: SeekerMapExperienceProps) {
   const reportInitialMapReady = useReportInitialMapReady();
+  const spots = useSeekerDiscoverySpots({
+    serverSpots,
+    userId,
+    enabled: !spotsError,
+  });
   const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
   const [claimExpanded, setClaimExpanded] = useState(true);
   const [expandedForClaimId, setExpandedForClaimId] = useState<string | null>(

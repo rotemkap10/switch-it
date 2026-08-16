@@ -325,6 +325,7 @@ export default async function MapPage() {
       />
       <SeekerMapExperience
         spots={spots}
+        userId={user.id}
         destination={activeClaimDestination}
         activeClaim={activeClaim}
         counterpartVehicle={counterpartVehicle}

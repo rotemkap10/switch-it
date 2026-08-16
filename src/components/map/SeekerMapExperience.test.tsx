@@ -88,6 +88,11 @@ vi.mock("@/lib/location/use-seeker-live-location-share", () => ({
   }),
 }));
 
+vi.mock("@/lib/map/use-seeker-discovery-spots", () => ({
+  useSeekerDiscoverySpots: ({ serverSpots }: { serverSpots: unknown[] }) =>
+    serverSpots,
+}));
+
 import { SeekerMapExperience } from "@/components/map/SeekerMapExperience";
 
 const claim = {
@@ -104,6 +109,7 @@ function renderExperience(
   return render(
     <SeekerMapExperience
       spots={[]}
+      userId="seeker-1"
       destination={null}
       activeClaim={null}
       showOwnSpotNotice={false}
@@ -128,6 +134,7 @@ describe("SeekerMapExperience overlay hierarchy", () => {
     rerender(
       <SeekerMapExperience
         spots={[]}
+        userId="seeker-1"
         destination={null}
         activeClaim={null}
         showOwnSpotNotice={false}

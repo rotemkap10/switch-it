@@ -87,8 +87,8 @@ export function CancelClaimButton({
         </p>
         <Button
           type="button"
-          variant="secondary"
-          className="w-full !min-h-[var(--app-tap-min)] border border-danger/40 bg-surface text-sm font-semibold text-danger hover:bg-danger/5"
+          variant="dangerOutline"
+          className="w-full !min-h-[var(--app-tap-min)]"
           onClick={() => setConfirming(true)}
           data-testid="cancel-claim-trigger"
         >
@@ -127,10 +127,10 @@ export function CancelClaimButton({
         </Button>
         <Button
           type="submit"
-          variant="secondary"
+          variant="dangerOutline"
           loading={pending}
           disabled={pending}
-          className="w-full !min-h-[var(--app-tap-min)] border border-danger/40 text-danger hover:bg-danger/5"
+          className="w-full !min-h-[var(--app-tap-min)]"
         >
           {pending ? "Releasing…" : "Release spot"}
         </Button>

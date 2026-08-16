@@ -13,9 +13,16 @@ import {
   setSensoryAdaptersForTests,
 } from "@/lib/sensory/feedback";
 
-const { claimSpotMock, requestLocationMock } = vi.hoisted(() => ({
-  claimSpotMock: vi.fn(),
-  requestLocationMock: vi.fn(),
+const { claimSpotMock, requestLocationMock, routerRefreshMock } = vi.hoisted(
+  () => ({
+    claimSpotMock: vi.fn(),
+    requestLocationMock: vi.fn(),
+    routerRefreshMock: vi.fn(),
+  }),
+);
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: routerRefreshMock }),
 }));
 
 vi.mock("@/actions/claims", () => ({
@@ -25,6 +32,13 @@ vi.mock("@/actions/claims", () => ({
 vi.mock("@/lib/map/request-current-device-location", () => ({
   requestCurrentDeviceLocation: (...args: unknown[]) =>
     requestLocationMock(...args),
+}));
+
+const requestDiscoverySpotTombstoneMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/map/discovery-spot-tombstone-bus", () => ({
+  requestDiscoverySpotTombstone: (...args: unknown[]) =>
+    requestDiscoverySpotTombstoneMock(...args),
 }));
 
 const spotId = "550e8400-e29b-41d4-a716-446655440000";
@@ -53,6 +67,8 @@ describe("ClaimSpotButton", () => {
   beforeEach(() => {
     claimSpotMock.mockReset();
     requestLocationMock.mockReset();
+    routerRefreshMock.mockReset();
+    requestDiscoverySpotTombstoneMock.mockReset();
     requestLocationMock.mockResolvedValue({
       ok: true,
       fix: {
@@ -210,6 +226,10 @@ describe("ClaimSpotButton", () => {
     ).toBeInTheDocument();
     expect(peekPostClaimNavigationPendingForTests()).toBeNull();
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(requestDiscoverySpotTombstoneMock).toHaveBeenCalledWith(spotId);
+      expect(routerRefreshMock).toHaveBeenCalled();
+    });
   });
 
   it("opens the navigation chooser after a successful claim action", async () => {

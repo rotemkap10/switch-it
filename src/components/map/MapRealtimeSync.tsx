@@ -36,9 +36,8 @@ function rowId(row: Record<string, unknown> | null | undefined): string | null {
 }
 
 /**
- * Seeker /map Realtime invalidation.
- * - parking_spots: refresh discovery markers
- * - claims (own active): refresh claim sheet + terminal feedback
+ * Seeker /map Realtime — active claim feedback + invalidation.
+ * Discovery parking_spots live in `useSeekerDiscoverySpots` (local upsert/remove).
  * Visibility + short poll reconcile when Realtime is missed during an active claim.
  */
 export function MapRealtimeSync({
@@ -49,21 +48,6 @@ export function MapRealtimeSync({
   const { info } = useFeedback();
 
   useActiveHandoffReconciliation(Boolean(userId && activeClaimId));
-
-  useRealtimeInvalidation({
-    channelName: `map-spots:${userId}`,
-    enabled: Boolean(userId),
-    changes: [
-      {
-        event: "*",
-        table: "parking_spots",
-      },
-    ],
-    onEvent: () => {
-      // Invalidation only — RSC rebuilds filtered available spots.
-      scheduleRefresh();
-    },
-  });
 
   useRealtimeInvalidation({
     channelName: activeClaimId

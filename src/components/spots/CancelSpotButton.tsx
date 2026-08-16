@@ -83,14 +83,15 @@ export function CancelSpotButton({
 
   if (!confirming) {
     return (
-      <button
+      <Button
         type="button"
-        className="w-full px-0 py-1 text-center text-xs text-muted underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
+        variant="dangerOutline"
+        className="w-full !min-h-[var(--app-tap-min)]"
         onClick={() => setConfirming(true)}
         data-testid="cancel-spot-trigger"
       >
         {claimed ? "I’m leaving" : "Cancel spot"}
-      </button>
+      </Button>
     );
   }
 
@@ -119,17 +120,17 @@ export function CancelSpotButton({
           type="button"
           variant="secondary"
           disabled={pending}
-          className="w-full"
+          className="w-full !min-h-[var(--app-tap-min)]"
           onClick={() => setConfirming(false)}
         >
           {claimed ? "Keep waiting" : "Keep spot active"}
         </Button>
         <Button
           type="submit"
-          variant="ghost"
+          variant="dangerOutline"
           loading={pending}
           disabled={pending}
-          className="w-full px-0 py-1 text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
+          className="w-full !min-h-[var(--app-tap-min)]"
         >
           {pending
             ? "Leaving…"

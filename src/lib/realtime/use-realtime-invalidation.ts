@@ -27,6 +27,10 @@ export type UseRealtimeInvalidationOptions = {
   ) => void;
   /** When false, no subscription is created. */
   enabled?: boolean;
+  /** Channel subscribe status (e.g. SUBSCRIBED after reconnect). */
+  onSubscriptionStatus?: (
+    status: "SUBSCRIBED" | "TIMED_OUT" | "CLOSED" | "CHANNEL_ERROR",
+  ) => void;
 };
 
 /**
@@ -38,12 +42,18 @@ export function useRealtimeInvalidation({
   changes,
   onEvent,
   enabled = true,
+  onSubscriptionStatus,
 }: UseRealtimeInvalidationOptions): void {
   const onEventRef = useRef(onEvent);
+  const onStatusRef = useRef(onSubscriptionStatus);
 
   useEffect(() => {
     onEventRef.current = onEvent;
   }, [onEvent]);
+
+  useEffect(() => {
+    onStatusRef.current = onSubscriptionStatus;
+  }, [onSubscriptionStatus]);
 
   // Stabilize filter identity for the effect dependency.
   const changesKey = JSON.stringify(changes);
@@ -80,7 +90,19 @@ export function useRealtimeInvalidation({
       );
     }
 
-    channel = builder.subscribe();
+    channel = builder.subscribe((status) => {
+      if (cancelled) {
+        return;
+      }
+      if (
+        status === "SUBSCRIBED" ||
+        status === "TIMED_OUT" ||
+        status === "CLOSED" ||
+        status === "CHANNEL_ERROR"
+      ) {
+        onStatusRef.current?.(status);
+      }
+    });
 
     return () => {
       cancelled = true;
