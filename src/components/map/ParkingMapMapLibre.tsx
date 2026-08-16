@@ -119,6 +119,11 @@ type ParkingMapMapLibreProps = {
   onPickerCurrentLocationResolved?: (fix: DeviceLocationFix) => void;
   /** Address-search (or other explicit) camera command. Ignored for map-originated coords. */
   pickerExternalRecenter?: PickerExternalRecenter | null;
+  /**
+   * Share a Spot chrome: `card` is the legacy inset picker; `fullscreen`
+   * fills the map stage and clears floating controls for the compose sheet.
+   */
+  pickerLayout?: "card" | "fullscreen";
 };
 
 function createGeoJsonSpots(
@@ -265,8 +270,10 @@ export function ParkingMapMapLibre({
   onPickerCurrentLocationRequested,
   onPickerCurrentLocationResolved,
   pickerExternalRecenter = null,
+  pickerLayout = "card",
 }: ParkingMapMapLibreProps) {
   const isPicker = mode === "picker";
+  const isFullscreenPicker = isPicker && pickerLayout === "fullscreen";
   const prefersReducedMotion = usePrefersReducedMotion();
   const reportInitialMapReady = useReportInitialMapReady();
   const mapTilerStyleUrl = useMemo(
@@ -328,10 +335,22 @@ export function ParkingMapMapLibre({
   });
   const bottomStack: MapBottomStack =
     bottomStackOverride ?? discoveryBottomStack;
+  const pickerBottomStack: MapBottomStack = isFullscreenPicker
+    ? "compose"
+    : "none";
+  const stageBottomStack: MapBottomStack = isPicker
+    ? pickerBottomStack
+    : bottomStack;
 
   useEffect(() => {
     if (isPicker) {
-      return;
+      if (!isFullscreenPicker) {
+        return;
+      }
+      syncDocumentMapBottomStack("compose");
+      return () => {
+        syncDocumentMapBottomStack(null);
+      };
     }
     if (bottomStackOverride) {
       // Claim overlay owns document sync from SeekerMapExperience.
@@ -341,7 +360,7 @@ export function ParkingMapMapLibre({
     return () => {
       syncDocumentMapBottomStack(null);
     };
-  }, [bottomStack, bottomStackOverride, isPicker]);
+  }, [bottomStack, bottomStackOverride, isFullscreenPicker, isPicker]);
 
   const { state: userLocation, applyFreshFix, applyError } = useUserLocation({
     autoRequest: false,
@@ -809,7 +828,7 @@ export function ParkingMapMapLibre({
   return (
     <div
       className="relative h-full w-full"
-      data-map-bottom={isPicker ? "none" : bottomStack}
+      data-map-bottom={stageBottomStack}
       data-map-mode={mode}
       data-testid="parking-map-stage"
     >
@@ -1055,7 +1074,12 @@ export function ParkingMapMapLibre({
 
       {isPicker && showPickerSelectedHint && mapVisuallyReady ? (
         <p
-          className="pointer-events-none absolute bottom-3 left-3 z-[3] rounded-full border border-border bg-surface/95 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm motion-fade-in"
+          className={[
+            "pointer-events-none absolute left-3 z-[3] rounded-full border border-border bg-surface/95 px-2.5 py-1 text-xs font-medium text-foreground shadow-sm motion-fade-in",
+            isFullscreenPicker
+              ? "bottom-[calc(var(--map-compose-sheet-clearance)+0.75rem)]"
+              : "bottom-3",
+          ].join(" ")}
           role="status"
         >
           Location selected
@@ -1064,7 +1088,7 @@ export function ParkingMapMapLibre({
 
       {mapVisuallyReady ? (
         <CurrentLocationControl
-          variant={isPicker ? "embedded" : "floating"}
+          variant={isFullscreenPicker ? "floating" : isPicker ? "embedded" : "floating"}
           ariaLabel={
             isPicker ? "Use my current location" : "Center on my location"
           }

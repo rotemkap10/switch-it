@@ -47,6 +47,8 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain("--map-carousel-bottom:");
     expect(css).toContain('[data-map-bottom="carousel"]');
     expect(css).toContain('[data-map-bottom="selected"]');
+    expect(css).toContain('[data-map-bottom="compose"]');
+    expect(css).toContain("--map-compose-sheet-clearance");
     expect(css).toContain('[data-map-bottom="claim-collapsed"]');
     expect(css).toContain('[data-map-bottom="claim-expanded"]');
     expect(css).toContain("--map-claim-expanded-clearance");
@@ -68,8 +70,11 @@ describe("mobile shell CSS foundation", () => {
 
   it("defines publisher compose and leaver picker shell utilities", () => {
     expect(css).toContain(".leaver-map-picker-shell");
+    expect(css).toContain(".leaver-map-picker-shell--fill");
     expect(css).toContain("clamp(280px, 48dvh, 400px)");
     expect(css).toContain(".publisher-compose");
+    expect(css).toContain(".publisher-compose--map-first");
+    expect(css).toContain(".publisher-compose-search");
     expect(css).toContain(".publisher-compose-surface");
     expect(css).not.toContain(".publisher-compose-actions--viewport");
     expect(css).not.toContain(".publisher-compose--viewport-cta");

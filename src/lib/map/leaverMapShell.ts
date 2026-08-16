@@ -1,6 +1,10 @@
 /** Stable leaver picker shell height (skeleton + live map share this). */
 export const LEAVER_MAP_SHELL_HEIGHT_CLASS = "leaver-map-picker-shell";
 
+/** Full-viewport Share a Spot compose map (absolute fill, no card chrome). */
+export const LEAVER_MAP_SHELL_FILL_CLASS =
+  "leaver-map-picker-shell leaver-map-picker-shell--fill";
+
 /** Tailwind `sm` — Share a Spot shows MapLibre +/- zoom at this breakpoint and up. */
 export const LEAVER_MAP_ZOOM_CONTROLS_MEDIA_QUERY = "(min-width: 640px)";
 

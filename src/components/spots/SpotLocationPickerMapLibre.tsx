@@ -5,7 +5,10 @@ import {
   type PickerExternalRecenter,
 } from "@/components/map/ParkingMapMapLibre";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
-import { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
+import {
+  LEAVER_MAP_SHELL_FILL_CLASS,
+  LEAVER_MAP_SHELL_HEIGHT_CLASS,
+} from "@/lib/map/leaverMapShell";
 
 export type { PickerExternalRecenter };
 
@@ -33,9 +36,17 @@ export type SpotLocationPickerProps = {
    * updates must not increment this id.
    */
   externalRecenter?: PickerExternalRecenter | null;
+  /**
+   * `card` — fixed-height inset map (legacy / transition shell).
+   * `fill` — absolute fill for the map-first Share a Spot compose screen.
+   */
+  layout?: "card" | "fill";
 };
 
-export { LEAVER_MAP_SHELL_HEIGHT_CLASS } from "@/lib/map/leaverMapShell";
+export {
+  LEAVER_MAP_SHELL_FILL_CLASS,
+  LEAVER_MAP_SHELL_HEIGHT_CLASS,
+} from "@/lib/map/leaverMapShell";
 
 /**
  * Share a Spot location picker.
@@ -52,19 +63,27 @@ export function SpotLocationPickerMapLibre({
   onCurrentLocationResolved,
   disabled = false,
   externalRecenter = null,
+  layout = "card",
 }: SpotLocationPickerProps) {
+  const fill = layout === "fill";
+
   return (
     <div
       className={[
         "relative w-full overflow-hidden",
-        "rounded-[var(--radius-card)] border border-border",
-        LEAVER_MAP_SHELL_HEIGHT_CLASS,
+        fill
+          ? LEAVER_MAP_SHELL_FILL_CLASS
+          : [
+              "rounded-[var(--radius-card)] border border-border",
+              LEAVER_MAP_SHELL_HEIGHT_CLASS,
+            ].join(" "),
         disabled ? "pointer-events-none" : "",
       ]
         .filter(Boolean)
         .join(" ")}
       aria-label="Map to adjust your parking spot location"
       data-testid="leaver-map-picker"
+      data-layout={fill ? "fill" : "card"}
     >
       <ParkingMapMapLibre
         mode="picker"
@@ -72,6 +91,7 @@ export function SpotLocationPickerMapLibre({
         destination={null}
         showDiscoveryCarousel={false}
         pickerDisabled={disabled}
+        pickerLayout={fill ? "fullscreen" : "card"}
         onPickerLocationChange={onLocationChange}
         onPickerInteractionStart={onMapInteractionStart}
         onPickerInteractionSettled={onMapInteractionSettled}

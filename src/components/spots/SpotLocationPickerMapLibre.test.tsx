@@ -9,12 +9,14 @@ vi.mock("@/components/map/ParkingMapMapLibre", () => ({
     mode?: string;
     pickerDisabled?: boolean;
     pickerExternalRecenter?: unknown;
+    pickerLayout?: string;
   }) => (
     <div
       data-testid="parking-map-stage"
       data-map-mode={props.mode}
       data-picker-disabled={String(Boolean(props.pickerDisabled))}
       data-has-external-recenter={String(Boolean(props.pickerExternalRecenter))}
+      data-picker-layout={props.pickerLayout ?? "card"}
     />
   ),
   PARKING_MAP_BASEMAP_CLASS: "absolute inset-0 h-full w-full",
@@ -46,6 +48,8 @@ describe("SpotLocationPickerMapLibre", () => {
 
     const picker = screen.getByTestId("leaver-map-picker");
     expect(picker.className).toContain("leaver-map-picker-shell");
+    expect(picker.className).not.toContain("leaver-map-picker-shell--fill");
+    expect(picker).toHaveAttribute("data-layout", "card");
     expect(picker.className).not.toContain("pointer-events-none");
     expect(picker.className).not.toContain("touch-none");
     expect(screen.getByTestId("parking-map-stage")).toHaveAttribute(
@@ -67,6 +71,25 @@ describe("SpotLocationPickerMapLibre", () => {
     expect(screen.getByTestId("parking-map-stage")).toHaveAttribute(
       "data-picker-disabled",
       "true",
+    );
+  });
+
+  it("fill layout uses the fullscreen picker chrome", () => {
+    render(
+      <SpotLocationPickerMapLibre
+        latitude={32.085312}
+        longitude={34.781812}
+        onLocationChange={vi.fn()}
+        layout="fill"
+      />,
+    );
+
+    const picker = screen.getByTestId("leaver-map-picker");
+    expect(picker.className).toContain("leaver-map-picker-shell--fill");
+    expect(picker).toHaveAttribute("data-layout", "fill");
+    expect(screen.getByTestId("parking-map-stage")).toHaveAttribute(
+      "data-picker-layout",
+      "fullscreen",
     );
   });
 

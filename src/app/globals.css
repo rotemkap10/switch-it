@@ -61,6 +61,7 @@
   --map-bottom-sheet-gap: 0.75rem;
   --map-carousel-height: 5.75rem;
   --map-selected-sheet-clearance: 11.25rem;
+  --map-compose-sheet-clearance: 12.5rem;
   --map-claim-collapsed-clearance: 10.25rem;
   --map-claim-expanded-clearance: min(52dvh, 24rem);
   --map-sheet-bottom: var(--app-overlay-bottom-gap);
@@ -262,6 +263,17 @@ html[data-native-status-bar="inset"] .app-shell-header {
   );
   --app-toast-offset: calc(
     var(--app-overlay-bottom-gap) + var(--map-selected-sheet-clearance) +
+      var(--map-bottom-sheet-gap)
+  );
+}
+
+[data-map-bottom="compose"] {
+  --map-floating-control-bottom: calc(
+    var(--app-overlay-bottom-gap) + var(--map-compose-sheet-clearance) +
+      var(--map-bottom-sheet-gap)
+  );
+  --app-toast-offset: calc(
+    var(--app-overlay-bottom-gap) + var(--map-compose-sheet-clearance) +
       var(--map-bottom-sheet-gap)
   );
 }
@@ -482,6 +494,15 @@ html[data-native-status-bar="inset"] .app-shell-header {
   height: clamp(280px, 48dvh, 400px);
 }
 
+.leaver-map-picker-shell--fill {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+  border: none;
+  border-radius: 0;
+}
+
 .publisher-preview-map-shell {
   width: 100%;
   overflow: hidden;
@@ -519,6 +540,18 @@ html[data-native-status-bar="inset"] .app-shell-header {
   padding-bottom: max(0.75rem, var(--app-safe-bottom));
 }
 
+.publisher-compose--map-first {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 .publisher-compose-surface {
   display: flex;
   flex-direction: column;
@@ -530,10 +563,102 @@ html[data-native-status-bar="inset"] .app-shell-header {
   box-shadow: var(--shadow-card);
 }
 
+.publisher-compose--map-first .publisher-compose-surface {
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem 0.875rem;
+  border-radius: 1.125rem;
+  border: 1px solid rgb(185 227 247 / 55%);
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  box-shadow:
+    0 1px 2px rgb(18 50 74 / 5%),
+    0 8px 24px rgb(47 169 230 / 14%);
+  -webkit-backdrop-filter: blur(16px) saturate(1.12);
+  backdrop-filter: blur(16px) saturate(1.12);
+}
+
+.publisher-compose--map-first .map-bottom-sheet-actions {
+  margin-top: 0.125rem;
+  padding-top: 0.125rem;
+  gap: 0.5rem;
+}
+
+.publisher-compose--map-first [data-testid="leave-time-slider"] {
+  gap: 0.5rem;
+}
+
+.publisher-compose--map-first .publisher-share-cta {
+  min-height: 2.75rem;
+}
+
+.publisher-compose-search {
+  pointer-events: auto;
+  display: flex;
+  width: 100%;
+  max-width: 28rem;
+  margin-inline: auto;
+  flex-direction: column;
+  gap: 0.375rem;
+  border-radius: 1.125rem;
+  border: 1px solid rgb(185 227 247 / 55%);
+  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  padding: 0.5rem 0.625rem;
+  box-shadow:
+    0 1px 2px rgb(18 50 74 / 5%),
+    0 8px 24px rgb(47 169 230 / 14%);
+  -webkit-backdrop-filter: blur(16px) saturate(1.12);
+  backdrop-filter: blur(16px) saturate(1.12);
+}
+
+.publisher-compose-search__input {
+  min-height: var(--app-tap-min);
+  width: 100%;
+  border-radius: 0.875rem;
+  border: 1px solid rgb(185 227 247 / 70%);
+  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  padding: 0.5rem 0.75rem;
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+}
+
+.publisher-compose-search__input::placeholder {
+  color: color-mix(in srgb, var(--color-text-muted) 70%, transparent);
+}
+
+.publisher-compose-search__input:disabled {
+  opacity: 0.6;
+}
+
+.publisher-compose-search__suggestions {
+  max-height: 11rem;
+  overflow: auto;
+  border-radius: 0.875rem;
+  border: 1px solid rgb(185 227 247 / 70%);
+  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  padding: 0.25rem;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.publisher-compose-top-host {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 20;
+  padding-inline: var(--map-edge-gap);
+  padding-top: 0.75rem;
+  pointer-events: none;
+}
+
 @media (min-width: 640px) {
   .publisher-compose-surface {
     gap: 1rem;
     padding: 1.25rem;
+  }
+
+  .publisher-compose--map-first .publisher-compose-surface {
+    gap: 0.75rem;
+    padding: 0.875rem 1rem 1rem;
   }
 }
 
@@ -685,7 +810,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
 }
 
 @media (min-width: 768px) {
-  .leaver-map-picker-shell {
+  .leaver-map-picker-shell:not(.leaver-map-picker-shell--fill) {
     height: 24rem;
   }
 
@@ -693,10 +818,15 @@ html[data-native-status-bar="inset"] .app-shell-header {
     width: auto;
     min-width: 9.5rem;
   }
+
+  .publisher-compose--map-first .publisher-share-cta {
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 @media (orientation: landscape) and (max-height: 500px) {
-  .leaver-map-picker-shell {
+  .leaver-map-picker-shell:not(.leaver-map-picker-shell--fill) {
     height: clamp(200px, 45dvh, 280px);
   }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  LEAVER_MAP_SHELL_FILL_CLASS,
   LEAVER_MAP_SHELL_HEIGHT_CLASS,
   LEAVER_MAP_ZOOM_CONTROLS_MEDIA_QUERY,
   publisherPreviewShellClass,
@@ -10,6 +11,7 @@ import {
 describe("leaver map shell contracts", () => {
   it("uses responsive picker and preview shell class names", () => {
     expect(LEAVER_MAP_SHELL_HEIGHT_CLASS).toBe("leaver-map-picker-shell");
+    expect(LEAVER_MAP_SHELL_FILL_CLASS).toContain("leaver-map-picker-shell--fill");
     expect(publisherPreviewShellClass("available")).toContain(
       "publisher-preview-map-shell--available",
     );

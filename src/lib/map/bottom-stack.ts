@@ -8,6 +8,7 @@ export type MapBottomStack =
   | "none"
   | "carousel"
   | "selected"
+  | "compose"
   | "claim-collapsed"
   | "claim-expanded";
 

@@ -59,6 +59,7 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
     onCurrentLocationResolved,
     userLatitude,
     userLongitude,
+    layout = "card",
   }: {
     latitude: number;
     longitude: number;
@@ -75,11 +76,18 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
     }) => void;
     userLatitude?: number | null;
     userLongitude?: number | null;
+    layout?: "card" | "fill";
   }) => (
     <div
       role="img"
       aria-label="Map to adjust your parking spot location"
       data-testid="leaver-map-picker"
+      data-layout={layout}
+      className={
+        layout === "fill"
+          ? "leaver-map-picker-shell leaver-map-picker-shell--fill"
+          : "leaver-map-picker-shell"
+      }
     >
       Map at {latitude}, {longitude}
       {userLatitude != null && userLongitude != null ? (
@@ -215,12 +223,16 @@ describe("PublishSpotForm", () => {
     vi.unstubAllGlobals();
   });
 
-  it("renders the compact compose layout with leave-time grid and primary action", async () => {
+  it("renders the map-first compose layout with floating search and bottom sheet", async () => {
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
     const form = screen.getByTestId("publish-spot-form");
     expect(form.className).toContain("publisher-compose");
-    expect(form.querySelector(".publisher-compose-surface")).not.toBeNull();
+    expect(form.className).toContain("publisher-compose--map-first");
+    expect(form).toHaveAttribute("data-layout", "map-first");
+    expect(screen.getByTestId("publish-spot-sheet").className).toContain(
+      "publisher-compose-surface",
+    );
     expect(screen.getByTestId("leave-time-slider")).toBeInTheDocument();
     expect(screen.getByTestId("leave-time-range")).toBeInTheDocument();
     expect(
@@ -240,7 +252,10 @@ describe("PublishSpotForm", () => {
         screen.queryByText("Finding the address..."),
       ).not.toBeInTheDocument();
     });
-    expect(screen.getByText("Parking spot location")).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Parking spot location" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Parking spot location")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("publisher-location-accuracy"),
     ).not.toBeInTheDocument();
@@ -256,6 +271,10 @@ describe("PublishSpotForm", () => {
       screen.queryByText("This coordinates a handoff; it does not reserve the spot."),
     ).not.toBeInTheDocument();
     expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-layout",
+      "fill",
+    );
     expect(
       screen.queryByRole("button", { name: "Enter coordinates manually" }),
     ).not.toBeInTheDocument();
@@ -268,33 +287,25 @@ describe("PublishSpotForm", () => {
     const mapSection = screen.getByTestId("publish-spot-map-section");
     const actions = screen.getByTestId("publish-spot-actions");
     const shareButton = screen.getByRole("button", { name: "Share spot" });
+    const sheet = screen.getByTestId("publish-spot-sheet");
 
-    // Document order: location (address → map) → leave-time → Share spot.
+    // Map-first overlays: map fills the stage; search floats above; leave + CTA in sheet.
     expect(locationSection.contains(addressSearch)).toBe(true);
-    expect(locationSection.contains(mapSection)).toBe(true);
+    expect(locationSection.contains(mapSection)).toBe(false);
+    expect(sheet.contains(leaveSection)).toBe(true);
+    expect(sheet.contains(actions)).toBe(true);
     expect(
-      addressSearch.compareDocumentPosition(mapSection) &
+      mapSection.compareDocumentPosition(locationSection) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      mapSection.compareDocumentPosition(leaveSection) &
+      locationSection.compareDocumentPosition(sheet) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
       leaveSection.compareDocumentPosition(actions) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    // Leave-time must not sit between address search and map.
-    const betweenAddressAndMap =
-      Boolean(
-        addressSearch.compareDocumentPosition(leaveSection) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      ) &&
-      Boolean(
-        leaveSection.compareDocumentPosition(mapSection) &
-          Node.DOCUMENT_POSITION_FOLLOWING,
-      );
-    expect(betweenAddressAndMap).toBe(false);
 
     expect(form.contains(actions)).toBe(true);
     expect(form.contains(shareButton)).toBe(true);

@@ -39,6 +39,8 @@ describe("map bottom-stack contract", () => {
     expect(document.documentElement.dataset.mapBottom).toBeUndefined();
     syncDocumentMapBottomStack("claim-expanded");
     expect(document.documentElement.dataset.mapBottom).toBe("claim-expanded");
+    syncDocumentMapBottomStack("compose");
+    expect(document.documentElement.dataset.mapBottom).toBe("compose");
     syncDocumentMapBottomStack(null);
     expect(document.documentElement.dataset.mapBottom).toBeUndefined();
   });

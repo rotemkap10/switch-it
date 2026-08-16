@@ -74,8 +74,14 @@ describe("Find Parking and Share a Spot share one map implementation", () => {
     expect(shell).not.toContain("touch-action");
     expect(shell).not.toContain("overscroll-behavior");
 
+    const fill = css.match(/\.leaver-map-picker-shell--fill\s*\{[^}]+\}/)?.[0];
+    expect(fill).toBeTruthy();
+    expect(fill).toContain("position: absolute");
+    expect(fill).not.toContain("touch-action");
+
     const compose = css.match(/\.publisher-compose\s*\{[^}]+\}/)?.[0];
     expect(compose).toBeTruthy();
     expect(compose).not.toContain("touch-action");
+    expect(css).toContain(".publisher-compose--map-first");
   });
 });

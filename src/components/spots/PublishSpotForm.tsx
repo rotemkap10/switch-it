@@ -9,7 +9,12 @@ import {
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { LeaveTimeSlider } from "@/components/spots/LeaveTimeSlider";
 import { SpotLocationPickerLoader } from "@/components/spots/SpotLocationPickerLoader";
-import { Button } from "@/components/ui/Button";import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
+import { Button } from "@/components/ui/Button";
+import {
+  MAP_SHEET_CLASS,
+  MAP_SHEET_HOST_CLASS,
+} from "@/lib/map/bottom-stack";
+import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { useReverseGeocode } from "@/lib/geocoding/use-reverse-geocode";
 import type { DeviceLocationFix } from "@/lib/map/request-current-device-location";
 import type { GeolocationReason } from "@/lib/map/use-user-location";
@@ -596,19 +601,40 @@ export function PublishSpotForm() {
   return (
     <form
       action={formAction}
-      className="publisher-compose mx-auto w-full max-w-lg md:max-w-xl"
+      className="publisher-compose publisher-compose--map-first"
       data-testid="publish-spot-form"
+      data-layout="map-first"
     >
-      <div className="publisher-compose-surface">
+      <div
+        className="absolute inset-0"
+        data-testid="publish-spot-map-section"
+      >
+        {canRenderPicker ? (
+          <SpotLocationPickerLoader
+            layout="fill"
+            latitude={parsedLat}
+            longitude={parsedLng}
+            onLocationChange={handleMapLocationChange}
+            onMapInteractionStart={handleMapInteractionStart}
+            onMapInteractionSettled={handleMapInteractionSettled}
+            onUserMovedMap={handleUserMovedMap}
+            onCurrentLocationRequested={handleCurrentLocationRequested}
+            disabled={pending}
+            userLatitude={detectedLocation?.latitude ?? null}
+            userLongitude={detectedLocation?.longitude ?? null}
+            userAccuracy={accuracyMeters}
+            onCurrentLocationResolved={handleCurrentLocationResolved}
+            externalRecenter={pickerExternalRecenter}
+          />
+        ) : null}
+      </div>
+
+      <div className="publisher-compose-top-host">
         <section
-          className="flex flex-col gap-3"
+          className="publisher-compose-search"
           aria-label="Parking spot location"
           data-testid="parking-location-section"
         >
-          <p className="text-sm font-medium text-foreground">
-            Parking spot location
-          </p>
-
           <AddressLookupSummary
             geoStatus={geoStatus}
             hasLocation={hasLocation}
@@ -621,10 +647,7 @@ export function PublishSpotForm() {
           />
 
           {canRenderPicker ? (
-            <div
-              className="flex flex-col gap-2"
-              data-testid="publish-spot-address-search"
-            >
+            <div data-testid="publish-spot-address-search">
               <label htmlFor="address-search" className="sr-only">
                 Search an address
               </label>
@@ -637,16 +660,21 @@ export function PublishSpotForm() {
                 onChange={(e) => setAddressQuery(e.target.value)}
                 disabled={pending}
                 aria-busy={addressSearchPending || undefined}
-                className="app-form-control min-h-[var(--app-tap-min)] rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-foreground placeholder:text-muted/70 disabled:opacity-60"
+                className="publisher-compose-search__input"
                 dir={isHebrewText(addressQuery) ? "rtl" : "ltr"}
                 aria-autocomplete="list"
               />
 
               {addressSuggestions.length > 0 ? (
                 <ul
-                  className="max-h-44 overflow-auto rounded-[var(--radius-card)] border border-border bg-surface p-1"
+                  className="publisher-compose-search__suggestions mt-2"
                   role="listbox"
-                  dir={addressSuggestions[0] && isHebrewText(addressSuggestions[0].label) ? "rtl" : "ltr"}
+                  dir={
+                    addressSuggestions[0] &&
+                    isHebrewText(addressSuggestions[0].label)
+                      ? "rtl"
+                      : "ltr"
+                  }
                 >
                   {addressSuggestions.map((s, idx) => (
                     <li key={`${s.label}-${idx}`}>
@@ -672,43 +700,6 @@ export function PublishSpotForm() {
             onChooseOnMap={chooseOnMap}
           />
 
-          {canRenderPicker ? (
-            <div data-testid="publish-spot-map-section">
-              <SpotLocationPickerLoader
-                latitude={parsedLat}
-                longitude={parsedLng}
-                onLocationChange={handleMapLocationChange}
-                onMapInteractionStart={handleMapInteractionStart}
-                onMapInteractionSettled={handleMapInteractionSettled}
-                onUserMovedMap={handleUserMovedMap}
-                onCurrentLocationRequested={handleCurrentLocationRequested}
-                disabled={pending}
-                userLatitude={detectedLocation?.latitude ?? null}
-                userLongitude={detectedLocation?.longitude ?? null}
-                userAccuracy={accuracyMeters}
-                onCurrentLocationResolved={handleCurrentLocationResolved}
-                externalRecenter={pickerExternalRecenter}
-              />
-            </div>
-          ) : null}
-
-          <input
-            type="hidden"
-            name="latitude"
-            value={locationConfirmed ? latitude : ""}
-          />
-          <input
-            type="hidden"
-            name="longitude"
-            value={locationConfirmed ? longitude : ""}
-          />
-          <input type="hidden" name="address" value={addressForPublishValue} />
-          <input
-            type="hidden"
-            name="available_in_minutes"
-            value={String(leaveInMinutes)}
-          />
-
           {state.fieldErrors?.latitude?.[0] ? (
             <p className="text-sm text-danger" role="alert">
               {state.fieldErrors.latitude[0]}
@@ -720,28 +711,58 @@ export function PublishSpotForm() {
             </p>
           ) : null}
         </section>
+      </div>
 
-        <section aria-labelledby="leave-time-label" data-testid="leave-time-section">
-          <LeaveTimeSlider
-            value={leaveInMinutes}
-            onChange={setLeaveInMinutes}
-            disabled={pending}
-            error={state.fieldErrors?.available_in_minutes?.[0]}
-          />
-        </section>
-
-        <div className="flex flex-col gap-2" data-testid="publish-spot-actions">
-          <Button
-            type="submit"
-            disabled={pending || !locationConfirmed || awaitingInitialGps}
-            loading={pending}
-            aria-busy={pending}
-            className="publisher-share-cta"
+      <div className={MAP_SHEET_HOST_CLASS} data-testid="publish-spot-sheet-host">
+        <div
+          className={[MAP_SHEET_CLASS, "publisher-compose-surface"].join(" ")}
+          data-testid="publish-spot-sheet"
+        >
+          <section
+            aria-labelledby="leave-time-label"
+            data-testid="leave-time-section"
           >
-            {pending ? "Sharing…" : "Share spot"}
-          </Button>
+            <LeaveTimeSlider
+              value={leaveInMinutes}
+              onChange={setLeaveInMinutes}
+              disabled={pending}
+              error={state.fieldErrors?.available_in_minutes?.[0]}
+            />
+          </section>
+
+          <div
+            className="map-bottom-sheet-actions"
+            data-testid="publish-spot-actions"
+          >
+            <Button
+              type="submit"
+              disabled={pending || !locationConfirmed || awaitingInitialGps}
+              loading={pending}
+              aria-busy={pending}
+              className="publisher-share-cta !w-full"
+            >
+              {pending ? "Sharing…" : "Share spot"}
+            </Button>
+          </div>
         </div>
       </div>
+
+      <input
+        type="hidden"
+        name="latitude"
+        value={locationConfirmed ? latitude : ""}
+      />
+      <input
+        type="hidden"
+        name="longitude"
+        value={locationConfirmed ? longitude : ""}
+      />
+      <input type="hidden" name="address" value={addressForPublishValue} />
+      <input
+        type="hidden"
+        name="available_in_minutes"
+        value={String(leaveInMinutes)}
+      />
     </form>
   );
 }

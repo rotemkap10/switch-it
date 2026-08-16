@@ -23,7 +23,6 @@ public class HandoffBackgroundLocationPlugin: CAPPlugin, CAPBridgedPlugin {
             call.resolve(["started": false, "reason": "invalid_claim"])
             return
         }
-        print("[switch-it:handoff-live] nativePluginStart() claimId=\(claimId) auth=\(Self.authLabel(tracker.authorizationStatus()))")
 
         let expiresAtEpochMs = call.getDouble("expiresAtEpochMs") ?? 0
         let expiresAt = Date(timeIntervalSince1970: expiresAtEpochMs / 1000.0)
@@ -34,6 +33,7 @@ public class HandoffBackgroundLocationPlugin: CAPPlugin, CAPBridgedPlugin {
 
         let tracker = HandoffLocationTracker.shared
         tracker.plugin = self
+        print("[switch-it:handoff-live] nativePluginStart() claimId=\(claimId) auth=\(Self.authLabel(tracker.authorizationStatus()))")
 
         let status = tracker.authorizationStatus()
         switch status {

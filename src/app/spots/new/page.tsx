@@ -129,8 +129,11 @@ export default async function NewSpotPage() {
     }
   }
 
+  const showCompose = !publisherSpot;
+
   return (
     <AuthenticatedShell
+      layout={showCompose ? "map" : "default"}
       title="Share a spot"
       description=""
       handoffException="active-publisher"
@@ -141,7 +144,7 @@ export default async function NewSpotPage() {
         spotId={publisherSpot?.id ?? null}
         claimId={activeClaimId}
       />
-      <VehicleSetupReminder />
+      {showCompose ? null : <VehicleSetupReminder />}
       {error ? (
         <Alert tone="error">Could not load your parking spot.</Alert>
       ) : null}
