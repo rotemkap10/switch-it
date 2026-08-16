@@ -2,58 +2,31 @@ import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 
 import { MAP_LAYERS, MAP_SOURCES } from "@/lib/map/seekerMapConfig";
 
+/** Fixed on-screen size of the current-location puck (pixels). Never scales with GPS accuracy. */
+export const USER_LOCATION_DOT_RADIUS_PX = 6;
+
 export type UserLocationDotIds = {
   dotSource: string;
-  accuracySource: string;
   dotLayer: string;
-  accuracyLayer: string;
 };
 
 export const SEEKER_USER_LOCATION_IDS: UserLocationDotIds = {
   dotSource: MAP_SOURCES.userLocation,
-  accuracySource: MAP_SOURCES.userAccuracy,
   dotLayer: MAP_LAYERS.userDot,
-  accuracyLayer: MAP_LAYERS.userAccuracy,
 };
 
-export const PICKER_USER_LOCATION_IDS: UserLocationDotIds = {
-  dotSource: "picker-user-location-src",
-  accuracySource: "picker-user-accuracy-src",
-  dotLayer: "picker-user-dot-layer",
-  accuracyLayer: "picker-user-accuracy-layer",
-};
+/** @deprecated Alias of seeker IDs — Find Parking and Share a Spot share one puck. */
+export const PICKER_USER_LOCATION_IDS: UserLocationDotIds = SEEKER_USER_LOCATION_IDS;
 
 export type UserLocationDotFix = {
   latitude: number;
   longitude: number;
+  /** Kept for call-site compatibility; never visualized as a map radius. */
   accuracy?: number | null;
 };
 
 function emptyFeatureCollection(): GeoJSON.FeatureCollection {
   return { type: "FeatureCollection", features: [] };
-}
-
-function haversineApproxDegDeltaFromMeters(lat: number, meters: number) {
-  const metersPerDegLat = 111_320;
-  return meters / metersPerDegLat;
-}
-
-export function metersToPixels(
-  map: MapLibreMap,
-  lng: number,
-  lat: number,
-  m: number,
-) {
-  if (!Number.isFinite(m) || m <= 0) {
-    return 0;
-  }
-
-  const dLat = haversineApproxDegDeltaFromMeters(lat, m);
-  const p1 = map.project([lng, lat]);
-  const p2 = map.project([lng, lat + dLat]);
-  const dx = p2.x - p1.x;
-  const dy = p2.y - p1.y;
-  return Math.sqrt(dx * dx + dy * dy);
 }
 
 function asGeoJsonSource(
@@ -78,40 +51,13 @@ function ensureUserLocationLayers(
     });
   }
 
-  if (!map.getSource(ids.accuracySource)) {
-    map.addSource(ids.accuracySource, {
-      type: "geojson",
-      data: emptyFeatureCollection(),
-    });
-  }
-
-  if (!map.getLayer(ids.accuracyLayer)) {
-    map.addLayer({
-      id: ids.accuracyLayer,
-      type: "circle",
-      source: ids.accuracySource,
-      paint: {
-        "circle-radius": ["get", "radiusPx"],
-        "circle-color": "rgba(85,191,243,0.18)",
-        "circle-stroke-color": "rgba(85,191,243,0.55)",
-        "circle-stroke-width": 1,
-        "circle-opacity": [
-          "case",
-          [">", ["get", "radiusPx"], 0],
-          1,
-          0,
-        ],
-      },
-    });
-  }
-
   if (!map.getLayer(ids.dotLayer)) {
     map.addLayer({
       id: ids.dotLayer,
       type: "circle",
       source: ids.dotSource,
       paint: {
-        "circle-radius": 6,
+        "circle-radius": USER_LOCATION_DOT_RADIUS_PX,
         "circle-color": "#55bff3",
         "circle-stroke-color": "#ffffff",
         "circle-stroke-width": 2,
@@ -123,6 +69,8 @@ function ensureUserLocationLayers(
 /**
  * Show or clear the live current-location puck. Safe to call before or after
  * style load; no-ops when the map is not ready.
+ *
+ * Renders a fixed-size blue dot only — no GPS accuracy halo/circle.
  */
 export function syncUserLocationDot(
   map: MapLibreMap | null | undefined,
@@ -136,17 +84,14 @@ export function syncUserLocationDot(
   try {
     if (!location) {
       const dotSource = asGeoJsonSource(map, ids.dotSource);
-      const ringSource = asGeoJsonSource(map, ids.accuracySource);
       dotSource?.setData(emptyFeatureCollection());
-      ringSource?.setData(emptyFeatureCollection());
       return;
     }
 
     ensureUserLocationLayers(map, ids);
 
     const dotSource = asGeoJsonSource(map, ids.dotSource);
-    const ringSource = asGeoJsonSource(map, ids.accuracySource);
-    if (!dotSource || !ringSource) {
+    if (!dotSource) {
       return;
     }
 
@@ -155,6 +100,9 @@ export function syncUserLocationDot(
       location.latitude,
     ];
 
+    // accuracy is intentionally ignored for visualization.
+    void location.accuracy;
+
     dotSource.setData({
       type: "FeatureCollection",
       features: [
@@ -162,24 +110,6 @@ export function syncUserLocationDot(
           type: "Feature",
           geometry: { type: "Point", coordinates },
           properties: {},
-        },
-      ],
-    });
-
-    const radiusPx = metersToPixels(
-      map,
-      location.longitude,
-      location.latitude,
-      location.accuracy ?? 0,
-    );
-
-    ringSource.setData({
-      type: "FeatureCollection",
-      features: [
-        {
-          type: "Feature",
-          geometry: { type: "Point", coordinates },
-          properties: { radiusPx },
         },
       ],
     });

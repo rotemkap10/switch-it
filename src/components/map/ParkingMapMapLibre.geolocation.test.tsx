@@ -544,7 +544,7 @@ describe("ParkingMapMapLibre geolocation", () => {
         return firstArg?.id;
       });
       expect(layerIds).toContain(MAP_LAYERS.userDot);
-      expect(layerIds).toContain(MAP_LAYERS.userAccuracy);
+      expect(layerIds).not.toContain(MAP_LAYERS.userAccuracy);
     });
 
     const dotSource = mockMap.getSource(MAP_SOURCES.userLocation) as {
@@ -562,6 +562,7 @@ describe("ParkingMapMapLibre geolocation", () => {
         ],
       }),
     );
+    expect(mockMap.getSource(MAP_SOURCES.userAccuracy)).toBeFalsy();
   });
 
   it("shows the current-location dot when GPS arrives before the map is ready", async () => {

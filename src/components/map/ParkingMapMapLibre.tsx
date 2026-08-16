@@ -795,7 +795,6 @@ export function ParkingMapMapLibre({
     syncUserLocationDot(map, SEEKER_USER_LOCATION_IDS, {
       latitude: userLocation.latitude,
       longitude: userLocation.longitude,
-      accuracy: userLocation.accuracy,
     });
   }, [userLocation, layersReady]);
 

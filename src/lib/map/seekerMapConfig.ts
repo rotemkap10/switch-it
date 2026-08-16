@@ -64,6 +64,7 @@ export const MAP_SOURCES = {
   spots: "seeker-spots-src",
   destination: "seeker-destination-src",
   userLocation: "seeker-user-location-src",
+  /** @deprecated Accuracy halo removed; kept only for legacy test assertions. */
   userAccuracy: "seeker-user-accuracy-src",
 } as const;
 
@@ -71,6 +72,7 @@ export const MAP_LAYERS = {
   spotsSymbols: "seeker-spots-symbols-layer",
   destination: "seeker-destination-layer",
   userDot: "seeker-user-dot-layer",
+  /** @deprecated Accuracy halo removed; kept only for legacy test assertions. */
   userAccuracy: "seeker-user-accuracy-layer",
 } as const;
 
