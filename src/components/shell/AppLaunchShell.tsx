@@ -26,6 +26,8 @@ import {
   SPLASH_MAX_MS,
 } from "@/lib/motion/app-launch";
 import { hideNativeSplashScreen } from "@/lib/native/splash-screen";
+import { logStartup } from "@/lib/native/startup-log";
+import { waitForWebBootSplashPainted } from "@/lib/native/wait-for-boot-splash-paint";
 import { isStandaloneDisplayMode } from "@/lib/pwa/install-state";
 import {
   BOOT_SPLASH_EXITING_CLASS,
@@ -119,13 +121,23 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     }
     exitStartedRef.current = true;
     // Reveal the identical HTML boot splash under the native overlay, then fade.
-    // Logo + background stay together until opacity hits 0 as one unit.
-    void hideNativeSplashScreen();
-    if (prefersReducedMotionMedia()) {
-      setPhase("hidden");
-      return;
-    }
-    setPhase("exit");
+    // Native hide waits until the web logo is painted so there is never a
+    // blank #dff4ff frame between LaunchScreen / Cap splash and HTML splash.
+    void (async () => {
+      logStartup("app launch released", {
+        force: Boolean(options?.force),
+        awaitInitialMap: awaitInitialMapRef.current,
+        mapReady: mapReadyRef.current,
+      });
+      await waitForWebBootSplashPainted();
+      logStartup("native splash hide requested");
+      await hideNativeSplashScreen();
+      if (prefersReducedMotionMedia()) {
+        setPhase("hidden");
+        return;
+      }
+      setPhase("exit");
+    })();
   }, []);
 
   useLayoutEffect(() => {
@@ -151,12 +163,17 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     if (skip) {
       coldLaunchRef.current = false;
       exitStartedRef.current = true;
-      void hideNativeSplashScreen();
-      const id = window.setTimeout(() => setPhase("hidden"), 0);
-      return () => window.clearTimeout(id);
+      void (async () => {
+        await waitForWebBootSplashPainted();
+        logStartup("native splash hide requested", { reason: "skip" });
+        await hideNativeSplashScreen();
+        setPhase("hidden");
+      })();
+      return;
     }
 
     coldLaunchRef.current = true;
+    logStartup("native splash visible");
     markLaunchSplashSeen();
     const maxTimer = window.setTimeout(() => {
       beginExit({ force: true });

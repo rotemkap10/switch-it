@@ -18,9 +18,15 @@ import {
 } from "@/lib/motion/app-launch";
 
 const hideNativeSplashMock = vi.fn().mockResolvedValue(undefined);
+const waitForBootSplashPaintMock = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@/lib/native/splash-screen", () => ({
   hideNativeSplashScreen: (...args: unknown[]) => hideNativeSplashMock(...args),
+}));
+
+vi.mock("@/lib/native/wait-for-boot-splash-paint", () => ({
+  waitForWebBootSplashPainted: (...args: unknown[]) =>
+    waitForBootSplashPaintMock(...args),
 }));
 
 vi.mock("@/lib/location/is-native-handoff-platform", () => ({
@@ -47,12 +53,14 @@ function mockMatchMedia(options: {
   }));
 }
 
-function flushSplashUntilHidden() {
-  act(() => {
+async function flushSplashUntilHidden() {
+  await act(async () => {
     vi.runOnlyPendingTimers();
     vi.runOnlyPendingTimers();
+    await Promise.resolve();
+    await Promise.resolve();
   });
-  act(() => {
+  await act(async () => {
     vi.advanceTimersByTime(SPLASH_FADE_MS + 50);
   });
 }
@@ -149,6 +157,8 @@ describe("AppLaunchShell", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     sessionStorage.clear();
     hideNativeSplashMock.mockClear();
+    waitForBootSplashPaintMock.mockClear();
+    waitForBootSplashPaintMock.mockResolvedValue(undefined);
     Object.defineProperty(document, "readyState", {
       configurable: true,
       value: "complete",
@@ -203,7 +213,7 @@ describe("AppLaunchShell", () => {
     expect(screen.getByTestId("app-content-shell")).toBeInTheDocument();
   });
 
-  it("keeps splash until the initial shell reports ready", () => {
+  it("keeps splash until the initial shell reports ready", async () => {
     render(
       <AppLaunchShell>
         <ReadyChild />
@@ -212,7 +222,7 @@ describe("AppLaunchShell", () => {
 
     expect(screen.getByTestId("app-launch-splash")).toBeInTheDocument();
 
-    flushSplashUntilHidden();
+    await flushSplashUntilHidden();
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
     expect(screen.getByText("App content")).toBeInTheDocument();
@@ -236,7 +246,7 @@ describe("AppLaunchShell", () => {
     expect(hideNativeSplashMock).not.toHaveBeenCalled();
   });
 
-  it("hides splash into the map once initial map reports ready", () => {
+  it("hides splash into the map once initial map reports ready", async () => {
     const { rerender } = render(
       <AppLaunchShell>
         <SignedInMapColdLaunch mapReady={false} />
@@ -254,7 +264,7 @@ describe("AppLaunchShell", () => {
       </AppLaunchShell>,
     );
 
-    flushSplashUntilHidden();
+    await flushSplashUntilHidden();
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
     expect(hideNativeSplashMock).toHaveBeenCalled();
@@ -293,7 +303,7 @@ describe("AppLaunchShell", () => {
     boot.remove();
   });
 
-  it("signed-in cold launch: map visually ready releases splash with no car flash", () => {
+  it("signed-in cold launch: map visually ready releases splash with no car flash", async () => {
     const { rerender } = render(
       <AppLaunchShell>
         <SignedInMapColdLaunch mapReady={false} />
@@ -312,7 +322,7 @@ describe("AppLaunchShell", () => {
         <SignedInMapColdLaunch mapReady />
       </AppLaunchShell>,
     );
-    flushSplashUntilHidden();
+    await flushSplashUntilHidden();
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
     expect(screen.getByTestId("app-content-shell")).toHaveAttribute(
@@ -342,21 +352,21 @@ describe("AppLaunchShell", () => {
     expect(hideNativeSplashMock).not.toHaveBeenCalled();
   });
 
-  it("documents that premature shell-ready without await-map releases splash (home must not do this)", () => {
+  it("documents that premature shell-ready without await-map releases splash (home must not do this)", async () => {
     render(
       <AppLaunchShell>
         <PrematureShellReadyBug mapReady={false} />
       </AppLaunchShell>,
     );
 
-    flushSplashUntilHidden();
+    await flushSplashUntilHidden();
 
     // This is why home auth-checking must not call InitialShellReadyMarker.
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
     expect(hideNativeSplashMock).toHaveBeenCalled();
   });
 
-  it("skips splash when already seen this session", () => {
+  it("skips splash when already seen this session", async () => {
     sessionStorage.setItem(APP_LAUNCH_SPLASH_SEEN_KEY, "1");
 
     render(
@@ -365,12 +375,15 @@ describe("AppLaunchShell", () => {
       </AppLaunchShell>,
     );
 
-    act(() => {
+    await act(async () => {
       vi.runOnlyPendingTimers();
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
     expect(hideNativeSplashMock).toHaveBeenCalled();
+    expect(waitForBootSplashPaintMock).toHaveBeenCalled();
   });
 
   it("still shows splash under reduced motion until the shell is ready", () => {
@@ -389,7 +402,7 @@ describe("AppLaunchShell", () => {
     expect(screen.getByTestId("app-launch-splash")).toBeInTheDocument();
   });
 
-  it("hides instantly under reduced motion once the shell is ready", () => {
+  it("hides instantly under reduced motion once the shell is ready", async () => {
     mockMatchMedia({ reducedMotion: true });
 
     render(
@@ -398,26 +411,30 @@ describe("AppLaunchShell", () => {
       </AppLaunchShell>,
     );
 
-    act(() => {
+    await act(async () => {
       vi.runOnlyPendingTimers();
       vi.runOnlyPendingTimers();
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();
     expect(hideNativeSplashMock).toHaveBeenCalled();
   });
 
-  it("exits via safety max if the shell never reports ready", () => {
+  it("exits via safety max if the shell never reports ready", async () => {
     render(
       <AppLaunchShell>
         <p>Stuck loading</p>
       </AppLaunchShell>,
     );
 
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(SPLASH_MAX_MS + 10);
+      await Promise.resolve();
+      await Promise.resolve();
     });
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(SPLASH_FADE_MS + 50);
     });
 
@@ -425,17 +442,19 @@ describe("AppLaunchShell", () => {
     expect(hideNativeSplashMock).toHaveBeenCalled();
   });
 
-  it("exits via safety max if the map never becomes ready", () => {
+  it("exits via safety max if the map never becomes ready", async () => {
     render(
       <AppLaunchShell>
         <SignedInMapColdLaunch mapReady={false} />
       </AppLaunchShell>,
     );
 
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(SPLASH_MAX_MS + 10);
+      await Promise.resolve();
+      await Promise.resolve();
     });
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(SPLASH_FADE_MS + 50);
     });
 
@@ -443,7 +462,7 @@ describe("AppLaunchShell", () => {
     expect(hideNativeSplashMock).toHaveBeenCalled();
   });
 
-  it("hides a server-rendered boot splash instead of mounting a second one", () => {
+  it("hides a server-rendered boot splash instead of mounting a second one", async () => {
     const boot = document.createElement("div");
     boot.id = BOOT_SPLASH_ID;
     boot.setAttribute("data-testid", "app-launch-splash");
@@ -457,7 +476,7 @@ describe("AppLaunchShell", () => {
 
     expect(document.querySelectorAll("#app-boot-splash")).toHaveLength(1);
 
-    flushSplashUntilHidden();
+    await flushSplashUntilHidden();
 
     expect(document.documentElement.classList.contains(BOOT_SPLASH_HIDDEN_CLASS)).toBe(
       true,
@@ -466,14 +485,14 @@ describe("AppLaunchShell", () => {
     document.documentElement.classList.remove(BOOT_SPLASH_HIDDEN_CLASS);
   });
 
-  it("does not replay splash on remount after session mark", () => {
+  it("does not replay splash on remount after session mark", async () => {
     const { unmount } = render(
       <AppLaunchShell>
         <ReadyChild />
       </AppLaunchShell>,
     );
 
-    flushSplashUntilHidden();
+    await flushSplashUntilHidden();
     unmount();
 
     render(
@@ -482,8 +501,10 @@ describe("AppLaunchShell", () => {
       </AppLaunchShell>,
     );
 
-    act(() => {
+    await act(async () => {
       vi.runOnlyPendingTimers();
+      await Promise.resolve();
+      await Promise.resolve();
     });
 
     expect(screen.queryByTestId("app-launch-splash")).not.toBeInTheDocument();

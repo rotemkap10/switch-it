@@ -34,6 +34,14 @@ describe("PWA / first-paint color continuity", () => {
     expect(layout).toContain("beforeInteractive");
     expect(layout).toContain("SWITCH_IT_LAUNCH_LOGO_SRC");
     expect(layout).toContain('rel="preload"');
+
+    const bootSplash = readFileSync(
+      resolve(process.cwd(), "src/components/pwa/BootSplash.tsx"),
+      "utf8",
+    );
+    expect(bootSplash).toContain('decoding="sync"');
+    expect(bootSplash).toContain('loading="eager"');
+    expect(bootSplash).not.toContain('decoding="async"');
     expect(layout).toContain("suppressHydrationWarning");
     expect(layout).toContain("APP_ROOT_ID");
 

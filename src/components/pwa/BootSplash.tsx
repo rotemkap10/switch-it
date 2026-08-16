@@ -40,8 +40,10 @@ export function BootSplash() {
         alt=""
         width={SWITCH_IT_LAUNCH_LOGO_WIDTH}
         height={SWITCH_IT_LAUNCH_LOGO_HEIGHT}
-        decoding="async"
+        decoding="sync"
+        loading="eager"
         fetchPriority="high"
+        data-testid="app-boot-splash-logo"
         style={{
           display: "block",
           width: "min(80vw, 22rem)",

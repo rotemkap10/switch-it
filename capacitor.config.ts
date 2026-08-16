@@ -57,8 +57,14 @@ const config: CapacitorConfig = {
   ...(developmentServer ? { server: developmentServer } : {}),
   plugins: {
     SplashScreen: {
+      /**
+       * MUST be > 0. Capacitor iOS `showOnLaunch()` returns early when this is 0
+       * and never attaches the LaunchScreen overlay — causing a blank #dff4ff
+       * WebView gap between the system LaunchScreen and the HTML boot splash.
+       * With launchAutoHide:false the overlay stays until SplashScreen.hide().
+       */
+      launchShowDuration: 500,
       launchAutoHide: false,
-      launchShowDuration: 0,
       backgroundColor: NATIVE_SPLASH_BACKGROUND,
       androidSplashResourceName: "splash",
       showSpinner: false,
