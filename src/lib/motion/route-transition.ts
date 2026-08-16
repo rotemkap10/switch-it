@@ -4,6 +4,69 @@ export const ROUTE_TRANSITION_MIN_VISIBLE_MS = 300;
 /** Last-resort cleanup if navigation never settles. */
 export const ROUTE_TRANSITION_SAFETY_TIMEOUT_MS = 12_000;
 
+export type RouteLoadingKind =
+  | "map-seeker"
+  | "map-publisher"
+  | "page"
+  | "auth"
+  | "none";
+
+/**
+ * Destination `loading.tsx` kind. When not `"none"`, that shell owns the
+ * branded loader — the generic RouteTransition overlay must not compete.
+ */
+export function resolveRouteLoadingKind(pathname: string): RouteLoadingKind {
+  if (pathname === "/map" || pathname.startsWith("/map/")) {
+    return "map-seeker";
+  }
+  if (pathname === "/spots/new" || pathname.startsWith("/spots/new/")) {
+    return "map-publisher";
+  }
+  if (
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname.startsWith("/login/") ||
+    pathname.startsWith("/register/") ||
+    pathname.startsWith("/onboarding")
+  ) {
+    return "auth";
+  }
+  if (
+    pathname === "/profile" ||
+    pathname === "/history" ||
+    pathname.startsWith("/profile/") ||
+    pathname.startsWith("/history/")
+  ) {
+    return "page";
+  }
+  return "none";
+}
+
+/**
+ * Skip the full-page route overlay when the destination already has a
+ * dedicated loading shell that matches final geometry.
+ */
+export function shouldSkipRouteTransitionOverlay(toPathname: string): boolean {
+  return resolveRouteLoadingKind(toPathname) !== "none";
+}
+
+/**
+ * Find Parking (`/map`) and Share a Spot compose (`/spots/new`) are both
+ * full-viewport map shells. Full-page route overlays cause a second branded
+ * loader in a different container — destination `loading.tsx` owns continuity.
+ */
+export function isMapModeHomePath(pathname: string): boolean {
+  const kind = resolveRouteLoadingKind(pathname);
+  return kind === "map-seeker" || kind === "map-publisher";
+}
+
+export function shouldSkipMapModeRouteOverlay(
+  fromPathname: string,
+  toPathname: string,
+): boolean {
+  return isMapModeHomePath(fromPathname) && isMapModeHomePath(toPathname);
+}
+
 export function isModifiedClick(event: {
   metaKey?: boolean;
   ctrlKey?: boolean;

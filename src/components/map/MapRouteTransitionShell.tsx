@@ -4,6 +4,10 @@ import { useEffect } from "react";
 
 import { BrandedLoadingState } from "@/components/brand/BrandedLoadingState";
 import { useAppLaunchReady } from "@/components/shell/AppLaunchReadyContext";
+import {
+  MAP_SHEET_CLASS,
+  MAP_SHEET_HOST_CLASS,
+} from "@/lib/map/bottom-stack";
 import { markRouteShell } from "@/lib/map/map-perf";
 
 export type MapRouteTransitionMode = "seeker" | "publisher";
@@ -79,6 +83,39 @@ type MapRouteLoadingChromeProps = {
   mode: MapRouteTransitionMode;
   layout: "map" | "page";
 };
+
+function PublisherMapFirstLoadingBody({
+  mode,
+}: {
+  mode: MapRouteTransitionMode;
+}) {
+  return (
+    <div
+      className="publisher-compose publisher-compose--map-first"
+      data-testid="spots-new-map-first-loading"
+      data-layout="map-first"
+    >
+      <div
+        className="absolute inset-0"
+        data-testid="spots-new-map-loading-viewport"
+      >
+        <MapRouteTransitionShell mode={mode} variant="fullscreen" />
+      </div>
+      {/* Reserve final overlay geometry — invisible, no late layout shift. */}
+      <div className="publisher-compose-top-host" aria-hidden="true">
+        <div className="publisher-compose-search min-h-10" />
+      </div>
+      <div className={MAP_SHEET_HOST_CLASS} aria-hidden="true">
+        <div
+          className={[MAP_SHEET_CLASS, "publisher-compose-surface"].join(" ")}
+          data-testid="spots-new-loading-sheet-reserve"
+        >
+          <div className="min-h-24" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /**
  * Full-page loading fallback used by route loading.tsx files.
@@ -156,7 +193,11 @@ export function MapRouteLoadingChrome({
         ].join(" ")}
       >
         {isMap ? (
-          <MapRouteTransitionShell mode={mode} variant="fullscreen" />
+          mode === "publisher" ? (
+            <PublisherMapFirstLoadingBody mode={mode} />
+          ) : (
+            <MapRouteTransitionShell mode={mode} variant="fullscreen" />
+          )
         ) : (
           <div className="publisher-compose mx-auto w-full max-w-lg md:max-w-xl">
             <div className="mb-3 flex flex-col gap-1">

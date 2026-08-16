@@ -1,18 +1,6 @@
-import { BrandedLoadingState } from "@/components/brand/BrandedLoadingState";
+import { AuthRouteLoadingChrome } from "@/components/shell/AuthRouteLoadingChrome";
 
-/** Auth route loading — branded driving-car on the app background (no dark overlay). */
+/** Match login/register `auth-page` geometry immediately. */
 export default function AuthLoading() {
-  return (
-    <div
-      className="flex min-h-dvh w-full flex-col"
-      data-testid="auth-loading-shell"
-    >
-      <BrandedLoadingState
-        label="Loading…"
-        variant="page"
-        ariaLabel="Loading page"
-        className="min-h-dvh"
-      />
-    </div>
-  );
+  return <AuthRouteLoadingChrome testId="auth-loading-shell" />;
 }

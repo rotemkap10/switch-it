@@ -74,6 +74,22 @@ describe("MapRouteLoadingChrome", () => {
     expect(document.querySelector(".leaver-map-picker-shell")).not.toBeNull();
   });
 
+  it("renders publisher map-first loading shell before map-ready", () => {
+    launchReadyRef.current = true;
+    render(<MapRouteLoadingChrome mode="publisher" layout="map" />);
+    const shell = screen.getByTestId("spots-new-loading-shell");
+    expect(shell).toHaveAttribute("data-layout", "map");
+    expect(shell.className).toContain("app-shell--map");
+    expect(screen.getByTestId("spots-new-map-first-loading")).toHaveAttribute(
+      "data-layout",
+      "map-first",
+    );
+    expect(screen.getByTestId("spots-new-map-loading-viewport")).toBeInTheDocument();
+    expect(screen.getByTestId("spots-new-loading-sheet-reserve")).toBeInTheDocument();
+    expect(screen.getByTestId("branded-loading-car")).toBeInTheDocument();
+    expect(document.querySelector(".leaver-map-picker-shell:not(.leaver-map-picker-shell--fill)")).toBeNull();
+  });
+
   it("renders an empty shell while cold-launch splash owns loading", () => {
     launchReadyRef.current = false;
     render(<MapRouteLoadingChrome mode="seeker" layout="map" />);

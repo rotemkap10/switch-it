@@ -9,6 +9,7 @@ type PageRouteLoadingChromeProps = {
 
 /**
  * Shared App Router loading.tsx chrome — driving-car loader, not skeletons or spinners.
+ * Matches authenticated page shell (`app-shell` + header), not map or auth layouts.
  */
 export function PageRouteLoadingChrome({
   testId = "page-route-loading-shell",
@@ -18,6 +19,7 @@ export function PageRouteLoadingChrome({
     <div
       className={["app-shell", mapLayout ? "app-shell--map" : ""].join(" ")}
       data-testid={testId}
+      data-layout={mapLayout ? "map" : "page"}
     >
       <div className="app-shell-header border-b border-border bg-surface">
         <div

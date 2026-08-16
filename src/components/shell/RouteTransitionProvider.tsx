@@ -20,6 +20,7 @@ import {
   ROUTE_TRANSITION_SAFETY_TIMEOUT_MS,
   isModifiedClick,
   resolveAnchorHref,
+  shouldSkipRouteTransitionOverlay,
   shouldStartRouteTransition,
 } from "@/lib/motion/route-transition";
 
@@ -159,8 +160,18 @@ export function RouteTransitionProvider({
           if (nextKey === windowLocationKey()) {
             return;
           }
+          // Destination loading.tsx owns stable shell geometry for this route.
+          if (shouldSkipRouteTransitionOverlay(url.pathname)) {
+            return;
+          }
         } catch {
           // Continue — still a navigation attempt.
+        }
+      }
+
+      if (options?.fromHistory) {
+        if (shouldSkipRouteTransitionOverlay(window.location.pathname)) {
+          return;
         }
       }
 
