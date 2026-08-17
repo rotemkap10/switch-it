@@ -11,7 +11,8 @@
  * (SECURITY DEFINER). The Realtime HTTP Broadcast endpoint returns 202 even when
  * private-channel RLS silently drops the message, so the publisher never
  * receives live location.
- * No location history is stored.
+ * Latest snapshot (one row per claim) is upserted before Broadcast for recovery.
+ * No location history trail is stored.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { broadcastPrivateClaimLocation } from "../_shared/broadcast-claim-location.ts";
@@ -241,6 +242,46 @@ Deno.serve(async (req) => {
     topic,
     seekerUserId: userData.user.id,
   });
+
+  if (event === SEEKER_LOCATION_EVENT) {
+    const locationPayload = payload as JsonRecord;
+    const serviceClient = createClient(supabaseUrl, serviceKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+
+    console.log("[switch-it:handoff-live] snapshot upsert attempted", {
+      claimId,
+      sequence: locationPayload.sequence ?? null,
+    });
+
+    const { error: upsertError } = await serviceClient.rpc(
+      "upsert_claim_live_location",
+      {
+        p_claim_id: claimId,
+        p_latitude: locationPayload.latitude,
+        p_longitude: locationPayload.longitude,
+        p_accuracy_meters: locationPayload.accuracyMeters,
+        p_heading_degrees: locationPayload.headingDegrees ?? null,
+        p_sequence: locationPayload.sequence,
+        p_location_timestamp: new Date(
+          locationPayload.sentAt as number,
+        ).toISOString(),
+      },
+    );
+
+    if (upsertError) {
+      console.warn("[switch-it:handoff-live] snapshot upsert failed", {
+        claimId,
+        detail: upsertError.message,
+      });
+      return json({ error: "snapshot_failed", detail: upsertError.message }, 502);
+    }
+
+    console.log("[switch-it:handoff-live] snapshot upsert succeeded", {
+      claimId,
+      sequence: locationPayload.sequence ?? null,
+    });
+  }
 
   console.log("[switch-it:handoff-live] broadcast attempted", {
     claimId,

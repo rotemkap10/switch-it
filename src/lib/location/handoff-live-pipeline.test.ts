@@ -54,9 +54,12 @@ describe("handoff live-location pipeline contracts", () => {
     expect(edge).toContain("public.broadcast_claim_location");
   });
 
-  it("does not persist a location history table or queue", () => {
-    const seeker = readFileSync(
-      resolve(root, "src/lib/location/use-seeker-live-location-share.ts"),
+  it("stores at most one latest snapshot row per claim (no history trail)", () => {
+    const migration = readFileSync(
+      resolve(
+        root,
+        "supabase/migrations/20260817140000_claim_live_locations_snapshot.sql",
+      ),
       "utf8",
     );
     const publisher = readFileSync(
@@ -67,9 +70,11 @@ describe("handoff live-location pipeline contracts", () => {
       resolve(root, "supabase/functions/handoff-seeker-location/index.ts"),
       "utf8",
     );
-    expect(seeker).toContain("Do not queue history");
-    expect(publisher).toContain("never persisted");
-    expect(edge).toContain("No location history is stored");
+    expect(migration).toContain("claim_id uuid primary key");
+    expect(migration).toContain("on conflict (claim_id) do update");
+    expect(publisher).toContain("fetchLatestClaimLiveLocation");
+    expect(edge).toContain("upsert_claim_live_location");
+    expect(edge).not.toContain("insert into public.claim_live_location_history");
   });
 
   it("native tracker stop is owned by one coordinator", () => {

@@ -16,6 +16,10 @@ let locationHandler: BroadcastHandler | null = null;
 let statusHandler: BroadcastHandler | null = null;
 
 const removeChannel = vi.fn(async () => "ok");
+const maybeSingle = vi.fn(async () => ({ data: null, error: null }));
+const eq = vi.fn(() => ({ maybeSingle }));
+const select = vi.fn(() => ({ eq }));
+const from = vi.fn(() => ({ select }));
 const subscribe = vi.fn((cb?: (status: string) => void) => {
   subscribeStatus = cb ?? null;
   return { unsubscribe: vi.fn() };
@@ -45,6 +49,7 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     channel,
     removeChannel,
+    from,
     realtime: { setAuth },
     auth: { getSession },
   }),
@@ -68,6 +73,7 @@ describe("usePublisherLiveLocation", () => {
     subscribeStatus = null;
     locationHandler = null;
     statusHandler = null;
+    maybeSingle.mockResolvedValue({ data: null, error: null });
     getSession.mockImplementation(async () => ({
       data: { session: { access_token: "token" } },
     }));
@@ -352,5 +358,158 @@ describe("usePublisherLiveLocation", () => {
 
     unmount();
     expect(removeChannel.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("shows car from latest snapshot when first broadcast was missed", async () => {
+    maybeSingle.mockResolvedValue({
+      data: {
+        latitude: 32.099,
+        longitude: 34.7818,
+        accuracy_meters: 12,
+        heading_degrees: null,
+        sequence: 1,
+        location_timestamp: new Date().toISOString(),
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(subscribeStatus).toBeTypeOf("function");
+    });
+
+    await act(async () => {
+      subscribeStatus?.("SUBSCRIBED");
+    });
+
+    await waitFor(() => {
+      expect(result.current.location?.latitude).toBe(32.099);
+    });
+    expect(result.current.statusLabel).toBe("Live location");
+    expect(from).toHaveBeenCalledWith("claim_live_locations");
+  });
+
+  it("does not overwrite newer broadcast with older snapshot", async () => {
+    maybeSingle.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          window.setTimeout(() => {
+            resolve({
+              data: {
+                latitude: 32.01,
+                longitude: 34.7818,
+                accuracy_meters: 12,
+                heading_degrees: null,
+                sequence: 1,
+                location_timestamp: new Date(Date.now() - 60_000).toISOString(),
+              },
+              error: null,
+            });
+          }, 50);
+        }),
+    );
+
+    const { result } = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(locationHandler).toBeTypeOf("function");
+    });
+
+    await act(async () => {
+      subscribeStatus?.("SUBSCRIBED");
+      locationHandler?.({
+        payload: validPayload({ sequence: 2, latitude: 32.091 }),
+      });
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 80));
+    });
+
+    expect(result.current.location?.latitude).toBe(32.091);
+    expect(result.current.location?.sequence).toBe(2);
+  });
+
+  it("re-fetches snapshot on reconnect SUBSCRIBED", async () => {
+    const { result } = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(subscribeStatus).toBeTypeOf("function");
+    });
+
+    await act(async () => {
+      subscribeStatus?.("SUBSCRIBED");
+    });
+    expect(from).toHaveBeenCalledTimes(1);
+
+    maybeSingle.mockResolvedValue({
+      data: {
+        latitude: 32.2,
+        longitude: 34.7818,
+        accuracy_meters: 12,
+        heading_degrees: null,
+        sequence: 5,
+        location_timestamp: new Date().toISOString(),
+      },
+      error: null,
+    });
+
+    await act(async () => {
+      subscribeStatus?.("SUBSCRIBED");
+    });
+
+    await waitFor(() => {
+      expect(from).toHaveBeenCalledTimes(2);
+      expect(result.current.location?.latitude).toBe(32.2);
+    });
+  });
+
+  it("keeps delayed status after snapshot exists instead of waiting copy", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      maybeSingle.mockResolvedValue({
+        data: {
+          latitude: 32.0853,
+          longitude: 34.7818,
+          accuracy_meters: 12,
+          heading_degrees: null,
+          sequence: 1,
+          location_timestamp: new Date().toISOString(),
+        },
+        error: null,
+      });
+
+      const { result } = renderHook(() =>
+        usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+      );
+
+      await waitFor(() => {
+        expect(subscribeStatus).toBeTypeOf("function");
+      });
+
+      await act(async () => {
+        subscribeStatus?.("SUBSCRIBED");
+      });
+
+      await waitFor(() => {
+        expect(result.current.location).not.toBeNull();
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(12_000);
+      });
+
+      expect(result.current.statusLabel).toBe("Location update delayed");
+      expect(result.current.statusLabel).not.toBe("Waiting for driver location");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

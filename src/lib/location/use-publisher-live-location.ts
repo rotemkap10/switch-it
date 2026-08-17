@@ -7,6 +7,9 @@ import {
   SEEKER_LOCATION_EVENT,
   SEEKER_LOCATION_STATUS_EVENT,
 } from "@/lib/location/constants";
+import { fetchLatestClaimLiveLocation } from "@/lib/location/fetch-claim-live-location";
+import { isNewerSeekerLocation } from "@/lib/location/location-ordering";
+import { logHandoffLive } from "@/lib/location/log-handoff-live";
 import {
   parseSeekerLocationPayload,
   parseSeekerLocationStatusPayload,
@@ -19,7 +22,6 @@ import {
   liveLocationUpdatedLabel,
   type LiveLocationFreshness,
 } from "@/lib/location/stale";
-import { logHandoffLive } from "@/lib/location/log-handoff-live";
 import { getClaimLocationTopic } from "@/lib/location/topic";
 import { createClient } from "@/lib/supabase/client";
 
@@ -68,7 +70,8 @@ function publisherStatusLabel(
 
 /**
  * Publisher subscription to private seeker-location Broadcast for one claim.
- * Positions exist only in memory — never persisted.
+ * Broadcast is primary; latest DB snapshot (`claim_live_locations`) recovers
+ * missed first updates, refresh, and reconnect without location history.
  */
 export function usePublisherLiveLocation({
   claimId,
@@ -85,6 +88,7 @@ export function usePublisherLiveLocation({
   const lastSequenceRef = useRef(0);
   const terminalRef = useRef(false);
   const generationRef = useRef(0);
+  const hadSubscribedRef = useRef(false);
   const lastKnownRef = useRef<SeekerLocationPayload | null>(null);
   const lastReceivedAtRef = useRef<number | null>(null);
   const lastKnownClaimIdRef = useRef<string | null>(null);
@@ -95,6 +99,7 @@ export function usePublisherLiveLocation({
     lastKnownRef.current = null;
     lastReceivedAtRef.current = null;
     lastKnownClaimIdRef.current = null;
+    hadSubscribedRef.current = false;
     generationRef.current += 1;
     setSnapshot({
       location: null,
@@ -119,6 +124,7 @@ export function usePublisherLiveLocation({
 
     terminalRef.current = false;
     lastSequenceRef.current = 0;
+    hadSubscribedRef.current = false;
     const generation = ++generationRef.current;
     if (lastKnownClaimIdRef.current !== claimId) {
       lastKnownRef.current = null;
@@ -132,9 +138,94 @@ export function usePublisherLiveLocation({
       return;
     }
 
+    const activeClaimId = claimId;
+
     let cancelled = false;
     const client = createClient();
     clientRef.current = client;
+
+    function applyLocation(
+      parsed: SeekerLocationPayload,
+      source: "broadcast" | "snapshot",
+    ) {
+      if (!isNewerSeekerLocation(parsed, lastKnownRef.current)) {
+        if (source === "snapshot") {
+          logHandoffLive("snapshot ignored stale", {
+            claimId,
+            topic,
+            sequence: parsed.sequence,
+            timestamp: parsed.sentAt,
+          });
+        }
+        return;
+      }
+
+      lastSequenceRef.current = parsed.sequence;
+      const receivedAt = Date.now();
+      lastKnownRef.current = parsed;
+      lastReceivedAtRef.current = receivedAt;
+
+      if (source === "broadcast") {
+        logHandoffLive("publisher location received", {
+          claimId,
+          topic,
+          source: "broadcast",
+          lat: parsed.latitude,
+          lng: parsed.longitude,
+          accuracy: parsed.accuracyMeters,
+          timestamp: parsed.sentAt,
+          age: receivedAt - parsed.sentAt,
+          sequence: parsed.sequence,
+        });
+      } else {
+        logHandoffLive("snapshot accepted", {
+          claimId,
+          topic,
+          sequence: parsed.sequence,
+          timestamp: parsed.sentAt,
+        });
+      }
+
+      logHandoffLive("publisher marker updated", {
+        claimId,
+        topic,
+        source,
+        lat: parsed.latitude,
+        lng: parsed.longitude,
+        sequence: parsed.sequence,
+      });
+
+      setSnapshot({
+        location: parsed,
+        lastReceivedAtMs: receivedAt,
+        explicitPaused: false,
+        connectionFailed: false,
+        generation,
+      });
+    }
+
+    async function reconcileLatestSnapshot(reason: string) {
+      if (cancelled || terminalRef.current) {
+        return;
+      }
+      logHandoffLive("latest snapshot fetch started", { claimId, topic, reason });
+      const parsed = await fetchLatestClaimLiveLocation(client, activeClaimId);
+      if (cancelled || terminalRef.current) {
+        return;
+      }
+      if (!parsed) {
+        logHandoffLive("latest snapshot empty", { claimId, topic, reason });
+        return;
+      }
+      logHandoffLive("latest snapshot found", {
+        claimId,
+        topic,
+        reason,
+        timestamp: parsed.sentAt,
+        sequence: parsed.sequence,
+      });
+      applyLocation(parsed, "snapshot");
+    }
 
     void (async () => {
       const { data } = await client.auth.getSession();
@@ -177,30 +268,7 @@ export function usePublisherLiveLocation({
           });
           return;
         }
-        if (parsed.sequence <= lastSequenceRef.current) {
-          return;
-        }
-        lastSequenceRef.current = parsed.sequence;
-        const receivedAt = Date.now();
-        lastKnownRef.current = parsed;
-        lastReceivedAtRef.current = receivedAt;
-        logHandoffLive("publisher location received", {
-          claimId,
-          topic,
-          lat: parsed.latitude,
-          lng: parsed.longitude,
-          accuracy: parsed.accuracyMeters,
-          timestamp: parsed.sentAt,
-          age: receivedAt - parsed.sentAt,
-          sequence: parsed.sequence,
-        });
-        setSnapshot({
-          location: parsed,
-          lastReceivedAtMs: receivedAt,
-          explicitPaused: false,
-          connectionFailed: false,
-          generation,
-        });
+        applyLocation(parsed, "broadcast");
       });
 
       channel.on(
@@ -249,6 +317,9 @@ export function usePublisherLiveLocation({
               ? { ...prev, connectionFailed: false }
               : prev,
           );
+          const reason = hadSubscribedRef.current ? "reconnect" : "initial";
+          hadSubscribedRef.current = true;
+          void reconcileLatestSnapshot(reason);
           return;
         }
         if (
@@ -270,9 +341,24 @@ export function usePublisherLiveLocation({
       });
     })();
 
+    function onVisibilityRestore() {
+      if (document.visibilityState === "visible") {
+        void reconcileLatestSnapshot("visibility restore");
+      }
+    }
+
+    function onOnline() {
+      void reconcileLatestSnapshot("network online");
+    }
+
+    document.addEventListener("visibilitychange", onVisibilityRestore);
+    window.addEventListener("online", onOnline);
+
     return () => {
       cancelled = true;
       terminalRef.current = true;
+      document.removeEventListener("visibilitychange", onVisibilityRestore);
+      window.removeEventListener("online", onOnline);
       const channel = channelRef.current;
       channelRef.current = null;
       if (channel) {
