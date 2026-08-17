@@ -2,10 +2,11 @@ import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
 import { VehicleSetupReminder } from "@/components/onboarding/VehicleSetupReminder";
 import { PublishSpotForm } from "@/components/spots/PublishSpotForm";
 import {
-  PublisherSpotCard,
+  PublisherSpotExperience,
+} from "@/components/spots/PublisherSpotExperience";
+import {
   type PublisherSpotSummary,
 } from "@/components/spots/PublisherSpotCard";
-import { PublisherRealtimeSync } from "@/components/spots/PublisherRealtimeSync";
 import { Alert } from "@/components/ui/Alert";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
 import { fetchHandoffCode } from "@/lib/handoff/fetch-handoff-code";
@@ -139,24 +140,19 @@ export default async function NewSpotPage() {
       handoffException="active-publisher"
       access={access}
     >
-      <PublisherRealtimeSync
-        userId={user.id}
-        spotId={publisherSpot?.id ?? null}
-        claimId={activeClaimId}
-      />
       {showCompose ? null : <VehicleSetupReminder />}
       {error ? (
         <Alert tone="error">Could not load your parking spot.</Alert>
       ) : null}
 
       {publisherSpot ? (
-        <PublisherSpotCard
+        <PublisherSpotExperience
+          userId={user.id}
           spot={publisherSpot}
-          layout="page"
+          activeClaimId={activeClaimId}
           counterpartVehicle={counterpartVehicle}
           ownVehicle={ownVehicle}
           handoffCode={handoffCode}
-          activeClaimId={activeClaimId}
         />
       ) : (
         <PublishSpotForm />

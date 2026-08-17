@@ -1,6 +1,7 @@
 "use client";
 
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import { useCallback, useEffect, useRef } from "react";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import {
@@ -8,6 +9,11 @@ import {
   realtimeFeedbackKey,
   suppressRealtimeFeedback,
 } from "@/lib/realtime/feedback-suppression";
+import { logClaimRealtime } from "@/lib/realtime/log-claim-realtime";
+import {
+  publisherClaimHintFromPayload,
+  type PublisherClaimHint,
+} from "@/lib/realtime/publisher-spot-sync";
 import { useActiveHandoffReconciliation } from "@/lib/realtime/use-active-handoff-reconciliation";
 import { useDebouncedRouterRefresh } from "@/lib/realtime/use-debounced-router-refresh";
 import { useRealtimeInvalidation } from "@/lib/realtime/use-realtime-invalidation";
@@ -22,6 +28,8 @@ type PublisherRealtimeSyncProps = {
   spotId?: string | null;
   /** Active claim id when the spot is claimed. */
   claimId?: string | null;
+  /** Optimistic local transition when Realtime detects a new claim. */
+  onClaimHint?: (hint: PublisherClaimHint) => void;
 };
 
 function rowStatus(row: Record<string, unknown> | null | undefined): string | null {
@@ -38,20 +46,126 @@ function rowId(row: Record<string, unknown> | null | undefined): string | null {
   return row.id;
 }
 
+function logParkingSpotEvent(
+  payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
+  spotId: string | null,
+): void {
+  const next = payload.new as Record<string, unknown> | null;
+  const id = rowId(next) ?? rowId(payload.old as Record<string, unknown>);
+  logClaimRealtime("parking spot UPDATE received", {
+    spotId: id ?? spotId,
+    status: rowStatus(next),
+    eventType: payload.eventType,
+  });
+}
+
+function logClaimEvent(
+  payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
+  spotId: string | null,
+): void {
+  const next = payload.new as Record<string, unknown> | null;
+  logClaimRealtime("claim INSERT/UPDATE received", {
+    claimId:
+      rowId(next) ?? rowId(payload.old as Record<string, unknown>) ?? null,
+    spotId:
+      (typeof next?.spot_id === "string" ? next.spot_id : null) ?? spotId,
+    status: rowStatus(next),
+    eventType: payload.eventType,
+  });
+}
+
 /**
  * Publisher /spots/new Realtime invalidation.
  * Spot + related claim events trigger authorized RSC refetch (code/vehicle via RPCs).
- * Visibility + short poll reconcile when Realtime is missed while claimed.
+ * Visibility + short poll reconcile while an open spot exists (waiting or claimed).
  */
 export function PublisherRealtimeSync({
   userId,
   spotId = null,
   claimId = null,
+  onClaimHint,
 }: PublisherRealtimeSyncProps) {
   const scheduleRefresh = useDebouncedRouterRefresh();
   const { info } = useFeedback();
+  const onClaimHintRef = useRef(onClaimHint);
+  const hadSpotSubscribedRef = useRef(false);
+  const hadClaimsSubscribedRef = useRef(false);
 
-  useActiveHandoffReconciliation(Boolean(userId && claimId));
+  useEffect(() => {
+    onClaimHintRef.current = onClaimHint;
+  }, [onClaimHint]);
+
+  useEffect(() => {
+    if (spotId) {
+      logClaimRealtime("publisher spot waiting", { spotId, claimId: claimId ?? "none" });
+    }
+  }, [spotId, claimId]);
+
+  // Reconcile while publisher has any open spot — waiting or active handoff.
+  useActiveHandoffReconciliation(Boolean(userId && spotId));
+
+  const applyClaimHint = useCallback(
+    (
+      payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
+      expectedSpotId: string,
+    ) => {
+      const hint = publisherClaimHintFromPayload(payload, expectedSpotId);
+      if (!hint) {
+        return;
+      }
+      logClaimRealtime("active claim resolved", {
+        claimId: hint.claimId ?? "pending-rsc",
+        spotId: hint.spotId,
+        source: hint.source,
+      });
+      logClaimRealtime("publisher transition to active handoff", {
+        spotId: hint.spotId,
+        claimId: hint.claimId ?? "pending-rsc",
+      });
+      onClaimHintRef.current?.(hint);
+    },
+    [],
+  );
+
+  const handleSpotReconnect = useCallback(
+    (status: "SUBSCRIBED" | "TIMED_OUT" | "CLOSED" | "CHANNEL_ERROR") => {
+      if (status !== "SUBSCRIBED") {
+        return;
+      }
+      logClaimRealtime("channel subscribed", {
+        channel: `publisher-spot:${userId}`,
+      });
+      if (!hadSpotSubscribedRef.current) {
+        hadSpotSubscribedRef.current = true;
+        return;
+      }
+      logClaimRealtime("reconnect reconciliation", {
+        channel: `publisher-spot:${userId}`,
+      });
+      scheduleRefresh();
+    },
+    [scheduleRefresh, userId],
+  );
+
+  const handleSpotClaimsReconnect = useCallback(
+    (status: "SUBSCRIBED" | "TIMED_OUT" | "CLOSED" | "CHANNEL_ERROR") => {
+      if (status !== "SUBSCRIBED" || !spotId) {
+        return;
+      }
+      logClaimRealtime("channel subscribed", {
+        channel: `publisher-spot-claims:${spotId}`,
+      });
+      if (!hadClaimsSubscribedRef.current) {
+        hadClaimsSubscribedRef.current = true;
+        return;
+      }
+      logClaimRealtime("reconnect reconciliation", {
+        channel: `publisher-spot-claims:${spotId}`,
+      });
+      scheduleRefresh();
+    },
+    [scheduleRefresh, spotId],
+  );
 
   useRealtimeInvalidation({
     channelName: `publisher-spot:${userId}`,
@@ -63,9 +177,20 @@ export function PublisherRealtimeSync({
         filter: `owner_id=eq.${userId}`,
       },
     ],
-    onEvent: () => {
-      // Status UI handles available → claimed; no toast.
+    onEvent: (payload) => {
+      logParkingSpotEvent(payload, spotId);
+      if (spotId) {
+        applyClaimHint(payload, spotId);
+      }
       scheduleRefresh();
+    },
+    onSubscriptionStatus: (status) => {
+      if (status === "SUBSCRIBED") {
+        logClaimRealtime("channel subscribing", {
+          channel: `publisher-spot:${userId}`,
+        });
+      }
+      handleSpotReconnect(status);
     },
   });
 
@@ -142,8 +267,20 @@ export function PublisherRealtimeSync({
           },
         ]
       : [],
-    onEvent: () => {
+    onEvent: (payload) => {
+      logClaimEvent(payload, spotId);
+      if (spotId) {
+        applyClaimHint(payload, spotId);
+      }
       scheduleRefresh();
+    },
+    onSubscriptionStatus: (status) => {
+      if (status === "SUBSCRIBED" && spotId) {
+        logClaimRealtime("channel subscribing", {
+          channel: `publisher-spot-claims:${spotId}`,
+        });
+      }
+      handleSpotClaimsReconnect(status);
     },
   });
 

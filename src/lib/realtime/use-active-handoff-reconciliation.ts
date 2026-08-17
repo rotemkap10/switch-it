@@ -32,7 +32,12 @@ export function useActiveHandoffReconciliation(enabled: boolean): void {
       }
     }
 
+    function handleOnline() {
+      scheduleRefresh();
+    }
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("online", handleOnline);
     const intervalId = window.setInterval(
       refreshIfVisible,
       ACTIVE_HANDOFF_RECONCILE_MS,
@@ -40,6 +45,7 @@ export function useActiveHandoffReconciliation(enabled: boolean): void {
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", handleOnline);
       window.clearInterval(intervalId);
     };
   }, [enabled, scheduleRefresh]);

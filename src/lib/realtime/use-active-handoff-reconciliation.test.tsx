@@ -49,4 +49,11 @@ describe("useActiveHandoffReconciliation", () => {
     document.dispatchEvent(new Event("visibilitychange"));
     expect(scheduleRefreshMock).toHaveBeenCalledTimes(1);
   });
+
+  it("refreshes when the network comes back online", () => {
+    render(<Probe enabled />);
+    scheduleRefreshMock.mockClear();
+    window.dispatchEvent(new Event("online"));
+    expect(scheduleRefreshMock).toHaveBeenCalledTimes(1);
+  });
 });
