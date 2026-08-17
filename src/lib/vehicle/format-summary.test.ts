@@ -33,6 +33,20 @@ describe("getVehicleSummaryLines", () => {
     });
   });
 
+  it("displays canonical make and model when stored values match the catalog", () => {
+    expect(
+      getVehicleSummaryLines({
+        license_plate: "1234567",
+        vehicle_make: "toyota",
+        vehicle_model: "corolla",
+        vehicle_color: "white",
+        vehicle_type: "suv",
+      }),
+    ).toMatchObject({
+      makeModel: "Toyota Corolla",
+    });
+  });
+
   it("appends year when the profile has one", () => {
     expect(
       getVehicleSummaryLines({

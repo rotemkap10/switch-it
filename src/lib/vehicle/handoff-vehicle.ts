@@ -1,6 +1,7 @@
 import { isVehicleColor, VEHICLE_COLOR_LABELS, type VehicleColor } from "@/lib/vehicle/colors";
 import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
 import { isVehicleType, type VehicleType } from "@/lib/vehicle/types";
+import { formatCanonicalMakeModelYear } from "@/lib/vehicle/catalog";
 import { coerceVehicleYear } from "@/lib/vehicle/years";
 
 export type HandoffVehicle = {
@@ -96,8 +97,7 @@ export function formatVehicleIdentityTitle(
   model: string,
   year?: number | null,
 ): string {
-  const name = formatVehicleNameForDisplay(`${make} ${model}`);
-  return year != null ? `${name} · ${year}` : name;
+  return formatCanonicalMakeModelYear(make, model, year);
 }
 
 export function handoffVehicleAccessibleLabel(vehicle: HandoffVehicle): string {

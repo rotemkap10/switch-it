@@ -122,7 +122,25 @@ describe("VehicleForm", () => {
     expect(
       screen.getByRole("button", { name: "Edit vehicle details" }),
     ).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByLabelText("Make")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Manufacturer")).not.toBeInTheDocument();
+  });
+
+  it("does not force existing free-text vehicle profiles back into the editor", () => {
+    renderForm(
+      <VehicleForm
+        initialVehicle={{
+          ...existingVehicle,
+          vehicle_make: "toyota",
+          vehicle_model: "corola",
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-summary-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-summary")).toHaveTextContent(
+      "Toyota Corola",
+    );
+    expect(screen.queryByTestId("vehicle-edit-panel")).not.toBeInTheDocument();
   });
 
   it("shows change and remove when a vehicle photo already exists", () => {
@@ -161,7 +179,7 @@ describe("VehicleForm", () => {
     );
 
     expect(screen.getByTestId("vehicle-edit-panel")).toBeInTheDocument();
-    expect(screen.getByLabelText("Make")).toHaveValue("Hyundai");
+    expect(screen.getByLabelText("Manufacturer")).toHaveValue("Hyundai");
     expect(screen.getByLabelText("Model")).toHaveValue("Tucson");
     expect(screen.getByLabelText("Vehicle year")).toHaveValue("");
     expect(screen.getByLabelText("License plate")).toHaveValue("12-345-67");
@@ -191,12 +209,12 @@ describe("VehicleForm", () => {
     await user.click(
       screen.getByRole("button", { name: "Edit vehicle details" }),
     );
-    expect(screen.getByLabelText("Make")).toBeInTheDocument();
+    expect(screen.getByLabelText("Manufacturer")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.getByTestId("vehicle-summary-panel")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Make")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Manufacturer")).not.toBeInTheDocument();
   });
 
   it("discards unsaved edits on Cancel and restores persisted values", async () => {
@@ -206,7 +224,7 @@ describe("VehicleForm", () => {
     await user.click(
       screen.getByRole("button", { name: "Edit vehicle details" }),
     );
-    const make = screen.getByLabelText("Make");
+    const make = screen.getByLabelText("Manufacturer");
     await user.clear(make);
     await user.type(make, "Changed");
     await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -214,7 +232,7 @@ describe("VehicleForm", () => {
     await user.click(
       screen.getByRole("button", { name: "Edit vehicle details" }),
     );
-    expect(screen.getByLabelText("Make")).toHaveValue("Hyundai");
+    expect(screen.getByLabelText("Manufacturer")).toHaveValue("Hyundai");
     expect(screen.queryByRole("button", { name: "Done" })).not.toBeInTheDocument();
   });
 
@@ -243,7 +261,7 @@ describe("VehicleForm", () => {
     const user = userEvent.setup();
     renderForm(<VehicleForm initialVehicle={emptyVehicle} />);
 
-    await user.type(screen.getByLabelText("Make"), "Toyota");
+    await user.type(screen.getByLabelText("Manufacturer"), "Toyota");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
@@ -263,7 +281,7 @@ describe("VehicleForm", () => {
 
     await user.selectOptions(screen.getByLabelText("Vehicle type"), "hatchback");
     await user.selectOptions(screen.getByLabelText("Color"), "red");
-    await user.type(screen.getByLabelText("Make"), "Mazda");
+    await user.type(screen.getByLabelText("Manufacturer"), "Mazda");
     await user.type(screen.getByLabelText("Model"), "3");
     await user.selectOptions(screen.getByLabelText("Vehicle year"), "2025");
     await user.type(screen.getByLabelText("License plate"), "1234567");
@@ -290,7 +308,7 @@ describe("VehicleForm", () => {
     expect(screen.getByTestId("vehicle-summary")).toHaveTextContent(
       "Mazda 3 · 2025",
     );
-    expect(screen.queryByLabelText("Make")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Manufacturer")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Edit vehicle details" }),
     ).toBeInTheDocument();

@@ -3,8 +3,13 @@
 import { useMemo, useState } from "react";
 
 import { VehicleImage } from "@/components/vehicle/VehicleImage";
+import { VehicleMakeModelFields } from "@/components/vehicle/VehicleMakeModelFields";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import {
+  canonicalizeMake,
+  canonicalizeModel,
+} from "@/lib/vehicle/catalog";
 import {
   VEHICLE_COLOR_LABELS,
   VEHICLE_COLORS,
@@ -68,11 +73,14 @@ export function VehicleFields({
         ? initialVehicle.vehicle_color
         : "") as string,
   );
-  const [vehicleMake, setVehicleMake] = useState(
-    initialVehicle.vehicle_make ?? "",
+  const [vehicleMake, setVehicleMake] = useState(() =>
+    canonicalizeMake(initialVehicle.vehicle_make ?? ""),
   );
-  const [vehicleModel, setVehicleModel] = useState(
-    initialVehicle.vehicle_model ?? "",
+  const [vehicleModel, setVehicleModel] = useState(() =>
+    canonicalizeModel(
+      canonicalizeMake(initialVehicle.vehicle_make ?? ""),
+      initialVehicle.vehicle_model ?? "",
+    ),
   );
   const [vehicleYear, setVehicleYear] = useState(() => {
     const year = coerceVehicleYear(initialVehicle.vehicle_year);
@@ -187,34 +195,16 @@ export function VehicleFields({
         error={state?.fieldErrors?.vehicle_color?.[0]}
       />
 
-      <Input
-        id="vehicle_make"
-        name="vehicle_make"
-        label="Make"
-        type="text"
-        autoComplete="off"
-        autoCapitalize="words"
-        maxLength={40}
-        value={vehicleMake}
-        onChange={(event) => setVehicleMake(event.target.value)}
+      <VehicleMakeModelFields
+        make={vehicleMake}
+        model={vehicleModel}
+        onChange={({ make, model }) => {
+          setVehicleMake(make);
+          setVehicleModel(model);
+        }}
         disabled={disabled}
-        placeholder="e.g. Hyundai"
-        error={state?.fieldErrors?.vehicle_make?.[0]}
-      />
-
-      <Input
-        id="vehicle_model"
-        name="vehicle_model"
-        label="Model"
-        type="text"
-        autoComplete="off"
-        autoCapitalize="words"
-        maxLength={40}
-        value={vehicleModel}
-        onChange={(event) => setVehicleModel(event.target.value)}
-        disabled={disabled}
-        placeholder="e.g. Tucson"
-        error={state?.fieldErrors?.vehicle_model?.[0]}
+        makeError={state?.fieldErrors?.vehicle_make?.[0]}
+        modelError={state?.fieldErrors?.vehicle_model?.[0]}
       />
 
       <Select

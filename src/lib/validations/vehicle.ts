@@ -14,6 +14,10 @@ import {
   type VehicleType,
 } from "@/lib/vehicle/types";
 import {
+  canonicalizeMake,
+  canonicalizeModel,
+} from "@/lib/vehicle/catalog";
+import {
   MIN_VEHICLE_YEAR,
   isVehicleYear,
   maxVehicleYear,
@@ -179,10 +183,11 @@ export const updateVehicleSchema = z
       throw new Error("Vehicle validation transform received invalid data.");
     }
 
+    const vehicleMake = canonicalizeMake(data.vehicle_make);
     return {
       license_plate: plate.normalized,
-      vehicle_make: data.vehicle_make.trim(),
-      vehicle_model: data.vehicle_model.trim(),
+      vehicle_make: vehicleMake,
+      vehicle_model: canonicalizeModel(vehicleMake, data.vehicle_model),
       vehicle_year: year,
       vehicle_color: data.vehicle_color,
       vehicle_type: data.vehicle_type,

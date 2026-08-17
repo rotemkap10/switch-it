@@ -94,6 +94,35 @@ describe("VehicleImage", () => {
     expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
   });
 
+  it("sends canonical make and model to CarImages even when stored casing differs", () => {
+    vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
+
+    render(
+      <VehicleImage
+        vehicleType="sedan"
+        vehicleColor="white"
+        make="toyota"
+        model="corolla"
+        year={2024}
+        size="compact"
+        label="White Sedan"
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-make",
+      "Toyota",
+    );
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-model",
+      "Corolla",
+    );
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-year",
+      "2024",
+    );
+  });
+
   it("asks CarImages for make and model when there is no uploaded photo", () => {
     vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
 

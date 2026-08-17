@@ -1,3 +1,5 @@
+import { formatCanonicalMakeModelYear } from "@/lib/vehicle/catalog";
+
 export const MIN_VEHICLE_YEAR = 1990;
 
 /** Newest selectable model year: current calendar year plus one. */
@@ -47,6 +49,5 @@ export function formatMakeModelYear(
   model: string,
   year?: number | null,
 ): string {
-  const name = `${make} ${model}`.trim();
-  return year != null ? `${name} · ${year}` : name;
+  return formatCanonicalMakeModelYear(make, model, year);
 }

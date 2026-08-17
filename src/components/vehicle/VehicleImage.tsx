@@ -5,6 +5,7 @@ import { useState, type ReactNode } from "react";
 import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
 import { VehicleModelImage } from "@/components/vehicle/VehicleModelImage";
 import type { VehicleColor } from "@/lib/vehicle/colors";
+import { resolveCanonicalVehicleIdentity } from "@/lib/vehicle/catalog";
 import type { VehicleType } from "@/lib/vehicle/types";
 
 type VehicleImageProps = {
@@ -73,10 +74,12 @@ export function VehicleImage({
     dataEntrance,
   });
 
+  const identity = resolveCanonicalVehicleIdentity(make, model);
+
   return (
     <VehicleModelImage
-      make={make}
-      model={model}
+      make={identity.make}
+      model={identity.model}
       year={year}
       alt={label || "Vehicle"}
       className={className}

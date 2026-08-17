@@ -15,19 +15,19 @@ const validVehicle = {
 };
 
 describe("updateVehicleSchema", () => {
-  it("accepts a fully valid vehicle and normalizes plate/make/model", () => {
+  it("accepts a fully valid vehicle and canonicalizes plate/make/model", () => {
     const result = updateVehicleSchema.safeParse({
       ...validVehicle,
-      vehicle_make: "  Hyundai  ",
-      vehicle_model: "  Tucson  ",
+      vehicle_make: "  toyota  ",
+      vehicle_model: "  corolla  ",
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data).toEqual({
         license_plate: "1234567",
-        vehicle_make: "Hyundai",
-        vehicle_model: "Tucson",
+        vehicle_make: "Toyota",
+        vehicle_model: "Corolla",
         vehicle_year: 2025,
         vehicle_color: "white",
         vehicle_type: "suv",
@@ -132,6 +132,34 @@ describe("updateVehicleSchema", () => {
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("preserves unknown make/model text when there is no catalog match", () => {
+    const result = updateVehicleSchema.safeParse({
+      ...validVehicle,
+      vehicle_make: "Koenigsegg",
+      vehicle_model: "Jesko",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.vehicle_make).toBe("Koenigsegg");
+      expect(result.data.vehicle_model).toBe("Jesko");
+    }
+  });
+
+  it("does not rewrite a typo to a nearby catalog model", () => {
+    const result = updateVehicleSchema.safeParse({
+      ...validVehicle,
+      vehicle_make: "Toyota",
+      vehicle_model: "corola",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.vehicle_make).toBe("Toyota");
+      expect(result.data.vehicle_model).toBe("corola");
+    }
   });
 
   it("rejects invalid license plates", () => {

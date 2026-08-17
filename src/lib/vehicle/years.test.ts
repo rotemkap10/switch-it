@@ -43,5 +43,8 @@ describe("vehicle year helpers", () => {
       "Hyundai Tucson · 2025",
     );
     expect(formatMakeModelYear("Hyundai", "Tucson", null)).toBe("Hyundai Tucson");
+    expect(formatMakeModelYear("toyota", "corolla", 2024)).toBe(
+      "Toyota Corolla · 2024",
+    );
   });
 });

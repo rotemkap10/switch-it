@@ -162,6 +162,9 @@ describe("formatVehicleIdentityTitle", () => {
     expect(formatVehicleIdentityTitle("hyundai", "tucson", null)).toBe(
       "Hyundai Tucson",
     );
+    expect(formatVehicleIdentityTitle("toyota", "corolla", 2024)).toBe(
+      "Toyota Corolla · 2024",
+    );
   });
 });
 

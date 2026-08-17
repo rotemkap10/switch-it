@@ -1039,6 +1039,37 @@ html[data-native-status-bar="inset"] .app-shell-header {
   min-height: var(--app-tap-min);
 }
 
+.ui-combobox__list {
+  position: absolute;
+  z-index: 40;
+  inset-inline: 0;
+  top: calc(100% + 0.25rem);
+  max-height: 12rem;
+  overflow: auto;
+  border-radius: 0.875rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  padding: 0.25rem;
+  box-shadow: var(--shadow-card);
+}
+
+.ui-combobox__option {
+  display: block;
+  width: 100%;
+  min-height: var(--app-tap-min);
+  border-radius: var(--radius-card);
+  padding: 0.5rem 0.75rem;
+  text-align: start;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: var(--color-text);
+}
+
+.ui-combobox__option:hover,
+.ui-combobox__option[aria-selected="true"] {
+  background: var(--color-accent-soft);
+}
+
 .mobile-form-primary {
   min-height: 3rem;
   width: 100%;

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { Combobox } from "@/components/ui/Combobox";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 
@@ -11,6 +12,20 @@ describe("shared form controls", () => {
     );
 
     expect(screen.getByLabelText("Email")).toHaveClass("app-form-control");
+  });
+
+  it("applies the iOS-safe 16px control class to comboboxes", () => {
+    render(
+      <Combobox
+        id="make"
+        label="Manufacturer"
+        value=""
+        onChange={() => undefined}
+        options={[{ value: "Toyota", label: "Toyota" }]}
+      />,
+    );
+
+    expect(screen.getByLabelText("Manufacturer")).toHaveClass("app-form-control");
   });
 
   it("applies the iOS-safe 16px control class to selects", () => {
