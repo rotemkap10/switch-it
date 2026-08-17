@@ -7,9 +7,11 @@ import {
   CARIMAGES_FORMAT,
   CARIMAGES_TYPE,
   CARIMAGES_VIEW,
+  carImagesSrcHostPath,
   carImagesWidthForSize,
   getCarImagesPublicApiKey,
-  isUsableCarImagesUrl,
+  isCarImagesLoaderResolvedSrc,
+  logCarImages,
   normalizeCarImagesYear,
   type VehicleImageSize,
 } from "@/lib/vehicle/carimages";
@@ -28,6 +30,10 @@ type ModelImageStatus = "pending" | "ready" | "fallback";
 
 function trimmed(value: string | null | undefined): string {
   return value?.trim() ?? "";
+}
+
+function currentImgSrc(img: HTMLImageElement): string {
+  return img.currentSrc || img.getAttribute("src") || "";
 }
 
 export function VehicleModelImage({
@@ -84,6 +90,7 @@ function VehicleModelImageRequest({
   children: ReactNode;
 }) {
   const imgRef = useRef<HTMLImageElement>(null);
+  const lastSrcRef = useRef<string>("");
   const [status, setStatus] = useState<ModelImageStatus>("pending");
 
   useEffect(() => {
@@ -92,27 +99,62 @@ function VehicleModelImageRequest({
       return;
     }
 
+    logCarImages(
+      `element mounted make=${make} model=${model} year=${year ?? ""}`,
+    );
+    logCarImages(`src initial host/path=${carImagesSrcHostPath(currentImgSrc(img))}`);
+
+    const markFallback = (reason: string) => {
+      logCarImages(`fallback reason=${reason}`);
+      setStatus("fallback");
+    };
+
     const syncFromImage = () => {
       const loaded = img.getAttribute("data-ci-loaded");
+      const src = currentImgSrc(img);
+      if (src && src !== lastSrcRef.current) {
+        lastSrcRef.current = src;
+        logCarImages(`src changed host/path=${carImagesSrcHostPath(src)}`);
+      }
+
       if (loaded === "error") {
-        setStatus("fallback");
+        markFallback("loader-error");
         return;
       }
 
-      const src = img.currentSrc || img.getAttribute("src") || "";
-      if (isUsableCarImagesUrl(src)) {
+      // Official loader success: signed /image URL assigned + data-ci-loaded=true.
+      if (loaded === "true" && isCarImagesLoaderResolvedSrc(src)) {
+        logCarImages(`resolved url=${carImagesSrcHostPath(src)}`);
+        setStatus("ready");
+        return;
+      }
+
+      if (loaded === "true" && src) {
+        logCarImages(`resolved url=${carImagesSrcHostPath(src)}`);
         setStatus("ready");
         return;
       }
 
       if (loaded === "true") {
-        setStatus("fallback");
+        markFallback("loaded-without-src");
       }
     };
 
-    const onError = () => setStatus("fallback");
+    const onLoad = () => {
+      logCarImages(
+        `image load success host/path=${carImagesSrcHostPath(currentImgSrc(img))}`,
+      );
+      syncFromImage();
+    };
 
-    img.addEventListener("load", syncFromImage);
+    const onError = () => {
+      logCarImages(
+        `image load error host/path=${carImagesSrcHostPath(currentImgSrc(img))}`,
+      );
+      markFallback("image-error");
+    };
+
+    img.addEventListener("load", onLoad);
     img.addEventListener("error", onError);
     const observer = new MutationObserver(syncFromImage);
     observer.observe(img, {
@@ -121,11 +163,11 @@ function VehicleModelImageRequest({
     });
 
     return () => {
-      img.removeEventListener("load", syncFromImage);
+      img.removeEventListener("load", onLoad);
       img.removeEventListener("error", onError);
       observer.disconnect();
     };
-  }, []);
+  }, [make, model, year]);
 
   const showModel = status === "ready";
 

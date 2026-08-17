@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
 import { VehicleModelImage } from "@/components/vehicle/VehicleModelImage";
+import { CarImagesLoader } from "@/components/vehicle/CarImagesLoader";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { getCarImagesPublicApiKey } from "@/lib/vehicle/carimages";
@@ -40,6 +41,30 @@ export function CarImagesDevGrid() {
           Public loader key: {hasPublicKey ? "configured" : "missing"}
         </p>
       </header>
+
+      <section
+        className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-4"
+        data-testid="carimages-raw-official-example"
+      >
+        <CarImagesLoader />
+        <h2 className="text-base font-semibold text-foreground">
+          Raw official loader example
+        </h2>
+        <p className="text-sm text-muted">
+          Native <code>&lt;img&gt;</code> copied from CarImages docs, outside
+          VehicleModelImage. If this car appears and the cards below stay as
+          illustrations, the bug is in our wrapper.
+        </p>
+        {/* Native img required by the official CarImages loader. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          data-ci-make="BMW"
+          data-ci-model="3 Series"
+          data-ci-year="2022"
+          alt="BMW 3 Series"
+          className="max-h-48 w-auto bg-white"
+        />
+      </section>
 
       <section className="grid gap-4 sm:grid-cols-2">
         {CARIMAGES_DEV_TEST_VEHICLES.map((vehicle) => (

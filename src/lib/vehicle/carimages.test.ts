@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  carImagesSrcHostPath,
   carImagesWidthForSize,
   getCarImagesPublicApiKey,
   isCarImagesLoaderEnabled,
+  isCarImagesLoaderResolvedSrc,
   isUsableCarImagesUrl,
   normalizeCarImagesYear,
 } from "@/lib/vehicle/carimages";
@@ -40,18 +42,32 @@ describe("carimages helpers", () => {
     expect(normalizeCarImagesYear(null)).toBeUndefined();
   });
 
-  it("accepts only CDN catalog URLs as a usable match", () => {
+  it("treats official signed /image URLs and CDN catalog URLs as resolved", () => {
     expect(
-      isUsableCarImagesUrl(
+      isCarImagesLoaderResolvedSrc(
         "https://cdn.carimagesapi.com/vehicles/hyundai/tucson/nx4-2024-now-800-wm.webp",
       ),
     ).toBe(true);
     expect(
-      isUsableCarImagesUrl(
-        "https://carimagesapi.com/image?make=NotARealMakeXYZ&model=NoSuchModel123",
+      isCarImagesLoaderResolvedSrc(
+        "https://carimagesapi.com/image?make=Toyota&model=Corolla&year=2024&sig=redacted",
       ),
-    ).toBe(false);
-    expect(isUsableCarImagesUrl("")).toBe(false);
+    ).toBe(true);
+    expect(isUsableCarImagesUrl("https://carimagesapi.com/image?make=BMW")).toBe(
+      true,
+    );
+    expect(isCarImagesLoaderResolvedSrc("https://example.test/car.jpg")).toBe(
+      false,
+    );
+    expect(isCarImagesLoaderResolvedSrc("")).toBe(false);
+  });
+
+  it("logs host and path without query strings", () => {
+    expect(
+      carImagesSrcHostPath(
+        "https://carimagesapi.com/image?make=Toyota&api_key=secret&sig=secret",
+      ),
+    ).toBe("carimagesapi.com/image");
   });
 
   it("lists the PoC test vehicles", () => {

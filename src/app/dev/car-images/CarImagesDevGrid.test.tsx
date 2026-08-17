@@ -17,6 +17,20 @@ describe("CarImagesDevGrid", () => {
     const images = screen.getAllByTestId("vehicle-model-image");
     expect(images).toHaveLength(CARIMAGES_DEV_TEST_VEHICLES.length + 1);
 
+    const officialExample = screen.getByTestId("carimages-raw-official-example");
+    expect(officialExample.querySelector("img")).toHaveAttribute(
+      "data-ci-make",
+      "BMW",
+    );
+    expect(officialExample.querySelector("img")).toHaveAttribute(
+      "data-ci-model",
+      "3 Series",
+    );
+    expect(officialExample.querySelector("img")).toHaveAttribute(
+      "data-ci-year",
+      "2022",
+    );
+
     for (const [index, vehicle] of CARIMAGES_DEV_TEST_VEHICLES.entries()) {
       expect(images[index]).toHaveAttribute("data-ci-make", vehicle.make);
       expect(images[index]).toHaveAttribute("data-ci-model", vehicle.model);

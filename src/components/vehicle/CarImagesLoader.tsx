@@ -8,6 +8,7 @@ import {
   carImagesLoaderCacheBust,
   getCarImagesPublicApiKey,
   isCarImagesLoaderEnabled,
+  logCarImages,
 } from "@/lib/vehicle/carimages";
 
 const LOADER_ATTR = "data-switch-it-carimages-loader";
@@ -23,7 +24,12 @@ export function CarImagesLoader() {
     }
 
     const apiKey = getCarImagesPublicApiKey();
-    if (!apiKey || document.querySelector(`script[${LOADER_ATTR}]`)) {
+    if (!apiKey) {
+      return;
+    }
+
+    const existing = document.querySelector(`script[${LOADER_ATTR}]`);
+    if (existing) {
       return;
     }
 
@@ -35,6 +41,13 @@ export function CarImagesLoader() {
     script.src = `${CARIMAGES_LOADER_SRC}?v=${carImagesLoaderCacheBust()}`;
     script.setAttribute("data-api-key", apiKey);
     script.setAttribute(LOADER_ATTR, "true");
+    logCarImages("loader script requested");
+    script.addEventListener("load", () => {
+      logCarImages("loader script loaded");
+    });
+    script.addEventListener("error", () => {
+      logCarImages("loader script failed");
+    });
     document.head.appendChild(script);
   }, []);
 

@@ -42,22 +42,54 @@ export function normalizeCarImagesYear(
   return value.length > 0 ? value : undefined;
 }
 
+/** Host + path only. Never include query (api_key / sig / expires). */
+export function carImagesSrcHostPath(src: string | null | undefined): string {
+  if (!src) {
+    return "(empty)";
+  }
+  try {
+    const url = new URL(src, "https://carimagesapi.com");
+    return `${url.host}${url.pathname}`;
+  } catch {
+    return "(invalid)";
+  }
+}
+
+export function logCarImages(message: string): void {
+  if (process.env.NODE_ENV === "test") {
+    return;
+  }
+  console.info(`[switch-it:carimages] ${message}`);
+}
+
 /**
- * Real catalog images redirect to the CDN vehicle library.
- * Unknown make/model stays on `/image` as a generic placeholder (valid WebP).
+ * The official JS loader assigns signed `carimagesapi.com/image?...` URLs.
+ * After the browser follows a 302, currentSrc may be the CDN `/vehicles/` file.
+ * Both are successful loader resolutions — not failures.
  */
-export function isUsableCarImagesUrl(src: string | null | undefined): boolean {
+export function isCarImagesLoaderResolvedSrc(
+  src: string | null | undefined,
+): boolean {
   if (!src) {
     return false;
   }
 
   try {
     const url = new URL(src, "https://carimagesapi.com");
+    const host = url.hostname;
+    if (host === "cdn.carimagesapi.com" && url.pathname.startsWith("/vehicles/")) {
+      return true;
+    }
     return (
-      url.hostname === "cdn.carimagesapi.com" &&
-      url.pathname.startsWith("/vehicles/")
+      (host === "carimagesapi.com" || host === "www.carimagesapi.com") &&
+      url.pathname === "/image"
     );
   } catch {
     return false;
   }
+}
+
+/** @deprecated Use isCarImagesLoaderResolvedSrc. */
+export function isUsableCarImagesUrl(src: string | null | undefined): boolean {
+  return isCarImagesLoaderResolvedSrc(src);
 }

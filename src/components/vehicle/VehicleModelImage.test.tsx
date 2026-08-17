@@ -43,6 +43,31 @@ describe("VehicleModelImage", () => {
     );
   });
 
+  it("shows the catalog image when the loader assigns a signed /image URL", () => {
+    vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
+
+    render(
+      <VehicleModelImage make="Toyota" model="Corolla" year={2024} alt="Toyota Corolla">
+        <div data-testid="vehicle-illustration">fallback</div>
+      </VehicleModelImage>,
+    );
+
+    const img = screen.getByTestId("vehicle-model-image");
+    img.setAttribute(
+      "src",
+      "https://carimagesapi.com/image?make=Toyota&model=Corolla&year=2024",
+    );
+    img.setAttribute("data-ci-loaded", "true");
+    fireEvent.load(img);
+
+    expect(screen.getByTestId("vehicle-model-image-frame")).toHaveAttribute(
+      "data-status",
+      "ready",
+    );
+    expect(screen.getByRole("img", { name: "Toyota Corolla" })).toBe(img);
+    expect(screen.getByTestId("vehicle-illustration")).not.toBeVisible();
+  });
+
   it("shows the catalog image when the loader points at a CDN vehicle URL", () => {
     vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
 
@@ -66,30 +91,6 @@ describe("VehicleModelImage", () => {
     );
     expect(screen.getByRole("img", { name: "Hyundai Tucson" })).toBe(img);
     expect(screen.getByTestId("vehicle-illustration")).not.toBeVisible();
-  });
-
-  it("keeps the generic fallback when CarImages serves a placeholder", () => {
-    vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
-
-    render(
-      <VehicleModelImage make="NotARealMakeXYZ" model="NoSuchModel123" year={1999} alt="Unknown">
-        <div data-testid="vehicle-illustration">fallback</div>
-      </VehicleModelImage>,
-    );
-
-    const img = screen.getByTestId("vehicle-model-image");
-    img.setAttribute(
-      "src",
-      "https://carimagesapi.com/image?make=NotARealMakeXYZ&model=NoSuchModel123",
-    );
-    img.setAttribute("data-ci-loaded", "true");
-    fireEvent.load(img);
-
-    expect(screen.getByTestId("vehicle-model-image-frame")).toHaveAttribute(
-      "data-status",
-      "fallback",
-    );
-    expect(screen.getByTestId("vehicle-illustration")).toBeVisible();
   });
 
   it("keeps the generic fallback when the loader marks the image as an error", () => {
