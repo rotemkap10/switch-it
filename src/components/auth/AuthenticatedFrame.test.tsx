@@ -25,6 +25,10 @@ vi.mock("@/components/map/MapLibreWarmup", () => ({
   MapLibreWarmup: () => null,
 }));
 
+vi.mock("@/components/push/HandoffPushController", () => ({
+  HandoffPushController: () => null,
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/map",
 }));

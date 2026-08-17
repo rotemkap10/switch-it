@@ -154,6 +154,38 @@ describe("PublisherLiveProgressMap", () => {
     );
   });
 
+  it("uses a bottom-anchored parking pin and a centered live car", () => {
+    render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+
+    const map = readyMap();
+    expect(map.addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "publisher-live-dest-layer",
+        layout: expect.objectContaining({
+          "icon-image": "spot-destination",
+          "icon-anchor": "bottom",
+        }),
+      }),
+    );
+    expect(map.addLayer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "publisher-live-seeker-layer",
+        layout: expect.objectContaining({
+          "icon-image": "seeker-live",
+          "icon-anchor": "center",
+        }),
+      }),
+    );
+  });
+
   it("shows paused copy and keeps the last known seeker marker", () => {
     render(
       <PublisherLiveProgressMap

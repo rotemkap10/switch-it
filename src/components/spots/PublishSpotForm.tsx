@@ -28,6 +28,8 @@ import {
   subscribeSharedForegroundLocation,
 } from "@/lib/map/shared-foreground-location";
 import { classifyGpsAccuracy } from "@/lib/map/watch-best-device-location";
+import { offerHandoffPushPrepromptBeforeHandoff } from "@/lib/push/preprompt-bus";
+import { isNativePushEnabledForPlatform } from "@/lib/push/is-native-push-platform";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
 export const PUBLISHER_POOR_LOCATION_WARNING =
@@ -598,12 +600,26 @@ export function PublishSpotForm() {
     }));
   }
 
+  const skipPushGateRef = useRef(false);
+
   return (
     <form
       action={formAction}
       className="publisher-compose publisher-compose--map-first"
       data-testid="publish-spot-form"
       data-layout="map-first"
+      onSubmit={(event) => {
+        if (!isNativePushEnabledForPlatform() || skipPushGateRef.current) {
+          skipPushGateRef.current = false;
+          return;
+        }
+        event.preventDefault();
+        const form = event.currentTarget;
+        void offerHandoffPushPrepromptBeforeHandoff().then(() => {
+          skipPushGateRef.current = true;
+          form.requestSubmit();
+        });
+      }}
     >
       <div
         className="absolute inset-0"

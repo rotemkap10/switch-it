@@ -511,6 +511,7 @@ export function PublisherLiveProgressMap({
                 layout: {
                   "icon-image": SEEKER_MARKER_IMAGE_IDS.destination,
                   "icon-size": 0.85,
+                  "icon-anchor": "bottom",
                   "icon-allow-overlap": true,
                 },
               });
@@ -523,7 +524,8 @@ export function PublisherLiveProgressMap({
                 source: SEEKER_SOURCE,
                 layout: {
                   "icon-image": SEEKER_MARKER_IMAGE_IDS.seekerLive,
-                  "icon-size": 0.72,
+                  "icon-size": 0.78,
+                  "icon-anchor": "center",
                   "icon-allow-overlap": true,
                 },
               });

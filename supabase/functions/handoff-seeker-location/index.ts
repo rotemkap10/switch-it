@@ -17,6 +17,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { broadcastPrivateClaimLocation } from "../_shared/broadcast-claim-location.ts";
 import { getClaimLocationTopic } from "../_shared/claim-location-topic.ts";
+import { DRIVER_NEARBY_PUSH_METERS } from "../_shared/handoff-push-copy.ts";
+import { haversineDistanceMeters } from "../_shared/haversine.ts";
 
 const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -243,6 +245,13 @@ Deno.serve(async (req) => {
     seekerUserId: userData.user.id,
   });
 
+  let nearbyEnqueue: {
+    serviceClient: ReturnType<typeof createClient>;
+    claimId: string;
+    latitude: unknown;
+    longitude: unknown;
+  } | null = null;
+
   if (event === SEEKER_LOCATION_EVENT) {
     const locationPayload = payload as JsonRecord;
     const serviceClient = createClient(supabaseUrl, serviceKey, {
@@ -281,6 +290,13 @@ Deno.serve(async (req) => {
       claimId,
       sequence: locationPayload.sequence ?? null,
     });
+
+    nearbyEnqueue = {
+      serviceClient,
+      claimId,
+      latitude: locationPayload.latitude,
+      longitude: locationPayload.longitude,
+    };
   }
 
   console.log("[switch-it:handoff-live] broadcast attempted", {
@@ -327,5 +343,64 @@ Deno.serve(async (req) => {
     httpStatus: broadcastResult.status,
   });
 
+  if (nearbyEnqueue) {
+    await enqueueDriverNearbyIfClose(nearbyEnqueue);
+  }
+
   return json({ ok: true, broadcastStatus: broadcastResult.status });
 });
+
+async function enqueueDriverNearbyIfClose(input: {
+  serviceClient: ReturnType<typeof createClient>;
+  claimId: string;
+  latitude: unknown;
+  longitude: unknown;
+}): Promise<void> {
+  try {
+    const { data: claimRow } = await input.serviceClient
+      .from("claims")
+      .select("spot_id, parking_spots!inner(owner_id, latitude, longitude)")
+      .eq("id", input.claimId)
+      .eq("status", "active")
+      .maybeSingle();
+    const spot = Array.isArray(claimRow?.parking_spots)
+      ? claimRow?.parking_spots[0]
+      : claimRow?.parking_spots;
+    const ownerId =
+      spot && typeof (spot as { owner_id?: unknown }).owner_id === "string"
+        ? (spot as { owner_id: string }).owner_id
+        : null;
+    const spotLat = (spot as { latitude?: number } | null)?.latitude;
+    const spotLng = (spot as { longitude?: number } | null)?.longitude;
+    const seekerLat = input.latitude;
+    const seekerLng = input.longitude;
+    if (
+      ownerId &&
+      typeof claimRow?.spot_id === "string" &&
+      typeof spotLat === "number" &&
+      typeof spotLng === "number" &&
+      typeof seekerLat === "number" &&
+      typeof seekerLng === "number"
+    ) {
+      const meters = haversineDistanceMeters(
+        { latitude: seekerLat, longitude: seekerLng },
+        { latitude: spotLat, longitude: spotLng },
+      );
+      if (meters <= DRIVER_NEARBY_PUSH_METERS) {
+        await input.serviceClient.rpc("enqueue_handoff_notification", {
+          p_claim_id: input.claimId,
+          p_spot_id: claimRow.spot_id,
+          p_recipient_user_id: ownerId,
+          p_recipient_role: "publisher",
+          p_type: "driver_nearby",
+          p_payload: {},
+        });
+      }
+    }
+  } catch (nearbyError) {
+    console.warn("[switch-it:push] driver_nearby enqueue failed", {
+      claimId: input.claimId,
+      detail: nearbyError instanceof Error ? nearbyError.message : "unknown",
+    });
+  }
+}

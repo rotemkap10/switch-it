@@ -28,6 +28,7 @@ import {
 } from "@/lib/map/post-claim-navigation";
 import { requestCurrentDeviceLocation } from "@/lib/map/request-current-device-location";
 import { shouldRevalidateMapAfterClaimFailure } from "@/lib/map/stale-discovery-errors";
+import { offerHandoffPushPrepromptBeforeHandoff } from "@/lib/push/preprompt-bus";
 import { sensoryLightTap } from "@/lib/sensory/feedback";
 
 const initialState: ClaimSpotActionState = {};
@@ -137,6 +138,7 @@ export function ClaimSpotButton({
 
         void (async () => {
           try {
+            await offerHandoffPushPrepromptBeforeHandoff();
             const result = await requestCurrentDeviceLocation({
               maximumAgeMs: 0,
               timeoutMs: 10_000,

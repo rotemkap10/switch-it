@@ -68,6 +68,7 @@ export async function AuthenticatedShell({
       description={description}
       layout={layout}
       displayName={displayName}
+      hasActiveHandoff={access.status.hasActiveHandoff}
     >
       {children}
     </AuthenticatedFrame>

@@ -374,6 +374,10 @@ allow_dynamic_registration = false
 [functions.handoff-seeker-location]
 verify_jwt = true
 
+[functions.send-handoff-push]
+verify_jwt = false
+# Authenticated by HANDOFF_PUSH_SECRET or service role in the function body.
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

@@ -167,6 +167,7 @@ export function PublisherSpotPreviewMap({
               layout: {
                 "icon-image": SEEKER_MARKER_IMAGE_IDS.destination,
                 "icon-size": 0.9,
+                "icon-anchor": "bottom",
                 "icon-allow-overlap": true,
               },
             });

@@ -79,6 +79,10 @@ const config: CapacitorConfig = {
       style: "LIGHT",
       backgroundColor: NATIVE_SPLASH_BACKGROUND,
     },
+    PushNotifications: {
+      // Foreground: Realtime is primary. Background/killed still show alerts.
+      presentationOptions: ["badge", "sound"],
+    },
   },
   ios: {
     backgroundColor: NATIVE_SPLASH_BACKGROUND,

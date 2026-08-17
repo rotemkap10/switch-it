@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
+import { HandoffPushController } from "@/components/push/HandoffPushController";
 import { AppNav } from "@/components/layout/AppNav";
 import { MapLibreWarmup } from "@/components/map/MapLibreWarmup";
 import { ModeGate } from "@/components/mode/ModeGate";
@@ -18,6 +19,7 @@ type AuthenticatedFrameProps = {
   children?: ReactNode;
   layout?: "default" | "map";
   displayName?: string | null;
+  hasActiveHandoff?: boolean;
 };
 
 function ModeContent({ children }: { children: ReactNode }) {
@@ -38,6 +40,7 @@ export function AuthenticatedFrame({
   children,
   layout = "default",
   displayName = null,
+  hasActiveHandoff = false,
 }: AuthenticatedFrameProps) {
   const isMap = layout === "map";
 
@@ -66,6 +69,10 @@ export function AuthenticatedFrame({
           </main>
           <CoreRoutePrefetch />
           <MapLibreWarmup />
+          <HandoffPushController
+            userId={userId}
+            hasActiveHandoff={hasActiveHandoff}
+          />
         </div>
       </ModeGate>
     </ModeProvider>

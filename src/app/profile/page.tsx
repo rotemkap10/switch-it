@@ -1,6 +1,7 @@
 import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { ProfileSummaryRow } from "@/components/profile/ProfileSummaryRow";
+import { NotificationsStatus } from "@/components/profile/NotificationsStatus";
 import { SensoryPreferences } from "@/components/profile/SensoryPreferences";
 import { VehicleForm } from "@/components/profile/VehicleForm";
 import { Alert } from "@/components/ui/Alert";
@@ -74,6 +75,19 @@ export default async function ProfilePage() {
             Display name
           </h2>
           <ProfileForm initialDisplayName={profile.display_name} />
+        </section>
+
+        <section
+          className="mobile-form-section"
+          aria-labelledby="profile-notifications-title"
+        >
+          <h2
+            id="profile-notifications-title"
+            className="mobile-form-section-title"
+          >
+            Notifications
+          </h2>
+          <NotificationsStatus />
         </section>
 
         <section

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+	Empty on purpose: free Personal Team cannot provision APNs.
+	After paid Apple Developer Program enrollment, add the aps environment
+	entitlement (development for Xcode, production for TestFlight/App Store)
+	and set IOS_APNS_PUSH_ENABLED = true.
+-->
+<dict/>
+</plist>
