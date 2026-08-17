@@ -4,8 +4,8 @@ import { useState, type ReactNode } from "react";
 
 import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
 import { VehicleModelImage } from "@/components/vehicle/VehicleModelImage";
+import { getVehicleClass, resolveCanonicalVehicleIdentity } from "@/lib/vehicle/catalog";
 import type { VehicleColor } from "@/lib/vehicle/colors";
-import { resolveCanonicalVehicleIdentity } from "@/lib/vehicle/catalog";
 import type { VehicleType } from "@/lib/vehicle/types";
 
 type VehicleImageProps = {
@@ -63,8 +63,11 @@ export function VehicleImage({
     );
   }
 
+  const identity = resolveCanonicalVehicleIdentity(make, model);
+  const derivedType = getVehicleClass(identity.make, identity.model, vehicleType);
+
   const fallback = vehicleFallback({
-    vehicleType,
+    vehicleType: derivedType,
     vehicleColor,
     placeholderPreview,
     size,
@@ -73,8 +76,6 @@ export function VehicleImage({
     animate,
     dataEntrance,
   });
-
-  const identity = resolveCanonicalVehicleIdentity(make, model);
 
   return (
     <VehicleModelImage

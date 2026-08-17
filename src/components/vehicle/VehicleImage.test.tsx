@@ -187,4 +187,58 @@ describe("VehicleImage", () => {
       "sedan",
     );
   });
+
+  it("derives the generic illustration class from make and model, not CarImages", () => {
+    vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
+
+    render(
+      <VehicleImage
+        vehicleType="van"
+        vehicleColor="white"
+        make="Toyota"
+        model="Corolla"
+        year={2024}
+        size="compact"
+        label="White"
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-illustration")).toHaveAttribute(
+      "data-vehicle-type",
+      "sedan",
+    );
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-make",
+      "Toyota",
+    );
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-model",
+      "Corolla",
+    );
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-year",
+      "2024",
+    );
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-type",
+      "car",
+    );
+  });
+
+  it("uses a generic other silhouette for unknown models", () => {
+    render(
+      <VehicleImage
+        vehicleColor="white"
+        make="Koenigsegg"
+        model="Jesko"
+        size="compact"
+        label="White"
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-illustration")).toHaveAttribute(
+      "data-vehicle-type",
+      "other",
+    );
+  });
 });

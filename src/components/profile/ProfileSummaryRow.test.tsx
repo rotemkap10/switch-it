@@ -41,7 +41,7 @@ describe("ProfileSummaryRow", () => {
     expect(row.querySelector(".profile-summary-email")).not.toBeNull();
     expect(screen.getByText("Vehicle ready")).toBeInTheDocument();
     expect(screen.getByTestId("vehicle-top-summary")).toHaveTextContent(
-      "White SUV",
+      "White",
     );
     expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
   });

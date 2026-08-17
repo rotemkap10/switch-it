@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getVehicleClass,
   QUERY_SCORE_EXACT,
   QUERY_SCORE_FUZZY,
   canonicalizeMake,
@@ -12,6 +13,7 @@ import {
   resolveCanonicalVehicleIdentity,
   searchMakes,
   searchModels,
+  vehicleCatalogClassCount,
   vehicleCatalogMakeCount,
   vehicleCatalogModelCount,
 } from "@/lib/vehicle/catalog";
@@ -130,5 +132,21 @@ describe("vehicle catalog", () => {
     expect(formatMakeModelYear("toyota", "corola", 2024)).toBe(
       "Toyota Corola · 2024",
     );
+  });
+
+  it("derives an internal vehicle class from canonical make and model", () => {
+    expect(vehicleCatalogClassCount()).toBe(vehicleCatalogModelCount());
+    expect(getVehicleClass("Toyota", "Corolla")).toBe("sedan");
+    expect(getVehicleClass("toyota", "corolla")).toBe("sedan");
+    expect(getVehicleClass("Hyundai", "Tucson")).toBe("suv");
+    expect(getVehicleClass("Kia", "Picanto")).toBe("hatchback");
+    expect(getVehicleClass("Volkswagen", "Transporter")).toBe("van");
+  });
+
+  it("falls back to a stored type, then other, for unknown models", () => {
+    expect(getVehicleClass("Koenigsegg", "Jesko", "sedan")).toBe("sedan");
+    expect(getVehicleClass("Toyota", "corola", "hatchback")).toBe("hatchback");
+    expect(getVehicleClass("Other", "Custom", "coupe")).toBe("other");
+    expect(getVehicleClass("Koenigsegg", "Jesko")).toBe("other");
   });
 });

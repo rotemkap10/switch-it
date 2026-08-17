@@ -14,7 +14,7 @@ const complete: HandoffVehicle = {
 describe("formatOwnVehicleReciprocalLine", () => {
   it("builds the reciprocal recognition line", () => {
     expect(formatOwnVehicleReciprocalLine(complete)).toBe(
-      "They are looking for your White SUV, plate 12-345-67.",
+      "They are looking for your White Hyundai Tucson, plate 12-345-67.",
     );
   });
 

@@ -9,13 +9,11 @@ import {
   type VehicleColor,
 } from "@/lib/vehicle/colors";
 import { normalizeLicensePlate } from "@/lib/vehicle/normalize-plate";
-import {
-  isVehicleType,
-  type VehicleType,
-} from "@/lib/vehicle/types";
+import { type VehicleType } from "@/lib/vehicle/types";
 import {
   canonicalizeMake,
   canonicalizeModel,
+  getVehicleClass,
 } from "@/lib/vehicle/catalog";
 import {
   MIN_VEHICLE_YEAR,
@@ -93,8 +91,8 @@ function parseVehicleYear(value: string, ctx: z.RefinementCtx): number | null {
 }
 
 /**
- * Vehicle updates require a fully complete profile.
- * Clearing all fields is not allowed after onboarding.
+ * Vehicle updates require make, model, year, color, and plate.
+ * Vehicle type is derived from the catalog and is not a user-facing field.
  * Year is required on save; existing rows may still have NULL year.
  */
 export const updateVehicleSchema = z
@@ -104,7 +102,7 @@ export const updateVehicleSchema = z
     vehicle_model: z.string(),
     vehicle_year: z.string(),
     vehicle_color: z.string(),
-    vehicle_type: z.string(),
+    vehicle_type: z.string().optional(),
   })
   .superRefine((data, ctx) => {
     const blanks = [
@@ -113,11 +111,10 @@ export const updateVehicleSchema = z
       isBlank(data.vehicle_model),
       isBlank(data.vehicle_year),
       isBlank(data.vehicle_color),
-      isBlank(data.vehicle_type),
     ];
     const blankCount = blanks.filter(Boolean).length;
 
-    if (blankCount === 6) {
+    if (blankCount === 5) {
       ctx.addIssue({
         code: "custom",
         message: "Complete all vehicle fields.",
@@ -162,14 +159,6 @@ export const updateVehicleSchema = z
         path: ["vehicle_color"],
       });
     }
-
-    if (isBlank(data.vehicle_type) || !isVehicleType(data.vehicle_type)) {
-      ctx.addIssue({
-        code: "custom",
-        message: "Choose a vehicle type.",
-        path: ["vehicle_type"],
-      });
-    }
   })
   .transform((data): VehicleProfile => {
     const plate = normalizeLicensePlate(data.license_plate);
@@ -177,20 +166,24 @@ export const updateVehicleSchema = z
     if (
       !plate.ok ||
       !isVehicleColor(data.vehicle_color) ||
-      !isVehicleType(data.vehicle_type) ||
       !isVehicleYear(year)
     ) {
       throw new Error("Vehicle validation transform received invalid data.");
     }
 
     const vehicleMake = canonicalizeMake(data.vehicle_make);
+    const vehicleModel = canonicalizeModel(vehicleMake, data.vehicle_model);
     return {
       license_plate: plate.normalized,
       vehicle_make: vehicleMake,
-      vehicle_model: canonicalizeModel(vehicleMake, data.vehicle_model),
+      vehicle_model: vehicleModel,
       vehicle_year: year,
       vehicle_color: data.vehicle_color,
-      vehicle_type: data.vehicle_type,
+      vehicle_type: getVehicleClass(
+        vehicleMake,
+        vehicleModel,
+        data.vehicle_type,
+      ),
     };
   });
 

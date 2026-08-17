@@ -8,11 +8,8 @@ import {
   isVehicleProfileComplete,
   type VehicleProfileFields,
 } from "@/lib/vehicle/profile-fields";
-import {
-  VEHICLE_TYPE_LABELS,
-  isVehicleType,
-  type VehicleType,
-} from "@/lib/vehicle/types";
+import { getVehicleClass } from "@/lib/vehicle/catalog";
+import { type VehicleType } from "@/lib/vehicle/types";
 import { formatMakeModelYear } from "@/lib/vehicle/years";
 
 export type VehicleSummaryLines = {
@@ -34,26 +31,23 @@ export function getVehicleSummaryLines(
   const licensePlate = vehicle.license_plate;
   const make = vehicle.vehicle_make;
   const model = vehicle.vehicle_model;
-  const rawType = vehicle.vehicle_type;
   const rawColor = vehicle.vehicle_color;
 
   if (
     !licensePlate ||
     !make ||
     !model ||
-    !rawType ||
     !rawColor ||
-    !isVehicleType(rawType) ||
     !isVehicleColor(rawColor)
   ) {
     return null;
   }
 
-  const vehicleType: VehicleType = rawType;
   const vehicleColor: VehicleColor = rawColor;
+  const vehicleType = getVehicleClass(make, model, vehicle.vehicle_type);
 
   return {
-    colorType: `${VEHICLE_COLOR_LABELS[vehicleColor]} ${VEHICLE_TYPE_LABELS[vehicleType]}`,
+    colorType: VEHICLE_COLOR_LABELS[vehicleColor],
     makeModel: formatMakeModelYear(make, model, vehicle.vehicle_year),
     plate: formatLicensePlateForDisplay(licensePlate),
     vehicleType,

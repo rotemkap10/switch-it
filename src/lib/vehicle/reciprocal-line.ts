@@ -4,7 +4,7 @@ import {
   type HandoffVehicle,
 } from "@/lib/vehicle/handoff-vehicle";
 import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
-import { VEHICLE_TYPE_LABELS } from "@/lib/vehicle/types";
+import { formatCanonicalMakeModelYear } from "@/lib/vehicle/catalog";
 
 /** Compact reciprocal summary — viewer's own vehicle. */
 export function formatOwnVehicleReciprocalLine(
@@ -14,7 +14,11 @@ export function formatOwnVehicleReciprocalLine(
     return null;
   }
   const color = VEHICLE_COLOR_LABELS[vehicle.color!];
-  const type = VEHICLE_TYPE_LABELS[vehicle.type!];
+  const identity = formatCanonicalMakeModelYear(
+    vehicle.make!,
+    vehicle.model!,
+    vehicle.year,
+  );
   const plate = formatLicensePlateForDisplay(vehicle.licensePlate!);
-  return `They are looking for your ${color} ${type}, plate ${plate}.`;
+  return `They are looking for your ${color} ${identity}, plate ${plate}.`;
 }

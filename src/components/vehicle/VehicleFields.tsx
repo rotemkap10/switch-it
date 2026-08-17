@@ -9,6 +9,7 @@ import { Select } from "@/components/ui/Select";
 import {
   canonicalizeMake,
   canonicalizeModel,
+  getVehicleClass,
 } from "@/lib/vehicle/catalog";
 import {
   VEHICLE_COLOR_LABELS,
@@ -18,12 +19,6 @@ import {
 } from "@/lib/vehicle/colors";
 import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
 import type { VehicleProfileFields } from "@/lib/vehicle/profile-fields";
-import {
-  VEHICLE_TYPE_LABELS,
-  VEHICLE_TYPES,
-  isVehicleType,
-  type VehicleType,
-} from "@/lib/vehicle/types";
 import {
   coerceVehicleYear,
   formatMakeModelYear,
@@ -61,12 +56,6 @@ export function VehicleFields({
   photoUrl = null,
   state,
 }: VehicleFieldsProps) {
-  const [vehicleType, setVehicleType] = useState(
-    () =>
-      (isVehicleType(initialVehicle.vehicle_type ?? "")
-        ? initialVehicle.vehicle_type
-        : "") as string,
-  );
   const [vehicleColor, setVehicleColor] = useState(
     () =>
       (isVehicleColor(initialVehicle.vehicle_color ?? "")
@@ -87,22 +76,13 @@ export function VehicleFields({
     return year != null ? String(year) : "";
   });
 
-  const previewType: VehicleType | null = isVehicleType(vehicleType)
-    ? vehicleType
-    : null;
   const previewColor: VehicleColor | null = isVehicleColor(vehicleColor)
     ? vehicleColor
     : null;
-
-  const typeOptions = useMemo(
-    () => [
-      { value: "", label: "Select type", disabled: true },
-      ...VEHICLE_TYPES.map((type) => ({
-        value: type,
-        label: VEHICLE_TYPE_LABELS[type],
-      })),
-    ],
-    [],
+  const previewType = getVehicleClass(
+    vehicleMake,
+    vehicleModel,
+    initialVehicle.vehicle_type,
   );
 
   const colorOptions = useMemo(
@@ -145,8 +125,8 @@ export function VehicleFields({
             animate={false}
             className={previewEmphasis && !photoUrl ? "motion-vehicle-preview-nudge" : ""}
             label={
-              previewType && previewColor
-                ? `${VEHICLE_COLOR_LABELS[previewColor]} ${VEHICLE_TYPE_LABELS[previewType]}`
+              previewColor
+                ? VEHICLE_COLOR_LABELS[previewColor]
                 : "Vehicle preview"
             }
           />
@@ -155,11 +135,9 @@ export function VehicleFields({
 
       {showSummary &&
       initialVehicle.license_plate &&
-      isVehicleType(initialVehicle.vehicle_type ?? "") &&
       isVehicleColor(initialVehicle.vehicle_color ?? "") ? (
         <p className="text-sm text-foreground" data-testid="vehicle-summary">
-          {VEHICLE_COLOR_LABELS[initialVehicle.vehicle_color as VehicleColor]}{" "}
-          {VEHICLE_TYPE_LABELS[initialVehicle.vehicle_type as VehicleType]}
+          {VEHICLE_COLOR_LABELS[initialVehicle.vehicle_color as VehicleColor]}
           <span className="mt-0.5 block text-muted">
             {formatMakeModelYear(
               initialVehicle.vehicle_make ?? "",
@@ -173,26 +151,10 @@ export function VehicleFields({
         </p>
       ) : null}
 
-      <Select
-        id="vehicle_type"
+      <input
+        type="hidden"
         name="vehicle_type"
-        label="Vehicle type"
-        options={typeOptions}
-        value={vehicleType}
-        onChange={(event) => setVehicleType(event.target.value)}
-        disabled={disabled}
-        error={state?.fieldErrors?.vehicle_type?.[0]}
-      />
-
-      <Select
-        id="vehicle_color"
-        name="vehicle_color"
-        label="Color"
-        options={colorOptions}
-        value={vehicleColor}
-        onChange={(event) => setVehicleColor(event.target.value)}
-        disabled={disabled}
-        error={state?.fieldErrors?.vehicle_color?.[0]}
+        value={initialVehicle.vehicle_type ?? ""}
       />
 
       <VehicleMakeModelFields
@@ -216,6 +178,17 @@ export function VehicleFields({
         onChange={(event) => setVehicleYear(event.target.value)}
         disabled={disabled}
         error={state?.fieldErrors?.vehicle_year?.[0]}
+      />
+
+      <Select
+        id="vehicle_color"
+        name="vehicle_color"
+        label="Color"
+        options={colorOptions}
+        value={vehicleColor}
+        onChange={(event) => setVehicleColor(event.target.value)}
+        disabled={disabled}
+        error={state?.fieldErrors?.vehicle_color?.[0]}
       />
 
       <Input

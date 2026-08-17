@@ -15,7 +15,7 @@ describe("getVehicleSummaryLines", () => {
     ).toBeNull();
   });
 
-  it("formats color, type, make, model, and plate", () => {
+  it("formats color, make, model, and plate", () => {
     expect(
       getVehicleSummaryLines({
         license_plate: "1234567",
@@ -25,11 +25,26 @@ describe("getVehicleSummaryLines", () => {
         vehicle_type: "suv",
       }),
     ).toEqual({
-      colorType: "White SUV",
+      colorType: "White",
       makeModel: "Hyundai Tucson",
       plate: "12-345-67",
       vehicleType: "suv",
       vehicleColor: "white",
+    });
+  });
+
+  it("derives the illustration class when stored type is missing", () => {
+    expect(
+      getVehicleSummaryLines({
+        license_plate: "1234567",
+        vehicle_make: "Toyota",
+        vehicle_model: "Corolla",
+        vehicle_color: "white",
+        vehicle_type: null,
+      }),
+    ).toMatchObject({
+      colorType: "White",
+      vehicleType: "sedan",
     });
   });
 
@@ -44,6 +59,7 @@ describe("getVehicleSummaryLines", () => {
       }),
     ).toMatchObject({
       makeModel: "Toyota Corolla",
+      vehicleType: "sedan",
     });
   });
 

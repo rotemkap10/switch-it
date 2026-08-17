@@ -3,7 +3,6 @@ import {
   type VehicleColor,
 } from "@/lib/vehicle/colors";
 import {
-  isVehicleType,
   type VehicleType,
 } from "@/lib/vehicle/types";
 
@@ -32,9 +31,7 @@ export function isVehicleProfileComplete(
     typeof value.vehicle_model === "string" &&
     value.vehicle_model.trim().length > 0 &&
     typeof value.vehicle_color === "string" &&
-    isVehicleColor(value.vehicle_color) &&
-    typeof value.vehicle_type === "string" &&
-    isVehicleType(value.vehicle_type)
+    isVehicleColor(value.vehicle_color)
   );
 }
 
@@ -44,5 +41,5 @@ export type CompleteVehicleProfile = {
   vehicle_model: string;
   vehicle_year?: number | null;
   vehicle_color: VehicleColor;
-  vehicle_type: VehicleType;
+  vehicle_type?: VehicleType | null;
 };

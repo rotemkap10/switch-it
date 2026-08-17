@@ -36,7 +36,7 @@ export function VehicleIdentityCard({
     >
       <VehicleImage
         photoUrl={vehicle.photoUrl}
-        vehicleType={type!}
+        vehicleType={type}
         vehicleColor={color!}
         make={make}
         model={model}

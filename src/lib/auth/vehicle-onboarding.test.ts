@@ -38,6 +38,12 @@ describe("isVehicleProfileComplete", () => {
     expect(
       isVehicleProfileComplete({
         ...completeVehicle,
+        vehicle_type: null,
+      }),
+    ).toBe(true);
+    expect(
+      isVehicleProfileComplete({
+        ...completeVehicle,
         vehicle_year: null,
       }),
     ).toBe(true);
@@ -77,7 +83,7 @@ describe("isVehicleProfileComplete", () => {
     ).toBe(false);
     expect(
       isVehicleProfileComplete({ ...completeVehicle, vehicle_type: "coupe" }),
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 

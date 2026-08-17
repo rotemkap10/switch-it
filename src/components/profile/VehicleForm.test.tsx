@@ -107,7 +107,7 @@ describe("VehicleForm", () => {
 
     expect(screen.getByTestId("vehicle-summary-panel")).toBeInTheDocument();
     expect(screen.getByTestId("vehicle-summary")).toHaveTextContent("White");
-    expect(screen.getByTestId("vehicle-summary")).toHaveTextContent("SUV");
+    expect(screen.getByTestId("vehicle-summary")).not.toHaveTextContent("SUV");
     expect(screen.getByTestId("vehicle-summary")).toHaveTextContent(
       "Hyundai Tucson",
     );
@@ -143,6 +143,21 @@ describe("VehicleForm", () => {
     expect(screen.queryByTestId("vehicle-edit-panel")).not.toBeInTheDocument();
   });
 
+  it("does not force existing profiles without vehicle_type through the editor", () => {
+    renderForm(
+      <VehicleForm
+        initialVehicle={{
+          ...existingVehicle,
+          vehicle_type: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-summary-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-edit-panel")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Vehicle type")).not.toBeInTheDocument();
+  });
+
   it("shows change and remove when a vehicle photo already exists", () => {
     renderForm(
       <VehicleForm
@@ -155,7 +170,7 @@ describe("VehicleForm", () => {
     );
 
     expect(screen.getByTestId("vehicle-photo")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "White SUV" })).toHaveAttribute(
+    expect(screen.getByRole("img", { name: "White" })).toHaveAttribute(
       "src",
       "https://example.test/car.jpg",
     );
@@ -183,7 +198,7 @@ describe("VehicleForm", () => {
     expect(screen.getByLabelText("Model")).toHaveValue("Tucson");
     expect(screen.getByLabelText("Vehicle year")).toHaveValue("");
     expect(screen.getByLabelText("License plate")).toHaveValue("12-345-67");
-    expect(screen.getByLabelText("Vehicle type")).toHaveValue("suv");
+    expect(screen.queryByLabelText("Vehicle type")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Color")).toHaveValue("white");
     expect(screen.getByTestId("vehicle-illustration")).toHaveAttribute(
       "data-vehicle-type",
@@ -236,13 +251,17 @@ describe("VehicleForm", () => {
     expect(screen.queryByRole("button", { name: "Done" })).not.toBeInTheDocument();
   });
 
-  it("updates type and color selection and preview illustration", async () => {
+  it("updates color selection and preview illustration class from make/model", async () => {
     const user = userEvent.setup();
     renderForm(<VehicleForm initialVehicle={emptyVehicle} />);
 
-    await user.selectOptions(screen.getByLabelText("Vehicle type"), "sedan");
+    await user.type(screen.getByLabelText("Manufacturer"), "Toyota");
+    await user.click(screen.getByRole("option", { name: "Toyota" }));
+    await user.type(screen.getByLabelText("Model"), "Corolla");
+    await user.click(screen.getByRole("option", { name: "Corolla" }));
     await user.selectOptions(screen.getByLabelText("Color"), "blue");
 
+    expect(screen.queryByLabelText("Vehicle type")).not.toBeInTheDocument();
     expect(screen.getByTestId("vehicle-illustration")).toHaveAttribute(
       "data-vehicle-type",
       "sedan",
@@ -265,8 +284,9 @@ describe("VehicleForm", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() => {
-      expect(screen.getByText("Choose a vehicle type.")).toBeInTheDocument();
+      expect(screen.getByText("Choose a vehicle color.")).toBeInTheDocument();
       expect(screen.getByText("License plate is required.")).toBeInTheDocument();
+      expect(screen.queryByText("Choose a vehicle type.")).not.toBeInTheDocument();
     });
     expect(screen.queryByTestId("feedback-toast-error")).not.toBeInTheDocument();
   });
@@ -279,7 +299,6 @@ describe("VehicleForm", () => {
       </FeedbackShell>,
     );
 
-    await user.selectOptions(screen.getByLabelText("Vehicle type"), "hatchback");
     await user.selectOptions(screen.getByLabelText("Color"), "red");
     await user.type(screen.getByLabelText("Manufacturer"), "Mazda");
     await user.type(screen.getByLabelText("Model"), "3");
@@ -295,7 +314,6 @@ describe("VehicleForm", () => {
 
     expect(updateVehicleMock).toHaveBeenCalled();
     const formData = updateVehicleMock.mock.calls.at(-1)?.[1] as FormData;
-    expect(formData.get("vehicle_type")).toBe("hatchback");
     expect(formData.get("vehicle_color")).toBe("red");
     expect(formData.get("vehicle_make")).toBe("Mazda");
     expect(formData.get("vehicle_model")).toBe("3");

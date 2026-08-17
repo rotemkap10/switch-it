@@ -7,6 +7,7 @@ import {
   isCompleteHandoffVehicle,
   type HandoffVehicle,
 } from "@/lib/vehicle/handoff-vehicle";
+import { getVehicleClass } from "@/lib/vehicle/catalog";
 
 type HandoffVehicleSectionProps = {
   title: string;
@@ -50,7 +51,7 @@ export function HandoffVehicleSection({
         <>
           {showAnimation ? (
             <HandoffVehicleAnimation
-              vehicleType={vehicle.type!}
+              vehicleType={getVehicleClass(vehicle.make, vehicle.model, vehicle.type)}
               vehicleColor={vehicle.color!}
             />
           ) : null}

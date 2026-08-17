@@ -76,9 +76,7 @@ export function isCompleteHandoffVehicle(vehicle: HandoffVehicle): boolean {
     typeof vehicle.model === "string" &&
     vehicle.model.trim().length > 0 &&
     vehicle.color !== null &&
-    isVehicleColor(vehicle.color) &&
-    vehicle.type !== null &&
-    isVehicleType(vehicle.type)
+    isVehicleColor(vehicle.color)
   );
 }
 

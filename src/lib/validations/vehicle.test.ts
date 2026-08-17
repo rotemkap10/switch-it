@@ -30,7 +30,7 @@ describe("updateVehicleSchema", () => {
         vehicle_model: "Corolla",
         vehicle_year: 2025,
         vehicle_color: "white",
-        vehicle_type: "suv",
+        vehicle_type: "sedan",
       });
     }
   });
@@ -80,17 +80,62 @@ describe("updateVehicleSchema", () => {
     }
   });
 
-  it("rejects invalid vehicle type", () => {
-    const result = updateVehicleSchema.safeParse({
-      ...validVehicle,
-      vehicle_type: "coupe",
+  it("does not require vehicle type and derives it from the catalog", () => {
+    const withoutType = updateVehicleSchema.safeParse({
+      license_plate: "12-345-67",
+      vehicle_make: "Toyota",
+      vehicle_model: "Corolla",
+      vehicle_year: "2025",
+      vehicle_color: "white",
     });
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(
-        result.error.issues.some((issue) => issue.path[0] === "vehicle_type"),
-      ).toBe(true);
+    expect(withoutType.success).toBe(true);
+    if (withoutType.success) {
+      expect(withoutType.data.vehicle_type).toBe("sedan");
+    }
+
+    const tucson = updateVehicleSchema.safeParse({
+      ...validVehicle,
+      vehicle_type: "",
+    });
+    expect(tucson.success).toBe(true);
+    if (tucson.success) {
+      expect(tucson.data.vehicle_type).toBe("suv");
+    }
+
+    const picanto = updateVehicleSchema.safeParse({
+      ...validVehicle,
+      vehicle_make: "Kia",
+      vehicle_model: "Picanto",
+    });
+    expect(picanto.success).toBe(true);
+    if (picanto.success) {
+      expect(picanto.data.vehicle_type).toBe("hatchback");
+    }
+  });
+
+  it("keeps a legacy vehicle type only when the model is not in the catalog", () => {
+    const result = updateVehicleSchema.safeParse({
+      ...validVehicle,
+      vehicle_make: "Koenigsegg",
+      vehicle_model: "Jesko",
+      vehicle_type: "sedan",
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.vehicle_type).toBe("sedan");
+    }
+
+    const unknown = updateVehicleSchema.safeParse({
+      ...validVehicle,
+      vehicle_make: "Koenigsegg",
+      vehicle_model: "Jesko",
+      vehicle_type: "coupe",
+    });
+    expect(unknown.success).toBe(true);
+    if (unknown.success) {
+      expect(unknown.data.vehicle_type).toBe("other");
     }
   });
 
@@ -237,7 +282,7 @@ describe("hasCompleteVehicleProfile", () => {
         vehicle_model: "Tucson",
         vehicle_year: null,
         vehicle_color: "white",
-        vehicle_type: "suv",
+        vehicle_type: null,
       }),
     ).toBe(true);
 

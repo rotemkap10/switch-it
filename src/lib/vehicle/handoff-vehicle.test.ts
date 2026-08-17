@@ -116,6 +116,16 @@ describe("isCompleteHandoffVehicle", () => {
         type: "suv",
       }),
     ).toBe(false);
+
+    expect(
+      isCompleteHandoffVehicle({
+        licensePlate: "1234567",
+        make: "Hyundai",
+        model: "Tucson",
+        color: "white",
+        type: null,
+      }),
+    ).toBe(true);
   });
 });
 

@@ -1,9 +1,11 @@
 import {
   VEHICLE_CATALOG,
   type VehicleCatalogMake,
+  type VehicleCatalogModel,
 } from "@/lib/vehicle/catalog-data";
+import { isVehicleType, type VehicleType } from "@/lib/vehicle/types";
 
-export { VEHICLE_CATALOG, type VehicleCatalogMake };
+export { VEHICLE_CATALOG, type VehicleCatalogMake, type VehicleCatalogModel };
 
 /** Lowercase alphanumeric key: ignores case, spaces, hyphens, and punctuation. */
 export function normalizeVehicleKey(value: string): string {
@@ -52,17 +54,48 @@ export function matchModel(
   makeValue: string,
   modelValue: string,
 ): string | null {
+  return findCatalogModel(makeValue, modelValue)?.name ?? null;
+}
+
+function findCatalogModel(
+  makeValue: string,
+  modelValue: string,
+): VehicleCatalogModel | null {
   const make = matchMake(makeValue);
   if (!make) {
     return null;
   }
-
   const key = normalizeVehicleKey(modelValue);
   if (!key) {
     return null;
   }
+  return make.models.find((model) => normalizeVehicleKey(model.name) === key) ?? null;
+}
 
-  return make.models.find((model) => normalizeVehicleKey(model) === key) ?? null;
+/**
+ * Internal silhouette class for generic illustrations.
+ * Catalog match wins; otherwise a valid stored `vehicle_type`; otherwise `other`.
+ */
+export function getVehicleClass(
+  make: string | null | undefined,
+  model: string | null | undefined,
+  legacyType?: string | null,
+): VehicleType {
+  const catalogModel = findCatalogModel(make ?? "", model ?? "");
+  if (catalogModel) {
+    return catalogModel.class;
+  }
+  if (legacyType && isVehicleType(legacyType)) {
+    return legacyType;
+  }
+  return "other";
+}
+
+export function vehicleCatalogClassCount(): number {
+  return VEHICLE_CATALOG.reduce(
+    (sum, make) => sum + make.models.filter((model) => Boolean(model.class)).length,
+    0,
+  );
 }
 
 export const QUERY_SCORE_EXACT = 4;
@@ -205,11 +238,14 @@ export function searchModels(makeValue: string, query: string): string[] {
     return [];
   }
   if (!query.trim()) {
-    return [...make.models];
+    return make.models.map((model) => model.name);
   }
 
   return make.models
-    .map((model) => ({ model, score: queryMatchScore(model, query) }))
+    .map((model) => ({
+      model: model.name,
+      score: queryMatchScore(model.name, query),
+    }))
     .filter((row) => row.score > 0)
     .sort((a, b) => b.score - a.score || a.model.localeCompare(b.model))
     .map((row) => row.model);
