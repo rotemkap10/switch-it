@@ -21,17 +21,19 @@ export function SeekerShareLocationCard({
   const label =
     uiState === "acquiring"
       ? "Starting live location…"
-      : uiState === "weak"
-        ? "Location signal is weak"
-        : uiState === "sharing"
-          ? "Live location on"
-          : uiState === "paused"
-            ? "Live location paused"
-            : uiState === "denied"
-              ? "Location permission needed"
-              : uiState === "unavailable" || uiState === "off"
-                ? "Live location update delayed"
-                : null;
+      : uiState === "waiting"
+        ? "Waiting for GPS…"
+        : uiState === "weak"
+          ? "Location signal is weak"
+          : uiState === "sharing"
+            ? "Live location on"
+            : uiState === "paused"
+              ? "Live location paused"
+              : uiState === "denied"
+                ? "Location permission needed"
+                : uiState === "unavailable" || uiState === "off"
+                  ? "Live location update delayed"
+                  : null;
   if (!label) {
     return null;
   }

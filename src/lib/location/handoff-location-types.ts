@@ -9,7 +9,7 @@ export type HandoffTrackingStartInput = {
 };
 
 export type HandoffTrackingStartResult =
-  | { ok: true; source: HandoffTrackingSource }
+  | { ok: true; source: HandoffTrackingSource; alreadyRunning?: boolean }
   | {
       ok: false;
       reason:

@@ -25,6 +25,7 @@ export type SeekerShareUiState =
   | "idle"
   | "prompt"
   | "acquiring"
+  | "waiting"
   | "weak"
   | "sharing"
   | "paused"
@@ -112,6 +113,7 @@ export function useSeekerLiveLocationShare({
   const nativeListenerRef = useRef<{ remove: () => Promise<void> } | null>(
     null,
   );
+  const nativePluginClaimRef = useRef<string | null>(null);
   const watchRetryTimerRef = useRef<number | null>(null);
   const startWatchRef = useRef<() => void>(() => {});
 
@@ -440,8 +442,18 @@ export function useSeekerLiveLocationShare({
             setUiState("sharing");
             return;
           }
+          if (event.uiState === "waiting") {
+            if (!hasDeliveredRef.current) {
+              setUiState("waiting");
+            }
+            return;
+          }
           if (event.uiState === "unavailable") {
             setUiState("unavailable");
+            return;
+          }
+          if (event.uiState === "denied") {
+            setUiState("denied");
             return;
           }
           if (event.uiState === "weak" && !hasUsableFixRef.current) {
@@ -472,10 +484,25 @@ export function useSeekerLiveLocationShare({
       provider: "native",
     });
     try {
+      if (
+        nativePluginClaimRef.current === claimIdRef.current &&
+        sharingEnabledRef.current
+      ) {
+        logHandoffLive("nativePluginStart skipped duplicate", {
+          claimId: claimIdRef.current,
+          alreadyRunning: true,
+        });
+        await attachNativeUiListener();
+        if (!hasDeliveredRef.current) {
+          setUiState(hasUsableFixRef.current ? "waiting" : "acquiring");
+        }
+        return;
+      }
+
       const existing = await service.getTrackingState();
       if (existing.active && existing.claimId === claimIdRef.current) {
         sharingEnabledRef.current = true;
-        // Tracker running is not proof of successful transport.
+        nativePluginClaimRef.current = claimIdRef.current;
         setUiState("acquiring");
         logHandoffLive("nativePluginStarted", {
           claimId: claimIdRef.current,
@@ -520,8 +547,9 @@ export function useSeekerLiveLocationShare({
 
       logHandoffLive("nativePluginStarted", {
         claimId: claimIdRef.current,
-        alreadyRunning: false,
+        alreadyRunning: result.alreadyRunning === true,
       });
+      nativePluginClaimRef.current = claimIdRef.current;
       await attachNativeUiListener();
     } catch {
       sharingEnabledRef.current = false;
@@ -660,6 +688,7 @@ export function useSeekerLiveLocationShare({
     hasUsableFixRef.current = false;
     hasDeliveredRef.current = false;
     pendingSampleRef.current = null;
+    nativePluginClaimRef.current = null;
     clearWatch();
     void leaveChannel();
     const epoch = ++uiEpochRef.current;

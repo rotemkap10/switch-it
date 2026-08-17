@@ -67,7 +67,7 @@ function nativeService(): HandoffLocationService {
           }
           return { ok: false, reason: "unavailable" };
         }
-        return { ok: true, source: "native" };
+        return { ok: true, source: "native", alreadyRunning: result.alreadyRunning === true };
       } catch {
         return { ok: false, reason: "unavailable" };
       }

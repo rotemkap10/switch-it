@@ -36,6 +36,12 @@ describe("SeekerShareLocationCard", () => {
     expect(screen.getByText("Starting live location…")).toBeInTheDocument();
   });
 
+  it("shows waiting copy while GPS is temporarily unavailable", () => {
+    render(<SeekerShareLocationCard uiState="waiting" />);
+    expect(screen.getByText("Waiting for GPS…")).toBeInTheDocument();
+    expect(screen.queryByText("Live location on")).not.toBeInTheDocument();
+  });
+
   it("shows weak-signal copy without cancelling the claim", () => {
     render(<SeekerShareLocationCard uiState="weak" />);
     expect(screen.getByText("Location signal is weak")).toBeInTheDocument();

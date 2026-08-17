@@ -237,6 +237,25 @@ describe("native seeker live location share", () => {
     );
   });
 
+  it("skips duplicate nativePluginStart for the same claim in one session", async () => {
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId,
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(startHandoffTracking).toHaveBeenCalledTimes(1);
+  });
+
   it("does not stop native tracking when this instance does not manage the plugin", async () => {
     getTrackingState.mockResolvedValue({
       active: true,

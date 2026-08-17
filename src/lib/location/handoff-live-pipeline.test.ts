@@ -94,18 +94,42 @@ describe("handoff live-location pipeline contracts", () => {
       ),
       "utf8",
     );
+    expect(swift).toContain("didUpdateLocations raw");
+    expect(swift).toContain("locationManager didFail");
+    expect(swift).toContain("kCLErrorLocationUnknown");
+    expect(swift).toContain("location temporarily unavailable");
+    expect(swift).toContain("CLLocationManager created");
+    expect(swift).toContain("startUpdatingLocation calling");
+    expect(swift).toContain("startUpdatingLocation returned");
+    expect(swift).toContain("alreadyRunning=true");
     expect(swift).toContain("native post attempt");
     expect(swift).toContain("native post status=");
     expect(swift).toContain("appState=");
     expect(swift).toContain('emitUiState("sharing")');
+    expect(swift).toContain('emitUiState("waiting")');
     expect(swift).toContain("markSharingOnSuccess");
     expect(swift).not.toContain('payload["headingDegrees"] = NSNull()');
-    expect(swift).toContain("JSONSerialization.isValidJSONObject");
-    expect(swift).toContain("DispatchQueue.main");
-    // Do not claim UI sharing before HTTP success.
+    expect(swift).toContain("runOnMainSync");
     expect(swift).not.toMatch(
       /emitUiState\("sharing"\)[\s\S]{0,120}postEvent/,
     );
+    expect(swift).not.toMatch(
+      /locationUnknown[\s\S]{0,200}stop\(reason:/,
+    );
+  });
+
+  it("native duplicate same-claim start is idempotent", () => {
+    const swift = readFileSync(
+      resolve(
+        root,
+        "native/handoff-background-location/ios/Sources/HandoffBackgroundLocationPlugin/HandoffBackgroundLocationPlugin.swift",
+      ),
+      "utf8",
+    );
+    expect(swift).toContain('return "already_running"');
+    expect(swift).toContain("action=noop_no_manager_reset");
+    expect(swift).toContain('"alreadyRunning": true');
+    expect(swift).toContain("private var manager: CLLocationManager?");
   });
 
   it("native sharing starts from the claim session, not a navigation button", () => {

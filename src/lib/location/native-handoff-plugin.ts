@@ -7,7 +7,7 @@ import { isNativeHandoffPlatform } from "@/lib/location/is-native-handoff-platfo
 export type NativeHandoffPlugin = {
   startHandoffTracking(
     options: NativeHandoffPluginStartOptions,
-  ): Promise<{ started: boolean; reason?: string }>;
+  ): Promise<{ started: boolean; alreadyRunning?: boolean; reason?: string }>;
   stopHandoffTracking(options?: { reason?: string }): Promise<void>;
   getTrackingState(): Promise<{
     active: boolean;
@@ -16,7 +16,7 @@ export type NativeHandoffPlugin = {
   addListener?(
     eventName: "handoffLocationState",
     listener: (event: {
-      uiState: "acquiring" | "weak" | "sharing" | "unavailable";
+      uiState: "acquiring" | "waiting" | "weak" | "sharing" | "unavailable" | "denied";
     }) => void,
   ): Promise<{ remove: () => Promise<void> }>;
 };
