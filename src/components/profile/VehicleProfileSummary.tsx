@@ -88,6 +88,9 @@ export function VehicleProfileSummary({
           photoUrl={photoUrl}
           vehicleType={summary.vehicleType}
           vehicleColor={summary.vehicleColor}
+          make={vehicle.vehicle_make}
+          model={vehicle.vehicle_model}
+          year={vehicle.vehicle_year}
           animate={false}
           size="hero"
           label={summary.colorType}

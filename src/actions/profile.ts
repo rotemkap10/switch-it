@@ -27,6 +27,7 @@ export type VehicleActionState = {
     license_plate: string | null;
     vehicle_make: string | null;
     vehicle_model: string | null;
+    vehicle_year?: number | null;
     vehicle_color: string | null;
     vehicle_type: string | null;
     vehicle_photo_path?: string | null;
@@ -76,6 +77,7 @@ export async function updateVehicle(
     license_plate: String(formData.get("license_plate") ?? ""),
     vehicle_make: String(formData.get("vehicle_make") ?? ""),
     vehicle_model: String(formData.get("vehicle_model") ?? ""),
+    vehicle_year: String(formData.get("vehicle_year") ?? ""),
     vehicle_color: String(formData.get("vehicle_color") ?? ""),
     vehicle_type: String(formData.get("vehicle_type") ?? ""),
   });
@@ -94,12 +96,13 @@ export async function updateVehicle(
       license_plate: vehicle.license_plate,
       vehicle_make: vehicle.vehicle_make,
       vehicle_model: vehicle.vehicle_model,
+      vehicle_year: vehicle.vehicle_year,
       vehicle_color: vehicle.vehicle_color,
       vehicle_type: vehicle.vehicle_type,
     })
     .eq("id", user.id)
     .select(
-      "license_plate, vehicle_make, vehicle_model, vehicle_color, vehicle_type, vehicle_photo_path",
+      "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type, vehicle_photo_path",
     )
     .single();
 

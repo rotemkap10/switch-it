@@ -13,11 +13,17 @@ import {
   isVehicleType,
   type VehicleType,
 } from "@/lib/vehicle/types";
+import {
+  MIN_VEHICLE_YEAR,
+  isVehicleYear,
+  maxVehicleYear,
+} from "@/lib/vehicle/years";
 
 export type VehicleProfile = {
   license_plate: string;
   vehicle_make: string;
   vehicle_model: string;
+  vehicle_year: number;
   vehicle_color: VehicleColor;
   vehicle_type: VehicleType;
 };
@@ -49,15 +55,50 @@ function parseMakeModel(
   }
 }
 
+function parseVehicleYear(value: string, ctx: z.RefinementCtx): number | null {
+  if (isBlank(value)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Choose a vehicle year.",
+      path: ["vehicle_year"],
+    });
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!/^\d{4}$/.test(trimmed)) {
+    ctx.addIssue({
+      code: "custom",
+      message: "Enter a 4-digit year.",
+      path: ["vehicle_year"],
+    });
+    return null;
+  }
+
+  const year = Number(trimmed);
+  if (!isVehicleYear(year)) {
+    ctx.addIssue({
+      code: "custom",
+      message: `Choose a year between ${MIN_VEHICLE_YEAR} and ${maxVehicleYear()}.`,
+      path: ["vehicle_year"],
+    });
+    return null;
+  }
+
+  return year;
+}
+
 /**
  * Vehicle updates require a fully complete profile.
  * Clearing all fields is not allowed after onboarding.
+ * Year is required on save; existing rows may still have NULL year.
  */
 export const updateVehicleSchema = z
   .object({
     license_plate: z.string(),
     vehicle_make: z.string(),
     vehicle_model: z.string(),
+    vehicle_year: z.string(),
     vehicle_color: z.string(),
     vehicle_type: z.string(),
   })
@@ -66,12 +107,13 @@ export const updateVehicleSchema = z
       isBlank(data.license_plate),
       isBlank(data.vehicle_make),
       isBlank(data.vehicle_model),
+      isBlank(data.vehicle_year),
       isBlank(data.vehicle_color),
       isBlank(data.vehicle_type),
     ];
     const blankCount = blanks.filter(Boolean).length;
 
-    if (blankCount === 5) {
+    if (blankCount === 6) {
       ctx.addIssue({
         code: "custom",
         message: "Complete all vehicle fields.",
@@ -107,6 +149,7 @@ export const updateVehicleSchema = z
 
     parseMakeModel(data.vehicle_make, "vehicle_make", ctx);
     parseMakeModel(data.vehicle_model, "vehicle_model", ctx);
+    parseVehicleYear(data.vehicle_year, ctx);
 
     if (isBlank(data.vehicle_color) || !isVehicleColor(data.vehicle_color)) {
       ctx.addIssue({
@@ -126,7 +169,13 @@ export const updateVehicleSchema = z
   })
   .transform((data): VehicleProfile => {
     const plate = normalizeLicensePlate(data.license_plate);
-    if (!plate.ok || !isVehicleColor(data.vehicle_color) || !isVehicleType(data.vehicle_type)) {
+    const year = Number(data.vehicle_year.trim());
+    if (
+      !plate.ok ||
+      !isVehicleColor(data.vehicle_color) ||
+      !isVehicleType(data.vehicle_type) ||
+      !isVehicleYear(year)
+    ) {
       throw new Error("Vehicle validation transform received invalid data.");
     }
 
@@ -134,6 +183,7 @@ export const updateVehicleSchema = z
       license_plate: plate.normalized,
       vehicle_make: data.vehicle_make.trim(),
       vehicle_model: data.vehicle_model.trim(),
+      vehicle_year: year,
       vehicle_color: data.vehicle_color,
       vehicle_type: data.vehicle_type,
     };

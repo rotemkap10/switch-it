@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/vehicle/VehicleIllustration", () => ({
   VehicleIllustration: ({
@@ -27,6 +27,9 @@ vi.mock("@/components/vehicle/VehicleIllustration", () => ({
 import { VehicleImage } from "@/components/vehicle/VehicleImage";
 
 describe("VehicleImage", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
   it("shows the uploaded photo when a url is present", () => {
     render(
       <VehicleImage
@@ -65,6 +68,84 @@ describe("VehicleImage", () => {
     expect(screen.getByTestId("vehicle-illustration")).toHaveAttribute(
       "data-size",
       "compact",
+    );
+  });
+
+  it("still prefers an uploaded photo over a CarImages make/model match", () => {
+    render(
+      <VehicleImage
+        photoUrl="https://example.test/car.jpg"
+        vehicleType="suv"
+        vehicleColor="white"
+        make="Hyundai"
+        model="Tucson"
+        year={2025}
+        label="White SUV"
+        size="hero"
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-photo")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "White SUV" })).toHaveAttribute(
+      "src",
+      "https://example.test/car.jpg",
+    );
+    expect(screen.queryByTestId("vehicle-model-image")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
+  });
+
+  it("asks CarImages for make and model when there is no uploaded photo", () => {
+    vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
+
+    render(
+      <VehicleImage
+        vehicleType="suv"
+        vehicleColor="white"
+        make="Hyundai"
+        model="Tucson"
+        year={2025}
+        size="compact"
+        label="White SUV"
+      />,
+    );
+
+    expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-make",
+      "Hyundai",
+    );
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-view",
+      "front34",
+    );
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-year",
+      "2025",
+    );
+  });
+
+  it("asks CarImages for make and model only when year is missing", () => {
+    vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
+
+    render(
+      <VehicleImage
+        vehicleType="suv"
+        vehicleColor="white"
+        make="Hyundai"
+        model="Tucson"
+        size="compact"
+        label="White SUV"
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-make",
+      "Hyundai",
+    );
+    expect(screen.getByTestId("vehicle-model-image")).not.toHaveAttribute(
+      "data-ci-year",
     );
   });
 

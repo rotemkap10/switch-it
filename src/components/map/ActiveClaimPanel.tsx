@@ -25,7 +25,7 @@ import { useDistanceToSpot } from "@/lib/map/use-distance-to-spot";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
 import {
-  formatVehicleNameForDisplay,
+  formatVehicleIdentityTitle,
   isCompleteHandoffVehicle,
   type HandoffVehicle,
 } from "@/lib/vehicle/handoff-vehicle";
@@ -180,7 +180,7 @@ function ActiveClaimSheetBody({
   const showDetails = expanded || closeToSpot;
   const compactVehicleLabel =
     counterpartVehicle && isCompleteHandoffVehicle(counterpartVehicle)
-      ? `${formatVehicleNameForDisplay(`${counterpartVehicle.make} ${counterpartVehicle.model}`)} · ${VEHICLE_COLOR_LABELS[counterpartVehicle.color!]} · ${formatLicensePlateForDisplay(counterpartVehicle.licensePlate!)}`
+      ? `${formatVehicleIdentityTitle(counterpartVehicle.make!, counterpartVehicle.model!, counterpartVehicle.year)} · ${VEHICLE_COLOR_LABELS[counterpartVehicle.color!]} · ${formatLicensePlateForDisplay(counterpartVehicle.licensePlate!)}`
       : null;
 
   return (

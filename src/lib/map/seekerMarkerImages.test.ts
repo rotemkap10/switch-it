@@ -9,6 +9,20 @@ import {
 } from "@/lib/map/seekerMarkerImages";
 
 describe("seekerMarkerImages", () => {
+  function pixelAt(
+    image: { width: number; data: Uint8ClampedArray },
+    x: number,
+    y: number,
+  ): [number, number, number, number] {
+    const i = (y * image.width + x) * 4;
+    return [
+      image.data[i] ?? 0,
+      image.data[i + 1] ?? 0,
+      image.data[i + 2] ?? 0,
+      image.data[i + 3] ?? 0,
+    ];
+  }
+
   it("uses only the stable vehicle marker image IDs", () => {
     expect(SEEKER_MARKER_IMAGE_ID_LIST).toEqual([
       "spot-unselected",
@@ -23,10 +37,11 @@ describe("seekerMarkerImages", () => {
     expect(createSeekerMarkerImageData("spot-selected").width).toBe(62);
     const live = createSeekerMarkerImageData("seeker-live");
     const pin = createSeekerMarkerImageData("spot-destination");
-    expect(live.width).toBe(52);
-    expect(live.height).toBe(52);
-    expect(pin.width).toBe(56);
-    expect(pin.height).toBe(72);
+    expect(live.width).toBe(112);
+    expect(live.height).toBe(136);
+    expect(pin.width).toBe(104);
+    expect(pin.height).toBe(144);
+    expect(pin.height).toBeGreaterThan(live.width);
   });
 
   it("uses a parking P mark instead of a vehicle glyph", () => {
@@ -35,7 +50,6 @@ describe("seekerMarkerImages", () => {
     const cx = Math.round((size - 1) / 2);
     const cy = Math.round((size - 1) / 2);
     const center = (cy * size + cx) * 4;
-    // Inner disc/P uses the cyan glyph, not a car-shaped block at center-right wheels.
     expect(unselected.data[center]).toBe(255);
     expect(unselected.data[center + 1]).toBe(255);
     expect(unselected.data[center + 2]).toBe(255);
@@ -48,42 +62,44 @@ describe("seekerMarkerImages", () => {
     expect(unselected.data[stem + 2]).toBe(230);
   });
 
-  it("keeps the live seeker marker as a small car, not a parking P", () => {
+  it("keeps the live seeker marker as a sedan, not a parking P", () => {
     const live = createSeekerMarkerImageData("seeker-live");
     const parking = createSeekerMarkerImageData("spot-destination");
-    const liveSize = live.width;
-    const liveCx = Math.round((liveSize - 1) / 2);
-    const liveCy = Math.round((liveSize - 1) / 2);
-    const cabin = (liveCy * liveSize + liveCx) * 4;
-    expect(live.data[cabin]).toBe(230);
-    expect(live.data[cabin + 1]).toBe(244);
-    expect(live.data[cabin + 2]).toBe(255);
 
-    const wheelX = Math.round(liveSize * 0.25);
-    const wheelY = Math.round(liveSize * 0.36);
-    const wheel = (wheelY * liveSize + wheelX) * 4;
-    expect(live.data[wheel]).toBe(30);
-    expect(live.data[wheel + 1]).toBe(42);
-    expect(live.data[wheel + 2]).toBe(58);
+    const windshield = pixelAt(live, 56, 44);
+    expect(windshield[0]).toBeGreaterThan(200);
+    expect(windshield[1]).toBeGreaterThan(220);
+    expect(windshield[2]).toBeGreaterThan(240);
 
-    const pinHeadX = Math.round((parking.width - 1) / 2);
-    const pinHeadY = Math.round(parking.height * 0.38);
-    const pinHead = (pinHeadY * parking.width + pinHeadX) * 4;
-    expect(parking.data[pinHead + 1]).toBeGreaterThan(140);
-    expect(parking.data[pinHead]).not.toBe(live.data[cabin]);
+    const wheel = pixelAt(live, 36, 52);
+    expect(wheel[0]).toBeLessThan(50);
+    expect(wheel[1]).toBeLessThan(60);
+    expect(wheel[2]).toBeLessThan(80);
+    expect(wheel[3]).toBeGreaterThan(200);
+
+    const body = pixelAt(live, 56, 24);
+    expect(body[2]).toBeGreaterThan(body[1]);
+    expect(body[0]).toBeLessThan(120);
+
+    const pinFill = pixelAt(parking, 24, 52);
+    expect(pinFill[2]).toBeGreaterThan(pinFill[1]);
+    expect(pinFill[0]).toBeLessThan(80);
+    expect(windshield[0]).not.toBe(pinFill[0]);
   });
 
-  it("draws the destination as a green parking pin, not a circular disc", () => {
+  it("draws the destination as a blue parking pin, not a circular disc", () => {
     const pin = createSeekerMarkerImageData("spot-destination");
     const cx = Math.round((pin.width - 1) / 2);
-    const tipY = pin.height - 4;
-    const tip = (tipY * pin.width + cx) * 4;
-    expect(pin.data[tip + 3]).toBeGreaterThan(0);
-    expect(pin.data[tip + 1]).toBeGreaterThan(90);
+    const tip = pixelAt(pin, cx, pin.height - 8);
+    expect(tip[3]).toBeGreaterThan(0);
+    expect(tip[2]).toBeGreaterThan(tip[1]);
+    expect(tip[0]).toBeLessThan(80);
 
-    const aboveTipEmptyY = 2;
-    const above = (aboveTipEmptyY * pin.width + cx) * 4;
-    expect(pin.data[above + 3] ?? 0).toBeLessThan(40);
+    const above = pixelAt(pin, cx, 2);
+    expect(above[3]).toBeLessThan(40);
+
+    const corner = pixelAt(pin, 2, 2);
+    expect(corner[3]).toBeLessThan(40);
 
     const live = createSeekerMarkerImageData("seeker-live");
     expect(pin.height).toBeGreaterThan(live.height);
@@ -116,6 +132,16 @@ describe("seekerMarkerImages", () => {
     registerSeekerMarkerImages(map as never);
 
     expect(addImage).toHaveBeenCalledTimes(3);
+    expect(addImage).toHaveBeenCalledWith(
+      "seeker-live",
+      expect.anything(),
+      expect.objectContaining({ pixelRatio: 3, sdf: false }),
+    );
+    expect(addImage).toHaveBeenCalledWith(
+      "spot-destination",
+      expect.anything(),
+      expect.objectContaining({ pixelRatio: 3, sdf: false }),
+    );
     expect(addImage.mock.calls.map((c) => c[0]).sort()).toEqual([
       "seeker-live",
       "spot-destination",

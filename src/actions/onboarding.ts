@@ -23,6 +23,7 @@ export async function completeVehicleOnboarding(
     license_plate: String(formData.get("license_plate") ?? ""),
     vehicle_make: String(formData.get("vehicle_make") ?? ""),
     vehicle_model: String(formData.get("vehicle_model") ?? ""),
+    vehicle_year: String(formData.get("vehicle_year") ?? ""),
     vehicle_color: String(formData.get("vehicle_color") ?? ""),
     vehicle_type: String(formData.get("vehicle_type") ?? ""),
   });
@@ -42,6 +43,7 @@ export async function completeVehicleOnboarding(
       license_plate: vehicle.license_plate,
       vehicle_make: vehicle.vehicle_make,
       vehicle_model: vehicle.vehicle_model,
+      vehicle_year: vehicle.vehicle_year,
       vehicle_color: vehicle.vehicle_color,
       vehicle_type: vehicle.vehicle_type,
     })

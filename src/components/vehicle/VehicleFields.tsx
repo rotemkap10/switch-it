@@ -19,6 +19,11 @@ import {
   isVehicleType,
   type VehicleType,
 } from "@/lib/vehicle/types";
+import {
+  coerceVehicleYear,
+  formatMakeModelYear,
+  vehicleYearSelectOptions,
+} from "@/lib/vehicle/years";
 
 export type VehicleFieldsState = {
   fieldErrors?: Record<string, string[]>;
@@ -63,6 +68,16 @@ export function VehicleFields({
         ? initialVehicle.vehicle_color
         : "") as string,
   );
+  const [vehicleMake, setVehicleMake] = useState(
+    initialVehicle.vehicle_make ?? "",
+  );
+  const [vehicleModel, setVehicleModel] = useState(
+    initialVehicle.vehicle_model ?? "",
+  );
+  const [vehicleYear, setVehicleYear] = useState(() => {
+    const year = coerceVehicleYear(initialVehicle.vehicle_year);
+    return year != null ? String(year) : "";
+  });
 
   const previewType: VehicleType | null = isVehicleType(vehicleType)
     ? vehicleType
@@ -93,6 +108,14 @@ export function VehicleFields({
     [],
   );
 
+  const yearOptions = useMemo(
+    () => [
+      { value: "", label: "Select year", disabled: true },
+      ...vehicleYearSelectOptions(),
+    ],
+    [],
+  );
+
   const plateDefault =
     initialVehicle.license_plate != null && initialVehicle.license_plate !== ""
       ? formatLicensePlateForDisplay(initialVehicle.license_plate)
@@ -106,6 +129,9 @@ export function VehicleFields({
             photoUrl={photoUrl}
             vehicleType={previewType}
             vehicleColor={previewColor}
+            make={vehicleMake}
+            model={vehicleModel}
+            year={vehicleYear || null}
             placeholderPreview={placeholderPreview}
             size={previewSize}
             animate={false}
@@ -127,7 +153,11 @@ export function VehicleFields({
           {VEHICLE_COLOR_LABELS[initialVehicle.vehicle_color as VehicleColor]}{" "}
           {VEHICLE_TYPE_LABELS[initialVehicle.vehicle_type as VehicleType]}
           <span className="mt-0.5 block text-muted">
-            {initialVehicle.vehicle_make} {initialVehicle.vehicle_model}
+            {formatMakeModelYear(
+              initialVehicle.vehicle_make ?? "",
+              initialVehicle.vehicle_model ?? "",
+              initialVehicle.vehicle_year,
+            )}
           </span>
           <span className="mt-0.5 block font-semibold tracking-wide">
             {formatLicensePlateForDisplay(initialVehicle.license_plate)}
@@ -165,8 +195,8 @@ export function VehicleFields({
         autoComplete="off"
         autoCapitalize="words"
         maxLength={40}
-        defaultValue={initialVehicle.vehicle_make ?? ""}
-        key={`make-${initialVehicle.vehicle_make ?? "empty"}`}
+        value={vehicleMake}
+        onChange={(event) => setVehicleMake(event.target.value)}
         disabled={disabled}
         placeholder="e.g. Hyundai"
         error={state?.fieldErrors?.vehicle_make?.[0]}
@@ -180,11 +210,22 @@ export function VehicleFields({
         autoComplete="off"
         autoCapitalize="words"
         maxLength={40}
-        defaultValue={initialVehicle.vehicle_model ?? ""}
-        key={`model-${initialVehicle.vehicle_model ?? "empty"}`}
+        value={vehicleModel}
+        onChange={(event) => setVehicleModel(event.target.value)}
         disabled={disabled}
         placeholder="e.g. Tucson"
         error={state?.fieldErrors?.vehicle_model?.[0]}
+      />
+
+      <Select
+        id="vehicle_year"
+        name="vehicle_year"
+        label="Vehicle year"
+        options={yearOptions}
+        value={vehicleYear}
+        onChange={(event) => setVehicleYear(event.target.value)}
+        disabled={disabled}
+        error={state?.fieldErrors?.vehicle_year?.[0]}
       />
 
       <Input

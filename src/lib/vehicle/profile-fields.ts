@@ -11,6 +11,7 @@ export type VehicleProfileFields = {
   license_plate: string | null;
   vehicle_make: string | null;
   vehicle_model: string | null;
+  vehicle_year?: number | null;
   vehicle_color: string | null;
   vehicle_type: string | null;
   vehicle_photo_path?: string | null;
@@ -41,6 +42,7 @@ export type CompleteVehicleProfile = {
   license_plate: string;
   vehicle_make: string;
   vehicle_model: string;
+  vehicle_year?: number | null;
   vehicle_color: VehicleColor;
   vehicle_type: VehicleType;
 };

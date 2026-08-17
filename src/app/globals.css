@@ -1174,6 +1174,15 @@ html[data-native-status-bar="inset"] .app-shell-header {
   object-position: center;
 }
 
+.vehicle-photo-frame__image--model {
+  object-fit: contain;
+  background: #fff;
+}
+
+.vehicle-model-image__pending {
+  display: none;
+}
+
 .vehicle-photo-frame--hero {
   width: 100%;
   aspect-ratio: 16 / 10;

@@ -132,4 +132,22 @@ describe("VehicleIdentityCard", () => {
 
     expect(container).toBeEmptyDOMElement();
   });
+
+  it("shows year with make and model when present", () => {
+    render(
+      <VehicleIdentityCard
+        vehicle={{
+          ...completeVehicle,
+          year: 2025,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-identity-make-model")).toHaveTextContent(
+      "Hyundai Tucson · 2025",
+    );
+    expect(
+      screen.getByText("White Hyundai Tucson 2025, license plate 123-45-678"),
+    ).toHaveClass("sr-only");
+  });
 });

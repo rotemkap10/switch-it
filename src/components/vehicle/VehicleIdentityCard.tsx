@@ -1,6 +1,6 @@
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
 import {
-  formatVehicleNameForDisplay,
+  formatVehicleIdentityTitle,
   handoffVehicleAccessibleLabel,
   isCompleteHandoffVehicle,
   type HandoffVehicle,
@@ -23,9 +23,9 @@ export function VehicleIdentityCard({
     return null;
   }
 
-  const { color, type, make, model, licensePlate } = vehicle;
+  const { color, type, make, model, year, licensePlate } = vehicle;
   const plate = formatLicensePlateForDisplay(licensePlate!);
-  const name = formatVehicleNameForDisplay(`${make} ${model}`);
+  const name = formatVehicleIdentityTitle(make!, model!, year);
   const colorLabel = VEHICLE_COLOR_LABELS[color!];
 
   return (
@@ -38,6 +38,9 @@ export function VehicleIdentityCard({
         photoUrl={vehicle.photoUrl}
         vehicleType={type!}
         vehicleColor={color!}
+        make={make}
+        model={model}
+        year={year}
         animate={false}
         size="compact"
         label={name}

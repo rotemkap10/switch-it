@@ -17,7 +17,7 @@ export default async function ProfilePage() {
   const { data: profile, error } = await supabase
     .from("profiles")
     .select(
-      "display_name, credits, role, license_plate, vehicle_make, vehicle_model, vehicle_color, vehicle_type, vehicle_photo_path",
+      "display_name, credits, role, license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type, vehicle_photo_path",
     )
     .eq("id", user.id)
     .maybeSingle();
@@ -38,6 +38,8 @@ export default async function ProfilePage() {
     license_plate: profile.license_plate,
     vehicle_make: profile.vehicle_make,
     vehicle_model: profile.vehicle_model,
+    vehicle_year:
+      typeof profile.vehicle_year === "number" ? profile.vehicle_year : null,
     vehicle_color: profile.vehicle_color,
     vehicle_type: profile.vehicle_type,
     vehicle_photo_path: profile.vehicle_photo_path ?? null,

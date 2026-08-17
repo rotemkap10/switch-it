@@ -32,4 +32,19 @@ describe("getVehicleSummaryLines", () => {
       vehicleColor: "white",
     });
   });
+
+  it("appends year when the profile has one", () => {
+    expect(
+      getVehicleSummaryLines({
+        license_plate: "1234567",
+        vehicle_make: "Hyundai",
+        vehicle_model: "Tucson",
+        vehicle_year: 2025,
+        vehicle_color: "white",
+        vehicle_type: "suv",
+      }),
+    ).toMatchObject({
+      makeModel: "Hyundai Tucson · 2025",
+    });
+  });
 });

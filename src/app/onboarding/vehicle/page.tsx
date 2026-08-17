@@ -8,6 +8,7 @@ const emptyVehicle = {
   license_plate: null,
   vehicle_make: null,
   vehicle_model: null,
+  vehicle_year: null,
   vehicle_color: null,
   vehicle_type: null,
   vehicle_photo_path: null,

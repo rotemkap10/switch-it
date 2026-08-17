@@ -13,6 +13,7 @@ import {
   isVehicleType,
   type VehicleType,
 } from "@/lib/vehicle/types";
+import { formatMakeModelYear } from "@/lib/vehicle/years";
 
 export type VehicleSummaryLines = {
   colorType: string;
@@ -53,7 +54,7 @@ export function getVehicleSummaryLines(
 
   return {
     colorType: `${VEHICLE_COLOR_LABELS[vehicleColor]} ${VEHICLE_TYPE_LABELS[vehicleType]}`,
-    makeModel: `${make} ${model}`.trim(),
+    makeModel: formatMakeModelYear(make, model, vehicle.vehicle_year),
     plate: formatLicensePlateForDisplay(licensePlate),
     vehicleType,
     vehicleColor,

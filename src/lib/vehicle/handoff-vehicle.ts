@@ -1,11 +1,13 @@
 import { isVehicleColor, VEHICLE_COLOR_LABELS, type VehicleColor } from "@/lib/vehicle/colors";
 import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
 import { isVehicleType, type VehicleType } from "@/lib/vehicle/types";
+import { coerceVehicleYear } from "@/lib/vehicle/years";
 
 export type HandoffVehicle = {
   licensePlate: string | null;
   make: string | null;
   model: string | null;
+  year?: number | null;
   color: VehicleColor | null;
   type: VehicleType | null;
   photoPath?: string | null;
@@ -16,6 +18,7 @@ export type HandoffVehicleRow = {
   vehicle_license_plate: string | null;
   vehicle_make: string | null;
   vehicle_model: string | null;
+  vehicle_year?: number | null;
   vehicle_color: string | null;
   vehicle_type: string | null;
   vehicle_photo_path?: string | null;
@@ -26,6 +29,7 @@ export function mapHandoffVehicleRow(row: HandoffVehicleRow): HandoffVehicle {
     licensePlate: row.vehicle_license_plate,
     make: row.vehicle_make,
     model: row.vehicle_model,
+    year: coerceVehicleYear(row.vehicle_year),
     color:
       row.vehicle_color && isVehicleColor(row.vehicle_color)
         ? row.vehicle_color
@@ -43,6 +47,7 @@ export function mapProfileVehicleToHandoff(row: {
   license_plate?: string | null;
   vehicle_make?: string | null;
   vehicle_model?: string | null;
+  vehicle_year?: number | null;
   vehicle_color?: string | null;
   vehicle_type?: string | null;
   vehicle_photo_path?: string | null;
@@ -54,6 +59,7 @@ export function mapProfileVehicleToHandoff(row: {
     vehicle_license_plate: row.license_plate ?? null,
     vehicle_make: row.vehicle_make ?? null,
     vehicle_model: row.vehicle_model ?? null,
+    vehicle_year: row.vehicle_year ?? null,
     vehicle_color: row.vehicle_color ?? null,
     vehicle_type: row.vehicle_type ?? null,
     vehicle_photo_path: row.vehicle_photo_path ?? null,
@@ -85,11 +91,21 @@ export function formatVehicleNameForDisplay(value: string): string {
     .join(" ");
 }
 
+export function formatVehicleIdentityTitle(
+  make: string,
+  model: string,
+  year?: number | null,
+): string {
+  const name = formatVehicleNameForDisplay(`${make} ${model}`);
+  return year != null ? `${name} · ${year}` : name;
+}
+
 export function handoffVehicleAccessibleLabel(vehicle: HandoffVehicle): string {
   if (!isCompleteHandoffVehicle(vehicle)) {
     return "Vehicle details not added yet";
   }
 
   const plate = formatLicensePlateForDisplay(vehicle.licensePlate!);
-  return `${VEHICLE_COLOR_LABELS[vehicle.color!]} ${vehicle.make} ${vehicle.model}, license plate ${plate}`;
+  const yearSuffix = vehicle.year != null ? ` ${vehicle.year}` : "";
+  return `${VEHICLE_COLOR_LABELS[vehicle.color!]} ${vehicle.make} ${vehicle.model}${yearSuffix}, license plate ${plate}`;
 }

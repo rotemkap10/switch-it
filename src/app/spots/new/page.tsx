@@ -104,7 +104,7 @@ export default async function NewSpotPage() {
   const { data: ownProfile } = await supabase
     .from("profiles")
     .select(
-      "license_plate, vehicle_make, vehicle_model, vehicle_color, vehicle_type",
+      "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type",
     )
     .eq("id", user.id)
     .maybeSingle();

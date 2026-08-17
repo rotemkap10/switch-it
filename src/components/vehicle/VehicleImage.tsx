@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
+import { VehicleModelImage } from "@/components/vehicle/VehicleModelImage";
 import type { VehicleColor } from "@/lib/vehicle/colors";
 import type { VehicleType } from "@/lib/vehicle/types";
 
@@ -10,6 +11,9 @@ type VehicleImageProps = {
   photoUrl?: string | null;
   vehicleType?: VehicleType | null;
   vehicleColor?: VehicleColor | null;
+  make?: string | null;
+  model?: string | null;
+  year?: string | number | null;
   placeholderPreview?: boolean;
   size?: "default" | "compact" | "hero";
   label?: string;
@@ -22,6 +26,9 @@ export function VehicleImage({
   photoUrl = null,
   vehicleType = null,
   vehicleColor = null,
+  make = null,
+  model = null,
+  year = null,
   placeholderPreview = false,
   size = "default",
   label,
@@ -55,6 +62,50 @@ export function VehicleImage({
     );
   }
 
+  const fallback = vehicleFallback({
+    vehicleType,
+    vehicleColor,
+    placeholderPreview,
+    size,
+    label,
+    className,
+    animate,
+    dataEntrance,
+  });
+
+  return (
+    <VehicleModelImage
+      make={make}
+      model={model}
+      year={year}
+      alt={label || "Vehicle"}
+      className={className}
+      size={size}
+    >
+      {fallback}
+    </VehicleModelImage>
+  );
+}
+
+function vehicleFallback({
+  vehicleType,
+  vehicleColor,
+  placeholderPreview,
+  size,
+  label,
+  className,
+  animate,
+  dataEntrance,
+}: {
+  vehicleType?: VehicleType | null;
+  vehicleColor?: VehicleColor | null;
+  placeholderPreview: boolean;
+  size: "default" | "compact" | "hero";
+  label?: string;
+  className: string;
+  animate: boolean;
+  dataEntrance: boolean;
+}): ReactNode {
   if (vehicleType && vehicleColor) {
     return (
       <VehicleIllustration

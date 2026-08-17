@@ -59,8 +59,11 @@ Apply Supabase migrations with your usual linked workflow (`supabase db push` / 
 | `NEXT_PUBLIC_SUPABASE_URL` | Client + server |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client + server |
 | `NEXT_PUBLIC_MAPTILER_API_KEY` | Client map/geocoding |
+| `NEXT_PUBLIC_CARIMAGES_API_KEY` | Client (public CarImages JS-loader key; optional) |
 
 Optional: `NEXT_PUBLIC_PWA_DEV=true` to exercise the service worker locally.
+
+CarImages is a vehicle-image fallback only (WebP `front34`). Do not put the CarImages API secret in any `NEXT_PUBLIC_` variable. Temporary visual check: `/dev/car-images`.
 
 There is **no** Google Routes / ETA key in this MVP.
 

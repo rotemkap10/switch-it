@@ -31,6 +31,12 @@ describe("isVehicleProfileComplete", () => {
     expect(
       isVehicleProfileComplete({
         ...completeVehicle,
+        vehicle_year: null,
+      }),
+    ).toBe(true);
+    expect(
+      isVehicleProfileComplete({
+        ...completeVehicle,
         vehicle_photo_path: null,
       }),
     ).toBe(true);

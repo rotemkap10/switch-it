@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  formatVehicleIdentityTitle,
   formatVehicleNameForDisplay,
   handoffVehicleAccessibleLabel,
   isCompleteHandoffVehicle,
@@ -24,6 +25,7 @@ describe("mapHandoffVehicleRow", () => {
       licensePlate: "12345678",
       make: "Hyundai",
       model: "Tucson",
+      year: null,
       color: "white",
       type: "suv",
       photoPath: null,
@@ -41,10 +43,30 @@ describe("mapHandoffVehicleRow", () => {
       licensePlate: "12345678",
       make: "Hyundai",
       model: "Tucson",
+      year: null,
       color: null,
       type: null,
       photoPath: null,
     });
+  });
+
+  it("maps an optional vehicle year without treating it as required", () => {
+    expect(
+      mapHandoffVehicleRow({
+        ...completeRow,
+        vehicle_year: 2025,
+      }),
+    ).toMatchObject({
+      year: 2025,
+    });
+    expect(
+      isCompleteHandoffVehicle(
+        mapHandoffVehicleRow({
+          ...completeRow,
+          vehicle_year: null,
+        }),
+      ),
+    ).toBe(true);
   });
 
   it("maps an optional vehicle photo path without treating it as required", () => {
@@ -107,6 +129,18 @@ describe("handoffVehicleAccessibleLabel", () => {
     );
   });
 
+  it("includes year in the accessible label when present", () => {
+    const vehicle = mapHandoffVehicleRow({
+      ...completeRow,
+      vehicle_year: 2025,
+    });
+    const plate = formatLicensePlateForDisplay(vehicle.licensePlate!);
+
+    expect(handoffVehicleAccessibleLabel(vehicle)).toBe(
+      `${VEHICLE_COLOR_LABELS.white} Hyundai Tucson 2025, license plate ${plate}`,
+    );
+  });
+
   it("uses fallback copy for incomplete vehicles", () => {
     expect(
       handoffVehicleAccessibleLabel({
@@ -117,6 +151,17 @@ describe("handoffVehicleAccessibleLabel", () => {
         type: null,
       }),
     ).toBe("Vehicle details not added yet");
+  });
+});
+
+describe("formatVehicleIdentityTitle", () => {
+  it("appends year only when present", () => {
+    expect(formatVehicleIdentityTitle("hyundai", "tucson", 2025)).toBe(
+      "Hyundai Tucson · 2025",
+    );
+    expect(formatVehicleIdentityTitle("hyundai", "tucson", null)).toBe(
+      "Hyundai Tucson",
+    );
   });
 });
 

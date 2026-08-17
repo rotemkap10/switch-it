@@ -41,6 +41,7 @@ function mockUpdateWithSchemaValidation() {
         license_plate: String(formData.get("license_plate") ?? ""),
         vehicle_make: String(formData.get("vehicle_make") ?? ""),
         vehicle_model: String(formData.get("vehicle_model") ?? ""),
+        vehicle_year: String(formData.get("vehicle_year") ?? ""),
         vehicle_color: String(formData.get("vehicle_color") ?? ""),
         vehicle_type: String(formData.get("vehicle_type") ?? ""),
       });
@@ -162,6 +163,7 @@ describe("VehicleForm", () => {
     expect(screen.getByTestId("vehicle-edit-panel")).toBeInTheDocument();
     expect(screen.getByLabelText("Make")).toHaveValue("Hyundai");
     expect(screen.getByLabelText("Model")).toHaveValue("Tucson");
+    expect(screen.getByLabelText("Vehicle year")).toHaveValue("");
     expect(screen.getByLabelText("License plate")).toHaveValue("12-345-67");
     expect(screen.getByLabelText("Vehicle type")).toHaveValue("suv");
     expect(screen.getByLabelText("Color")).toHaveValue("white");
@@ -263,6 +265,7 @@ describe("VehicleForm", () => {
     await user.selectOptions(screen.getByLabelText("Color"), "red");
     await user.type(screen.getByLabelText("Make"), "Mazda");
     await user.type(screen.getByLabelText("Model"), "3");
+    await user.selectOptions(screen.getByLabelText("Vehicle year"), "2025");
     await user.type(screen.getByLabelText("License plate"), "1234567");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
@@ -278,14 +281,39 @@ describe("VehicleForm", () => {
     expect(formData.get("vehicle_color")).toBe("red");
     expect(formData.get("vehicle_make")).toBe("Mazda");
     expect(formData.get("vehicle_model")).toBe("3");
+    expect(formData.get("vehicle_year")).toBe("2025");
     expect(formData.get("license_plate")).toBe("1234567");
 
     await waitFor(() => {
       expect(screen.getByTestId("vehicle-summary-panel")).toBeInTheDocument();
     });
+    expect(screen.getByTestId("vehicle-summary")).toHaveTextContent(
+      "Mazda 3 · 2025",
+    );
     expect(screen.queryByLabelText("Make")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Edit vehicle details" }),
     ).toBeInTheDocument();
+  });
+
+  it("shows a saved year in the summary and editor", async () => {
+    const user = userEvent.setup();
+    renderForm(
+      <VehicleForm
+        initialVehicle={{
+          ...existingVehicle,
+          vehicle_year: 2025,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-summary")).toHaveTextContent(
+      "Hyundai Tucson · 2025",
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Edit vehicle details" }),
+    );
+    expect(screen.getByLabelText("Vehicle year")).toHaveValue("2025");
   });
 });

@@ -53,6 +53,7 @@ describe("OnboardingVehicleForm", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Start finding parking")).toBeInTheDocument();
     expect(screen.getByLabelText("Vehicle type")).toHaveClass("app-form-control");
+    expect(screen.getByLabelText("Vehicle year")).toHaveClass("app-form-control");
     expect(screen.getByLabelText("License plate")).toHaveAttribute(
       "inputmode",
       "numeric",

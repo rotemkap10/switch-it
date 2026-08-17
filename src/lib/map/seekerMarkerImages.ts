@@ -41,19 +41,20 @@ const MARKER_COLORS: Record<
   },
 };
 
-const PIN_OUTLINE: Rgba = [24, 96, 68, 255];
-const PIN_FILL: Rgba = [46, 168, 120, 255];
-const PIN_HIGHLIGHT: Rgba = [79, 191, 143, 255];
+const PIN_SHADOW: Rgba = [18, 42, 72, 72];
+const PIN_OUTLINE: Rgba = [14, 78, 128, 255];
+const PIN_FILL: Rgba = [37, 168, 230, 255];
 const PIN_GLYPH: Rgba = [255, 255, 255, 255];
-const PIN_HALO: Rgba = [255, 255, 255, 230];
 
-const CAR_HALO: Rgba = [255, 255, 255, 235];
-const CAR_OUTLINE: Rgba = [18, 70, 112, 255];
+const CAR_SHADOW: Rgba = [18, 42, 72, 70];
+const CAR_OUTLINE: Rgba = [16, 64, 104, 255];
 const CAR_BODY: Rgba = [37, 168, 230, 255];
-const CAR_BODY_DARK: Rgba = [20, 132, 196, 255];
-const CAR_WINDOW: Rgba = [230, 244, 255, 255];
-const CAR_WHEEL: Rgba = [30, 42, 58, 255];
-const CAR_LIGHT: Rgba = [255, 236, 170, 255];
+const CAR_BODY_DARK: Rgba = [22, 124, 188, 255];
+const CAR_HOOD: Rgba = [72, 186, 236, 255];
+const CAR_WINDOW: Rgba = [232, 245, 255, 255];
+const CAR_WHEEL: Rgba = [32, 42, 56, 255];
+const CAR_LIGHT: Rgba = [255, 240, 190, 255];
+const CAR_MIRROR: Rgba = [20, 112, 176, 255];
 
 function setPixel(data: Uint8ClampedArray, i: number, rgba: Rgba) {
   data[i] = rgba[0];
@@ -134,66 +135,48 @@ function createCircularParkingMarker(
   return { width: size, height: size, data };
 }
 
-/** Green map pin with a white “P” — fixed parking destination. */
+/** Classic blue map pin with a white “P” — parking destination. */
 function createParkingPinMarker(): SeekerMarkerImagePixels {
-  const width = 56;
-  const height = 72;
+  const width = 104;
+  const height = 144;
   const data = new Uint8ClampedArray(width * height * 4);
   const cx = (width - 1) / 2;
-  const tipY = height - 3;
-  const headCy = height * 0.38;
-  const headR = width * 0.32;
+  const tipY = height - 4;
+  const headCy = height * 0.36;
+  const headR = width * 0.34;
 
-  fillDisc(data, width, height, cx, headCy, headR + 3, PIN_HALO);
-  fillTriangle(
+  drawTeardropPin(
     data,
     width,
     height,
-    cx - 4,
-    tipY,
-    cx + 4,
-    tipY,
-    cx,
-    headCy + headR * 0.2,
-    PIN_HALO,
+    cx + 3.2,
+    headCy + 4.8,
+    tipY + 2,
+    headR + 0.8,
+    PIN_SHADOW,
+    true,
   );
-
-  fillDisc(data, width, height, cx, headCy, headR + 1.2, PIN_OUTLINE);
-  fillTriangle(
+  drawTeardropPin(
     data,
     width,
     height,
-    cx - 1.5,
-    tipY,
-    cx + 1.5,
-    tipY,
     cx,
     headCy,
+    tipY,
+    headR + 2.7,
     PIN_OUTLINE,
+    false,
   );
-
-  fillDisc(data, width, height, cx, headCy, headR - 1, PIN_FILL);
-  fillTriangle(
+  drawTeardropPin(
     data,
     width,
     height,
-    cx - width * 0.18,
-    headCy + headR * 0.35,
-    cx + width * 0.18,
-    headCy + headR * 0.35,
     cx,
-    tipY - 1,
+    headCy,
+    tipY - 2.4,
+    headR - 1.2,
     PIN_FILL,
-  );
-
-  fillDisc(
-    data,
-    width,
-    height,
-    cx - headR * 0.28,
-    headCy - headR * 0.32,
-    headR * 0.28,
-    PIN_HIGHLIGHT,
+    false,
   );
 
   drawParkingP(
@@ -201,155 +184,211 @@ function createParkingPinMarker(): SeekerMarkerImagePixels {
     width,
     height,
     PIN_GLYPH,
-    cx - width * 0.16,
-    headCy - headR * 0.42,
-    cx + width * 0.2,
-    headCy + headR * 0.46,
+    cx - width * 0.175,
+    headCy - headR * 0.46,
+    cx + width * 0.22,
+    headCy + headR * 0.5,
   );
 
   return { width, height, data };
 }
 
-/** Top-down cyan car with a thin halo — live seeker vehicle. */
+function drawTeardropPin(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  cx: number,
+  headCy: number,
+  tipY: number,
+  headR: number,
+  color: Rgba,
+  blend: boolean,
+) {
+  const stemHalf = headR * 0.72;
+  fillDisc(data, width, height, cx, headCy, headR, color);
+  if (blend) {
+    fillTriangleBlended(
+      data,
+      width,
+      height,
+      cx - stemHalf,
+      headCy + headR * 0.28,
+      cx + stemHalf,
+      headCy + headR * 0.28,
+      cx,
+      tipY,
+      color,
+    );
+    return;
+  }
+  fillTriangle(
+    data,
+    width,
+    height,
+    cx - stemHalf,
+    headCy + headR * 0.28,
+    cx + stemHalf,
+    headCy + headR * 0.28,
+    cx,
+    tipY,
+    color,
+  );
+}
+
+/** Top-down modern sedan — live arriving driver. */
 function createLiveCarMarker(): SeekerMarkerImagePixels {
-  const size = 52;
-  const data = new Uint8ClampedArray(size * size * 4);
-  const cx = (size - 1) / 2;
-  const cy = (size - 1) / 2;
+  const width = 112;
+  const height = 136;
+  const data = new Uint8ClampedArray(width * height * 4);
 
-  fillDisc(data, size, size, cx, cy, size * 0.46, CAR_HALO);
+  const left = 34;
+  const right = 78;
+  const top = 14;
+  const bottom = 118;
 
-  const bodyLeft = size * 0.3;
-  const bodyRight = size * 0.7;
-  const bodyTop = size * 0.18;
-  const bodyBottom = size * 0.82;
+  fillRoundedRectBlended(
+    data,
+    width,
+    height,
+    left + 5,
+    top + 8,
+    right + 5,
+    bottom + 8,
+    12,
+    CAR_SHADOW,
+  );
 
   fillRoundedRect(
     data,
-    size,
-    size,
-    bodyLeft - 2,
-    bodyTop - 2,
-    bodyRight + 2,
-    bodyBottom + 2,
-    7,
+    width,
+    height,
+    left - 3,
+    top - 2,
+    right + 3,
+    bottom + 2,
+    13,
     CAR_OUTLINE,
   );
-  fillRoundedRect(
+  fillRoundedRect(data, width, height, left, top, right, bottom, 11, CAR_BODY);
+
+  fillTrapezoid(
     data,
-    size,
-    size,
-    bodyLeft,
-    bodyTop,
-    bodyRight,
-    bodyBottom,
-    6,
-    CAR_BODY,
+    width,
+    height,
+    left + 8,
+    top + 2,
+    right - 8,
+    top + 2,
+    right - 1,
+    top + 22,
+    left + 1,
+    top + 22,
+    CAR_HOOD,
   );
   fillRoundedRect(
     data,
-    size,
-    size,
-    bodyLeft + 1,
-    size * 0.5,
-    bodyRight - 1,
-    bodyBottom - 1,
-    5,
+    width,
+    height,
+    left + 2,
+    height * 0.54,
+    right - 2,
+    bottom - 2,
+    8,
     CAR_BODY_DARK,
   );
 
-  fillRoundedRect(
+  fillTrapezoid(
     data,
-    size,
-    size,
-    size * 0.36,
-    size * 0.26,
-    size * 0.64,
-    size * 0.52,
-    3,
+    width,
+    height,
+    left + 12,
+    top + 24,
+    right - 12,
+    top + 24,
+    right - 6,
+    top + 54,
+    left + 6,
+    top + 54,
     CAR_WINDOW,
   );
   fillRoundedRect(
     data,
-    size,
-    size,
-    size * 0.38,
-    size * 0.58,
-    size * 0.62,
-    size * 0.72,
-    2,
+    width,
+    height,
+    left + 8,
+    top + 52,
+    right - 8,
+    top + 74,
+    4,
+    CAR_BODY_DARK,
+  );
+  fillTrapezoid(
+    data,
+    width,
+    height,
+    left + 8,
+    top + 76,
+    right - 8,
+    top + 76,
+    right - 13,
+    top + 92,
+    left + 13,
+    top + 92,
     CAR_WINDOW,
   );
 
+  fillEllipse(data, width, height, left + 2, top + 38, 6.2, 10, CAR_WHEEL);
+  fillEllipse(data, width, height, right - 2, top + 38, 6.2, 10, CAR_WHEEL);
+  fillEllipse(data, width, height, left + 2, bottom - 28, 6.2, 10, CAR_WHEEL);
+  fillEllipse(data, width, height, right - 2, bottom - 28, 6.2, 10, CAR_WHEEL);
+
   fillRoundedRect(
     data,
-    size,
-    size,
-    size * 0.2,
-    size * 0.3,
-    size * 0.3,
-    size * 0.42,
-    2,
-    CAR_WHEEL,
+    width,
+    height,
+    left - 8,
+    top + 40,
+    left + 1,
+    top + 50,
+    2.5,
+    CAR_MIRROR,
   );
   fillRoundedRect(
     data,
-    size,
-    size,
-    size * 0.7,
-    size * 0.3,
-    size * 0.8,
-    size * 0.42,
-    2,
-    CAR_WHEEL,
-  );
-  fillRoundedRect(
-    data,
-    size,
-    size,
-    size * 0.2,
-    size * 0.58,
-    size * 0.3,
-    size * 0.7,
-    2,
-    CAR_WHEEL,
-  );
-  fillRoundedRect(
-    data,
-    size,
-    size,
-    size * 0.7,
-    size * 0.58,
-    size * 0.8,
-    size * 0.7,
-    2,
-    CAR_WHEEL,
+    width,
+    height,
+    right - 1,
+    top + 40,
+    right + 8,
+    top + 50,
+    2.5,
+    CAR_MIRROR,
   );
 
   fillRoundedRect(
     data,
-    size,
-    size,
-    size * 0.34,
-    size * 0.2,
-    size * 0.42,
-    size * 0.26,
-    1,
+    width,
+    height,
+    left + 8,
+    top + 3,
+    left + 17,
+    top + 10,
+    2,
     CAR_LIGHT,
   );
   fillRoundedRect(
     data,
-    size,
-    size,
-    size * 0.58,
-    size * 0.2,
-    size * 0.66,
-    size * 0.26,
-    1,
+    width,
+    height,
+    right - 17,
+    top + 3,
+    right - 8,
+    top + 10,
+    2,
     CAR_LIGHT,
   );
 
-  return { width: size, height: size, data };
+  return { width, height, data };
 }
 
 function fillDisc(
@@ -388,6 +427,37 @@ function fillTriangle(
   y3: number,
   color: Rgba,
 ) {
+  fillTriangleInternal(data, width, height, x1, y1, x2, y2, x3, y3, color, false);
+}
+
+function fillTriangleBlended(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  color: Rgba,
+) {
+  fillTriangleInternal(data, width, height, x1, y1, x2, y2, x3, y3, color, true);
+}
+
+function fillTriangleInternal(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  color: Rgba,
+  blend: boolean,
+) {
   const minX = Math.max(0, Math.floor(Math.min(x1, x2, x3)));
   const maxX = Math.min(width - 1, Math.ceil(Math.max(x1, x2, x3)));
   const minY = Math.max(0, Math.floor(Math.min(y1, y2, y3)));
@@ -402,7 +472,55 @@ function fillTriangle(
       const w2 = ((x3 - x) * (y1 - y) - (x1 - x) * (y3 - y)) / area;
       const w3 = 1 - w1 - w2;
       if (w1 >= 0 && w2 >= 0 && w3 >= 0) {
-        setPixel(data, (y * width + x) * 4, color);
+        const i = (y * width + x) * 4;
+        if (blend) {
+          blendPixel(data, i, color, 1);
+        } else {
+          setPixel(data, i, color);
+        }
+      }
+    }
+  }
+}
+
+function fillTrapezoid(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  color: Rgba,
+) {
+  fillTriangle(data, width, height, x0, y0, x1, y1, x2, y2, color);
+  fillTriangle(data, width, height, x0, y0, x2, y2, x3, y3, color);
+}
+
+function fillEllipse(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  cx: number,
+  cy: number,
+  rx: number,
+  ry: number,
+  color: Rgba,
+) {
+  const minX = Math.max(0, Math.floor(cx - rx - 1));
+  const maxX = Math.min(width - 1, Math.ceil(cx + rx + 1));
+  const minY = Math.max(0, Math.floor(cy - ry - 1));
+  const maxY = Math.min(height - 1, Math.ceil(cy + ry + 1));
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      const d = Math.hypot((x - cx) / rx, (y - cy) / ry);
+      const alpha = Math.max(0, Math.min(1, 1 - d + 0.35 / Math.max(rx, ry)));
+      if (alpha > 0) {
+        blendPixel(data, (y * width + x) * 4, color, alpha);
       }
     }
   }
@@ -419,28 +537,66 @@ function fillRoundedRect(
   radius: number,
   color: Rgba,
 ) {
+  fillRoundedRectInternal(data, width, height, x0, y0, x1, y1, radius, color, false);
+}
+
+function fillRoundedRectBlended(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  radius: number,
+  color: Rgba,
+) {
+  fillRoundedRectInternal(data, width, height, x0, y0, x1, y1, radius, color, true);
+}
+
+function fillRoundedRectInternal(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  radius: number,
+  color: Rgba,
+  blend: boolean,
+) {
   const left = Math.min(x0, x1);
   const right = Math.max(x0, x1);
   const top = Math.min(y0, y1);
   const bottom = Math.max(y0, y1);
   const r = Math.max(0, Math.min(radius, (right - left) / 2, (bottom - top) / 2));
-  const minX = Math.max(0, Math.floor(left));
-  const maxX = Math.min(width - 1, Math.ceil(right));
-  const minY = Math.max(0, Math.floor(top));
-  const maxY = Math.min(height - 1, Math.ceil(bottom));
+  const cx = (left + right) / 2;
+  const cy = (top + bottom) / 2;
+  const hw = (right - left) / 2;
+  const hh = (bottom - top) / 2;
+  const minX = Math.max(0, Math.floor(left - 1));
+  const maxX = Math.min(width - 1, Math.ceil(right + 1));
+  const minY = Math.max(0, Math.floor(top - 1));
+  const maxY = Math.min(height - 1, Math.ceil(bottom + 1));
 
   for (let y = minY; y <= maxY; y += 1) {
     for (let x = minX; x <= maxX; x += 1) {
-      const cx = Math.max(left + r, Math.min(x, right - r));
-      const cy = Math.max(top + r, Math.min(y, bottom - r));
-      const inBody =
-        x >= left + r && x <= right - r && y >= top && y <= bottom
-          ? true
-          : x >= left && x <= right && y >= top + r && y <= bottom - r
-            ? true
-            : Math.hypot(x - cx, y - cy) <= r + 0.35;
-      if (inBody) {
-        setPixel(data, (y * width + x) * 4, color);
+      const dx = Math.abs(x + 0.5 - cx) - (hw - r);
+      const dy = Math.abs(y + 0.5 - cy) - (hh - r);
+      const sd =
+        Math.min(Math.max(dx, dy), 0) +
+        Math.hypot(Math.max(dx, 0), Math.max(dy, 0)) -
+        r;
+      const alpha = Math.max(0, Math.min(1, 0.5 - sd));
+      if (alpha <= 0) {
+        continue;
+      }
+      const i = (y * width + x) * 4;
+      if (blend || alpha < 1) {
+        blendPixel(data, i, color, alpha);
+      } else {
+        setPixel(data, i, color);
       }
     }
   }
@@ -530,7 +686,11 @@ export function registerSeekerMarkerImages(map: MapLibreMap): void {
       continue;
     }
     map.addImage(id, createSeekerMarkerImageData(id), {
-      pixelRatio: 2,
+      pixelRatio:
+        id === SEEKER_MARKER_IMAGE_IDS.seekerLive ||
+        id === SEEKER_MARKER_IMAGE_IDS.destination
+          ? 3
+          : 2,
       sdf: false,
     });
   }

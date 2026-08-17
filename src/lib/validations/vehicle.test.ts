@@ -9,6 +9,7 @@ const validVehicle = {
   license_plate: "12-345-67",
   vehicle_make: "Hyundai",
   vehicle_model: "Tucson",
+  vehicle_year: "2025",
   vehicle_color: "white",
   vehicle_type: "suv",
 };
@@ -27,6 +28,7 @@ describe("updateVehicleSchema", () => {
         license_plate: "1234567",
         vehicle_make: "Hyundai",
         vehicle_model: "Tucson",
+        vehicle_year: 2025,
         vehicle_color: "white",
         vehicle_type: "suv",
       });
@@ -38,6 +40,7 @@ describe("updateVehicleSchema", () => {
       license_plate: "",
       vehicle_make: "",
       vehicle_model: "",
+      vehicle_year: "",
       vehicle_color: "",
       vehicle_type: "",
     });
@@ -55,6 +58,7 @@ describe("updateVehicleSchema", () => {
       license_plate: "   ",
       vehicle_make: "  ",
       vehicle_model: "\t",
+      vehicle_year: " ",
       vehicle_color: " ",
       vehicle_type: " ",
     });
@@ -145,6 +149,55 @@ describe("updateVehicleSchema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("accepts 1990 through next model year", () => {
+    expect(
+      updateVehicleSchema.safeParse({
+        ...validVehicle,
+        vehicle_year: "1990",
+      }).success,
+    ).toBe(true);
+
+    const nextModelYear = String(new Date().getFullYear() + 1);
+    const result = updateVehicleSchema.safeParse({
+      ...validVehicle,
+      vehicle_year: nextModelYear,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.vehicle_year).toBe(Number(nextModelYear));
+    }
+  });
+
+  it("rejects missing, non-integer, and out-of-range years", () => {
+    expect(
+      updateVehicleSchema.safeParse({
+        ...validVehicle,
+        vehicle_year: "",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      updateVehicleSchema.safeParse({
+        ...validVehicle,
+        vehicle_year: "2025.5",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      updateVehicleSchema.safeParse({
+        ...validVehicle,
+        vehicle_year: "1989",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      updateVehicleSchema.safeParse({
+        ...validVehicle,
+        vehicle_year: String(new Date().getFullYear() + 2),
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("hasCompleteVehicleProfile", () => {
@@ -154,6 +207,18 @@ describe("hasCompleteVehicleProfile", () => {
         license_plate: "1234567",
         vehicle_make: "Hyundai",
         vehicle_model: "Tucson",
+        vehicle_year: null,
+        vehicle_color: "white",
+        vehicle_type: "suv",
+      }),
+    ).toBe(true);
+
+    expect(
+      hasCompleteVehicleProfile({
+        license_plate: "1234567",
+        vehicle_make: "Hyundai",
+        vehicle_model: "Tucson",
+        vehicle_year: 2025,
         vehicle_color: "white",
         vehicle_type: "suv",
       }),
