@@ -2,10 +2,7 @@
 
 import { useOptionalPostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
 import { Button } from "@/components/ui/Button";
-import {
-  isValidNavigationCoords,
-  NAVIGATION_PROVIDER_LABELS,
-} from "@/lib/map/navigation-urls";
+import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 
 export const CLAIM_NAVIGATE_ACTION_LABEL = "Navigate to spot";
 export const CLAIM_CHANGE_NAVIGATION_LABEL = "Change navigation app";
@@ -16,16 +13,6 @@ type ClaimNavigationActionsProps = {
   longitude: number;
   placement?: "primary" | "change";
 };
-
-export function openInProviderLabel(providerId: string): string {
-  const name =
-    providerId in NAVIGATION_PROVIDER_LABELS
-      ? NAVIGATION_PROVIDER_LABELS[
-          providerId as keyof typeof NAVIGATION_PROVIDER_LABELS
-        ]
-      : providerId;
-  return `Open in ${name}`;
-}
 
 export function ClaimNavigationActions({
   claimId,
@@ -50,9 +37,6 @@ export function ClaimNavigationActions({
 
   const providerSelected =
     sessionMatchesClaim && Boolean(navigation.session?.providerSelected);
-  const selectedProviderId = sessionMatchesClaim
-    ? navigation.session?.selectedProviderId
-    : null;
 
   if (placement === "change") {
     if (!providerSelected) {
@@ -76,11 +60,6 @@ export function ClaimNavigationActions({
     );
   }
 
-  const label =
-    providerSelected && selectedProviderId
-      ? openInProviderLabel(selectedProviderId)
-      : CLAIM_NAVIGATE_ACTION_LABEL;
-
   return (
     <Button
       type="button"
@@ -103,7 +82,7 @@ export function ClaimNavigationActions({
         });
       }}
     >
-      {label}
+      {CLAIM_NAVIGATE_ACTION_LABEL}
     </Button>
   );
 }

@@ -565,8 +565,11 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(startSharingMock).toHaveBeenCalled();
     expect(forceStopMock).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("button", { name: "Open in Waze" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open in Waze" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Change navigation app" }),
     ).toBeInTheDocument();

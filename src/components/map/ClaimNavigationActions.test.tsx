@@ -98,7 +98,7 @@ describe("ClaimNavigationActions", () => {
     expect(labels.slice(0, 3)).toEqual(["Waze", "Google Maps", "Apple Maps"]);
   });
 
-  it("opens each provider and switches to Open in plus a secondary change action", async () => {
+  it("keeps Navigate to spot after choosing a provider and adds Change navigation app", async () => {
     const user = userEvent.setup();
     const openSpy = vi.mocked(window.open);
     renderActions();
@@ -111,8 +111,11 @@ describe("ClaimNavigationActions", () => {
       "noopener,noreferrer",
     );
     expect(
-      screen.getByRole("button", { name: "Open in Waze" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open in Waze" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Change navigation app" }),
     ).toBeInTheDocument();
@@ -126,8 +129,11 @@ describe("ClaimNavigationActions", () => {
       "noopener,noreferrer",
     );
     expect(
-      screen.getByRole("button", { name: "Open in Google Maps" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open in Google Maps" }),
+    ).not.toBeInTheDocument();
 
     openSpy.mockClear();
     await user.click(screen.getByRole("button", { name: "Change navigation app" }));
@@ -138,8 +144,11 @@ describe("ClaimNavigationActions", () => {
       "noopener,noreferrer",
     );
     expect(
-      screen.getByRole("button", { name: "Open in Apple Maps" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open in Apple Maps" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps Navigate to spot after Dismiss and can reopen the chooser", async () => {
@@ -175,11 +184,14 @@ describe("ClaimNavigationActions", () => {
       "noopener,noreferrer",
     );
     expect(
-      screen.getByRole("button", { name: "Open in Waze" }),
+      screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Open in Waze" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("relaunches the selected provider from the primary Open in action", async () => {
+  it("relaunches the selected provider from Navigate to spot", async () => {
     const user = userEvent.setup();
     const openSpy = vi.mocked(window.open);
     renderActions();
@@ -188,7 +200,7 @@ describe("ClaimNavigationActions", () => {
     await user.click(screen.getByRole("button", { name: "Waze" }));
     openSpy.mockClear();
 
-    await user.click(screen.getByRole("button", { name: "Open in Waze" }));
+    await user.click(screen.getByRole("button", { name: "Navigate to spot" }));
     expect(openSpy).toHaveBeenCalledWith(
       buildWazeNavigateUrl(destination.latitude, destination.longitude),
       "_blank",
