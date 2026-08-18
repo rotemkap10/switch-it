@@ -4,6 +4,9 @@ export type HistoryFinalStatus = "completed" | "cancelled" | "expired";
 
 export const HISTORY_ADDRESS_FALLBACK = "Parking location";
 
+/** Newest-first page size for History. Further pages use Load more. */
+export const HISTORY_PAGE_SIZE = 20;
+
 export type HistoryItem = {
   id: string;
   role: HistoryRole;
@@ -80,6 +83,38 @@ export function historyDayGroupLabel(group: HistoryDayGroup): string {
   }
 }
 
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+/** Section heading for a history day. Older days use the calendar date. */
+export function historySectionHeading(
+  atIso: string,
+  nowMs: number = Date.now(),
+): { key: string; label: string } {
+  const group = historyDayGroup(atIso, nowMs);
+  if (group === "today") {
+    return { key: "today", label: historyDayGroupLabel("today") };
+  }
+  if (group === "yesterday") {
+    return { key: "yesterday", label: historyDayGroupLabel("yesterday") };
+  }
+
+  const at = new Date(atIso);
+  if (!Number.isFinite(at.getTime())) {
+    return { key: "unknown", label: historyDayGroupLabel("earlier") };
+  }
+
+  const key = `${at.getFullYear()}-${pad2(at.getMonth() + 1)}-${pad2(at.getDate())}`;
+  const now = new Date(nowMs);
+  const label = new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: at.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  }).format(at);
+  return { key, label };
+}
+
 /** Relative day label + local time, e.g. "Today · 14:32". */
 export function formatHistoryWhen(
   atIso: string,
@@ -112,17 +147,20 @@ export function formatHistoryWhen(
 export function groupHistoryItems(
   items: HistoryItem[],
   nowMs: number = Date.now(),
-): Array<{ group: HistoryDayGroup; items: HistoryItem[] }> {
-  const buckets: Record<HistoryDayGroup, HistoryItem[]> = {
-    today: [],
-    yesterday: [],
-    earlier: [],
-  };
+): Array<{ key: string; label: string; items: HistoryItem[] }> {
+  const buckets = new Map<string, { label: string; items: HistoryItem[] }>();
   for (const item of items) {
-    buckets[historyDayGroup(item.atIso, nowMs)].push(item);
+    const heading = historySectionHeading(item.atIso, nowMs);
+    const existing = buckets.get(heading.key);
+    if (existing) {
+      existing.items.push(item);
+    } else {
+      buckets.set(heading.key, { label: heading.label, items: [item] });
+    }
   }
-  const order: HistoryDayGroup[] = ["today", "yesterday", "earlier"];
-  return order
-    .filter((group) => buckets[group].length > 0)
-    .map((group) => ({ group, items: buckets[group] }));
+  return [...buckets.entries()].map(([key, bucket]) => ({
+    key,
+    label: bucket.label,
+    items: bucket.items,
+  }));
 }

@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import {
   HISTORY_ADDRESS_FALLBACK,
+  HISTORY_PAGE_SIZE,
   type HistoryFinalStatus,
   type HistoryItem,
   type HistoryRole,
@@ -30,8 +31,27 @@ export type HistoryCreditRow = {
   transaction_type: string;
 };
 
-export type LoadHistoryResult =
-  | { ok: true; items: HistoryItem[] }
+export type HandoffHistoryRpcRow = {
+  claim_id: string;
+  role: string;
+  status: string;
+  address: string | null;
+  event_at: string;
+  credit_amount: number | null;
+};
+
+export type HistoryCursor = {
+  beforeAt: string;
+  beforeId: string;
+};
+
+export type LoadHistoryPageResult =
+  | {
+      ok: true;
+      items: HistoryItem[];
+      hasMore: boolean;
+      nextCursor: HistoryCursor | null;
+    }
   | { ok: false };
 
 function spotRelation(row: HistoryClaimRow): SpotEmbed | null {
@@ -46,6 +66,13 @@ function spotRelation(row: HistoryClaimRow): SpotEmbed | null {
 function asFinalStatus(status: string): HistoryFinalStatus | null {
   if (status === "completed" || status === "cancelled" || status === "expired") {
     return status;
+  }
+  return null;
+}
+
+function asRole(role: string): HistoryRole | null {
+  if (role === "publisher" || role === "seeker") {
+    return role;
   }
   return null;
 }
@@ -86,10 +113,17 @@ function resolveRole(
   return null;
 }
 
-function resolveAddress(spot: SpotEmbed | null): string {
-  const trimmed =
-    typeof spot?.address === "string" ? spot.address.trim() : "";
+function resolveAddress(address: string | null | undefined): string {
+  const trimmed = typeof address === "string" ? address.trim() : "";
   return trimmed || HISTORY_ADDRESS_FALLBACK;
+}
+
+function compareHistoryItems(a: HistoryItem, b: HistoryItem): number {
+  const dt = new Date(b.atIso).getTime() - new Date(a.atIso).getTime();
+  if (dt !== 0) {
+    return dt;
+  }
+  return b.id.localeCompare(a.id);
 }
 
 /**
@@ -100,7 +134,6 @@ export function buildHistoryItems(
   claims: HistoryClaimRow[],
   credits: HistoryCreditRow[],
   userId: string,
-  limit = 40,
 ): HistoryItem[] {
   const creditsByClaim = new Map<string, number>();
   for (const row of credits) {
@@ -154,102 +187,111 @@ export function buildHistoryItems(
       id: `${role}:${raw.id}`,
       role,
       status,
-      address: resolveAddress(spot),
+      address: resolveAddress(spot?.address),
       atIso: historyEventAt(raw),
       creditDelta,
     });
   }
 
-  items.sort(
-    (a, b) => new Date(b.atIso).getTime() - new Date(a.atIso).getTime(),
-  );
+  items.sort(compareHistoryItems);
+  return items;
+}
 
-  return items.slice(0, limit);
+export function mapHandoffHistoryRpcRows(
+  rows: HandoffHistoryRpcRow[],
+): HistoryItem[] {
+  const seen = new Set<string>();
+  const items: HistoryItem[] = [];
+
+  for (const row of rows) {
+    if (typeof row.claim_id !== "string" || seen.has(row.claim_id)) {
+      continue;
+    }
+
+    const role = asRole(row.role);
+    const status = asFinalStatus(row.status);
+    if (!role || !status) {
+      continue;
+    }
+    if (typeof row.event_at !== "string" || row.event_at.length === 0) {
+      continue;
+    }
+
+    seen.add(row.claim_id);
+    const creditAmount = row.credit_amount;
+    const creditDelta =
+      status === "completed" &&
+      typeof creditAmount === "number" &&
+      Number.isFinite(creditAmount)
+        ? creditAmount
+        : null;
+
+    // Null address means parking_spots RLS would hide the spot (typical for
+    // seekers on old terminal handoffs). Never invent a street from the row.
+    items.push({
+      id: `${role}:${row.claim_id}`,
+      role,
+      status,
+      address: resolveAddress(row.address),
+      atIso: row.event_at,
+      creditDelta,
+    });
+  }
+
+  items.sort(compareHistoryItems);
+  return items;
+}
+
+function cursorFromItems(items: HistoryItem[]): HistoryCursor | null {
+  const last = items[items.length - 1];
+  if (!last) {
+    return null;
+  }
+  const separator = last.id.indexOf(":");
+  const beforeId = separator >= 0 ? last.id.slice(separator + 1) : last.id;
+  if (!beforeId) {
+    return null;
+  }
+  return { beforeAt: last.atIso, beforeId };
 }
 
 /**
- * Load the current user's terminal handoffs for History.
- * Server-only helper using the cookie SSR Supabase client + existing RLS.
- *
- * Two participant queries avoid missing rows when ordering solely by
- * claimed_at (e.g. an old claim that completed recently).
+ * Load one newest-first page of the current user's terminal handoffs.
+ * Uses get_handoff_history so pagination happens in Postgres, not in memory.
  */
-export async function loadHistoryItems(
+export async function loadHistoryPage(
   supabase: SupabaseClient,
-  userId: string,
-  limit = 40,
-): Promise<LoadHistoryResult> {
-  const claimSelect = `
-    id,
-    status,
-    claimed_at,
-    completed_at,
-    cancelled_at,
-    expires_at,
-    seeker_id,
-    parking_spots (
-      id,
-      address,
-      owner_id
-    )
-  `;
+  cursor?: HistoryCursor | null,
+  pageSize: number = HISTORY_PAGE_SIZE,
+): Promise<LoadHistoryPageResult> {
+  const fetchLimit = Math.min(Math.max(pageSize, 1) + 1, 21);
 
-  const fetchLimit = Math.max(limit * 2, 80);
+  const { data, error } = await supabase.rpc("get_handoff_history", {
+    p_limit: fetchLimit,
+    p_before_at: cursor?.beforeAt ?? null,
+    p_before_id: cursor?.beforeId ?? null,
+  });
 
-  const [seekerClaims, ownerClaims, creditResult] = await Promise.all([
-    supabase
-      .from("claims")
-      .select(claimSelect)
-      .eq("seeker_id", userId)
-      .in("status", ["completed", "cancelled", "expired"])
-      .order("claimed_at", { ascending: false })
-      .limit(fetchLimit),
-    // Inner join: only claims on spots the current user owns (publisher role).
-    supabase
-      .from("claims")
-      .select(
-        `
-        id,
-        status,
-        claimed_at,
-        completed_at,
-        cancelled_at,
-        expires_at,
-        seeker_id,
-        parking_spots!inner (
-          id,
-          address,
-          owner_id
-        )
-      `,
-      )
-      .eq("parking_spots.owner_id", userId)
-      .in("status", ["completed", "cancelled", "expired"])
-      .order("claimed_at", { ascending: false })
-      .limit(fetchLimit),
-    supabase
-      .from("credit_transactions")
-      .select("claim_id, amount, transaction_type")
-      .eq("user_id", userId)
-      .in("transaction_type", ["handoff_debit", "handoff_credit"]),
-  ]);
-
-  if (seekerClaims.error || ownerClaims.error || creditResult.error) {
+  if (error) {
     return { ok: false };
   }
 
-  const merged = [
-    ...((seekerClaims.data ?? []) as HistoryClaimRow[]),
-    ...((ownerClaims.data ?? []) as HistoryClaimRow[]),
-  ];
+  const rows = Array.isArray(data) ? (data as HandoffHistoryRpcRow[]) : [];
+  const mapped = mapHandoffHistoryRpcRows(rows);
+  const hasMore = mapped.length > pageSize;
+  const items = hasMore ? mapped.slice(0, pageSize) : mapped;
 
   return {
     ok: true,
-    items: buildHistoryItems(
-      merged,
-      (creditResult.data ?? []) as HistoryCreditRow[],
-      userId,
-      limit,
-    ),
+    items,
+    hasMore,
+    nextCursor: hasMore ? cursorFromItems(items) : null,
   };
+}
+
+/** First History page (newest 20). */
+export async function loadHistoryItems(
+  supabase: SupabaseClient,
+): Promise<LoadHistoryPageResult> {
+  return loadHistoryPage(supabase);
 }

@@ -27,6 +27,7 @@ export default async function ProfilePage() {
         title="Profile"
         description="Manage your account and vehicle."
         vehicleAccess="allow-incomplete"
+        headerAlign="center"
       >
         <Alert tone="error">Your profile could not be loaded.</Alert>
       </AuthenticatedShell>
@@ -50,6 +51,7 @@ export default async function ProfilePage() {
       title="Profile"
       description="Manage your account and vehicle."
       vehicleAccess="allow-incomplete"
+      headerAlign="center"
     >
       <div className="profile-page" data-testid="profile-layout">
         <ProfileSummaryRow

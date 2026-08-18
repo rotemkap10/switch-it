@@ -6,6 +6,7 @@ import {
   historyCreditLabel,
   historyDayGroup,
   historyRoleLabel,
+  historySectionHeading,
   historyStatusLabel,
   type HistoryItem,
 } from "@/lib/history/format";
@@ -27,7 +28,7 @@ describe("history formatting", () => {
     expect(historyCreditLabel("expired", 1)).toBe("No credit change");
   });
 
-  it("groups Today / Yesterday / Earlier using local calendar days", () => {
+  it("groups Today / Yesterday / calendar dates using local days", () => {
     const now = Date.parse("2026-08-07T12:00:00");
     const items: HistoryItem[] = [
       {
@@ -57,12 +58,49 @@ describe("history formatting", () => {
     ];
 
     const groups = groupHistoryItems(items, now);
-    expect(groups.map((g) => g.group)).toEqual([
-      "today",
-      "yesterday",
-      "earlier",
-    ]);
+    expect(groups.map((g) => g.key)).toEqual(["today", "yesterday", "2026-08-01"]);
+    expect(groups[0].label).toBe("Today");
+    expect(groups[1].label).toBe("Yesterday");
+    expect(groups[2].label).not.toBe("Today");
+    expect(groups[2].label).not.toBe("Yesterday");
+    expect(groups[2].label.length).toBeGreaterThan(0);
     expect(formatHistoryWhen(items[0].atIso, now)).toMatch(/^Today · /);
+  });
+
+  it("keeps a single section when later pages continue the same calendar day", () => {
+    const now = Date.parse("2026-08-18T12:00:00");
+    const items: HistoryItem[] = [
+      {
+        id: "page1",
+        role: "publisher",
+        status: "completed",
+        address: "First St",
+        atIso: new Date(2026, 7, 15, 18, 0).toISOString(),
+        creditDelta: 1,
+      },
+      {
+        id: "page2",
+        role: "seeker",
+        status: "cancelled",
+        address: "Second St",
+        atIso: new Date(2026, 7, 15, 9, 0).toISOString(),
+        creditDelta: null,
+      },
+    ];
+
+    const groups = groupHistoryItems(items, now);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].key).toBe("2026-08-15");
+    expect(groups[0].items.map((item) => item.id)).toEqual(["page1", "page2"]);
+  });
+
+  it("includes the year on older-year section headings", () => {
+    const heading = historySectionHeading(
+      new Date(2025, 7, 15, 10, 0).toISOString(),
+      Date.parse("2026-08-18T12:00:00"),
+    );
+    expect(heading.key).toBe("2025-08-15");
+    expect(heading.label).toMatch(/2025/);
   });
 
   it("keeps late-night local times on Today across the midnight boundary", () => {

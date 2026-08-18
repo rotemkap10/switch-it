@@ -9,17 +9,22 @@ export default async function HistoryPage() {
     mode: "require-complete",
   });
 
-  const result = await loadHistoryItems(access.supabase, access.user.id);
+  const result = await loadHistoryItems(access.supabase);
 
   return (
     <AuthenticatedShell
       title="History"
-      description="Your recent parking handoffs."
+      description="Your parking handoffs."
       access={access}
+      headerAlign="center"
     >
       <div className="mx-auto w-full max-w-lg md:max-w-xl">
         {result.ok ? (
-          <HistoryList items={result.items} />
+          <HistoryList
+            items={result.items}
+            hasMore={result.hasMore}
+            nextCursor={result.nextCursor}
+          />
         ) : (
           <Alert tone="error" title="Couldn’t load history">
             Something went wrong while loading your handoffs. Please try again.

@@ -1,12 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildHistoryItems,
   historyEventAt,
+  loadHistoryPage,
+  mapHandoffHistoryRpcRows,
   type HistoryClaimRow,
   type HistoryCreditRow,
+  type HandoffHistoryRpcRow,
 } from "@/lib/history/load-history";
-import { HISTORY_ADDRESS_FALLBACK } from "@/lib/history/format";
+import { HISTORY_ADDRESS_FALLBACK, HISTORY_PAGE_SIZE } from "@/lib/history/format";
 
 const USER_A = "user-a";
 const USER_B = "user-b";
@@ -286,6 +289,20 @@ describe("buildHistoryItems", () => {
     expect(displayBlob).not.toContain(USER_A);
     expect(displayBlob).not.toContain("@");
   });
+
+  it("does not cap mapped history to a retention window", () => {
+    const claims = Array.from({ length: 45 }, (_, index) =>
+      claim({
+        id: `claim-${String(index).padStart(2, "0")}`,
+        status: "completed",
+        completed_at: new Date(Date.UTC(2026, 6, 1, 10, index)).toISOString(),
+        claimed_at: new Date(Date.UTC(2026, 6, 1, 9, index)).toISOString(),
+        seeker_id: USER_B,
+      }),
+    );
+
+    expect(buildHistoryItems(claims, [], USER_B)).toHaveLength(45);
+  });
 });
 
 describe("historyEventAt", () => {
@@ -319,5 +336,130 @@ describe("historyEventAt", () => {
         expires_at: "2026-08-01T10:30:00.000Z",
       }),
     ).toBe("2026-08-01T10:30:00.000Z");
+  });
+});
+
+describe("mapHandoffHistoryRpcRows", () => {
+  it("maps RPC rows and ignores credit on non-completed handoffs", () => {
+    const rows: HandoffHistoryRpcRow[] = [
+      {
+        claim_id: "11111111-1111-4111-8111-111111111111",
+        role: "publisher",
+        status: "completed",
+        address: "Dizengoff St",
+        event_at: "2026-08-05T10:20:00.000Z",
+        credit_amount: 1,
+      },
+      {
+        claim_id: "22222222-2222-4222-8222-222222222222",
+        role: "seeker",
+        status: "cancelled",
+        address: " ",
+        event_at: "2026-08-05T09:00:00.000Z",
+        credit_amount: -1,
+      },
+    ];
+
+    const items = mapHandoffHistoryRpcRows(rows);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toMatchObject({
+      id: "publisher:11111111-1111-4111-8111-111111111111",
+      role: "publisher",
+      creditDelta: 1,
+      address: "Dizengoff St",
+    });
+    expect(items[1]).toMatchObject({
+      role: "seeker",
+      status: "cancelled",
+      creditDelta: null,
+      address: HISTORY_ADDRESS_FALLBACK,
+    });
+  });
+
+  it("uses the generic fallback when the RPC withholds a seeker's hidden address", () => {
+    const items = mapHandoffHistoryRpcRows([
+      {
+        claim_id: "33333333-3333-4333-8333-333333333333",
+        role: "seeker",
+        status: "completed",
+        address: null,
+        event_at: "2026-07-01T10:00:00.000Z",
+        credit_amount: -1,
+      },
+    ]);
+
+    expect(items).toHaveLength(1);
+    expect(items[0].address).toBe(HISTORY_ADDRESS_FALLBACK);
+    expect(JSON.stringify(items[0])).not.toContain("Dizengoff");
+    expect(JSON.stringify(items[0])).not.toContain("Rothschild");
+    expect(JSON.stringify(items[0])).not.toMatch(/32\.\d+/);
+    expect(JSON.stringify(items[0])).not.toMatch(/34\.\d+/);
+  });
+});
+
+describe("loadHistoryPage", () => {
+  it("requests page-size + 1 rows and keeps a keyset cursor", async () => {
+    const rows = Array.from({ length: 21 }, (_, index) => ({
+      claim_id: `11111111-1111-4111-8111-${String(index).padStart(12, "0")}`,
+      role: "seeker",
+      status: "completed",
+      address: "Dizengoff St",
+      event_at: new Date(Date.UTC(2026, 7, 18, 12, 21 - index)).toISOString(),
+      credit_amount: -1,
+    }));
+    const rpc = vi.fn().mockResolvedValue({ data: rows, error: null });
+
+    const result = await loadHistoryPage({ rpc } as never);
+
+    expect(rpc).toHaveBeenCalledWith("get_handoff_history", {
+      p_limit: HISTORY_PAGE_SIZE + 1,
+      p_before_at: null,
+      p_before_id: null,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.items).toHaveLength(HISTORY_PAGE_SIZE);
+    expect(result.hasMore).toBe(true);
+    expect(result.nextCursor).toEqual({
+      beforeAt: rows[19].event_at,
+      beforeId: rows[19].claim_id,
+    });
+  });
+
+  it("passes the previous cursor through to Postgres", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
+
+    const result = await loadHistoryPage(
+      { rpc } as never,
+      {
+        beforeAt: "2026-08-01T10:00:00.000Z",
+        beforeId: "11111111-1111-4111-8111-111111111111",
+      },
+    );
+
+    expect(rpc).toHaveBeenCalledWith("get_handoff_history", {
+      p_limit: HISTORY_PAGE_SIZE + 1,
+      p_before_at: "2026-08-01T10:00:00.000Z",
+      p_before_id: "11111111-1111-4111-8111-111111111111",
+    });
+    expect(result).toEqual({
+      ok: true,
+      items: [],
+      hasMore: false,
+      nextCursor: null,
+    });
+  });
+
+  it("fails closed when the RPC errors", async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: "NOT_AUTHENTICATED" },
+    });
+
+    await expect(loadHistoryPage({ rpc } as never)).resolves.toEqual({
+      ok: false,
+    });
   });
 });

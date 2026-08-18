@@ -87,5 +87,30 @@ describe("AuthenticatedFrame map layout", () => {
     const main = screen.getByTestId("authenticated-main");
     expect(main.className).toContain("app-shell-main--page");
     expect(screen.getByRole("heading", { name: "Share a spot" })).toBeInTheDocument();
+    expect(screen.getByTestId("page-header")).toHaveAttribute("data-align", "start");
+    expect(screen.getByTestId("page-header").className).not.toContain("items-center");
+  });
+
+  it("centers Profile and History titles without centering page content", () => {
+    render(
+      <AuthenticatedFrame
+        userId="user-1"
+        title="Profile"
+        description="Manage your account and vehicle."
+        layout="default"
+        headerAlign="center"
+      >
+        <div data-testid="profile-child">Cards stay start-aligned</div>
+      </AuthenticatedFrame>,
+    );
+
+    const header = screen.getByTestId("page-header");
+    expect(header).toHaveAttribute("data-align", "center");
+    expect(header.className).toContain("items-center");
+    expect(header.className).toContain("text-center");
+    expect(screen.getByRole("heading", { name: "Profile" })).toBeInTheDocument();
+    expect(screen.getByTestId("profile-child").className).not.toContain(
+      "text-center",
+    );
   });
 });

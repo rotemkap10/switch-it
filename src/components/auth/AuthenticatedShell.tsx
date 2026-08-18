@@ -30,6 +30,8 @@ type AuthenticatedShellProps = {
    * when the page already called requireAuthenticatedVehicleAccess.
    */
   access?: AuthenticatedAccess;
+  /** Centered page title (Profile / History). Does not affect card layout. */
+  headerAlign?: "start" | "center";
 };
 
 export async function AuthenticatedShell({
@@ -40,6 +42,7 @@ export async function AuthenticatedShell({
   vehicleAccess = "require-complete",
   handoffException = null,
   access: accessProp,
+  headerAlign = "start",
 }: AuthenticatedShellProps) {
   const access =
     accessProp ??
@@ -69,6 +72,7 @@ export async function AuthenticatedShell({
       layout={layout}
       displayName={displayName}
       hasActiveHandoff={access.status.hasActiveHandoff}
+      headerAlign={headerAlign}
     >
       {children}
     </AuthenticatedFrame>

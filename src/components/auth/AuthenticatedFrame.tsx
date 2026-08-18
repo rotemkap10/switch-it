@@ -20,6 +20,7 @@ type AuthenticatedFrameProps = {
   layout?: "default" | "map";
   displayName?: string | null;
   hasActiveHandoff?: boolean;
+  headerAlign?: "start" | "center";
 };
 
 function ModeContent({ children }: { children: ReactNode }) {
@@ -41,6 +42,7 @@ export function AuthenticatedFrame({
   layout = "default",
   displayName = null,
   hasActiveHandoff = false,
+  headerAlign = "start",
 }: AuthenticatedFrameProps) {
   const isMap = layout === "map";
 
@@ -62,7 +64,11 @@ export function AuthenticatedFrame({
           >
             <ModeContent>
               {isMap ? null : (
-                <PageHeader title={title} description={description} />
+                <PageHeader
+                  title={title}
+                  description={description}
+                  align={headerAlign}
+                />
               )}
               {children}
             </ModeContent>
