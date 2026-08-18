@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/actions/onboarding", () => ({
@@ -53,8 +54,20 @@ describe("OnboardingVehicleForm", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Start finding parking")).toBeInTheDocument();
     expect(screen.getByLabelText("Manufacturer")).toHaveClass("app-form-control");
+    expect(screen.getByLabelText("Manufacturer")).toHaveAttribute("role", "combobox");
+    expect(screen.getByLabelText("Manufacturer")).toHaveAttribute(
+      "placeholder",
+      "Select manufacturer",
+    );
     expect(screen.queryByLabelText("Vehicle type")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Model")).toBeDisabled();
+    expect(screen.getByLabelText("Model")).toHaveAttribute(
+      "placeholder",
+      "Select manufacturer first",
+    );
+    expect(
+      screen.getByRole("button", { name: "Can't find your manufacturer?" }),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText("Vehicle year")).toHaveClass("app-form-control");
     expect(screen.getByLabelText("License plate")).toHaveAttribute(
       "inputmode",
@@ -63,5 +76,19 @@ describe("OnboardingVehicleForm", () => {
     expect(screen.getByLabelText("License plate")).toHaveClass("app-form-control");
     expect(screen.queryByRole("link", { name: /skip/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/Save vehicle/i)).not.toBeInTheDocument();
+  });
+
+  it("opens manufacturer options on focus using the shared combobox", async () => {
+    const user = userEvent.setup();
+    render(
+      <FeedbackShell>
+        <OnboardingVehicleForm initialVehicle={emptyVehicle} />
+      </FeedbackShell>,
+    );
+
+    await user.click(screen.getByLabelText("Manufacturer"));
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Toyota" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Hyundai" })).toBeInTheDocument();
   });
 });

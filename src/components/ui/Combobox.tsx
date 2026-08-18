@@ -52,6 +52,17 @@ function labelForValue(options: ComboboxOption[], value: string): string {
   return options.find((option) => option.value === value)?.label ?? value;
 }
 
+function filterOptions(options: ComboboxOption[], query: string): ComboboxOption[] {
+  if (!query.trim()) {
+    return options;
+  }
+  return options
+    .map((option) => ({ option, score: optionScore(option, query) }))
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score || a.option.label.localeCompare(b.option.label))
+    .map((row) => row.option);
+}
+
 export function Combobox({
   id,
   label,
@@ -66,25 +77,24 @@ export function Combobox({
 }: ComboboxProps) {
   const listId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const activeOptionRef = useRef<HTMLButtonElement>(null);
+  const selectingRef = useRef(false);
   const selectedLabel = labelForValue(options, value);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(selectedLabel);
+  const [filtering, setFiltering] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [listPlacement, setListPlacement] = useState<"bottom" | "top">("bottom");
 
   if (!open && query !== selectedLabel) {
     setQuery(selectedLabel);
   }
 
-  const filtered = useMemo(() => {
-    if (!query.trim()) {
-      return options;
-    }
-    return options
-      .map((option) => ({ option, score: optionScore(option, query) }))
-      .filter((row) => row.score > 0)
-      .sort((a, b) => b.score - a.score || a.option.label.localeCompare(b.option.label))
-      .map((row) => row.option);
-  }, [options, query]);
+  const filtered = useMemo(
+    () => filterOptions(options, filtering ? query : ""),
+    [options, filtering, query],
+  );
 
   const highlightedIndex =
     filtered.length === 0 ? 0 : Math.min(activeIndex, filtered.length - 1);
@@ -97,6 +107,7 @@ export function Combobox({
     function handlePointerDown(event: PointerEvent) {
       if (!containerRef.current?.contains(event.target as Node)) {
         setOpen(false);
+        setFiltering(false);
       }
     }
 
@@ -104,22 +115,53 @@ export function Combobox({
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [open]);
 
-  function openList() {
-    if (!disabled) {
-      setOpen(true);
-      setActiveIndex(0);
+  useEffect(() => {
+    if (!open) {
+      return;
     }
+    const field = containerRef.current;
+    if (field) {
+      const rect = field.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const needed = Math.min(256, window.innerHeight * 0.45);
+      setListPlacement(
+        spaceBelow < needed && spaceAbove > spaceBelow ? "top" : "bottom",
+      );
+    }
+    activeOptionRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [open, highlightedIndex]);
+
+  function highlightCommitted() {
+    const index = options.findIndex((option) => option.value === value);
+    setActiveIndex(index >= 0 ? index : 0);
+  }
+
+  function openList() {
+    if (disabled) {
+      return;
+    }
+    setOpen(true);
+    setFiltering(false);
+    highlightCommitted();
+  }
+
+  function closeList() {
+    setOpen(false);
+    setFiltering(false);
   }
 
   function commit(option: ComboboxOption) {
+    selectingRef.current = false;
     onChange(option.value);
     setQuery(option.label);
-    setOpen(false);
+    closeList();
   }
 
   function handleInput(next: string) {
     setQuery(next);
     setOpen(true);
+    setFiltering(true);
     setActiveIndex(0);
     if (next.trim() === "") {
       if (value !== "") {
@@ -134,6 +176,10 @@ export function Combobox({
   }
 
   function handleBlur() {
+    if (selectingRef.current) {
+      selectingRef.current = false;
+      return;
+    }
     const exact = exactOption(options, query);
     if (exact) {
       onChange(exact.value);
@@ -141,7 +187,7 @@ export function Combobox({
     } else {
       setQuery(selectedLabel);
     }
-    setOpen(false);
+    closeList();
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -152,7 +198,7 @@ export function Combobox({
     if (event.key === "Escape") {
       event.preventDefault();
       setQuery(selectedLabel);
-      setOpen(false);
+      closeList();
       return;
     }
 
@@ -192,8 +238,9 @@ export function Combobox({
       <label htmlFor={id} className="text-sm font-medium text-foreground">
         {label}
       </label>
-      <div className="relative">
+      <div className="ui-combobox__field">
         <input
+          ref={inputRef}
           id={id}
           type="text"
           role="combobox"
@@ -205,7 +252,16 @@ export function Combobox({
           placeholder={placeholder}
           value={query}
           onChange={(event) => handleInput(event.target.value)}
-          onFocus={openList}
+          onFocus={(event) => {
+            event.currentTarget.scrollIntoView?.({
+              block: "nearest",
+              inline: "nearest",
+            });
+            openList();
+            if (value) {
+              event.currentTarget.select();
+            }
+          }}
           onClick={openList}
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
@@ -214,16 +270,49 @@ export function Combobox({
           aria-expanded={open}
           aria-controls={listId}
           aria-autocomplete="list"
+          aria-haspopup="listbox"
           aria-activedescendant={
             open && activeOption ? `${listId}-opt-${highlightedIndex}` : undefined
           }
-          className="app-form-control min-h-[var(--app-tap-min)] w-full rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-foreground placeholder:text-muted/70 disabled:opacity-60"
+          className="ui-combobox__input app-form-control min-h-[var(--app-tap-min)] w-full rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-foreground placeholder:text-muted/70 disabled:opacity-60"
         />
+        <button
+          type="button"
+          className="ui-combobox__chevron"
+          tabIndex={-1}
+          aria-hidden="true"
+          disabled={disabled}
+          data-open={open ? "true" : "false"}
+          onPointerDown={(event) => {
+            event.preventDefault();
+            if (disabled) {
+              return;
+            }
+            if (open) {
+              closeList();
+              return;
+            }
+            inputRef.current?.focus();
+            openList();
+          }}
+        >
+          <svg
+            viewBox="0 0 20 20"
+            className="ui-combobox__chevron-icon"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            aria-hidden="true"
+          >
+            <path d="M5 7.5 10 12.5 15 7.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
         {open && !disabled ? (
           <ul
             id={listId}
             role="listbox"
             className="ui-combobox__list"
+            data-placement={listPlacement}
             data-testid={`${id}-listbox`}
           >
             {filtered.length === 0 ? (
@@ -233,11 +322,16 @@ export function Combobox({
                 <li key={option.value} className="p-0">
                   <button
                     type="button"
+                    ref={index === highlightedIndex ? activeOptionRef : undefined}
                     id={`${listId}-opt-${index}`}
                     role="option"
                     aria-selected={index === highlightedIndex}
+                    data-committed={option.value === value ? "true" : "false"}
                     className="ui-combobox__option"
-                    onPointerDown={(event) => event.preventDefault()}
+                    onPointerDown={(event) => {
+                      event.preventDefault();
+                      selectingRef.current = true;
+                    }}
                     onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => commit(option)}
                   >

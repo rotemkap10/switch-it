@@ -217,6 +217,35 @@ describe("VehicleForm", () => {
     ).toHaveLength(1);
   });
 
+  it("uses the same searchable manufacturer combobox as onboarding", async () => {
+    const user = userEvent.setup();
+    renderForm(<VehicleForm initialVehicle={emptyVehicle} />);
+
+    const manufacturer = screen.getByLabelText("Manufacturer");
+    expect(manufacturer).toHaveAttribute("role", "combobox");
+    expect(manufacturer).toHaveAttribute("placeholder", "Select manufacturer");
+    expect(screen.getByLabelText("Model")).toBeDisabled();
+    expect(screen.getByLabelText("Model")).toHaveAttribute(
+      "placeholder",
+      "Select manufacturer first",
+    );
+    expect(
+      screen.getByRole("button", { name: "Can't find your manufacturer?" }),
+    ).toBeInTheDocument();
+
+    await user.click(manufacturer);
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Toyota" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Hyundai" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("option", { name: "Toyota" }));
+    await user.click(screen.getByLabelText("Model"));
+    expect(screen.getByRole("option", { name: "Corolla" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Can't find your model?" }),
+    ).toBeInTheDocument();
+  });
+
   it("closes the editor and returns to the summary", async () => {
     const user = userEvent.setup();
     renderForm(<VehicleForm initialVehicle={existingVehicle} />);

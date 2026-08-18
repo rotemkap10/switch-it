@@ -60,7 +60,13 @@ describe("vehicle catalog", () => {
   });
 
   it("filters manufacturers with case-insensitive prefix and alias search", () => {
+    expect(searchMakes("").length).toBe(vehicleCatalogMakeCount());
+    expect(searchMakes("to")[0]?.name).toBe("Toyota");
     expect(searchMakes("Toy").map((make) => make.name)).toContain("Toyota");
+    expect(searchMakes("toyta").map((make) => make.name)).toContain("Toyota");
+    expect(searchMakes("vol").map((make) => make.name)).toEqual(
+      expect.arrayContaining(["Volkswagen", "Volvo"]),
+    );
     expect(searchMakes("merc").map((make) => make.name)).toContain(
       "Mercedes-Benz",
     );

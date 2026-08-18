@@ -126,7 +126,7 @@ export function VehicleMakeModelFields({
             onChange={selectCatalogMake}
             options={makeOptions}
             disabled={disabled}
-            placeholder="Search manufacturer"
+            placeholder="Select manufacturer"
             emptyText="No matching manufacturers"
             error={makeError}
           />
@@ -182,7 +182,7 @@ export function VehicleMakeModelFields({
             options={modelOptions}
             disabled={!modelEnabled}
             placeholder={
-              make.trim() ? "Search model" : "Select manufacturer first"
+              make.trim() ? "Select model" : "Select manufacturer first"
             }
             emptyText="No matching models"
             error={modelError}

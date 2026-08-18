@@ -37,30 +37,85 @@ function hiddenValue(name: "vehicle_make" | "vehicle_model"): string {
 }
 
 describe("VehicleMakeModelFields", () => {
+  it("opens every manufacturer on focus before the user types", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    const manufacturer = screen.getByLabelText("Manufacturer");
+    expect(manufacturer).toHaveAttribute("placeholder", "Select manufacturer");
+    expect(screen.getByLabelText("Model")).toBeDisabled();
+    expect(screen.getByLabelText("Model")).toHaveAttribute(
+      "placeholder",
+      "Select manufacturer first",
+    );
+
+    await user.click(manufacturer);
+    expect(screen.getByRole("listbox")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Toyota" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Hyundai" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Kia" })).toBeInTheDocument();
+    expect(screen.getAllByRole("option").length).toBeGreaterThan(20);
+  });
+
   it("filters manufacturer suggestions and stores the canonical make", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.type(screen.getByLabelText("Manufacturer"), "Toy");
-    expect(screen.getByRole("option", { name: "Toyota" })).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Manufacturer"), "to");
+    const names = screen.getAllByRole("option").map((option) => option.textContent);
+    expect(names[0]).toBe("Toyota");
     await user.click(screen.getByRole("option", { name: "Toyota" }));
 
     expect(hiddenValue("vehicle_make")).toBe("Toyota");
     expect(screen.getByLabelText("Manufacturer")).toHaveValue("Toyota");
   });
 
-  it("keeps the model list dependent on manufacturer", async () => {
+  it("suggests a manufacturer typo without saving until selection", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.type(screen.getByLabelText("Manufacturer"), "toyta");
+    expect(screen.getByRole("option", { name: "Toyota" })).toBeInTheDocument();
+    expect(hiddenValue("vehicle_make")).toBe("");
+
+    await user.click(screen.getByRole("option", { name: "Toyota" }));
+    expect(hiddenValue("vehicle_make")).toBe("Toyota");
+  });
+
+  it("opens that manufacturer's models when Model is focused empty", async () => {
     const user = userEvent.setup();
     render(<Harness />);
 
     expect(screen.getByLabelText("Model")).toBeDisabled();
 
-    await user.type(screen.getByLabelText("Manufacturer"), "Toyota");
+    await user.click(screen.getByLabelText("Manufacturer"));
     await user.click(screen.getByRole("option", { name: "Toyota" }));
 
-    await user.click(screen.getByLabelText("Model"));
+    const model = screen.getByLabelText("Model");
+    expect(model).toBeEnabled();
+    expect(model).toHaveAttribute("placeholder", "Select model");
+    await user.click(model);
+
     expect(screen.getByRole("option", { name: "Corolla" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Yaris" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "RAV4" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Camry" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Tucson" })).not.toBeInTheDocument();
+  });
+
+  it("filters models and restores the full make list when the query is cleared", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(screen.getByLabelText("Manufacturer"));
+    await user.click(screen.getByRole("option", { name: "Toyota" }));
+    await user.type(screen.getByLabelText("Model"), "cor");
+    expect(screen.getByRole("option", { name: "Corolla" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Yaris" })).not.toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Model"));
+    expect(screen.getByRole("option", { name: "Corolla" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Yaris" })).toBeInTheDocument();
   });
 
   it("does not show Toyota models under Hyundai", async () => {
@@ -82,19 +137,23 @@ describe("VehicleMakeModelFields", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    await user.type(screen.getByLabelText("Manufacturer"), "Toyota");
+    await user.click(screen.getByLabelText("Manufacturer"));
     await user.click(screen.getByRole("option", { name: "Toyota" }));
-    await user.type(screen.getByLabelText("Model"), "Corolla");
+    await user.click(screen.getByLabelText("Model"));
     await user.click(screen.getByRole("option", { name: "Corolla" }));
     expect(hiddenValue("vehicle_model")).toBe("Corolla");
 
-    await user.clear(screen.getByLabelText("Manufacturer"));
-    await user.type(screen.getByLabelText("Manufacturer"), "Hyundai");
+    await user.click(screen.getByLabelText("Manufacturer"));
+    expect(screen.getByRole("option", { name: "Hyundai" })).toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: "Hyundai" }));
 
     expect(hiddenValue("vehicle_make")).toBe("Hyundai");
     expect(hiddenValue("vehicle_model")).toBe("");
     expect(screen.getByLabelText("Model")).toHaveValue("");
+
+    await user.click(screen.getByLabelText("Model"));
+    expect(screen.getByRole("option", { name: "Tucson" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Corolla" })).not.toBeInTheDocument();
   });
 
   it("normalizes existing lowercase make and model when the match is confident", async () => {
@@ -164,5 +223,26 @@ describe("VehicleMakeModelFields", () => {
       screen.queryByRole("option", { name: "Corolla" }),
     ).not.toBeInTheDocument();
     expect(hiddenValue("vehicle_model")).toBe("");
+  });
+
+  it("selects from the open list with keyboard arrows and Enter", async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await user.click(screen.getByLabelText("Manufacturer"));
+    await user.keyboard("{ArrowDown}{Enter}");
+    expect(hiddenValue("vehicle_make")).not.toBe("");
+    expect(screen.getByLabelText("Manufacturer")).not.toHaveValue("");
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText("Manufacturer"));
+    await user.type(screen.getByLabelText("Manufacturer"), "to");
+    await user.keyboard("{Enter}");
+    expect(hiddenValue("vehicle_make")).toBe("Toyota");
+
+    await user.click(screen.getByLabelText("Model"));
+    await user.type(screen.getByLabelText("Model"), "cor");
+    await user.keyboard("{Enter}");
+    expect(hiddenValue("vehicle_model")).toBe("Corolla");
   });
 });
