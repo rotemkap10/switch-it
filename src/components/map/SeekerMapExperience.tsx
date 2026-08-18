@@ -194,7 +194,10 @@ export function SeekerMapExperience({
           ) : null}
 
           {activeClaim ? (
-            <div className="absolute inset-0 z-30">
+            <div
+              className="pointer-events-none absolute inset-0 z-30"
+              data-testid="active-claim-map-layer"
+            >
               <ActiveClaimPanel
                 claim={activeClaim}
                 destination={destination}

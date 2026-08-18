@@ -39,7 +39,6 @@ type PostClaimNavigationContextValue = {
   session: NavigationSession | null;
   offerPostClaimNavigation: (offer: PostClaimNavigationOffer) => void;
   openManual: (offer: PostClaimNavigationOffer) => void;
-  relaunchSelected: () => boolean;
   closeChooser: () => void;
 };
 
@@ -94,29 +93,6 @@ export function PostClaimNavigationProvider({
     [applyOffer],
   );
 
-  const relaunchSelected = useCallback(() => {
-    const current = session;
-    if (!current?.selectedProviderId) {
-      return false;
-    }
-    const links = buildExternalNavigationLinks(
-      current.latitude,
-      current.longitude,
-    );
-    if (!links) {
-      return false;
-    }
-    const url =
-      current.selectedProviderId === "waze"
-        ? links.waze
-        : current.selectedProviderId === "googleMaps"
-          ? links.googleMaps
-          : links.appleMaps;
-    openExternalNavigationUrl(url);
-    requestSeekerLiveLocationStart();
-    return true;
-  }, [session]);
-
   const closeChooser = useCallback(() => {
     logPostClaimNavigationDev("navigation chooser closed");
     setSession((current) =>
@@ -144,10 +120,9 @@ export function PostClaimNavigationProvider({
       session,
       offerPostClaimNavigation: offerFromUi,
       openManual,
-      relaunchSelected,
       closeChooser,
     }),
-    [session, offerFromUi, openManual, relaunchSelected, closeChooser],
+    [session, offerFromUi, openManual, closeChooser],
   );
 
   const links =

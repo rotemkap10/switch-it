@@ -69,17 +69,24 @@ type ActiveClaimPanelProps = {
   liveShare?: SeekerLiveLocationShareApi;
 };
 
-function ExpandChevron({ expanded }: { expanded: boolean }) {
+function HandoffPanelChevron({ expanded }: { expanded: boolean }) {
   return (
-    <span
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
       aria-hidden="true"
-      className={[
-        "inline-block text-muted transition-transform duration-[var(--motion-standard)] ease-[var(--motion-ease)]",
-        expanded ? "rotate-180" : "",
-      ].join(" ")}
+      className={expanded ? "" : "rotate-180"}
     >
-      ▾
-    </span>
+      <path
+        d="M5 7.5 10 12.5 15 7.5"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
@@ -227,17 +234,21 @@ function ActiveClaimSheetBody({
 
         <button
           type="button"
-          className="motion-interactive-press shrink-0 rounded-lg px-2 py-2 text-sm text-muted hover:bg-accent-soft hover:text-foreground"
+          data-testid="active-claim-expand-toggle"
+          className={[
+            "motion-interactive-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full",
+            "border border-border bg-surface text-foreground shadow-[var(--shadow-card)]",
+            "transition-opacity hover:bg-surface/95",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+          ].join(" ")}
           aria-expanded={expanded}
           aria-controls="active-claim-details"
           aria-label={
-            expanded ? "Collapse claim details" : "Expand claim details"
+            expanded ? "Collapse handoff details" : "Expand handoff details"
           }
           onClick={onToggleExpanded}
         >
-          <span className="sr-only">{expanded ? "Collapse" : "Expand"}</span>
-          <span className="map-sheet-handle" aria-hidden="true" />
-          <ExpandChevron expanded={expanded} />
+          <HandoffPanelChevron expanded={expanded} />
         </button>
       </div>
 
@@ -246,7 +257,6 @@ function ActiveClaimSheetBody({
           claimId={claim.claimId}
           latitude={navigateDestination.latitude}
           longitude={navigateDestination.longitude}
-          placement="primary"
         />
       ) : null}
 
@@ -296,15 +306,6 @@ function ActiveClaimSheetBody({
             onCancelled={onHandoffTerminal}
           />
         </div>
-      ) : null}
-
-      {showDetails && canNavigate && navigateDestination ? (
-        <ClaimNavigationActions
-          claimId={claim.claimId}
-          latitude={navigateDestination.latitude}
-          longitude={navigateDestination.longitude}
-          placement="change"
-        />
       ) : null}
     </div>
   );
@@ -373,7 +374,7 @@ export function ActiveClaimPanel({
   if (variant === "overlay") {
     return (
       <div
-        className={`${MAP_SHEET_HOST_CLASS} map-bottom-sheet-host--claim md:left-4 md:right-auto md:w-full md:max-w-sm md:px-4`}
+        className={`${MAP_SHEET_HOST_CLASS} map-bottom-sheet-host--claim pointer-events-none md:left-4 md:right-auto md:w-full md:max-w-sm md:px-4`}
         data-testid="active-claim-overlay-host"
       >
         <section

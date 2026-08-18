@@ -229,6 +229,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     const host = screen.getByTestId("active-claim-overlay-host");
     expect(host.className).toContain("map-bottom-sheet-host");
     expect(host.className).toContain("map-bottom-sheet-host--claim");
+    expect(host.className).toContain("pointer-events-none");
 
     expect(screen.queryByText("Share your live location")).not.toBeInTheDocument();
     expect(
@@ -291,11 +292,18 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: /Collapse claim details/i }),
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
     );
 
     expect(screen.getByTestId("active-claim-sheet").className).toContain(
       "map-bottom-sheet--claim-collapsed",
+    );
+    const host = screen.getByTestId("active-claim-overlay-host");
+    expect(host.className).toContain("pointer-events-none");
+    expect(host.className).not.toContain("inset-0");
+    expect(host.className).not.toContain("h-full");
+    expect(screen.getByRole("region", { name: ACTIVE_CLAIM_ON_WAY_STATUS })).toHaveClass(
+      "pointer-events-auto",
     );
     expect(
       screen.queryByTestId("active-claim-complete-actions"),
@@ -315,8 +323,11 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(region).toHaveAttribute("aria-labelledby");
     expect(region).not.toHaveAttribute("aria-label");
     expect(
-      screen.getByRole("button", { name: /Collapse claim details/i }),
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
     ).toHaveAttribute("aria-expanded", "true");
+    const toggle = screen.getByTestId("active-claim-expand-toggle");
+    expect(toggle).toHaveClass("h-11", "w-11", "rounded-full");
+    expect(toggle.querySelector("svg")).not.toHaveClass("rotate-180");
     expect(screen.queryByText("Parking spot")).not.toBeInTheDocument();
     expect(screen.queryByTestId("active-claim-address")).not.toBeInTheDocument();
     expect(screen.queryByTestId("claim-destination-preview-map")).not.toBeInTheDocument();
@@ -359,12 +370,20 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: /Collapse claim details/i }),
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
     );
 
     expect(
-      screen.getByRole("button", { name: /Expand claim details/i }),
+      screen.getByRole("button", { name: /Expand handoff details/i }),
     ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("active-claim-expand-toggle")).toHaveClass(
+      "h-11",
+      "w-11",
+      "rounded-full",
+    );
+    expect(
+      screen.getByTestId("active-claim-expand-toggle").querySelector("svg"),
+    ).toHaveClass("rotate-180");
     expect(
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
@@ -387,10 +406,10 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: /Collapse claim details/i }),
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
     );
     await user.click(
-      screen.getByRole("button", { name: /Expand claim details/i }),
+      screen.getByRole("button", { name: /Expand handoff details/i }),
     );
 
     expect(
@@ -439,7 +458,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /Expand claim details/i }),
+        screen.getByRole("button", { name: /Expand handoff details/i }),
       ).toHaveAttribute("aria-expanded", "false");
     });
     expect(
@@ -571,8 +590,8 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.queryByRole("button", { name: "Open in Waze" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Change navigation app" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Change navigation app" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Waze · Change" }),
     ).not.toBeInTheDocument();
@@ -580,8 +599,10 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.queryByRole("button", { name: "Open in" }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Change navigation app" }));
+    await user.click(screen.getByRole("button", { name: "Navigate to spot" }));
     expect(screen.getByTestId("navigation-provider-sheet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Google Maps" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Apple Maps" })).toBeInTheDocument();
   });
 
   it("preserves claim ids on cancel", () => {
@@ -625,7 +646,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     ).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: /Collapse claim details/i }),
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
     );
 
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
@@ -655,10 +676,10 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: /Collapse claim details/i }),
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
     );
     await user.click(
-      screen.getByRole("button", { name: /Expand claim details/i }),
+      screen.getByRole("button", { name: /Expand handoff details/i }),
     );
 
     expect(
@@ -851,7 +872,7 @@ describe("ActiveClaimPanel sheet UX", () => {
 
     expect(screen.queryByTestId("claim-destination-preview-map")).not.toBeInTheDocument();
     await user.click(
-      screen.getByRole("button", { name: /Collapse claim details/i }),
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
     );
     expect(
       screen.queryByTestId("claim-destination-preview-map"),
@@ -882,7 +903,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: /Collapse claim details/i }),
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
     );
 
     expect(

@@ -319,6 +319,11 @@ describe("SeekerMapExperience overlay hierarchy", () => {
       "data-variant",
       "overlay",
     );
+    const layer = screen.getByTestId("active-claim-map-layer");
+    expect(layer.className).toContain("pointer-events-none");
+    expect(layer.className).toContain("inset-0");
+    expect(screen.getByTestId("seeker-map-surface")).not.toContainElement(layer);
+    expect(layer).toContainElement(screen.getByTestId("active-claim-panel"));
     expect(
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
