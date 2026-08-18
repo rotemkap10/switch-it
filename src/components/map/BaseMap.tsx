@@ -20,6 +20,10 @@ import {
   shouldEscalateMapUnavailable,
 } from "@/lib/map/is-ignorable-map-error";
 import { mapPerfMark, mapPerfMeasure, PERF_MARKS } from "@/lib/map/map-perf";
+import {
+  MAP_ATTRIBUTION_CONTROL_OPTIONS,
+  keepMapLibreAttributionInitiallyCollapsed,
+} from "@/lib/map/maplibre-attribution";
 import { MAP_INTERACTION_OPTIONS, isMapCameraBusy } from "@/lib/map/maplibre-interaction";
 import { logMapInteractionSnapshot } from "@/lib/map/log-map-interaction-snapshot";
 import {
@@ -244,9 +248,7 @@ export function BaseMap({
         maxBounds: MAP_SUPPORTED_MAX_BOUNDS,
         renderWorldCopies: false,
         transformRequest,
-        attributionControl: {
-          compact: true,
-        },
+        attributionControl: MAP_ATTRIBUTION_CONTROL_OPTIONS,
         // Shared with Share a Spot picker — same pan inertia / touch profile.
         ...MAP_INTERACTION_OPTIONS,
       });
@@ -258,6 +260,8 @@ export function BaseMap({
       );
 
       mapRef.current = map;
+      const stopCollapsingAttribution =
+        keepMapLibreAttributionInitiallyCollapsed(map);
 
       map.on("error", (event) => {
         const payload = event.error ?? event;
@@ -372,6 +376,7 @@ export function BaseMap({
         window.cancelAnimationFrame(paintFrame);
         window.clearTimeout(idleFallbackTimer);
         resizeObserver?.disconnect();
+        stopCollapsingAttribution();
         if (mapRef.current) {
           mapRef.current.remove();
           mapRef.current = null;

@@ -27,6 +27,19 @@ const {
     isEasing: vi.fn(() => false),
     getStyle: vi.fn(() => ({})),
     getSprite: vi.fn(() => []),
+    getContainer: vi.fn(() => {
+      if (!mapInstance.__container) {
+        mapInstance.__container = document.createElement("div");
+      }
+      return mapInstance.__container;
+    }),
+    off: vi.fn((event: string, handler: Handler) => {
+      const list = onHandlers.get(event) ?? [];
+      onHandlers.set(
+        event,
+        list.filter((item) => item !== handler),
+      );
+    }),
     __emitOnce(event: string) {
       const handler = onceHandlers.get(event);
       onceHandlers.delete(event);
@@ -37,11 +50,15 @@ const {
         handler(payload);
       }
     },
+    __container: undefined as HTMLElement | undefined,
     __reset() {
       onceHandlers.clear();
       onHandlers.clear();
+      mapInstance.__container = undefined;
       mapInstance.once.mockClear();
       mapInstance.on.mockClear();
+      mapInstance.off.mockClear();
+      mapInstance.getContainer.mockClear();
       mapInstance.remove.mockClear();
       mapInstance.resize.mockClear();
       mapInstance.isMoving.mockClear();
@@ -51,7 +68,8 @@ const {
     },
   };
 
-  const MapMock = vi.fn(function MapMock() {
+  const MapMock = vi.fn(function MapMock(options?: { container?: HTMLElement }) {
+    mapInstance.__container = options?.container ?? document.createElement("div");
     return mapInstance;
   });
 
@@ -373,5 +391,59 @@ describe("BaseMap loading lifecycle", () => {
       "moveend",
       expect.any(Function),
     );
+  });
+
+  it("constructs every map with compact native attribution", () => {
+    render(
+      <BaseMap
+        styleUrl="https://example.test/style.json"
+        center={[34.78, 32.08]}
+        zoom={14}
+        onMapReady={vi.fn()}
+      />,
+    );
+
+    expect(MapMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        attributionControl: { compact: true },
+      }),
+    );
+    expect(MapMock.mock.calls[0]?.[0]).not.toMatchObject({
+      attributionControl: false,
+    });
+  });
+
+  it("collapses MapLibre compact attribution after it first appears", () => {
+    render(
+      <BaseMap
+        styleUrl="https://example.test/style.json"
+        center={[34.78, 32.08]}
+        zoom={14}
+        onMapReady={vi.fn()}
+      />,
+    );
+
+    const container = mapInstance.getContainer();
+    container.innerHTML = `
+      <details class="maplibregl-ctrl maplibregl-ctrl-attrib maplibregl-compact maplibregl-compact-show">
+        <summary class="maplibregl-ctrl-attrib-button" aria-label="Toggle attribution"></summary>
+        <div class="maplibregl-ctrl-attrib-inner">© MapTiler © OpenStreetMap contributors</div>
+      </details>
+    `;
+
+    act(() => {
+      mapInstance.__emitOn("styledata");
+    });
+
+    const attrib = container.querySelector(".maplibregl-ctrl-attrib");
+    expect(attrib).toBeInstanceOf(HTMLElement);
+    expect(attrib).toHaveClass("maplibregl-compact");
+    expect(attrib).not.toHaveClass("maplibregl-compact-show");
+    expect(container.querySelector(".maplibregl-ctrl-attrib-inner")).toHaveTextContent(
+      "© MapTiler © OpenStreetMap contributors",
+    );
+    expect(
+      container.querySelector(".maplibregl-ctrl-attrib-button"),
+    ).toHaveAttribute("aria-label", "Toggle attribution");
   });
 });

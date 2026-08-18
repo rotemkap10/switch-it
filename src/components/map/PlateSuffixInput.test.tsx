@@ -19,6 +19,45 @@ describe("PlateSuffixInput", () => {
     expect(document.activeElement).not.toBe(input);
   });
 
+  it("is a visible editable field before focus", () => {
+    renderInput();
+
+    const input = screen.getByRole("textbox", { name: "Last 2 digits" });
+    expect(input).not.toHaveFocus();
+    expect(input).toHaveClass(
+      "plate-suffix-input",
+      "app-form-control",
+      "rounded-[var(--radius-card)]",
+      "border",
+      "border-border",
+      "bg-surface",
+      "text-foreground",
+    );
+    expect(input).toHaveClass("disabled:opacity-60");
+  });
+
+  it("keeps visible chrome when focused, invalid, or disabled", () => {
+    const { rerender } = renderInput("Enter the last 2 digits.");
+    const chrome = [
+      "border",
+      "border-border",
+      "bg-surface",
+      "rounded-[var(--radius-card)]",
+    ];
+
+    const invalid = screen.getByTestId("plate-suffix-input");
+    expect(invalid).toHaveAttribute("aria-invalid", "true");
+    expect(invalid).toHaveClass(...chrome);
+
+    rerender(
+      <PlateSuffixInput id="plate_suffix" name="plate_suffix" disabled />,
+    );
+    const disabled = screen.getByTestId("plate-suffix-input");
+    expect(disabled).toBeDisabled();
+    expect(disabled).toHaveClass(...chrome);
+    expect(disabled).toHaveClass("disabled:opacity-60");
+  });
+
   it("focuses only after the user taps the field", async () => {
     const user = userEvent.setup();
     renderInput();
@@ -28,6 +67,7 @@ describe("PlateSuffixInput", () => {
 
     await user.click(input);
     expect(input).toHaveFocus();
+    expect(input).toHaveClass("border", "border-border", "bg-surface");
   });
 
   it("does not refocus after a rerender or state update", async () => {

@@ -113,6 +113,9 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".mobile-form-section");
     expect(css).toContain(".app-form-control");
     expect(css).toContain("font-size: max(1rem, 16px)");
+    expect(css).toMatch(
+      /\.plate-suffix-input\s*\{[^}]*border:\s*1px solid var\(--color-border\)[^}]*background:\s*var\(--color-surface\)/s,
+    );
     expect(css).toContain(".profile-summary-grid");
     expect(css).toContain(".profile-summary-email");
     expect(css).toContain(".onboarding-vehicle-form");
