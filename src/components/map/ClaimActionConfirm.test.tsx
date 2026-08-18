@@ -20,10 +20,10 @@ describe("claim action confirmations", () => {
   it("shows plate-digit verification without revealing expected digits", async () => {
     render(<FeedbackShell><CompleteHandoffForm claimId={claimId} /></FeedbackShell>);
 
-    expect(screen.getByText("Confirm the vehicle")).toBeInTheDocument();
+    expect(screen.getByText("Confirm the arriving vehicle")).toBeInTheDocument();
     expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByRole("button", { name: "Confirm handoff" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Complete the handoff")).not.toBeInTheDocument();
     expect(screen.queryByText(/^\d{5}$/)).not.toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("claim action confirmations", () => {
     expect(dialog.querySelector('input[name="claim_id"]')).toHaveValue(claimId);
   });
 
-  it("renders Complete handoff as a prominent framed primary action", () => {
+  it("renders Confirm handoff as a prominent framed primary action", () => {
     render(
       <FeedbackShell>
         <CompleteHandoffForm claimId={claimId} />

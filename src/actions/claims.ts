@@ -198,6 +198,7 @@ export async function completeClaim(
 
   revalidatePath("/map");
   revalidatePath("/profile");
+  revalidatePath("/spots/new");
 
   return {
     success: true,

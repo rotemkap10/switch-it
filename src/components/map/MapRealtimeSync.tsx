@@ -3,11 +3,13 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
+import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 import {
   isRealtimeFeedbackSuppressed,
   realtimeFeedbackKey,
   suppressRealtimeFeedback,
 } from "@/lib/realtime/feedback-suppression";
+import { sensoryHandoffCompleted } from "@/lib/sensory/feedback";
 import { useActiveHandoffReconciliation } from "@/lib/realtime/use-active-handoff-reconciliation";
 import { useDebouncedRouterRefresh } from "@/lib/realtime/use-debounced-router-refresh";
 import { useRealtimeInvalidation } from "@/lib/realtime/use-realtime-invalidation";
@@ -85,10 +87,11 @@ export function MapRealtimeSync({
           suppressRealtimeFeedback(key);
         }
       } else if (claimId && next === "completed") {
-        // Local completeClaim already toasts; suppress duplicate.
         const key = realtimeFeedbackKey("claim", claimId, "completed");
         if (!isRealtimeFeedbackSuppressed(key)) {
-          // Remote completion is rare; keep quiet — status UI updates via refresh.
+          info(FEEDBACK_SUCCESS_KEYS["handoff-completed"]);
+          sensoryHandoffCompleted(claimId);
+          suppressRealtimeFeedback(key);
         }
       }
 

@@ -52,6 +52,22 @@ vi.mock("@/components/spots/ExtendHandoffWaitButton", () => ({
   ),
 }));
 
+vi.mock("@/components/map/CompleteHandoffForm", () => ({
+  CompleteHandoffForm: ({ claimId }: { claimId: string }) => (
+    <form data-testid="complete-handoff-form" data-claim-id={claimId}>
+      <p>Confirm the arriving vehicle</p>
+      <label htmlFor={`plate_suffix_${claimId}`}>Last 2 digits</label>
+      <input
+        id={`plate_suffix_${claimId}`}
+        data-testid="plate-suffix-input"
+        maxLength={2}
+        inputMode="numeric"
+      />
+      <button type="button">Confirm handoff</button>
+    </form>
+  ),
+}));
+
 vi.mock("@/components/ui/HandoffWindowCountdown", async () => {
   const actual = await vi.importActual<
     typeof import("@/components/ui/HandoffWindowCountdown")
@@ -521,7 +537,7 @@ describe("PublisherSpotCard", () => {
     expect(screen.queryByTestId("publisher-parking-context")).not.toBeInTheDocument();
     expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Complete handoff" }),
+      screen.queryByRole("button", { name: "Confirm handoff" }),
     ).not.toBeInTheDocument();
   });
 
@@ -551,16 +567,17 @@ describe("PublisherSpotCard", () => {
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
     expect(screen.getByTestId("handoff-vehicle-section")).toHaveAttribute(
       "data-compact",
-      "true",
+      "false",
     );
     expect(screen.getByTestId("vehicle-identity-color")).toHaveTextContent("Red");
     expect(screen.getByText("Mazda 3")).toBeInTheDocument();
     const identity = screen.getByTestId("vehicle-identity-card");
-    expect(identity).toHaveAttribute("data-compact", "true");
+    expect(identity).toHaveAttribute("data-compact", "false");
     expect(identity).toHaveAttribute("data-layout", "stacked");
     expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(screen.queryByTestId("handoff-vehicle-animation")).not.toBeInTheDocument();
+    expect(screen.getByText("76-543-**")).toBeInTheDocument();
     expect(
       screen.queryByTestId("publisher-plate-handoff-note"),
     ).not.toBeInTheDocument();
@@ -617,7 +634,7 @@ describe("PublisherSpotCard", () => {
 
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
     const identity = screen.getByTestId("vehicle-identity-card");
-    expect(identity).toHaveAttribute("data-compact", "true");
+    expect(identity).toHaveAttribute("data-compact", "false");
     expect(identity).toHaveAttribute("data-layout", "stacked");
     expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
@@ -643,7 +660,7 @@ describe("PublisherSpotCard", () => {
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
     expect(screen.getByTestId("handoff-vehicle-section")).toHaveAttribute(
       "data-compact",
-      "true",
+      "false",
     );
     expect(
       screen.getByText("Vehicle details not added yet"),
@@ -664,27 +681,74 @@ describe("PublisherSpotCard", () => {
     expect(screen.queryByText("Exact location marked on map")).not.toBeInTheDocument();
   });
 
-  it("does not give the publisher a seeker Complete action", () => {
+  it("does not show plate verification before the publisher starts the handoff", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:41:00.000Z"),
+    });
     render(
       <PublisherSpotCard
-        spot={{ ...baseSpot, status: "claimed" }}
+        spot={{
+          ...baseSpot,
+          status: "claimed",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:48:00.000Z",
+          handoff_started_at: null,
+        }}
         layout="page"
         counterpartVehicle={seekerVehicle}
         activeClaimId="11111111-1111-4111-8111-111111111111"
       />,
     );
 
+    expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Confirm handoff" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("start-handoff-now")).toBeInTheDocument();
+    expect(screen.getByText("76-543-**")).toBeInTheDocument();
+    expect(screen.queryByText("76-543-21")).not.toBeInTheDocument();
+  });
+
+  it("lets the publisher confirm the arriving seeker vehicle after start", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:46:00.000Z"),
+    });
+    render(
+      <PublisherSpotCard
+        spot={{
+          ...baseSpot,
+          status: "claimed",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:48:00.000Z",
+          handoff_started_at: "2026-08-04T22:45:00.000Z",
+        }}
+        layout="page"
+        counterpartVehicle={seekerVehicle}
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+      />,
+    );
+
+    expect(screen.getByText("Confirm the arriving vehicle")).toBeInTheDocument();
+    expect(screen.getByText("Last 2 digits")).toBeInTheDocument();
+    expect(screen.getByTestId("plate-suffix-input")).toHaveAttribute(
+      "maxLength",
+      "2",
+    );
+    expect(screen.getByTestId("plate-suffix-input")).toHaveAttribute(
+      "inputMode",
+      "numeric",
+    );
+    expect(
+      screen.getByRole("button", { name: "Confirm handoff" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Complete handoff/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Handoff code")).not.toBeInTheDocument();
-    expect(screen.queryByText("Give this code to the driver")).not.toBeInTheDocument();
+    expect(screen.getByText("76-543-**")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Cancel handoff" }),
+      screen.getByRole("button", { name: "Leave without handoff" }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "I’m leaving" }),
-    ).not.toBeInTheDocument();
   });
 
   it("renders live freshness and keeps last-known progress during pause", () => {
@@ -776,6 +840,9 @@ describe("PublisherSpotCard", () => {
   });
 
   it("shifts nearby copy when the seeker is very close", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:46:00.000Z"),
+    });
     liveLocationState.freshness = "live";
     liveLocationState.statusLabel = "Live location";
     liveLocationState.updatedLabel = "Updated just now";
@@ -790,7 +857,13 @@ describe("PublisherSpotCard", () => {
 
     render(
       <PublisherSpotCard
-        spot={{ ...baseSpot, status: "claimed" }}
+        spot={{
+          ...baseSpot,
+          status: "claimed",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:48:00.000Z",
+          handoff_started_at: "2026-08-04T22:45:00.000Z",
+        }}
         layout="page"
         counterpartVehicle={seekerVehicle}
         activeClaimId="11111111-1111-4111-8111-111111111111"
@@ -807,6 +880,9 @@ describe("PublisherSpotCard", () => {
     expect(screen.getByTestId("publisher-driver-distance")).toHaveTextContent(
       "Driver is nearby",
     );
+    expect(
+      screen.getByRole("button", { name: "Confirm handoff" }),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /Complete handoff/i }),
     ).not.toBeInTheDocument();

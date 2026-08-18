@@ -88,4 +88,17 @@ describe("MapRealtimeSync cancellation feedback", () => {
     expect(infoMock).not.toHaveBeenCalled();
     expect(scheduleRefreshMock).toHaveBeenCalled();
   });
+
+  it("toasts the seeker when the publisher completes the handoff", () => {
+    render(<MapRealtimeSync userId="seeker-1" activeClaimId={claimId} />);
+
+    claimOnEvent?.({
+      new: { id: claimId, status: "completed" },
+      old: { id: claimId, status: "active" },
+    });
+
+    expect(infoMock).toHaveBeenCalledWith(
+      "Parking handoff complete\n1 credit was used.",
+    );
+  });
 });

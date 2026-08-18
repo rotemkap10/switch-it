@@ -48,7 +48,7 @@ vi.mock("@/components/map/ActiveClaimPanel", () => ({
       data-expanded={expanded === false ? "false" : "true"}
     >
       <button type="button">Navigate to spot</button>
-      <button type="button">Complete handoff</button>
+      <p>Waiting for vehicle confirmation</p>
       <button type="button">Release spot</button>
     </div>
   ),
@@ -323,7 +323,7 @@ describe("SeekerMapExperience overlay hierarchy", () => {
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByText("Waiting for vehicle confirmation"),
     ).toBeInTheDocument();
     expect(screen.queryByTestId("map-empty-overlay")).not.toBeInTheDocument();
   });

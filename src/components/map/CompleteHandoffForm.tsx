@@ -42,7 +42,7 @@ export function CompleteHandoffForm({
     successMessage: (s) =>
       s.alreadyCompleted
         ? "Handoff already completed."
-        : FEEDBACK_SUCCESS_KEYS["handoff-completed"],
+        : FEEDBACK_SUCCESS_KEYS["handoff-completed-publisher"],
     toastErrors: false,
   });
 
@@ -64,7 +64,7 @@ export function CompleteHandoffForm({
     return (
       <div className="space-y-2" data-testid="handoff-complete-status" role="status">
         <HandoffCompleteCelebration animate />
-        <p className="text-center text-sm text-muted">Updating your trip…</p>
+        <p className="text-center text-sm text-muted">Updating your spot…</p>
       </div>
     );
   }
@@ -74,7 +74,12 @@ export function CompleteHandoffForm({
       <input type="hidden" name="claim_id" value={claimId} />
 
       <div>
-        <h3 className="text-sm font-semibold text-foreground">Confirm the vehicle</h3>
+        <h3 className="text-sm font-semibold text-foreground">
+          Confirm the arriving vehicle
+        </h3>
+        <p className="mt-0.5 text-xs leading-5 text-muted">
+          Enter the last 2 digits of the arriving vehicle’s plate.
+        </p>
       </div>
 
       <PlateSuffixInput
@@ -96,7 +101,7 @@ export function CompleteHandoffForm({
         data-testid="complete-handoff-submit"
         data-emphasized={emphasized ? "true" : "false"}
       >
-        {pending ? "Verifying…" : "Complete handoff"}
+        {pending ? "Verifying…" : "Confirm handoff"}
       </Button>
     </form>
   );

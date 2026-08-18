@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { CancelClaimButton } from "@/components/map/CancelClaimButton";
 import { ClaimNavigationActions } from "@/components/map/ClaimNavigationActions";
 import { useOptionalPostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
-import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 import { SeekerShareLocationCard } from "@/components/map/SeekerShareLocationCard";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import { HandoffWindowCountdown } from "@/components/ui/HandoffWindowCountdown";
@@ -49,6 +48,8 @@ export type ActiveClaimDestination = {
 export const ACTIVE_CLAIM_DESTINATION_FALLBACK = "Exact location marked on map";
 export const ACTIVE_CLAIM_ON_WAY_STATUS = "You’re on your way";
 export const ACTIVE_CLAIM_CLOSE_STATUS = "You’re close to the parking spot";
+export const ACTIVE_CLAIM_WAITING_CONFIRMATION =
+  "Waiting for vehicle confirmation";
 
 export function activeClaimDestinationLabel(
   spotAddress: string | null | undefined,
@@ -283,11 +284,12 @@ function ActiveClaimSheetBody({
           data-testid="active-claim-complete-actions"
         >
           {hasHandoffStarted(claim.handoffStartedAt) ? (
-            <CompleteHandoffForm
-              claimId={claim.claimId}
-              onCompleted={onHandoffTerminal}
-              emphasized={closeToSpot}
-            />
+            <p
+              className="text-sm font-medium text-foreground"
+              data-testid="seeker-waiting-confirmation"
+            >
+              {ACTIVE_CLAIM_WAITING_CONFIRMATION}
+            </p>
           ) : null}
           <CancelClaimButton
             claimId={claim.claimId}

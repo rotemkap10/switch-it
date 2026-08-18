@@ -77,8 +77,13 @@ describe("CompleteHandoffForm", () => {
   it("shows plate-digit verification instead of the spoken handoff code", () => {
     renderForm();
 
-    expect(screen.getByText("Confirm the vehicle")).toBeInTheDocument();
+    expect(screen.getByText("Confirm the arriving vehicle")).toBeInTheDocument();
     expect(screen.getByText("Last 2 digits")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Enter the last 2 digits of the arriving vehicle’s plate.",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.queryByText("Enter the 2 hidden digits from the license plate."),
     ).not.toBeInTheDocument();
@@ -90,7 +95,7 @@ describe("CompleteHandoffForm", () => {
       ),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByRole("button", { name: "Confirm handoff" }),
     ).toBeInTheDocument();
     const suffix = screen.getByTestId("plate-suffix-input");
     expect(suffix).not.toHaveFocus();
@@ -113,7 +118,7 @@ describe("CompleteHandoffForm", () => {
 
     await enterPlateSuffix(user, "6");
     await user.click(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByRole("button", { name: "Confirm handoff" }),
     );
 
     await waitFor(() => {
@@ -128,7 +133,7 @@ describe("CompleteHandoffForm", () => {
 
     await enterPlateSuffix(user, "67");
     await user.click(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByRole("button", { name: "Confirm handoff" }),
     );
 
     await waitFor(() => {
@@ -149,7 +154,7 @@ describe("CompleteHandoffForm", () => {
 
     await enterPlateSuffix(user, "6");
     await user.click(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByRole("button", { name: "Confirm handoff" }),
     );
 
     await waitFor(() => {
@@ -157,7 +162,7 @@ describe("CompleteHandoffForm", () => {
     });
   });
 
-  it("emphasizes Complete handoff without changing verification fields", () => {
+  it("emphasizes Confirm handoff without changing verification fields", () => {
     render(
       <FeedbackShell>
         <CompleteHandoffForm claimId={claimId} emphasized />
@@ -165,7 +170,7 @@ describe("CompleteHandoffForm", () => {
     );
 
     expect(screen.getByText("Last 2 digits")).toBeInTheDocument();
-    const button = screen.getByRole("button", { name: "Complete handoff" });
+    const button = screen.getByRole("button", { name: "Confirm handoff" });
     expect(button).toHaveAttribute("data-emphasized", "true");
     expect(button.className).toContain("border-accent");
     expect(button.className).toContain("border-2");
@@ -183,7 +188,7 @@ describe("CompleteHandoffForm", () => {
 
     await enterPlateSuffix(user, "67");
     await user.click(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByRole("button", { name: "Confirm handoff" }),
     );
 
     await waitFor(() => {
@@ -208,7 +213,7 @@ describe("CompleteHandoffForm", () => {
 
     await enterPlateSuffix(user, "67");
     await user.click(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByRole("button", { name: "Confirm handoff" }),
     );
 
     await waitFor(() => {
@@ -235,7 +240,7 @@ describe("CompleteHandoffForm", () => {
 
     await enterPlateSuffix(user, "67");
     await user.click(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByRole("button", { name: "Confirm handoff" }),
     );
 
     await waitFor(() => {

@@ -22,28 +22,6 @@ vi.mock("@/components/map/CancelClaimButton", () => ({
   ),
 }));
 
-vi.mock("@/components/map/CompleteHandoffForm", () => ({
-  CompleteHandoffForm: ({
-    claimId,
-    onCompleted,
-    emphasized,
-  }: {
-    claimId: string;
-    onCompleted?: () => void;
-    emphasized?: boolean;
-  }) => (
-    <form
-      data-testid="complete-handoff-form"
-      data-claim-id={claimId}
-      data-emphasized={emphasized ? "true" : "false"}
-    >
-      <button type="button" onClick={() => onCompleted?.()}>
-        Complete handoff
-      </button>
-    </form>
-  ),
-}));
-
 vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
   HandoffWindowCountdown: ({
     role,
@@ -124,6 +102,7 @@ import {
   ACTIVE_CLAIM_CLOSE_STATUS,
   ACTIVE_CLAIM_DESTINATION_FALLBACK,
   ACTIVE_CLAIM_ON_WAY_STATUS,
+  ACTIVE_CLAIM_WAITING_CONFIRMATION,
   ActiveClaimPanel,
   activeClaimDestinationLabel,
 } from "@/components/map/ActiveClaimPanel";
@@ -258,10 +237,10 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(screen.queryByRole("button", { name: "Not now" })).not.toBeInTheDocument();
 
     expect(screen.getByTestId("active-claim-complete-actions")).toBeInTheDocument();
-    expect(screen.getByTestId("complete-handoff-form")).toBeInTheDocument();
+    expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
-    ).toBeInTheDocument();
+      screen.getByTestId("seeker-waiting-confirmation"),
+    ).toHaveTextContent(ACTIVE_CLAIM_WAITING_CONFIRMATION);
     expect(screen.getAllByText("Look for this vehicle")).toHaveLength(1);
     expect(
       screen.queryByText(
@@ -288,8 +267,10 @@ describe("ActiveClaimPanel sheet UX", () => {
 
     expect(screen.getByTestId("active-claim-complete-actions")).toBeInTheDocument();
     expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("seeker-waiting-confirmation")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("plate-suffix-input")).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Complete handoff" }),
+      screen.queryByRole("button", { name: "Confirm handoff" }),
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
@@ -360,7 +341,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByTestId("seeker-waiting-confirmation"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
@@ -388,7 +369,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "Complete handoff" }),
+      screen.queryByRole("button", { name: "Confirm handoff" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Release spot" }),
@@ -413,7 +394,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByTestId("seeker-waiting-confirmation"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
@@ -517,10 +498,10 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("complete-handoff-form")).toHaveAttribute(
-      "data-claim-id",
-      claim.claimId,
+    expect(screen.getByTestId("seeker-waiting-confirmation")).toHaveTextContent(
+      ACTIVE_CLAIM_WAITING_CONFIRMATION,
     );
+    expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
     expect(forceStopMock).not.toHaveBeenCalled();
   });
 
@@ -600,7 +581,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(screen.getByTestId("navigation-provider-sheet")).toBeInTheDocument();
   });
 
-  it("preserves claim ids on complete and cancel actions", () => {
+  it("preserves claim ids on cancel", () => {
     renderPanel(
       <ActiveClaimPanel
         claim={claim}
@@ -609,10 +590,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
 
-    expect(screen.getByTestId("complete-handoff-form")).toHaveAttribute(
-      "data-claim-id",
-      claim.claimId,
-    );
+    expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
     ).toHaveAttribute("data-claim-id", claim.claimId);
@@ -688,7 +666,8 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("complete-handoff-form")).toBeInTheDocument();
+    expect(screen.getByTestId("seeker-waiting-confirmation")).toBeInTheDocument();
+    expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
   });
 
   it("shows fallback when counterpart vehicle is incomplete", () => {
@@ -764,7 +743,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByTestId("seeker-waiting-confirmation"),
     ).toBeInTheDocument();
   });
 
@@ -779,7 +758,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByTestId("seeker-waiting-confirmation"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
@@ -895,10 +874,8 @@ describe("ActiveClaimPanel sheet UX", () => {
       "data-arrival",
       "close",
     );
-    expect(screen.getByTestId("complete-handoff-form")).toHaveAttribute(
-      "data-emphasized",
-      "true",
-    );
+    expect(screen.getByTestId("seeker-waiting-confirmation")).toBeInTheDocument();
+    expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
     expect(screen.getByText("Look for this vehicle")).toBeInTheDocument();
 
     await user.click(
@@ -906,7 +883,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByTestId("seeker-waiting-confirmation"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
@@ -927,7 +904,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByTestId("seeker-waiting-confirmation"),
     ).toBeInTheDocument();
   });
 
@@ -946,7 +923,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Complete handoff" }),
+      screen.getByTestId("seeker-waiting-confirmation"),
     ).toBeInTheDocument();
   });
 
@@ -962,7 +939,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("stops live location share when handoff completes or cancels", async () => {
+  it("stops live location share when the seeker releases the spot", async () => {
     const user = userEvent.setup();
     renderPanel(
       <ActiveClaimPanel
@@ -975,12 +952,6 @@ describe("ActiveClaimPanel sheet UX", () => {
       />,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "Complete handoff" }),
-    );
-    expect(forceStopMock).toHaveBeenCalled();
-
-    forceStopMock.mockClear();
     await user.click(screen.getByRole("button", { name: "Release spot" }));
     expect(forceStopMock).toHaveBeenCalled();
   });

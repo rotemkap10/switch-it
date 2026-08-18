@@ -28,29 +28,30 @@
 -- ---------------------------------------------------------------------------
 -- 3. Wrong digits consume attempts; lock after 3; cooldown is server-backed
 -- ---------------------------------------------------------------------------
--- select public.complete_claim('<claim-id>', '12');
+-- As publisher: select public.complete_claim('<claim-id>', '12');
 -- Expected: INVALID_PLATE_DIGITS, detail attempts_remaining=2
 -- Repeat with '34' → attempts_remaining=1
 -- Repeat with '56' → HANDOFF_TEMPORARILY_LOCKED
 -- select attempt_count, locked_until from claim_handoff_secrets where claim_id = '...';
 -- Expected: attempt_count = 3, locked_until ~ now() + 2 minutes
--- Refresh / new session / other device using the same seeker JWT still locked.
--- Exception messages must not include '67'.
+-- Refresh / new session / other device using the same publisher JWT still locked.
+-- Exception messages must not include the seeker's hidden suffix.
 
 -- ---------------------------------------------------------------------------
 -- 4. After lock expires, correct digits complete once
 -- ---------------------------------------------------------------------------
 -- Wait until locked_until < now() (or update locked_until to now() - interval '1 second' in SQL editor as service role for the test).
--- select public.complete_claim('<claim-id>', '67');
--- Expected: already_completed=false, credits moved once.
+-- As publisher: select public.complete_claim('<claim-id>', '<seeker-last-two>');
+-- Expected: already_completed=false, credits moved once (seeker -1, publisher +1).
 -- Repeat complete_claim → already_completed=true, no second ledger rows.
 
 -- ---------------------------------------------------------------------------
--- 5. Only the seeker can verify
+-- 5. Only the publisher can verify
 -- ---------------------------------------------------------------------------
--- As publisher: complete_claim(..., '67') → NOT_SEEKER
--- As unrelated user → NOT_SEEKER or CLAIM_NOT_FOUND
+-- As seeker: complete_claim(..., suffix) → NOT_OWNER
+-- As unrelated user → NOT_OWNER or CLAIM_NOT_FOUND
 -- Terminal/cancelled/expired claim → HANDOFF_UNAVAILABLE
+-- Before handoff_started_at → HANDOFF_NOT_STARTED
 
 -- ---------------------------------------------------------------------------
 -- 6. Spoken-code RPC is dormant

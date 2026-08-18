@@ -8,6 +8,7 @@ import { ExtendHandoffWaitButton } from "@/components/spots/ExtendHandoffWaitBut
 import { StartHandoffNowButton } from "@/components/spots/StartHandoffNowButton";
 import { PublisherLiveProgressMapLoader } from "@/components/spots/PublisherLiveProgressMapLoader";
 import { ParkingPinSettle } from "@/components/illustrations/ParkingPinSettle";
+import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
 import { HandoffWindowCountdown } from "@/components/ui/HandoffWindowCountdown";
 import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
@@ -248,7 +249,6 @@ export function PublisherSpotCard({
         <HandoffVehicleSection
           title=""
           vehicle={counterpartVehicle}
-          compact
         />
       </div>
     ) : null;
@@ -257,6 +257,19 @@ export function PublisherSpotCard({
     <div className="publisher-spot-cancel flex flex-col gap-2">
       {!started && phase !== "ended" ? (
         <StartHandoffNowButton spotId={spot.id} />
+      ) : null}
+      {claimed &&
+      activeClaimId &&
+      started &&
+      phase === "active" ? (
+        <CompleteHandoffForm
+          claimId={activeClaimId}
+          onCompleted={() => {
+            clearLiveLocation();
+            router.refresh();
+          }}
+          emphasized={driverNearby}
+        />
       ) : null}
       {claimed &&
       activeClaimId &&

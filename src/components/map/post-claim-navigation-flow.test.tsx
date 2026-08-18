@@ -35,7 +35,7 @@ vi.mock("@/components/map/CancelClaimButton", () => ({
 
 vi.mock("@/components/map/CompleteHandoffForm", () => ({
   CompleteHandoffForm: () => (
-    <button type="button">Complete handoff</button>
+      <button type="button">Waiting for vehicle confirmation</button>
   ),
 }));
 

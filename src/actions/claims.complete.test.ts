@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { revalidatePath } from "next/cache";
 
 const { rpcMock, requireUserMock } = vi.hoisted(() => ({
   rpcMock: vi.fn(),
@@ -23,7 +24,7 @@ describe("completeClaim plate verification", () => {
     requireUserMock.mockReset();
     requireUserMock.mockResolvedValue({
       supabase: { rpc: rpcMock },
-      user: { id: "seeker-1" },
+      user: { id: "publisher-1" },
     });
   });
 
@@ -99,7 +100,66 @@ describe("completeClaim plate verification", () => {
     const result = await completeClaim({}, form("67"));
 
     expect(result.success).toBeUndefined();
-    expect(result.error).toBe("Wait until the publisher is ready to leave.");
+    expect(result.error).toBe("The handoff has not started yet.");
     expect(result.errorCode).toBe("HANDOFF_NOT_STARTED");
+  });
+
+  it("maps NOT_OWNER when a non-publisher tries to complete", async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { message: "NOT_OWNER" },
+    });
+
+    const result = await completeClaim({}, form("67"));
+
+    expect(result.success).toBeUndefined();
+    expect(result.errorCode).toBe("NOT_OWNER");
+    expect(result.error).toBe("Only the publisher can manage this parking spot.");
+  });
+
+  it("maps cancelled or expired claims without transferring credits", async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { message: "HANDOFF_UNAVAILABLE" },
+    });
+
+    const result = await completeClaim({}, form("67"));
+
+    expect(result.success).toBeUndefined();
+    expect(result.errorCode).toBe("HANDOFF_UNAVAILABLE");
+    expect(result.error).toBe("This handoff can no longer be completed.");
+  });
+
+  it("fails safely when the seeker has no credit at completion", async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { message: "INSUFFICIENT_CREDITS" },
+    });
+
+    const result = await completeClaim({}, form("67"));
+
+    expect(result.success).toBeUndefined();
+    expect(result.errorCode).toBe("INSUFFICIENT_CREDITS");
+    expect(result.error).toBe("This handoff needs 1 parking credit.");
+  });
+
+  it("revalidates publisher and map routes after success", async () => {
+    rpcMock.mockResolvedValue({
+      data: [
+        {
+          claim_id: claimId,
+          spot_id: "660e8400-e29b-41d4-a716-446655440000",
+          seeker_credits: 2,
+          already_completed: false,
+        },
+      ],
+      error: null,
+    });
+
+    await completeClaim({}, form("67"));
+
+    expect(revalidatePath).toHaveBeenCalledWith("/map");
+    expect(revalidatePath).toHaveBeenCalledWith("/profile");
+    expect(revalidatePath).toHaveBeenCalledWith("/spots/new");
   });
 });
