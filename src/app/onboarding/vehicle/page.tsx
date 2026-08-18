@@ -10,7 +10,6 @@ const emptyVehicle = {
   vehicle_year: null,
   vehicle_color: null,
   vehicle_type: null,
-  vehicle_photo_path: null,
 };
 
 export default async function VehicleOnboardingPage() {

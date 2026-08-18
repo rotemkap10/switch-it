@@ -6,8 +6,6 @@
 export const FEEDBACK_SUCCESS_KEYS = {
   "vehicle-added": "Vehicle added.",
   "vehicle-updated": "Vehicle updated.",
-  "vehicle-photo-updated": "Vehicle photo updated.",
-  "vehicle-photo-removed": "Vehicle photo removed.",
   "spot-published": "Your parking spot is live.",
   "handoff-started": "Handoff started\nDrivers have a few minutes to complete it.",
   "spot-cancelled": "Spot cancelled\nNo credits were changed.",

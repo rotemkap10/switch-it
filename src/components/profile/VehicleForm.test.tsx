@@ -146,21 +146,15 @@ describe("VehicleForm", () => {
     expect(screen.queryByLabelText("Vehicle type")).not.toBeInTheDocument();
   });
 
-  it("does not show uploaded photos or photo controls even when a path exists", () => {
-    renderForm(
-      <VehicleForm
-        initialVehicle={{
-          ...existingVehicle,
-          vehicle_photo_path: "user/photo.jpg",
-        }}
-      />,
-    );
+  it("does not expose vehicle photo upload or remove actions", () => {
+    renderForm(<VehicleForm initialVehicle={existingVehicle} />);
 
     expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
-    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-photo-controls")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add photo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Change photo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Remove photo" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
   });
 
   it("expands the editor and populates existing vehicle values", async () => {

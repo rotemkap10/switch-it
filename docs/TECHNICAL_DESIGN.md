@@ -187,7 +187,7 @@ Constants used in logic (application + SQL):
 | `vehicle_model` | `text` | YES | |
 | `vehicle_color` | `text` | YES | Controlled enum |
 | `vehicle_type` | `text` | YES | Controlled enum |
-| `vehicle_photo_path` | `text` | YES | Private Storage object path; NULL = illustrated fallback |
+| `vehicle_year` | `integer` | YES | Optional model year for catalog image matching |
 
 **Constraints:** PK(`id`); FK to `auth.users`; CHECK on `credits`, `role`.
 
@@ -511,16 +511,12 @@ server-only, env-protected, and out of the MVP user path.
 
 ### Vehicle identity UI (presentation)
 
-- **Authoritative data:** make, model, color label, type label, and formatted
-  license plate from `get_handoff_counterpart_vehicle` (active handoffs only).
-  Optional `vehicle_photo_path` is included for recognition; signed URLs are
-  created at read time and never stored.
-- **Photos:** private bucket `vehicle-photos`. The browser uploads bytes
-  directly to Storage with the authenticated client + RLS (not via a Next.js
-  Server Action; those default to a 1 MB body). A small server action then
-  saves `vehicle_photo_path` and returns a signed URL. Active handoff
-  counterpart may `SELECT` only. `VehicleImage` shows the photo when a signed
-  URL is available, otherwise `VehicleIllustration`.
+- **Authoritative data:** make, model, optional year, color label, type label, and
+  masked license plate from `get_handoff_counterpart_vehicle` (active handoffs
+  only). Users do not upload vehicle photos.
+- **Catalog images:** `VehicleImage` → `VehicleModelImage` resolves a CarImages
+  catalog photo from make/model/year. Pending uses a neutral reserved slot;
+  the generic illustration is shown only after a confirmed miss or error.
 - **Illustrations:** local SVG silhouettes in `VehicleIllustration`, one shared
   architecture with per-type paths in `illustration-silhouettes.tsx`. Colors use
   the controlled palette only; no brand logos or external imagery.
@@ -574,7 +570,7 @@ blocking.
   `HandoffWindowCountdown` (`available_at` / `expires_at`) → prominent
   **Navigate to spot** → parking location (stored address or “Exact location
   marked on map”, optional Haversine distance, compact destination preview) →
-  leaving-driver vehicle identity (`HandoffVehicleSection` / photo or
+  leaving-driver vehicle identity (`HandoffVehicleSection` / catalog image or
   illustration) → live-location status → complete / cancel.
 - Navigation, preview marker, and distance use claimed-spot `latitude` /
   `longitude` only. Address is display-only.
@@ -620,7 +616,7 @@ blocking.
   per-card geocoding.
 - Active publisher claimed card mobile order: **Your spot has been claimed** +
   stay/nearby instruction + shared `HandoffWindowCountdown` → **Look for this
-  vehicle** (photo or illustration) → live driver location (Phase 9B map,
+  vehicle** (catalog image or illustration) → live driver location (Phase 9B map,
   freshness, optional straight-line “Driver is about N m away”) → parking spot
   context (address or “Exact location marked on map”) → handoff code → quiet
   cancel / optional **Wait N more min**. Desktop may use two-column grid.

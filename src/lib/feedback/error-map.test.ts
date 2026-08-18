@@ -58,6 +58,8 @@ describe("mapAppError", () => {
 describe("feedback success keys", () => {
   it("only accepts allowlisted keys", () => {
     expect(isFeedbackSuccessKey("spot-published")).toBe(true);
+    expect(isFeedbackSuccessKey("vehicle-photo-updated")).toBe(false);
+    expect(isFeedbackSuccessKey("vehicle-photo-removed")).toBe(false);
     expect(isFeedbackSuccessKey("arbitrary<script>")).toBe(false);
     expect(FEEDBACK_SUCCESS_KEYS["spot-published"]).toBe(
       "Your parking spot is live.",

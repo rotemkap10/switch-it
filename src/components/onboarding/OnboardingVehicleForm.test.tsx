@@ -35,6 +35,9 @@ describe("OnboardingVehicleForm", () => {
     expect(screen.getByTestId("vehicle-illustration-placeholder")).toBeInTheDocument();
     expect(screen.queryByText("Add a photo of your car")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add photo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change photo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove photo" })).not.toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-photo-controls")).not.toBeInTheDocument();
     expect(screen.getByText("Start finding parking")).toBeInTheDocument();
     expect(screen.getByLabelText("Manufacturer")).toHaveClass("app-form-control");
     expect(screen.getByLabelText("Manufacturer")).toHaveAttribute("role", "combobox");

@@ -67,16 +67,8 @@ describe("VehicleIdentityCard", () => {
     );
   });
 
-  it("ignores an uploaded photo URL and keeps CarImages/illustration fallback", () => {
-    render(
-      <VehicleIdentityCard
-        vehicle={{
-          ...completeVehicle,
-          // leftover field from older payloads
-          ...({ photoUrl: "https://example.test/seeker-car.jpg" } as object),
-        }}
-      />,
-    );
+  it("uses CarImages or the generic illustration, never an uploaded photo", () => {
+    render(<VehicleIdentityCard vehicle={completeVehicle} />);
 
     expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();

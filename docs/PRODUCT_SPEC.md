@@ -151,9 +151,10 @@ through existing server queries and RPCs.
    except during an active handoff (see business rules).
 
 During an active handoff, both participants see counterpart vehicle identity
-(photo or illustration, make, model, color, formatted plate) via a
-participant-only RPC. Plate and text remain authoritative. A vehicle photo is
-optional; without one, the existing illustrated vehicle is shown.
+(catalog image or illustration, make, model, color, masked plate) via a
+participant-only RPC. Plate and text remain authoritative. Vehicle imagery
+comes from the CarImages catalog based on make/model/year; the generic
+illustration is used only when no catalog image is available.
 
 **Live location (Phase 9B):** After claiming, the seeker sees an **Open in**
 chooser (Waze / Google Maps / Apple Maps). Choosing a provider opens external
@@ -284,7 +285,7 @@ offline screen rather than stale parking data.
    The seeker’s active-claim sheet is mobile-first: remaining time,
    **Navigate to spot** (exact lat/lng via Waze / Google Maps / Apple Maps),
    parking address or “Exact location marked on map” plus optional distance and
-   a compact destination preview, the leaving driver’s vehicle (photo or
+   a compact destination preview, the leaving driver’s vehicle (catalog image or
    illustration), live-location status, then Complete / Cancel. If the seeker
    is very close, copy may shift to “You’re close to the parking spot” and
    Complete becomes easier to notice — never auto-complete, never a geofence.

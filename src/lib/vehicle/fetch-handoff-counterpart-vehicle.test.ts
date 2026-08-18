@@ -24,9 +24,11 @@ describe("fetchHandoffCounterpartVehicle", () => {
       },
     };
 
-    await expect(
-      fetchHandoffCounterpartVehicle(supabase as never, "claim-1"),
-    ).resolves.toEqual({
+    const vehicle = await fetchHandoffCounterpartVehicle(
+      supabase as never,
+      "claim-1",
+    );
+    expect(vehicle).toEqual({
       licensePlateMasked: "12-345-**",
       make: "Mazda",
       model: "3",
@@ -34,8 +36,11 @@ describe("fetchHandoffCounterpartVehicle", () => {
       color: "red",
       type: "hatchback",
     });
+    expect(vehicle).not.toHaveProperty("photoUrl");
+    expect(vehicle).not.toHaveProperty("vehicle_photo_path");
     expect(supabase.storage.from).not.toHaveBeenCalled();
-    expect(JSON.stringify(await fetchHandoffCounterpartVehicle(supabase as never, "claim-1"))).not.toContain("67");
+    expect(JSON.stringify(vehicle)).not.toContain("67");
+    expect(JSON.stringify(vehicle)).not.toContain("vehicle_photo");
   });
 
   it("drops a leaked full plate from the RPC payload", async () => {

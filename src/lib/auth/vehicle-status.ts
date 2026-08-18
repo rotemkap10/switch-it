@@ -17,7 +17,7 @@ export type AuthenticatedVehicleStatus = {
 };
 
 const VEHICLE_SELECT =
-  "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type, vehicle_photo_path";
+  "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type";
 
 const FAILED_STATUS: AuthenticatedVehicleStatus = {
   vehicle: null,

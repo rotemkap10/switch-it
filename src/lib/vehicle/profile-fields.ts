@@ -13,7 +13,6 @@ export type VehicleProfileFields = {
   vehicle_year?: number | null;
   vehicle_color: string | null;
   vehicle_type: string | null;
-  vehicle_photo_path?: string | null;
 };
 
 export function isVehicleProfileComplete(

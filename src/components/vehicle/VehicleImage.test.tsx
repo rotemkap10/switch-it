@@ -33,10 +33,9 @@ describe("VehicleImage", () => {
     vi.unstubAllEnvs();
     resetCarImagesOutcomeCacheForTests();
   });
-  it("does not show an uploaded photo even when a url is passed", () => {
+  it("renders the catalog illustration path without an uploaded-photo element", () => {
     render(
       <VehicleImage
-        photoUrl="https://example.test/car.jpg"
         vehicleType="suv"
         vehicleColor="white"
         label="White SUV"
@@ -69,12 +68,11 @@ describe("VehicleImage", () => {
     );
   });
 
-  it("uses CarImages before the generic illustration and ignores uploaded photos", () => {
+  it("uses CarImages before the generic illustration", () => {
     vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
 
     render(
       <VehicleImage
-        photoUrl="https://example.test/car.jpg"
         vehicleType="suv"
         vehicleColor="white"
         make="Hyundai"
@@ -126,7 +124,7 @@ describe("VehicleImage", () => {
     );
   });
 
-  it("asks CarImages for make and model when there is no uploaded photo", () => {
+  it("asks CarImages for make and model", () => {
     vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
 
     render(

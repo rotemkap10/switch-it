@@ -31,7 +31,6 @@ export type VehicleActionState = {
     vehicle_year?: number | null;
     vehicle_color: string | null;
     vehicle_type: string | null;
-    vehicle_photo_path?: string | null;
   } | null;
 };
 
@@ -115,7 +114,7 @@ export async function updateVehicle(
         })
         .eq("id", user.id)
         .select(
-          "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type, vehicle_photo_path",
+          "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type",
         )
         .single();
 

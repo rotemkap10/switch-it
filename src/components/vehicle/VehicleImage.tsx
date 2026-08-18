@@ -9,8 +9,6 @@ import type { VehicleColor } from "@/lib/vehicle/colors";
 import type { VehicleType } from "@/lib/vehicle/types";
 
 type VehicleImageProps = {
-  /** Uploaded photos are no longer shown. Kept so legacy callers can pass it. */
-  photoUrl?: string | null;
   vehicleType?: VehicleType | null;
   vehicleColor?: VehicleColor | null;
   make?: string | null;
