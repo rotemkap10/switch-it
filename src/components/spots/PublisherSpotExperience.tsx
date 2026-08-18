@@ -22,7 +22,8 @@ type PublisherSpotExperienceProps = {
 };
 
 /**
- * Client bridge: Realtime claim hints + RSC refresh without stale waiting UI.
+ * Client bridge: Realtime claim hints + mutation patches + RSC refresh
+ * without crashing on a stale intermediate tree.
  */
 export function PublisherSpotExperience({
   userId,
@@ -34,8 +35,40 @@ export function PublisherSpotExperience({
   const [claimHint, setClaimHint] = useState<PublisherClaimHint | null>(null);
 
   const onClaimHint = useCallback((hint: PublisherClaimHint) => {
-    setClaimHint(hint);
+    setClaimHint((previous) => {
+      if (!previous || previous.spotId !== hint.spotId) {
+        return hint;
+      }
+      return {
+        ...previous,
+        ...hint,
+        claimId: hint.claimId ?? previous.claimId,
+        handoffStartedAt: hint.handoffStartedAt ?? previous.handoffStartedAt,
+        expiresAt: hint.expiresAt ?? previous.expiresAt,
+        extensionUsedAt: hint.extensionUsedAt ?? previous.extensionUsedAt,
+        promoteToClaimed: hint.promoteToClaimed ?? previous.promoteToClaimed,
+      };
+    });
   }, []);
+
+  const onHandoffMutation = useCallback(
+    (patch: {
+      handoffStartedAt?: string;
+      expiresAt?: string;
+      extensionUsedAt?: string | null;
+    }) => {
+      onClaimHint({
+        spotId: serverSpot.id,
+        claimId: serverClaimId,
+        source: "mutation",
+        promoteToClaimed: serverSpot.status === "claimed",
+        handoffStartedAt: patch.handoffStartedAt,
+        expiresAt: patch.expiresAt,
+        extensionUsedAt: patch.extensionUsedAt,
+      });
+    },
+    [onClaimHint, serverClaimId, serverSpot.id, serverSpot.status],
+  );
 
   const merged = mergePublisherSpotFromServer(
     serverSpot,
@@ -57,6 +90,7 @@ export function PublisherSpotExperience({
         counterpartVehicle={counterpartVehicle}
         ownVehicle={ownVehicle}
         activeClaimId={merged.activeClaimId}
+        onHandoffMutation={onHandoffMutation}
       />
     </>
   );

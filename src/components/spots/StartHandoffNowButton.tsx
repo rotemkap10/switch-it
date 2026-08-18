@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 
 import {
   startHandoffNow,
@@ -15,15 +14,22 @@ const initialState: StartHandoffNowActionState = {};
 
 type StartHandoffNowButtonProps = {
   spotId: string;
+  onStarted?: (result: {
+    handoffStartedAt?: string;
+    expiresAt: string;
+    alreadyStarted?: boolean;
+  }) => void;
 };
 
-export function StartHandoffNowButton({ spotId }: StartHandoffNowButtonProps) {
-  const router = useRouter();
+export function StartHandoffNowButton({
+  spotId,
+  onStarted,
+}: StartHandoffNowButtonProps) {
   const [state, formAction, pending] = useActionState(
     startHandoffNow,
     initialState,
   );
-  const refreshedForSuccessRef = useRef<string | null>(null);
+  const appliedSuccessRef = useRef<string | null>(null);
 
   useActionFeedback(state, {
     successMessage: FEEDBACK_SUCCESS_KEYS["handoff-started"],
@@ -34,12 +40,22 @@ export function StartHandoffNowButton({ spotId }: StartHandoffNowButtonProps) {
     if (!state.success || !state.expiresAt) {
       return;
     }
-    if (refreshedForSuccessRef.current === state.expiresAt) {
+    if (appliedSuccessRef.current === state.expiresAt) {
       return;
     }
-    refreshedForSuccessRef.current = state.expiresAt;
-    router.refresh();
-  }, [state.success, state.expiresAt, router]);
+    appliedSuccessRef.current = state.expiresAt;
+    onStarted?.({
+      handoffStartedAt: state.handoffStartedAt,
+      expiresAt: state.expiresAt,
+      alreadyStarted: state.alreadyStarted,
+    });
+  }, [
+    state.success,
+    state.expiresAt,
+    state.handoffStartedAt,
+    state.alreadyStarted,
+    onStarted,
+  ]);
 
   return (
     <form action={formAction} className="w-full">

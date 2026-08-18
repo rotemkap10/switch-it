@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { runHandoffAction } from "@/lib/feedback/action-recovery";
 import { mapAppError } from "@/lib/feedback/error-map";
 import {
   isOwnVehiclePhotoPath,
@@ -34,84 +35,98 @@ function revalidateVehiclePhotoPaths() {
 export async function saveVehiclePhotoPath(
   photoPath: string,
 ): Promise<VehiclePhotoActionState> {
-  const { supabase, user } = await requireUser();
+  return runHandoffAction(
+    "save_vehicle_photo_path",
+    "Could not save your vehicle photo.",
+    {},
+    async () => {
+      const { supabase, user } = await requireUser();
 
-  if (!isOwnVehiclePhotoPath(user.id, photoPath)) {
-    return { error: VEHICLE_PHOTO_UNSUPPORTED_MESSAGE };
-  }
+      if (!isOwnVehiclePhotoPath(user.id, photoPath)) {
+        return { error: VEHICLE_PHOTO_UNSUPPORTED_MESSAGE };
+      }
 
-  const { data: current } = await supabase
-    .from("profiles")
-    .select("vehicle_photo_path")
-    .eq("id", user.id)
-    .maybeSingle();
-  const previousPath =
-    typeof current?.vehicle_photo_path === "string"
-      ? current.vehicle_photo_path
-      : null;
+      const { data: current } = await supabase
+        .from("profiles")
+        .select("vehicle_photo_path")
+        .eq("id", user.id)
+        .maybeSingle();
+      const previousPath =
+        typeof current?.vehicle_photo_path === "string"
+          ? current.vehicle_photo_path
+          : null;
 
-  const { error: updateError } = await supabase
-    .from("profiles")
-    .update({ vehicle_photo_path: photoPath })
-    .eq("id", user.id);
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ vehicle_photo_path: photoPath })
+        .eq("id", user.id);
 
-  if (updateError) {
-    const mapped = mapAppError(
-      updateError,
-      "Could not save your vehicle photo.",
-    );
-    return { error: mapped.message, errorCode: mapped.code };
-  }
+      if (updateError) {
+        const mapped = mapAppError(
+          updateError,
+          "Could not save your vehicle photo.",
+        );
+        return { error: mapped.message, errorCode: mapped.code };
+      }
 
-  if (previousPath && previousPath !== photoPath) {
-    await supabase.storage.from(VEHICLE_PHOTO_BUCKET).remove([previousPath]);
-  }
+      if (previousPath && previousPath !== photoPath) {
+        await supabase.storage.from(VEHICLE_PHOTO_BUCKET).remove([previousPath]);
+      }
 
-  const photoUrl = await createVehiclePhotoSignedUrl(supabase, photoPath);
-  revalidateVehiclePhotoPaths();
+      const photoUrl = await createVehiclePhotoSignedUrl(supabase, photoPath);
+      revalidateVehiclePhotoPaths();
 
-  return {
-    success: true,
-    photoPath,
-    photoUrl,
-  };
+      return {
+        success: true,
+        photoPath,
+        photoUrl,
+      };
+    },
+  );
 }
 
 export async function removeVehiclePhoto(): Promise<VehiclePhotoActionState> {
-  const { supabase, user } = await requireUser();
+  return runHandoffAction(
+    "remove_vehicle_photo",
+    "Could not remove your vehicle photo.",
+    {},
+    async () => {
+      const { supabase, user } = await requireUser();
 
-  const { data: current } = await supabase
-    .from("profiles")
-    .select("vehicle_photo_path")
-    .eq("id", user.id)
-    .maybeSingle();
-  const previousPath =
-    typeof current?.vehicle_photo_path === "string"
-      ? current.vehicle_photo_path
-      : null;
+      const { data: current } = await supabase
+        .from("profiles")
+        .select("vehicle_photo_path")
+        .eq("id", user.id)
+        .maybeSingle();
+      const previousPath =
+        typeof current?.vehicle_photo_path === "string"
+          ? current.vehicle_photo_path
+          : null;
 
-  const { error: updateError } = await supabase
-    .from("profiles")
-    .update({ vehicle_photo_path: null })
-    .eq("id", user.id);
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ vehicle_photo_path: null })
+        .eq("id", user.id);
 
-  if (updateError) {
-    const mapped = mapAppError(
-      updateError,
-      "Could not remove your vehicle photo.",
-    );
-    return { error: mapped.message, errorCode: mapped.code };
-  }
+      if (updateError) {
+        const mapped = mapAppError(
+          updateError,
+          "Could not remove your vehicle photo.",
+        );
+        return { error: mapped.message, errorCode: mapped.code };
+      }
 
-  if (previousPath && isOwnVehiclePhotoPath(user.id, previousPath)) {
-    await supabase.storage.from(VEHICLE_PHOTO_BUCKET).remove([previousPath]);
-  }
+      if (previousPath && isOwnVehiclePhotoPath(user.id, previousPath)) {
+        await supabase.storage.from(VEHICLE_PHOTO_BUCKET).remove([previousPath]);
+      }
 
-  revalidateVehiclePhotoPaths();
+      revalidateVehiclePhotoPaths();
 
-  return {
-    success: true,
-    photoPath: null,
-    photoUrl: null,
-  };
+      return {
+        success: true,
+        photoPath: null,
+        photoUrl: null,
+      };
+    },
+  );
 }

@@ -9,6 +9,11 @@ vi.mock("@/lib/auth/require-user", () => ({
   requireUser: (...args: unknown[]) => requireUserMock(...args),
 }));
 
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  unstable_rethrow: vi.fn(),
+}));
+
 import { loadMoreHistory } from "@/actions/history";
 import { GENERIC_APP_ERROR } from "@/lib/feedback/error-map";
 

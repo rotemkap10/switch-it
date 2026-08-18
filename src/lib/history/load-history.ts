@@ -266,27 +266,31 @@ export async function loadHistoryPage(
 ): Promise<LoadHistoryPageResult> {
   const fetchLimit = Math.min(Math.max(pageSize, 1) + 1, 21);
 
-  const { data, error } = await supabase.rpc("get_handoff_history", {
-    p_limit: fetchLimit,
-    p_before_at: cursor?.beforeAt ?? null,
-    p_before_id: cursor?.beforeId ?? null,
-  });
+  try {
+    const { data, error } = await supabase.rpc("get_handoff_history", {
+      p_limit: fetchLimit,
+      p_before_at: cursor?.beforeAt ?? null,
+      p_before_id: cursor?.beforeId ?? null,
+    });
 
-  if (error) {
+    if (error) {
+      return { ok: false };
+    }
+
+    const rows = Array.isArray(data) ? (data as HandoffHistoryRpcRow[]) : [];
+    const mapped = mapHandoffHistoryRpcRows(rows);
+    const hasMore = mapped.length > pageSize;
+    const items = hasMore ? mapped.slice(0, pageSize) : mapped;
+
+    return {
+      ok: true,
+      items,
+      hasMore,
+      nextCursor: hasMore ? cursorFromItems(items) : null,
+    };
+  } catch {
     return { ok: false };
   }
-
-  const rows = Array.isArray(data) ? (data as HandoffHistoryRpcRow[]) : [];
-  const mapped = mapHandoffHistoryRpcRows(rows);
-  const hasMore = mapped.length > pageSize;
-  const items = hasMore ? mapped.slice(0, pageSize) : mapped;
-
-  return {
-    ok: true,
-    items,
-    hasMore,
-    nextCursor: hasMore ? cursorFromItems(items) : null,
-  };
 }
 
 /** First History page (newest 20). */

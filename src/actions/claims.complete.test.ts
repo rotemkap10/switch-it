@@ -14,6 +14,11 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  unstable_rethrow: vi.fn(),
+}));
+
 import { completeClaim } from "@/actions/claims";
 
 const claimId = "550e8400-e29b-41d4-a716-446655440000";
@@ -161,5 +166,13 @@ describe("completeClaim plate verification", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/map");
     expect(revalidatePath).toHaveBeenCalledWith("/profile");
     expect(revalidatePath).toHaveBeenCalledWith("/spots/new");
+  });
+
+  it("keeps a thrown RPC/network failure as an action error", async () => {
+    rpcMock.mockRejectedValue(new Error("Failed to fetch"));
+
+    await expect(completeClaim({}, form("67"))).resolves.toMatchObject({
+      errorCode: "NETWORK",
+    });
   });
 });

@@ -33,6 +33,10 @@ describe("publisherClaimHintFromPayload", () => {
       spotId: spot.id,
       claimId: null,
       source: "spot-update",
+      promoteToClaimed: true,
+      handoffStartedAt: null,
+      expiresAt: null,
+      extensionUsedAt: null,
     });
   });
 
@@ -51,6 +55,7 @@ describe("publisherClaimHintFromPayload", () => {
       spotId: spot.id,
       claimId,
       source: "claim-insert",
+      promoteToClaimed: true,
     });
   });
 
@@ -110,5 +115,39 @@ describe("mergePublisherSpotFromServer", () => {
       source: "claim-insert",
     });
     expect(merged.activeClaimId).toBe(claimId);
+  });
+
+  it("applies I'm leaving now timestamps from Realtime while RSC is still stale", () => {
+    const claimedSpot = {
+      ...spot,
+      status: "claimed" as const,
+      handoff_started_at: null,
+      expires_at: "2026-08-17T09:03:00.000Z",
+    };
+    const merged = mergePublisherSpotFromServer(claimedSpot, claimId, {
+      spotId: spot.id,
+      claimId,
+      source: "spot-update",
+      promoteToClaimed: true,
+      handoffStartedAt: "2026-08-17T09:01:00.000Z",
+      expiresAt: "2026-08-17T09:04:00.000Z",
+    });
+    expect(merged.spot.handoff_started_at).toBe("2026-08-17T09:01:00.000Z");
+    expect(merged.spot.expires_at).toBe("2026-08-17T09:04:00.000Z");
+    expect(merged.activeClaimId).toBe(claimId);
+  });
+
+  it("keeps waiting status when an available spot starts without a claim", () => {
+    const merged = mergePublisherSpotFromServer(spot, null, {
+      spotId: spot.id,
+      claimId: null,
+      source: "mutation",
+      promoteToClaimed: false,
+      handoffStartedAt: "2026-08-17T09:01:00.000Z",
+      expiresAt: "2026-08-17T09:04:00.000Z",
+    });
+    expect(merged.spot.status).toBe("available");
+    expect(merged.spot.handoff_started_at).toBe("2026-08-17T09:01:00.000Z");
+    expect(merged.activeClaimId).toBeNull();
   });
 });

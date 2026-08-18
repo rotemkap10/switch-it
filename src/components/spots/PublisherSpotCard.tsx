@@ -55,6 +55,11 @@ type PublisherSpotCardProps = {
   ownVehicle?: HandoffVehicle | null;
   /** Active claim id when status is claimed — required for live location. */
   activeClaimId?: string | null;
+  onHandoffMutation?: (patch: {
+    handoffStartedAt?: string;
+    expiresAt?: string;
+    extensionUsedAt?: string | null;
+  }) => void;
 };
 
 export function publisherSpotTitleLabel(
@@ -68,6 +73,7 @@ export function PublisherSpotCard({
   layout = "page",
   counterpartVehicle = null,
   activeClaimId = null,
+  onHandoffMutation,
 }: PublisherSpotCardProps) {
   const router = useRouter();
   const claimed = spot.status === "claimed";
@@ -118,8 +124,13 @@ export function PublisherSpotCard({
     }
 
     const statusKey = `switch-it:publisher-spot-status:${spot.id}`;
-    const previous = window.sessionStorage.getItem(statusKey);
-    window.sessionStorage.setItem(statusKey, spot.status);
+    let previous: string | null = null;
+    try {
+      previous = window.sessionStorage.getItem(statusKey);
+      window.sessionStorage.setItem(statusKey, spot.status);
+    } catch {
+      previous = null;
+    }
 
     if (previous === "available" && spot.status === "claimed") {
       sensoryClaimReceived({
@@ -129,10 +140,14 @@ export function PublisherSpotCard({
         spotId: spot.id,
       });
       const playedKey = `switch-it:publisher-claimed-emphasis:${spot.id}`;
-      if (window.sessionStorage.getItem(playedKey)) {
-        return;
+      try {
+        if (window.sessionStorage.getItem(playedKey)) {
+          return;
+        }
+        window.sessionStorage.setItem(playedKey, "1");
+      } catch {
+        // Private mode / quota — still play emphasis once this mount.
       }
-      window.sessionStorage.setItem(playedKey, "1");
       const start = window.setTimeout(() => setClaimedEmphasis(true), 0);
       const stop = window.setTimeout(() => setClaimedEmphasis(false), 720);
       return () => {
@@ -256,7 +271,15 @@ export function PublisherSpotCard({
   const cancelBlock = (
     <div className="publisher-spot-cancel flex flex-col gap-2">
       {!started && phase !== "ended" ? (
-        <StartHandoffNowButton spotId={spot.id} />
+        <StartHandoffNowButton
+          spotId={spot.id}
+          onStarted={(result) => {
+            onHandoffMutation?.({
+              handoffStartedAt: result.handoffStartedAt,
+              expiresAt: result.expiresAt,
+            });
+          }}
+        />
       ) : null}
       {claimed &&
       activeClaimId &&
@@ -285,6 +308,12 @@ export function PublisherSpotCard({
           claimId={activeClaimId}
           handoffStartedAtIso={spot.handoff_started_at}
           expiresAtIso={spot.expires_at}
+          onExtended={(result) => {
+            onHandoffMutation?.({
+              expiresAt: result.expiresAt,
+              extensionUsedAt: result.extensionUsedAt,
+            });
+          }}
         />
       ) : null}
       <CancelSpotButton

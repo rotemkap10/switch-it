@@ -13,6 +13,11 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  unstable_rethrow: vi.fn(),
+}));
+
 import { startHandoffNow } from "@/actions/spots";
 
 const spotId = "550e8400-e29b-41d4-a716-446655440000";
@@ -91,5 +96,13 @@ describe("startHandoffNow", () => {
 
     expect(result.success).toBeUndefined();
     expect(result.errorCode).toBe("HANDOFF_UNAVAILABLE");
+  });
+
+  it("keeps a thrown RPC/network failure as an action error", async () => {
+    rpcMock.mockRejectedValue(new Error("Failed to fetch"));
+
+    await expect(startHandoffNow({}, form())).resolves.toMatchObject({
+      errorCode: "NETWORK",
+    });
   });
 });

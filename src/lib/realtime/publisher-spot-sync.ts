@@ -5,7 +5,11 @@ import type { PublisherSpotSummary } from "@/components/spots/PublisherSpotCard"
 export type PublisherClaimHint = {
   spotId: string;
   claimId: string | null;
-  source: "spot-update" | "claim-insert" | "claim-update";
+  source: "spot-update" | "claim-insert" | "claim-update" | "mutation";
+  promoteToClaimed?: boolean;
+  handoffStartedAt?: string | null;
+  expiresAt?: string | null;
+  extensionUsedAt?: string | null;
 };
 
 function rowStatus(
@@ -33,6 +37,17 @@ function rowSpotId(
   return row.spot_id;
 }
 
+function rowTimestamp(
+  row: Record<string, unknown> | null | undefined,
+  key: string,
+): string | null {
+  if (!row) {
+    return null;
+  }
+  const value = row[key];
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
 /**
  * Derive a local claimed hint from parking_spots or claims Realtime payloads.
  */
@@ -51,11 +66,33 @@ export function publisherClaimHintFromPayload(
       return null;
     }
     const status = rowStatus(payload.new as Record<string, unknown>);
-    if (eventType === "UPDATE" && status === "claimed") {
+    const next = payload.new as Record<string, unknown>;
+    const handoffStartedAt = rowTimestamp(next, "handoff_started_at");
+    const expiresAt = rowTimestamp(next, "expires_at");
+    const extensionUsedAt = rowTimestamp(next, "handoff_extension_used_at");
+    if (eventType !== "UPDATE") {
+      return null;
+    }
+    if (status === "claimed") {
       return {
         spotId: expectedSpotId,
         claimId: null,
         source: "spot-update",
+        promoteToClaimed: true,
+        handoffStartedAt,
+        expiresAt,
+        extensionUsedAt,
+      };
+    }
+    if (handoffStartedAt || extensionUsedAt) {
+      return {
+        spotId: expectedSpotId,
+        claimId: null,
+        source: "spot-update",
+        promoteToClaimed: false,
+        handoffStartedAt,
+        expiresAt,
+        extensionUsedAt,
       };
     }
     return null;
@@ -81,6 +118,7 @@ export function publisherClaimHintFromPayload(
         spotId: expectedSpotId,
         claimId,
         source: eventType === "INSERT" ? "claim-insert" : "claim-update",
+        promoteToClaimed: true,
       };
     }
   }
@@ -90,26 +128,49 @@ export function publisherClaimHintFromPayload(
 
 /**
  * Merge RSC publisher spot props with a local Realtime claim hint so stale
- * server props cannot keep the UI on "Waiting for a driver" after a claim.
+ * server props cannot keep the UI on "Waiting for a driver" after a claim,
+ * or hide the live handoff after "I'm leaving now".
  */
 export function mergePublisherSpotFromServer(
   serverSpot: PublisherSpotSummary,
   serverClaimId: string | null,
   claimHint: PublisherClaimHint | null,
 ): { spot: PublisherSpotSummary; activeClaimId: string | null } {
-  if (serverSpot.status === "claimed") {
-    return {
-      spot: serverSpot,
-      activeClaimId: serverClaimId ?? claimHint?.claimId ?? null,
-    };
-  }
+  let spot = serverSpot;
+  let activeClaimId =
+    serverSpot.status === "claimed" ? serverClaimId : null;
 
   if (claimHint && claimHint.spotId === serverSpot.id) {
+    if (claimHint.promoteToClaimed !== false && serverSpot.status !== "claimed") {
+      spot = { ...spot, status: "claimed" };
+    }
+    if (spot.status === "claimed" && !activeClaimId) {
+      activeClaimId = claimHint.claimId ?? serverClaimId;
+    }
+    if (!spot.handoff_started_at && claimHint.handoffStartedAt) {
+      spot = {
+        ...spot,
+        handoff_started_at: claimHint.handoffStartedAt,
+        expires_at: claimHint.expiresAt ?? spot.expires_at,
+      };
+    } else if (
+      claimHint.expiresAt &&
+      claimHint.expiresAt !== spot.expires_at &&
+      (claimHint.source === "mutation" || Boolean(spot.handoff_started_at))
+    ) {
+      spot = { ...spot, expires_at: claimHint.expiresAt };
+    }
+    if (!spot.handoff_extension_used_at && claimHint.extensionUsedAt) {
+      spot = { ...spot, handoff_extension_used_at: claimHint.extensionUsedAt };
+    }
+  }
+
+  if (spot.status === "claimed") {
     return {
-      spot: { ...serverSpot, status: "claimed" },
-      activeClaimId: claimHint.claimId ?? serverClaimId,
+      spot,
+      activeClaimId: activeClaimId ?? claimHint?.claimId ?? null,
     };
   }
 
-  return { spot: serverSpot, activeClaimId: null };
+  return { spot, activeClaimId: null };
 }

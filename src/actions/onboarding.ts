@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
+import { runHandoffAction } from "@/lib/feedback/action-recovery";
 import { mapAppError } from "@/lib/feedback/error-map";
 import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
 import { withFeedbackQuery } from "@/lib/feedback/success-keys";
@@ -32,32 +33,39 @@ export async function completeVehicleOnboarding(
     return { fieldErrors: flattenFieldErrors(parsed.error) };
   }
 
-  const { supabase, user } = await requireAuthenticatedVehicleAccess({
-    mode: "onboarding-only",
-  });
-  const vehicle = parsed.data;
+  return runHandoffAction(
+    "complete_vehicle_onboarding",
+    "Could not save your vehicle details.",
+    {},
+    async () => {
+      const { supabase, user } = await requireAuthenticatedVehicleAccess({
+        mode: "onboarding-only",
+      });
+      const vehicle = parsed.data;
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      license_plate: vehicle.license_plate,
-      vehicle_make: vehicle.vehicle_make,
-      vehicle_model: vehicle.vehicle_model,
-      vehicle_year: vehicle.vehicle_year,
-      vehicle_color: vehicle.vehicle_color,
-      vehicle_type: vehicle.vehicle_type,
-    })
-    .eq("id", user.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          license_plate: vehicle.license_plate,
+          vehicle_make: vehicle.vehicle_make,
+          vehicle_model: vehicle.vehicle_model,
+          vehicle_year: vehicle.vehicle_year,
+          vehicle_color: vehicle.vehicle_color,
+          vehicle_type: vehicle.vehicle_type,
+        })
+        .eq("id", user.id);
 
-  if (error) {
-    const mapped = mapAppError(error, "Could not save your vehicle details.");
-    return { error: mapped.message, errorCode: mapped.code };
-  }
+      if (error) {
+        const mapped = mapAppError(error, "Could not save your vehicle details.");
+        return { error: mapped.message, errorCode: mapped.code };
+      }
 
-  revalidatePath("/onboarding/vehicle");
-  revalidatePath("/profile");
-  revalidatePath("/map");
-  revalidatePath("/spots/new");
+      revalidatePath("/onboarding/vehicle");
+      revalidatePath("/profile");
+      revalidatePath("/map");
+      revalidatePath("/spots/new");
 
-  redirect(withFeedbackQuery("/map", "vehicle-added"));
+      redirect(withFeedbackQuery("/map", "vehicle-added"));
+    },
+  );
 }

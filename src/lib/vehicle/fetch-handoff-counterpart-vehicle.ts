@@ -10,9 +10,18 @@ export async function fetchHandoffCounterpartVehicle(
   supabase: SupabaseClient,
   claimId: string,
 ): Promise<HandoffVehicle | null> {
-  const { data, error } = await supabase.rpc("get_handoff_counterpart_vehicle", {
-    p_claim_id: claimId,
-  });
+  let data: unknown;
+  let error: { message?: string } | null = null;
+  try {
+    const result = await supabase.rpc("get_handoff_counterpart_vehicle", {
+      p_claim_id: claimId,
+    });
+    data = result.data;
+    error = result.error;
+  } catch {
+    console.error("Could not load handoff counterpart vehicle.");
+    return null;
+  }
 
   if (error) {
     console.error("Could not load handoff counterpart vehicle.");

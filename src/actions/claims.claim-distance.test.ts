@@ -17,6 +17,11 @@ vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
 }));
 
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn(),
+  unstable_rethrow: vi.fn(),
+}));
+
 import { claimSpot } from "@/actions/claims";
 import { APP_ERROR_MESSAGES } from "@/lib/feedback/error-map";
 

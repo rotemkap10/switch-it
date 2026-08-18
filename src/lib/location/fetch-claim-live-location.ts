@@ -38,17 +38,21 @@ export async function fetchLatestClaimLiveLocation(
   client: SupabaseClient,
   claimId: string,
 ): Promise<ReturnType<typeof claimLiveLocationRowToPayload>> {
-  const { data, error } = await client
-    .from("claim_live_locations")
-    .select(
-      "latitude, longitude, accuracy_meters, heading_degrees, sequence, location_timestamp",
-    )
-    .eq("claim_id", claimId)
-    .maybeSingle();
+  try {
+    const { data, error } = await client
+      .from("claim_live_locations")
+      .select(
+        "latitude, longitude, accuracy_meters, heading_degrees, sequence, location_timestamp",
+      )
+      .eq("claim_id", claimId)
+      .maybeSingle();
 
-  if (error || !data) {
+    if (error || !data) {
+      return null;
+    }
+
+    return claimLiveLocationRowToPayload(data as ClaimLiveLocationRow);
+  } catch {
     return null;
   }
-
-  return claimLiveLocationRowToPayload(data as ClaimLiveLocationRow);
 }

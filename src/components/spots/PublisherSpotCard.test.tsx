@@ -751,6 +751,32 @@ describe("PublisherSpotCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("does not throw when the claim id is briefly missing after start", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:46:00.000Z"),
+    });
+    expect(() =>
+      render(
+        <PublisherSpotCard
+          spot={{
+            ...baseSpot,
+            status: "claimed",
+            available_at: "2026-08-04T22:45:00.000Z",
+            expires_at: "2026-08-04T22:48:00.000Z",
+            handoff_started_at: "2026-08-04T22:45:00.000Z",
+          }}
+          layout="page"
+          counterpartVehicle={seekerVehicle}
+          activeClaimId={null}
+        />,
+      ),
+    ).not.toThrow();
+
+    expect(screen.getByTestId("publisher-spot-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("start-handoff-now")).not.toBeInTheDocument();
+  });
+
   it("renders live freshness and keeps last-known progress during pause", () => {
     liveLocationState.freshness = "paused";
     liveLocationState.statusLabel = "Live location paused";

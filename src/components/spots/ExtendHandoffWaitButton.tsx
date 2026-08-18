@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 
 import {
   extendHandoffWait,
@@ -17,19 +16,23 @@ type ExtendHandoffWaitButtonProps = {
   claimId: string;
   handoffStartedAtIso: string;
   expiresAtIso: string;
+  onExtended?: (result: {
+    expiresAt: string;
+    extensionUsedAt?: string | null;
+  }) => void;
 };
 
 export function ExtendHandoffWaitButton({
   claimId,
   handoffStartedAtIso,
   expiresAtIso,
+  onExtended,
 }: ExtendHandoffWaitButtonProps) {
-  const router = useRouter();
   const [state, formAction, pending] = useActionState(
     extendHandoffWait,
     initialState,
   );
-  const refreshedForSuccessRef = useRef<string | null>(null);
+  const appliedSuccessRef = useRef<string | null>(null);
 
   const label = formatHandoffExtensionButtonLabel(
     handoffStartedAtIso,
@@ -46,12 +49,15 @@ export function ExtendHandoffWaitButton({
     if (!state.success || !state.expiresAt) {
       return;
     }
-    if (refreshedForSuccessRef.current === state.expiresAt) {
+    if (appliedSuccessRef.current === state.expiresAt) {
       return;
     }
-    refreshedForSuccessRef.current = state.expiresAt;
-    router.refresh();
-  }, [state.success, state.expiresAt, router]);
+    appliedSuccessRef.current = state.expiresAt;
+    onExtended?.({
+      expiresAt: state.expiresAt,
+      extensionUsedAt: state.changed ? state.expiresAt : undefined,
+    });
+  }, [state.success, state.expiresAt, state.changed, onExtended]);
 
   if (!label) {
     return null;

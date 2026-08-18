@@ -3,6 +3,7 @@
 import { z } from "zod";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { actionErrorFromUnknown } from "@/lib/feedback/action-recovery";
 import { GENERIC_APP_ERROR } from "@/lib/feedback/error-map";
 import {
   loadHistoryPage,
@@ -27,18 +28,25 @@ export async function loadMoreHistory(input: {
     return { ok: false, error: GENERIC_APP_ERROR };
   }
 
-  const { supabase } = await requireUser();
-  const result = await loadHistoryPage(supabase, {
-    beforeAt: parsed.data.beforeAt,
-    beforeId: parsed.data.beforeId,
-  });
+  try {
+    const { supabase } = await requireUser();
+    const result = await loadHistoryPage(supabase, {
+      beforeAt: parsed.data.beforeAt,
+      beforeId: parsed.data.beforeId,
+    });
 
-  if (!result.ok) {
-    return {
-      ok: false,
-      error: "Couldn’t load more handoffs. Please try again.",
-    };
+    if (!result.ok) {
+      return {
+        ok: false,
+        error: "Couldn’t load more handoffs. Please try again.",
+      };
+    }
+
+    return result;
+  } catch (error) {
+    const failure = actionErrorFromUnknown(error, GENERIC_APP_ERROR, {
+      operation: "get_handoff_history",
+    });
+    return { ok: false, error: failure.error };
   }
-
-  return result;
 }

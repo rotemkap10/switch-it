@@ -53,13 +53,14 @@ vi.mock("@/components/spots/PublisherSpotCard", () => ({
     spot,
     activeClaimId,
   }: {
-    spot: { status: string };
+    spot: { status: string; handoff_started_at?: string | null };
     activeClaimId?: string | null;
   }) => (
     <div
       data-testid="publisher-spot-card"
       data-status={spot.status}
       data-claim-id={activeClaimId ?? "none"}
+      data-started={spot.handoff_started_at ? "true" : "false"}
     >
       {spot.status === "claimed" ? "Driver on the way" : "Waiting for a driver"}
     </div>
@@ -191,5 +192,36 @@ describe("PublisherSpotExperience", () => {
       "data-claim-id",
       claimId,
     );
+  });
+
+  it("applies a start-handoff Realtime UPDATE without crashing while RSC is stale", () => {
+    const claimedSpot = { ...spot, status: "claimed" as const };
+    render(
+      <PublisherSpotExperience
+        userId="owner-1"
+        spot={claimedSpot}
+        activeClaimId={claimId}
+      />,
+    );
+
+    act(() => {
+      onEventHandlers.spot?.({
+        table: "parking_spots",
+        eventType: "UPDATE",
+        new: {
+          id: claimedSpot.id,
+          status: "claimed",
+          handoff_started_at: "2026-08-17T09:01:00.000Z",
+          expires_at: "2026-08-17T09:04:00.000Z",
+        },
+        old: { id: claimedSpot.id, status: "claimed" },
+      });
+    });
+
+    expect(screen.getByTestId("publisher-spot-card")).toHaveAttribute(
+      "data-started",
+      "true",
+    );
+    expect(scheduleRefreshMock).toHaveBeenCalled();
   });
 });

@@ -2,13 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { extendHandoffWaitMock, refreshMock } = vi.hoisted(() => ({
+const { extendHandoffWaitMock } = vi.hoisted(() => ({
   extendHandoffWaitMock: vi.fn(),
-  refreshMock: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: refreshMock, push: vi.fn(), prefetch: vi.fn() }),
 }));
 
 vi.mock("@/actions/claims", () => ({
@@ -21,7 +16,6 @@ import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 describe("ExtendHandoffWaitButton", () => {
   beforeEach(() => {
     extendHandoffWaitMock.mockReset();
-    refreshMock.mockReset();
     extendHandoffWaitMock.mockResolvedValue({
       success: true,
       changed: true,
@@ -31,14 +25,16 @@ describe("ExtendHandoffWaitButton", () => {
     });
   });
 
-  it("submits claim_id and refreshes after a successful extension", async () => {
+  it("submits claim_id and reports the new deadline to the parent", async () => {
     const user = userEvent.setup();
+    const onExtended = vi.fn();
     render(
       <FeedbackShell>
         <ExtendHandoffWaitButton
           claimId="11111111-1111-4111-8111-111111111111"
           handoffStartedAtIso="2026-08-04T22:45:00.000Z"
           expiresAtIso="2026-08-04T22:47:00.000Z"
+          onExtended={onExtended}
         />
       </FeedbackShell>,
     );
@@ -57,7 +53,10 @@ describe("ExtendHandoffWaitButton", () => {
     );
 
     await waitFor(() => {
-      expect(refreshMock).toHaveBeenCalled();
+      expect(onExtended).toHaveBeenCalledWith({
+        expiresAt: "2026-08-04T22:49:00.000Z",
+        extensionUsedAt: "2026-08-04T22:49:00.000Z",
+      });
     });
   });
 

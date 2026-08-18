@@ -4,63 +4,15 @@ import { PublishSpotForm } from "@/components/spots/PublishSpotForm";
 import {
   PublisherSpotExperience,
 } from "@/components/spots/PublisherSpotExperience";
-import {
-  type PublisherSpotSummary,
-} from "@/components/spots/PublisherSpotCard";
 import { Alert } from "@/components/ui/Alert";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
+import { runRscQuery } from "@/lib/server/rsc-recovery";
+import {
+  resolvePublisherSpotView,
+  toPublisherSpot,
+} from "@/lib/spots/publisher-spot-view";
 import { fetchHandoffCounterpartVehicle } from "@/lib/vehicle/fetch-handoff-counterpart-vehicle";
 import { mapProfileVehicleToHandoff } from "@/lib/vehicle/handoff-vehicle";
-
-type OwnedSpotRow = {
-  id: string;
-  status: string;
-  available_at: string;
-  expires_at: string;
-  handoff_started_at: string | null;
-  handoff_extension_used_at: string | null;
-  address: string | null;
-  latitude: number;
-  longitude: number;
-};
-
-function toPublisherSpot(row: unknown): PublisherSpotSummary | null {
-  if (!row || typeof row !== "object") {
-    return null;
-  }
-
-  const spot = row as Partial<OwnedSpotRow>;
-  if (
-    typeof spot.id !== "string" ||
-    typeof spot.available_at !== "string" ||
-    typeof spot.expires_at !== "string" ||
-    typeof spot.latitude !== "number" ||
-    typeof spot.longitude !== "number" ||
-    !Number.isFinite(spot.latitude) ||
-    !Number.isFinite(spot.longitude) ||
-    (spot.status !== "available" && spot.status !== "claimed")
-  ) {
-    return null;
-  }
-
-  return {
-    id: spot.id,
-    status: spot.status,
-    available_at: spot.available_at,
-    expires_at: spot.expires_at,
-    handoff_started_at:
-      typeof spot.handoff_started_at === "string"
-        ? spot.handoff_started_at
-        : null,
-    handoff_extension_used_at:
-      typeof spot.handoff_extension_used_at === "string"
-        ? spot.handoff_extension_used_at
-        : null,
-    address: typeof spot.address === "string" ? spot.address : null,
-    latitude: spot.latitude,
-    longitude: spot.longitude,
-  };
-}
 
 export default async function NewSpotPage() {
   const access = await requireAuthenticatedVehicleAccess({
@@ -70,88 +22,130 @@ export default async function NewSpotPage() {
   const { supabase, user } = access;
   const nowIso = new Date().toISOString();
 
-  // Harden overdue open spots / claims before rendering.
-  const { data: openSpot } = await supabase
-    .from("parking_spots")
-    .select("id, status, expires_at")
-    .eq("owner_id", user.id)
-    .in("status", ["available", "claimed"])
-    .maybeSingle();
-
-  if (
-    openSpot &&
-    typeof openSpot.id === "string" &&
-    typeof openSpot.expires_at === "string" &&
-    openSpot.expires_at <= nowIso
-  ) {
-    if (openSpot.status === "available") {
-      await supabase.rpc("expire_spot_if_needed", { p_spot_id: openSpot.id });
-    } else if (openSpot.status === "claimed") {
-      const { data: claimOnSpot } = await supabase
-        .from("claims")
-        .select("id")
-        .eq("spot_id", openSpot.id)
-        .eq("status", "active")
+  await runRscQuery(
+    "expire_open_publisher_spot",
+    async () => {
+      const { data: openSpot } = await supabase
+        .from("parking_spots")
+        .select("id, status, expires_at")
+        .eq("owner_id", user.id)
+        .in("status", ["available", "claimed"])
         .maybeSingle();
-      if (claimOnSpot && typeof claimOnSpot.id === "string") {
-        await supabase.rpc("expire_claim_if_needed", {
-          p_claim_id: claimOnSpot.id,
-        });
+
+      if (
+        openSpot &&
+        typeof openSpot.id === "string" &&
+        typeof openSpot.expires_at === "string" &&
+        openSpot.expires_at <= nowIso
+      ) {
+        if (openSpot.status === "available") {
+          await supabase.rpc("expire_spot_if_needed", {
+            p_spot_id: openSpot.id,
+          });
+        } else if (openSpot.status === "claimed") {
+          const { data: claimOnSpot } = await supabase
+            .from("claims")
+            .select("id")
+            .eq("spot_id", openSpot.id)
+            .eq("status", "active")
+            .maybeSingle();
+          if (claimOnSpot && typeof claimOnSpot.id === "string") {
+            await supabase.rpc("expire_claim_if_needed", {
+              p_claim_id: claimOnSpot.id,
+            });
+          }
+        }
       }
-    }
-  }
+    },
+    undefined,
+    { route: "/spots/new" },
+  );
 
-  const { data, error } = await supabase
-    .from("parking_spots")
-    .select(
-      "id, status, available_at, expires_at, handoff_started_at, handoff_extension_used_at, address, latitude, longitude",
-    )
-    .eq("owner_id", user.id)
-    .in("status", ["available", "claimed"])
-    .maybeSingle();
+  const spotLoad = await runRscQuery(
+    "load_publisher_open_spot",
+    async () => {
+      const { data, error } = await supabase
+        .from("parking_spots")
+        .select(
+          "id, status, available_at, expires_at, handoff_started_at, handoff_extension_used_at, address, latitude, longitude",
+        )
+        .eq("owner_id", user.id)
+        .in("status", ["available", "claimed"])
+        .maybeSingle();
 
-  const publisherSpot = error ? null : toPublisherSpot(data);
+      if (error) {
+        return { spot: toPublisherSpot(data), failed: true };
+      }
 
-  const { data: ownProfile } = await supabase
-    .from("profiles")
-    .select(
-      "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type",
-    )
-    .eq("id", user.id)
-    .maybeSingle();
-  const ownVehicle = mapProfileVehicleToHandoff(ownProfile);
+      return { spot: toPublisherSpot(data), failed: false };
+    },
+    { spot: null, failed: true },
+    { route: "/spots/new" },
+  );
+
+  const view = resolvePublisherSpotView({
+    loadFailed: spotLoad.failed,
+    spot: spotLoad.spot,
+  });
+  const publisherSpot = view.spot;
+
+  const ownVehicle = await runRscQuery(
+    "load_publisher_own_vehicle",
+    async () => {
+      const { data: ownProfile } = await supabase
+        .from("profiles")
+        .select(
+          "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type",
+        )
+        .eq("id", user.id)
+        .maybeSingle();
+      return mapProfileVehicleToHandoff(ownProfile);
+    },
+    null,
+    { route: "/spots/new" },
+  );
 
   let counterpartVehicle = null;
   let activeClaimId: string | null = null;
   if (publisherSpot?.status === "claimed") {
-    const { data: activeClaim } = await supabase
-      .from("claims")
-      .select("id")
-      .eq("spot_id", publisherSpot.id)
-      .eq("status", "active")
-      .maybeSingle();
+    const claimedSpotId = publisherSpot.id;
+    const claimLoad = await runRscQuery(
+      "load_publisher_active_claim",
+      async () => {
+        const { data: activeClaim, error } = await supabase
+          .from("claims")
+          .select("id")
+          .eq("spot_id", claimedSpotId)
+          .eq("status", "active")
+          .maybeSingle();
+        if (error) {
+          return null;
+        }
+        return typeof activeClaim?.id === "string" ? activeClaim.id : null;
+      },
+      null,
+      { route: "/spots/new", spotId: claimedSpotId },
+    );
 
-    if (activeClaim && typeof activeClaim.id === "string") {
-      activeClaimId = activeClaim.id;
+    if (claimLoad) {
+      activeClaimId = claimLoad;
       counterpartVehicle = await fetchHandoffCounterpartVehicle(
         supabase,
-        activeClaim.id,
+        claimLoad,
       );
     }
   }
 
-  const showCompose = !publisherSpot;
-
   return (
     <AuthenticatedShell
-      layout={showCompose ? "map" : "default"}
+      layout={view.layout}
       title="Share a spot"
       description=""
       handoffException="active-publisher"
       access={access}
     >
-      {showCompose ? null : <VehicleSetupReminder />}
-      {error ? (
+      {view.showCompose ? null : <VehicleSetupReminder />}
+      {view.showLoadError ? (
         <Alert tone="error">Could not load your parking spot.</Alert>
       ) : null}
 
@@ -163,9 +157,9 @@ export default async function NewSpotPage() {
           counterpartVehicle={counterpartVehicle}
           ownVehicle={ownVehicle}
         />
-      ) : (
+      ) : view.showCompose ? (
         <PublishSpotForm />
-      )}
+      ) : null}
     </AuthenticatedShell>
   );
 }

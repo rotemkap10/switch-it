@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { runHandoffAction } from "@/lib/feedback/action-recovery";
 import { mapAppError } from "@/lib/feedback/error-map";
 import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
 import { withFeedbackQuery } from "@/lib/feedback/success-keys";
@@ -46,27 +47,34 @@ export async function updateDisplayName(
     return { fieldErrors: flattenFieldErrors(parsed.error) };
   }
 
-  const { display_name } = parsed.data;
-  const { supabase, user } = await requireUser();
+  return runHandoffAction(
+    "update_display_name",
+    "Could not update display name.",
+    {},
+    async () => {
+      const { display_name } = parsed.data;
+      const { supabase, user } = await requireUser();
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .update({ display_name })
-    .eq("id", user.id)
-    .select("display_name")
-    .single();
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({ display_name })
+        .eq("id", user.id)
+        .select("display_name")
+        .single();
 
-  if (error || !data) {
-    const mapped = mapAppError(error, "Could not update display name.");
-    return { error: mapped.message, errorCode: mapped.code };
-  }
+      if (error || !data) {
+        const mapped = mapAppError(error, "Could not update display name.");
+        return { error: mapped.message, errorCode: mapped.code };
+      }
 
-  revalidatePath("/profile");
+      revalidatePath("/profile");
 
-  return {
-    success: true,
-    displayName: data.display_name,
-  };
+      return {
+        success: true,
+        displayName: data.display_name,
+      };
+    },
+  );
 }
 
 export async function updateVehicle(
@@ -86,42 +94,49 @@ export async function updateVehicle(
     return { fieldErrors: flattenFieldErrors(parsed.error) };
   }
 
-  const { supabase, user } = await requireUser();
-  const vehicle = parsed.data;
-  const completeSetup = formData.get("complete_setup") === "1";
+  return runHandoffAction(
+    "update_vehicle",
+    "Could not update vehicle details.",
+    {},
+    async () => {
+      const { supabase, user } = await requireUser();
+      const vehicle = parsed.data;
+      const completeSetup = formData.get("complete_setup") === "1";
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .update({
-      license_plate: vehicle.license_plate,
-      vehicle_make: vehicle.vehicle_make,
-      vehicle_model: vehicle.vehicle_model,
-      vehicle_year: vehicle.vehicle_year,
-      vehicle_color: vehicle.vehicle_color,
-      vehicle_type: vehicle.vehicle_type,
-    })
-    .eq("id", user.id)
-    .select(
-      "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type, vehicle_photo_path",
-    )
-    .single();
+      const { data, error } = await supabase
+        .from("profiles")
+        .update({
+          license_plate: vehicle.license_plate,
+          vehicle_make: vehicle.vehicle_make,
+          vehicle_model: vehicle.vehicle_model,
+          vehicle_year: vehicle.vehicle_year,
+          vehicle_color: vehicle.vehicle_color,
+          vehicle_type: vehicle.vehicle_type,
+        })
+        .eq("id", user.id)
+        .select(
+          "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type, vehicle_photo_path",
+        )
+        .single();
 
-  if (error || !data) {
-    const mapped = mapAppError(error, "Could not update vehicle details.");
-    return { error: mapped.message, errorCode: mapped.code };
-  }
+      if (error || !data) {
+        const mapped = mapAppError(error, "Could not update vehicle details.");
+        return { error: mapped.message, errorCode: mapped.code };
+      }
 
-  revalidatePath("/profile");
-  revalidatePath("/onboarding/vehicle");
-  revalidatePath("/map");
-  revalidatePath("/spots/new");
+      revalidatePath("/profile");
+      revalidatePath("/onboarding/vehicle");
+      revalidatePath("/map");
+      revalidatePath("/spots/new");
 
-  if (completeSetup) {
-    redirect(withFeedbackQuery("/map", "vehicle-updated"));
-  }
+      if (completeSetup) {
+        redirect(withFeedbackQuery("/map", "vehicle-updated"));
+      }
 
-  return {
-    success: true,
-    vehicle: data,
-  };
+      return {
+        success: true,
+        vehicle: data,
+      };
+    },
+  );
 }

@@ -39,6 +39,11 @@ export async function requireAuthenticatedVehicleAccess(options: {
     return { supabase, user, status };
   }
 
+  // Don't guess a redirect when status queries failed during a refresh.
+  if (status.statusLoadFailed) {
+    return { supabase, user, status };
+  }
+
   if (status.vehicleComplete) {
     return { supabase, user, status };
   }
@@ -61,6 +66,10 @@ export async function assertVehicleProfileCompleteForMutation(
   userId: string,
 ): Promise<{ ok: true } | { ok: false; code: "VEHICLE_PROFILE_REQUIRED" }> {
   const status = await getAuthenticatedVehicleStatus(supabase, userId);
+  if (status.statusLoadFailed) {
+    // Don't block an in-progress handoff mutation on a status fetch blip.
+    return { ok: true };
+  }
   if (!status.vehicleComplete) {
     return { ok: false, code: "VEHICLE_PROFILE_REQUIRED" };
   }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { requireUser } from "@/lib/auth/require-user";
 import { assertVehicleProfileCompleteForMutation } from "@/lib/auth/vehicle-access";
+import { runHandoffAction } from "@/lib/feedback/action-recovery";
 import {
   APP_ERROR_MESSAGES,
   GENERIC_APP_ERROR,
@@ -83,56 +84,63 @@ export async function claimSpot(
     return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
   }
 
-  const { supabase, user } = await requireUser();
+  return runHandoffAction(
+    "claim_spot",
+    "Could not claim parking spot.",
+    { spotId: parsed.data.spot_id },
+    async () => {
+      const { supabase, user } = await requireUser();
 
-  const vehicleCheck = await assertVehicleProfileCompleteForMutation(
-    supabase,
-    user.id,
-  );
-  if (!vehicleCheck.ok) {
-    return {
-      error: APP_ERROR_MESSAGES.VEHICLE_PROFILE_REQUIRED,
-      errorCode: "VEHICLE_PROFILE_REQUIRED",
-    };
-  }
+      const vehicleCheck = await assertVehicleProfileCompleteForMutation(
+        supabase,
+        user.id,
+      );
+      if (!vehicleCheck.ok) {
+        return {
+          error: APP_ERROR_MESSAGES.VEHICLE_PROFILE_REQUIRED,
+          errorCode: "VEHICLE_PROFILE_REQUIRED",
+        };
+      }
 
-  const { data, error } = await supabase.rpc("claim_spot", {
-    p_spot_id: parsed.data.spot_id,
-    p_seeker_latitude: parsed.data.seeker_latitude,
-    p_seeker_longitude: parsed.data.seeker_longitude,
-  });
+      const { data, error } = await supabase.rpc("claim_spot", {
+        p_spot_id: parsed.data.spot_id,
+        p_seeker_latitude: parsed.data.seeker_latitude,
+        p_seeker_longitude: parsed.data.seeker_longitude,
+      });
 
-  if (error) {
-    const mapped = mapAppError(error, "Could not claim parking spot.");
-    if (shouldRevalidateMapAfterClaimFailure(mapped.code)) {
+      if (error) {
+        const mapped = mapAppError(error, "Could not claim parking spot.");
+        if (shouldRevalidateMapAfterClaimFailure(mapped.code)) {
+          revalidatePath("/map");
+        }
+        return { error: mapped.message, errorCode: mapped.code };
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+
+      if (
+        !row ||
+        typeof row !== "object" ||
+        typeof (row as { claim_id?: unknown }).claim_id !== "string"
+      ) {
+        return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
+      }
+
+      const result = row as {
+        claim_id: string;
+        spot_id: string;
+        claim_expires_at: string;
+      };
+
       revalidatePath("/map");
-    }
-    return { error: mapped.message, errorCode: mapped.code };
-  }
 
-  const row = Array.isArray(data) ? data[0] : data;
-
-  if (
-    !row ||
-    typeof row !== "object" ||
-    typeof (row as { claim_id?: unknown }).claim_id !== "string"
-  ) {
-    return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
-  }
-
-  const result = row as {
-    claim_id: string;
-    spot_id: string;
-    claim_expires_at: string;
-  };
-
-  revalidatePath("/map");
-
-  return {
-    success: true,
-    claimId: result.claim_id,
-    claimExpiresAt: result.claim_expires_at,
-  };
+      return {
+        success: true,
+        claimId: result.claim_id,
+        claimExpiresAt: result.claim_expires_at,
+      };
+    },
+  );
 }
 
 export async function completeClaim(
@@ -148,64 +156,74 @@ export async function completeClaim(
     return { fieldErrors: flattenFieldErrors(parsed.error) };
   }
 
-  const { supabase } = await requireUser();
-  const { data, error } = await supabase.rpc("complete_claim", {
-    p_claim_id: parsed.data.claim_id,
-    p_plate_suffix: parsed.data.plate_suffix,
-  });
+  return runHandoffAction(
+    "complete_claim",
+    "Could not complete the handoff.",
+    { claimId: parsed.data.claim_id },
+    async () => {
+      const { supabase } = await requireUser();
+      const { data, error } = await supabase.rpc("complete_claim", {
+        p_claim_id: parsed.data.claim_id,
+        p_plate_suffix: parsed.data.plate_suffix,
+      });
 
-  if (error) {
-    const mapped = mapAppError(error, "Could not complete the handoff.");
+      if (error) {
+        const mapped = mapAppError(error, "Could not complete the handoff.");
 
-    if (mapped.code === "HANDOFF_TEMPORARILY_LOCKED") {
-      return {
-        error: mapped.message,
-        errorCode: mapped.code,
-        lockout: true,
+        if (mapped.code === "HANDOFF_TEMPORARILY_LOCKED") {
+          return {
+            error: mapped.message,
+            errorCode: mapped.code,
+            lockout: true,
+          };
+        }
+
+        if (
+          mapped.code === "INVALID_PLATE_DIGITS" ||
+          mapped.code === "INVALID_HANDOFF_CODE"
+        ) {
+          return {
+            error: invalidPlateDigitsMessage(parseAttemptsRemaining(error)),
+            errorCode: mapped.code,
+          };
+        }
+
+        return {
+          error: mapped.message,
+          errorCode: mapped.code,
+        };
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+
+      if (
+        !row ||
+        typeof row !== "object" ||
+        typeof (row as { claim_id?: unknown }).claim_id !== "string" ||
+        typeof (row as { seeker_credits?: unknown }).seeker_credits !== "number"
+      ) {
+        return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
+      }
+
+      const result = row as {
+        claim_id: string;
+        spot_id: string;
+        seeker_credits: number;
+        already_completed: boolean;
       };
-    }
 
-    if (mapped.code === "INVALID_PLATE_DIGITS" || mapped.code === "INVALID_HANDOFF_CODE") {
+      revalidatePath("/map");
+      revalidatePath("/profile");
+      revalidatePath("/spots/new");
+
       return {
-        error: invalidPlateDigitsMessage(parseAttemptsRemaining(error)),
-        errorCode: mapped.code,
+        success: true,
+        claimId: result.claim_id,
+        seekerCredits: result.seeker_credits,
+        alreadyCompleted: Boolean(result.already_completed),
       };
-    }
-
-    return {
-      error: mapped.message,
-      errorCode: mapped.code,
-    };
-  }
-
-  const row = Array.isArray(data) ? data[0] : data;
-
-  if (
-    !row ||
-    typeof row !== "object" ||
-    typeof (row as { claim_id?: unknown }).claim_id !== "string" ||
-    typeof (row as { seeker_credits?: unknown }).seeker_credits !== "number"
-  ) {
-    return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
-  }
-
-  const result = row as {
-    claim_id: string;
-    spot_id: string;
-    seeker_credits: number;
-    already_completed: boolean;
-  };
-
-  revalidatePath("/map");
-  revalidatePath("/profile");
-  revalidatePath("/spots/new");
-
-  return {
-    success: true,
-    claimId: result.claim_id,
-    seekerCredits: result.seeker_credits,
-    alreadyCompleted: Boolean(result.already_completed),
-  };
+    },
+  );
 }
 
 export async function cancelClaim(
@@ -220,29 +238,36 @@ export async function cancelClaim(
     return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
   }
 
-  const { supabase } = await requireUser();
-  const { data, error } = await supabase.rpc("cancel_claim", {
-    p_claim_id: parsed.data.claim_id,
-  });
+  return runHandoffAction(
+    "cancel_claim",
+    "Could not cancel this claim.",
+    { claimId: parsed.data.claim_id },
+    async () => {
+      const { supabase } = await requireUser();
+      const { data, error } = await supabase.rpc("cancel_claim", {
+        p_claim_id: parsed.data.claim_id,
+      });
 
-  if (error) {
-    const mapped = mapAppError(error, "Could not cancel this claim.");
-    return { error: mapped.message, errorCode: mapped.code };
-  }
+      if (error) {
+        const mapped = mapAppError(error, "Could not cancel this claim.");
+        return { error: mapped.message, errorCode: mapped.code };
+      }
 
-  const row = Array.isArray(data) ? data[0] : data;
-  if (!row || typeof row !== "object") {
-    return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
-  }
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row || typeof row !== "object") {
+        return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
+      }
 
-  revalidatePath("/map");
+      revalidatePath("/map");
 
-  return {
-    success: true,
-    alreadyCancelled: Boolean(
-      (row as { already_cancelled?: boolean }).already_cancelled,
-    ),
-  };
+      return {
+        success: true,
+        alreadyCancelled: Boolean(
+          (row as { already_cancelled?: boolean }).already_cancelled,
+        ),
+      };
+    },
+  );
 }
 
 export async function extendHandoffWait(
@@ -257,45 +282,52 @@ export async function extendHandoffWait(
     return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
   }
 
-  const { supabase } = await requireUser();
-  const { data, error } = await supabase.rpc("extend_handoff_wait", {
-    p_claim_id: parsed.data.claim_id,
-  });
+  return runHandoffAction(
+    "extend_handoff_wait",
+    "Could not extend the handoff wait.",
+    { claimId: parsed.data.claim_id },
+    async () => {
+      const { supabase } = await requireUser();
+      const { data, error } = await supabase.rpc("extend_handoff_wait", {
+        p_claim_id: parsed.data.claim_id,
+      });
 
-  if (error) {
-    const mapped = mapAppError(error, "Could not extend the handoff wait.");
-    return { error: mapped.message, errorCode: mapped.code };
-  }
+      if (error) {
+        const mapped = mapAppError(error, "Could not extend the handoff wait.");
+        return { error: mapped.message, errorCode: mapped.code };
+      }
 
-  const row = Array.isArray(data) ? data[0] : data;
-  if (
-    !row ||
-    typeof row !== "object" ||
-    typeof (row as { expires_at?: unknown }).expires_at !== "string"
-  ) {
-    return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
-  }
+      const row = Array.isArray(data) ? data[0] : data;
+      if (
+        !row ||
+        typeof row !== "object" ||
+        typeof (row as { expires_at?: unknown }).expires_at !== "string"
+      ) {
+        return { error: GENERIC_APP_ERROR, errorCode: "UNKNOWN" };
+      }
 
-  const result = row as {
-    claim_id: string;
-    spot_id: string;
-    expires_at: string;
-    hard_cap_at: string;
-    extended_by_seconds: number;
-    changed: boolean;
-  };
+      const result = row as {
+        claim_id: string;
+        spot_id: string;
+        expires_at: string;
+        hard_cap_at: string;
+        extended_by_seconds: number;
+        changed: boolean;
+      };
 
-  revalidatePath("/spots/new");
-  revalidatePath("/map");
+      revalidatePath("/spots/new");
+      revalidatePath("/map");
 
-  return {
-    success: true,
-    changed: Boolean(result.changed),
-    expiresAt: result.expires_at,
-    hardCapAt: result.hard_cap_at,
-    extendedBySeconds:
-      typeof result.extended_by_seconds === "number"
-        ? result.extended_by_seconds
-        : 0,
-  };
+      return {
+        success: true,
+        changed: Boolean(result.changed),
+        expiresAt: result.expires_at,
+        hardCapAt: result.hard_cap_at,
+        extendedBySeconds:
+          typeof result.extended_by_seconds === "number"
+            ? result.extended_by_seconds
+            : 0,
+      };
+    },
+  );
 }

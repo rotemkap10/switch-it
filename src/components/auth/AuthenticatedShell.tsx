@@ -8,6 +8,7 @@ import {
 } from "@/lib/auth/vehicle-access";
 import type { requireUser } from "@/lib/auth/require-user";
 import type { AuthenticatedVehicleStatus } from "@/lib/auth/vehicle-status";
+import { runRscQuery } from "@/lib/server/rsc-recovery";
 
 export type AuthenticatedAccess = {
   supabase: Awaited<ReturnType<typeof requireUser>>["supabase"];
@@ -53,16 +54,20 @@ export async function AuthenticatedShell({
 
   const { supabase, user } = access;
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  const displayName =
-    profile && typeof profile.display_name === "string"
-      ? profile.display_name
-      : null;
+  const displayName = await runRscQuery(
+    "load_shell_display_name",
+    async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", user.id)
+        .maybeSingle();
+      return profile && typeof profile.display_name === "string"
+        ? profile.display_name
+        : null;
+    },
+    null,
+  );
 
   return (
     <AuthenticatedFrame

@@ -3,12 +3,20 @@ import Link from "next/link";
 import { Alert } from "@/components/ui/Alert";
 import { requireUser } from "@/lib/auth/require-user";
 import { getAuthenticatedVehicleStatus } from "@/lib/auth/vehicle-status";
+import { runRscQuery } from "@/lib/server/rsc-recovery";
 
 export async function VehicleSetupReminder() {
-  const { supabase, user } = await requireUser();
-  const status = await getAuthenticatedVehicleStatus(supabase, user.id);
+  const show = await runRscQuery(
+    "vehicle_setup_reminder",
+    async () => {
+      const { supabase, user } = await requireUser();
+      const status = await getAuthenticatedVehicleStatus(supabase, user.id);
+      return !status.vehicleComplete && status.hasActiveHandoff;
+    },
+    false,
+  );
 
-  if (status.vehicleComplete || !status.hasActiveHandoff) {
+  if (!show) {
     return null;
   }
 

@@ -4,6 +4,7 @@ import { MapRealtimeSync } from "@/components/map/MapRealtimeSync";
 import { SeekerMapExperience } from "@/components/map/SeekerMapExperience";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
 import type { requireUser } from "@/lib/auth/require-user";
+import { runRscQuery } from "@/lib/server/rsc-recovery";
 import { fetchHandoffCounterpartVehicle } from "@/lib/vehicle/fetch-handoff-counterpart-vehicle";
 import { mapProfileVehicleToHandoff } from "@/lib/vehicle/handoff-vehicle";
 import type { MapSpot } from "@/types/map-spot";
@@ -186,74 +187,81 @@ async function expireDueClaims(
   userId: string,
   nowIso: string,
 ): Promise<void> {
-  const [seekerClaimResult, ownedClaimedSpotResult, ownedAvailableSpotResult] =
-    await Promise.all([
-      supabase
-        .from("claims")
-        .select("id, expires_at")
-        .eq("seeker_id", userId)
-        .eq("status", "active")
-        .maybeSingle(),
-      supabase
-        .from("parking_spots")
-        .select("id")
-        .eq("owner_id", userId)
-        .eq("status", "claimed")
-        .maybeSingle(),
-      supabase
-        .from("parking_spots")
-        .select("id, expires_at")
-        .eq("owner_id", userId)
-        .eq("status", "available")
-        .maybeSingle(),
-    ]);
+  await runRscQuery(
+    "expire_due_map_claims",
+    async () => {
+      const [seekerClaimResult, ownedClaimedSpotResult, ownedAvailableSpotResult] =
+        await Promise.all([
+          supabase
+            .from("claims")
+            .select("id, expires_at")
+            .eq("seeker_id", userId)
+            .eq("status", "active")
+            .maybeSingle(),
+          supabase
+            .from("parking_spots")
+            .select("id")
+            .eq("owner_id", userId)
+            .eq("status", "claimed")
+            .maybeSingle(),
+          supabase
+            .from("parking_spots")
+            .select("id, expires_at")
+            .eq("owner_id", userId)
+            .eq("status", "available")
+            .maybeSingle(),
+        ]);
 
-  const claimIds = new Set<string>();
+      const claimIds = new Set<string>();
 
-  const seekerClaim = seekerClaimResult.data;
-  if (
-    seekerClaim &&
-    typeof seekerClaim.id === "string" &&
-    typeof seekerClaim.expires_at === "string" &&
-    isPastDue(seekerClaim.expires_at, nowIso)
-  ) {
-    claimIds.add(seekerClaim.id);
-  }
+      const seekerClaim = seekerClaimResult.data;
+      if (
+        seekerClaim &&
+        typeof seekerClaim.id === "string" &&
+        typeof seekerClaim.expires_at === "string" &&
+        isPastDue(seekerClaim.expires_at, nowIso)
+      ) {
+        claimIds.add(seekerClaim.id);
+      }
 
-  const ownedClaimedSpot = ownedClaimedSpotResult.data;
-  if (ownedClaimedSpot && typeof ownedClaimedSpot.id === "string") {
-    const { data: claimOnSpot } = await supabase
-      .from("claims")
-      .select("id, expires_at")
-      .eq("spot_id", ownedClaimedSpot.id)
-      .eq("status", "active")
-      .maybeSingle();
+      const ownedClaimedSpot = ownedClaimedSpotResult.data;
+      if (ownedClaimedSpot && typeof ownedClaimedSpot.id === "string") {
+        const { data: claimOnSpot } = await supabase
+          .from("claims")
+          .select("id, expires_at")
+          .eq("spot_id", ownedClaimedSpot.id)
+          .eq("status", "active")
+          .maybeSingle();
 
-    if (
-      claimOnSpot &&
-      typeof claimOnSpot.id === "string" &&
-      typeof claimOnSpot.expires_at === "string" &&
-      isPastDue(claimOnSpot.expires_at, nowIso)
-    ) {
-      claimIds.add(claimOnSpot.id);
-    }
-  }
+        if (
+          claimOnSpot &&
+          typeof claimOnSpot.id === "string" &&
+          typeof claimOnSpot.expires_at === "string" &&
+          isPastDue(claimOnSpot.expires_at, nowIso)
+        ) {
+          claimIds.add(claimOnSpot.id);
+        }
+      }
 
-  for (const claimId of claimIds) {
-    await supabase.rpc("expire_claim_if_needed", { p_claim_id: claimId });
-  }
+      for (const claimId of claimIds) {
+        await supabase.rpc("expire_claim_if_needed", { p_claim_id: claimId });
+      }
 
-  const ownedAvailable = ownedAvailableSpotResult.data;
-  if (
-    ownedAvailable &&
-    typeof ownedAvailable.id === "string" &&
-    typeof ownedAvailable.expires_at === "string" &&
-    isPastDue(ownedAvailable.expires_at, nowIso)
-  ) {
-    await supabase.rpc("expire_spot_if_needed", {
-      p_spot_id: ownedAvailable.id,
-    });
-  }
+      const ownedAvailable = ownedAvailableSpotResult.data;
+      if (
+        ownedAvailable &&
+        typeof ownedAvailable.id === "string" &&
+        typeof ownedAvailable.expires_at === "string" &&
+        isPastDue(ownedAvailable.expires_at, nowIso)
+      ) {
+        await supabase.rpc("expire_spot_if_needed", {
+          p_spot_id: ownedAvailable.id,
+        });
+      }
+    },
+    undefined,
+    { route: "/map" },
+  );
 }
 
 export default async function MapPage() {
@@ -266,56 +274,83 @@ export default async function MapPage() {
 
   await expireDueClaims(supabase, user.id, nowIso);
 
-  const [spotsResult, activeClaimResult, ownedSpotResult] = await Promise.all([
-    supabase
-      .from("parking_spots")
-      .select(
-        "id, latitude, longitude, address, available_at, expires_at, owner_id",
-      )
-      .eq("status", "available")
-      .gt("expires_at", new Date().toISOString()),
-    supabase
-      .from("claims")
-      .select(
-        "id, expires_at, claimed_at, parking_spots(id, address, available_at, expires_at, handoff_started_at, latitude, longitude)",
-      )
-      .eq("seeker_id", user.id)
-      .eq("status", "active")
-      .maybeSingle(),
-    supabase
-      .from("parking_spots")
-      .select("id, status, available_at, address")
-      .eq("owner_id", user.id)
-      .in("status", ["available", "claimed"])
-      .maybeSingle(),
-  ]);
+  const mapState = await runRscQuery(
+    "load_map_handoff_state",
+    async () => {
+      const [spotsResult, activeClaimResult, ownedSpotResult] = await Promise.all(
+        [
+          supabase
+            .from("parking_spots")
+            .select(
+              "id, latitude, longitude, address, available_at, expires_at, owner_id",
+            )
+            .eq("status", "available")
+            .gt("expires_at", new Date().toISOString()),
+          supabase
+            .from("claims")
+            .select(
+              "id, expires_at, claimed_at, parking_spots(id, address, available_at, expires_at, handoff_started_at, latitude, longitude)",
+            )
+            .eq("seeker_id", user.id)
+            .eq("status", "active")
+            .maybeSingle(),
+          supabase
+            .from("parking_spots")
+            .select("id, status, available_at, address")
+            .eq("owner_id", user.id)
+            .in("status", ["available", "claimed"])
+            .maybeSingle(),
+        ],
+      );
+      return { spotsResult, activeClaimResult, ownedSpotResult };
+    },
+    null,
+    { route: "/map" },
+  );
 
-  const spots = spotsResult.error
-    ? []
-    : toMapSpots(spotsResult.data, user.id);
-  const activeClaim = activeClaimResult.error
-    ? null
-    : toActiveClaim(activeClaimResult.data);
+  const spotsResult = mapState?.spotsResult;
+  const activeClaimResult = mapState?.activeClaimResult;
+  const ownedSpotResult = mapState?.ownedSpotResult;
 
-  const activeClaimDestination = activeClaimResult.error
-    ? null
-    : toActiveClaimDestination(activeClaimResult.data);
-  const showOwnSpotNotice =
-    !ownedSpotResult.error && hasOpenOwnedSpot(ownedSpotResult.data);
+  const spots =
+    !spotsResult || spotsResult.error
+      ? []
+      : toMapSpots(spotsResult.data, user.id);
+  const activeClaim =
+    !activeClaimResult || activeClaimResult.error
+      ? null
+      : toActiveClaim(activeClaimResult.data);
+
+  const activeClaimDestination =
+    !activeClaimResult || activeClaimResult.error
+      ? null
+      : toActiveClaimDestination(activeClaimResult.data);
+  const showOwnSpotNotice = Boolean(
+    ownedSpotResult &&
+      !ownedSpotResult.error &&
+      hasOpenOwnedSpot(ownedSpotResult.data),
+  );
 
   const counterpartVehicle =
     activeClaim?.claimId != null
       ? await fetchHandoffCounterpartVehicle(supabase, activeClaim.claimId)
       : null;
 
-  const { data: ownProfile } = await supabase
-    .from("profiles")
-    .select(
-      "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type",
-    )
-    .eq("id", user.id)
-    .maybeSingle();
-  const ownVehicle = mapProfileVehicleToHandoff(ownProfile);
+  const ownVehicle = await runRscQuery(
+    "load_seeker_own_vehicle",
+    async () => {
+      const { data: ownProfile } = await supabase
+        .from("profiles")
+        .select(
+          "license_plate, vehicle_make, vehicle_model, vehicle_year, vehicle_color, vehicle_type",
+        )
+        .eq("id", user.id)
+        .maybeSingle();
+      return mapProfileVehicleToHandoff(ownProfile);
+    },
+    null,
+    { route: "/map" },
+  );
 
   return (
     <AuthenticatedShell
@@ -337,9 +372,9 @@ export default async function MapPage() {
         counterpartVehicle={counterpartVehicle}
         ownVehicle={ownVehicle}
         showOwnSpotNotice={showOwnSpotNotice}
-        spotsError={Boolean(spotsResult.error)}
-        activeClaimError={Boolean(activeClaimResult.error)}
-        ownedSpotError={Boolean(ownedSpotResult.error)}
+        spotsError={Boolean(!spotsResult || spotsResult.error)}
+        activeClaimError={Boolean(!activeClaimResult || activeClaimResult.error)}
+        ownedSpotError={Boolean(!ownedSpotResult || ownedSpotResult.error)}
       />
     </AuthenticatedShell>
   );

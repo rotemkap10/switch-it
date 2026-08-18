@@ -697,7 +697,11 @@ export function registerSeekerMarkerImages(map: MapLibreMap): void {
 
   for (const id of SEEKER_MARKER_IMAGE_ID_LIST) {
     if (!map.hasImage(id)) {
-      throw new Error(`Seeker marker image failed to register: ${id}`);
+      console.error("[switch-it] map recovered", {
+        operation: "registerSeekerMarkerImages",
+        phase: "render",
+      });
+      return;
     }
   }
 }
