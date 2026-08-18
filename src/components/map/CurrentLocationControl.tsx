@@ -48,7 +48,8 @@ function LocationTargetIcon({ className }: { className?: string }) {
 }
 
 /**
- * Shared “center on my device location” map control for primary Switch It maps.
+ * Shared compact floating map action (target icon). Used for device-location
+ * recenter on Find Parking / Share a Spot, and camera recenter on live maps.
  */
 export function CurrentLocationControl({
   onClick,

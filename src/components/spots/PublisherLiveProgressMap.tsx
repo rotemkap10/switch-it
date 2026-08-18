@@ -4,6 +4,7 @@ import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BaseMap } from "@/components/map/BaseMap";
+import { CurrentLocationControl } from "@/components/map/CurrentLocationControl";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
 import { logHandoffLive } from "@/lib/location/log-handoff-live";
 import type { SeekerLocationPayload } from "@/lib/location/payload";
@@ -562,10 +563,22 @@ export function PublisherLiveProgressMap({
             setMapReady(true);
           }}
         />
+        {!autoCamera ? (
+          <CurrentLocationControl
+            variant="embedded"
+            data-testid="publisher-handoff-focus"
+            ariaLabel={
+              seekerLocation
+                ? "Recenter on the approaching driver and parking spot"
+                : "Recenter on the parking spot"
+            }
+            onClick={focusHandoff}
+          />
+        ) : null}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {onExpandedChange ? (
+      {onExpandedChange ? (
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             className="motion-interactive-press min-h-10 rounded-lg border border-border bg-surface px-3 text-sm font-medium text-foreground"
@@ -574,23 +587,8 @@ export function PublisherLiveProgressMap({
           >
             {expanded ? "Collapse map" : "Expand map"}
           </button>
-        ) : null}
-        {!autoCamera ? (
-          <button
-            type="button"
-            data-testid="publisher-handoff-focus"
-            className="motion-interactive-press min-h-10 rounded-lg border border-accent bg-surface px-3 text-sm font-medium text-foreground"
-            aria-label={
-              seekerLocation
-                ? "Recenter on the approaching driver and parking spot"
-                : "Recenter on the parking spot"
-            }
-            onClick={focusHandoff}
-          >
-            Recenter
-          </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

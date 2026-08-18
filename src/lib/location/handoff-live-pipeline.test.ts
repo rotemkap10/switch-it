@@ -217,6 +217,7 @@ describe("handoff live-location pipeline contracts", () => {
       "utf8",
     );
     expect(map).toContain("Recenter");
+    expect(map).toContain("CurrentLocationControl");
     expect(map).not.toContain(">Follow<");
     expect(map).toContain("SEEKER_MARKER_IMAGE_IDS.seekerLive");
   });

@@ -674,6 +674,17 @@ describe("PublisherLiveProgressMap handoff focus", () => {
     expect(screen.getByTestId("publisher-handoff-focus")).toHaveTextContent(
       "Recenter",
     );
+    expect(screen.getByTestId("publisher-live-progress-map")).toContainElement(
+      screen.getByTestId("publisher-handoff-focus"),
+    );
+    expect(screen.getByTestId("publisher-handoff-focus")).toHaveClass(
+      "h-11",
+      "w-11",
+      "rounded-full",
+    );
+    expect(screen.getByTestId("publisher-handoff-focus")).not.toHaveClass(
+      "rounded-lg",
+    );
     expect(screen.queryByText("Follow")).not.toBeInTheDocument();
   });
 
@@ -731,6 +742,12 @@ describe("PublisherLiveProgressMap handoff focus", () => {
       "type",
       "button",
     );
+    expect(screen.getByTestId("publisher-live-progress-map")).toContainElement(
+      screen.getByTestId("publisher-handoff-focus"),
+    );
+    expect(
+      screen.getByRole("button", { name: "Recenter on the parking spot" }),
+    ).toHaveClass("rounded-full");
     expect(screen.queryByText("Follow")).not.toBeInTheDocument();
   });
 });

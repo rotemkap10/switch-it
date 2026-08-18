@@ -91,6 +91,7 @@ describe("claim live location snapshot pipeline contracts", () => {
       "utf8",
     );
     expect(map).toContain("Recenter");
+    expect(map).toContain("CurrentLocationControl");
     expect(map).not.toContain(">Follow<");
   });
 });

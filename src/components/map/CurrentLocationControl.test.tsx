@@ -57,6 +57,23 @@ describe("CurrentLocationControl", () => {
     expect(onClick).toHaveBeenCalledTimes(1);
   });
 
+  it("accepts a custom recenter label for reuse on other maps", () => {
+    render(
+      <CurrentLocationControl
+        onClick={vi.fn()}
+        variant="embedded"
+        ariaLabel="Recenter on the parking spot"
+        data-testid="publisher-handoff-focus"
+      />,
+    );
+
+    const button = screen.getByRole("button", {
+      name: "Recenter on the parking spot",
+    });
+    expect(button).toHaveAttribute("data-testid", "publisher-handoff-focus");
+    expect(button).toHaveClass("h-11", "w-11", "rounded-full");
+  });
+
   it("renders unavailable notice copy", () => {
     render(<CurrentLocationUnavailableNotice />);
     expect(
