@@ -15,7 +15,7 @@ import { modeFromPathname } from "@/lib/mode/constants";
 type AuthenticatedFrameProps = {
   userId: string;
   title: string;
-  description: string;
+  description?: string;
   children?: ReactNode;
   layout?: "default" | "map";
   displayName?: string | null;

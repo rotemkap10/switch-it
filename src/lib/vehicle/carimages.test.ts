@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  carImagesLoaderScriptUrl,
   carImagesSrcHostPath,
   carImagesWidthForSize,
   getCarImagesPublicApiKey,
@@ -22,6 +23,14 @@ describe("carimages helpers", () => {
 
     vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", " ci_public_test ");
     expect(getCarImagesPublicApiKey()).toBe("ci_public_test");
+  });
+
+  it("builds the official loader URL with the daily cache-bust token", () => {
+    const src = carImagesLoaderScriptUrl();
+    expect(src.startsWith("https://carimagesapi.com/assets/js/carimages.js?v=")).toBe(
+      true,
+    );
+    expect(src).toMatch(/\?v=\d{8}$/);
   });
 
   it("does not inject the official loader during unit tests", () => {

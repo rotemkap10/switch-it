@@ -6,7 +6,6 @@ import { SensoryPreferences } from "@/components/profile/SensoryPreferences";
 import { VehicleForm } from "@/components/profile/VehicleForm";
 import { Alert } from "@/components/ui/Alert";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
-import { isVehicleProfileComplete } from "@/lib/vehicle/profile-fields";
 
 export default async function ProfilePage() {
   const { supabase, user, status } = await requireAuthenticatedVehicleAccess({
@@ -25,7 +24,6 @@ export default async function ProfilePage() {
     return (
       <AuthenticatedShell
         title="Profile"
-        description="Manage your account and vehicle."
         vehicleAccess="allow-incomplete"
         headerAlign="center"
       >
@@ -44,22 +42,15 @@ export default async function ProfilePage() {
     vehicle_type: profile.vehicle_type,
     vehicle_photo_path: profile.vehicle_photo_path ?? null,
   };
-  const vehicleComplete = isVehicleProfileComplete(vehicle);
 
   return (
     <AuthenticatedShell
       title="Profile"
-      description="Manage your account and vehicle."
       vehicleAccess="allow-incomplete"
       headerAlign="center"
     >
       <div className="profile-page" data-testid="profile-layout">
-        <ProfileSummaryRow
-          email={user.email}
-          credits={profile.credits}
-          vehicleComplete={vehicleComplete}
-          vehicle={vehicle}
-        />
+        <ProfileSummaryRow email={user.email} credits={profile.credits} />
 
         <section
           className="mobile-form-section"

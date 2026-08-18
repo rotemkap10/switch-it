@@ -943,6 +943,7 @@ describe("PublishSpotForm", () => {
       "publisher-location-accuracy-warning",
     );
     expect(warning).toHaveTextContent(PUBLISHER_POOR_LOCATION_WARNING);
+    expect(warning).toHaveClass("publisher-location-summary__warning");
     expect(warning.textContent).not.toMatch(/±/);
     expect(warning.textContent).not.toMatch(/\d+\s*m/);
     expect(

@@ -96,7 +96,6 @@ describe("AuthenticatedFrame map layout", () => {
       <AuthenticatedFrame
         userId="user-1"
         title="Profile"
-        description="Manage your account and vehicle."
         layout="default"
         headerAlign="center"
       >
@@ -109,6 +108,9 @@ describe("AuthenticatedFrame map layout", () => {
     expect(header.className).toContain("items-center");
     expect(header.className).toContain("text-center");
     expect(screen.getByRole("heading", { name: "Profile" })).toBeInTheDocument();
+    expect(
+      screen.queryByText("Manage your account and vehicle."),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("profile-child").className).not.toContain(
       "text-center",
     );

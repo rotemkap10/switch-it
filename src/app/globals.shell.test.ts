@@ -89,6 +89,12 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".publisher-live-map-shell--collapsed");
     expect(css).toContain(".publisher-live-map-shell--expanded");
     expect(css).toContain(".publisher-spot-card");
+    expect(css).toMatch(
+      /\.publisher-location-summary__warning\s*\{[^}]*color:\s*var\(--color-accent-hover\)/s,
+    );
+    expect(css).not.toMatch(
+      /\.publisher-location-summary__warning\s*\{[^}]*color:\s*var\(--color-warning\)/s,
+    );
   });
 
   it("clears motion entrance transforms so MapLibre is not left in a containing block", () => {
@@ -117,7 +123,13 @@ describe("mobile shell CSS foundation", () => {
       /\.plate-suffix-input\s*\{[^}]*border:\s*1px solid var\(--color-border\)[^}]*background:\s*var\(--color-surface\)/s,
     );
     expect(css).toContain(".profile-summary-grid");
-    expect(css).toContain(".profile-summary-email");
+    expect(css).toMatch(
+      /\.profile-summary-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/s,
+    );
+    expect(css).toMatch(
+      /\.profile-summary-grid\s*\{[^}]*repeat\(2, minmax\(0, 1fr\)\)/s,
+    );
+    expect(css).not.toContain(".profile-summary-email");
     expect(css).toContain(".onboarding-vehicle-form");
   });
 

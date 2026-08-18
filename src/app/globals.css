@@ -713,7 +713,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
 .publisher-location-summary__warning {
   font-size: 0.8125rem;
   line-height: 1.3;
-  color: var(--color-warning);
+  color: var(--color-accent-hover);
 }
 
 .publisher-pin-hint {
@@ -1223,7 +1223,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
 
 .profile-summary-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--app-card-gap);
 }
 
@@ -1235,22 +1235,14 @@ html[data-native-status-bar="inset"] .app-shell-header {
   padding: var(--app-card-padding) !important;
 }
 
-.profile-summary-email {
-  grid-column: 1 / -1;
-}
-
 @media (min-width: 640px) {
   .profile-summary-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .profile-summary-card {
     min-height: 9.5rem;
     padding: 1.25rem !important;
-  }
-
-  .profile-summary-email {
-    grid-column: auto;
   }
 }
 
@@ -1287,6 +1279,27 @@ html[data-native-status-bar="inset"] .app-shell-header {
 
 .vehicle-model-image__pending {
   display: none;
+}
+
+/* Reserved slot while the catalog image is resolving — not a vehicle silhouette. */
+.vehicle-model-image__pending--slot {
+  background: var(--color-accent-soft);
+}
+
+.vehicle-model-image__pending--slot .vehicle-photo-frame__image--model {
+  visibility: hidden;
+}
+
+.vehicle-photo-frame--handoff.vehicle-model-image__pending--slot {
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  background: var(--color-accent-soft);
+}
+
+.vehicle-photo-frame--handoff.vehicle-model-image__pending--slot
+  .vehicle-photo-frame__image--model {
+  filter: none;
+  background: transparent;
 }
 
 .vehicle-photo-frame--hero {

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 
 import { AppFeedbackRoot } from "@/components/feedback/AppFeedbackRoot";
+import { CarImagesDocumentHints } from "@/components/vehicle/CarImagesDocumentHints";
 import { BootSplash } from "@/components/pwa/BootSplash";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
 import { SWITCH_IT_LAUNCH_LOGO_SRC } from "@/lib/branding/logo-asset";
@@ -102,6 +103,7 @@ export default function RootLayout({
           href={SWITCH_IT_LAUNCH_LOGO_SRC}
           fetchPriority="high"
         />
+        <CarImagesDocumentHints />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />

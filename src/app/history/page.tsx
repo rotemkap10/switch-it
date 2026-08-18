@@ -14,7 +14,6 @@ export default async function HistoryPage() {
   return (
     <AuthenticatedShell
       title="History"
-      description="Your parking handoffs."
       access={access}
       headerAlign="center"
     >

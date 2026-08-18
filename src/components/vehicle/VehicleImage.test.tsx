@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { resetCarImagesOutcomeCacheForTests } from "@/lib/vehicle/carimages-outcome-cache";
+
 vi.mock("@/components/vehicle/VehicleIllustration", () => ({
   VehicleIllustration: ({
     label,
@@ -29,6 +31,7 @@ import { VehicleImage } from "@/components/vehicle/VehicleImage";
 describe("VehicleImage", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    resetCarImagesOutcomeCacheForTests();
   });
   it("does not show an uploaded photo even when a url is passed", () => {
     render(
@@ -87,7 +90,11 @@ describe("VehicleImage", () => {
       "data-ci-make",
       "Hyundai",
     );
-    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).not.toBeVisible();
+    expect(screen.getByTestId("vehicle-model-image-frame")).toHaveAttribute(
+      "data-status",
+      "pending",
+    );
   });
 
   it("sends canonical make and model to CarImages even when stored casing differs", () => {
@@ -135,7 +142,7 @@ describe("VehicleImage", () => {
     );
 
     expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
-    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).not.toBeVisible();
     expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
       "data-ci-make",
       "Hyundai",
@@ -164,7 +171,7 @@ describe("VehicleImage", () => {
       />,
     );
 
-    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).not.toBeVisible();
     expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
       "data-ci-make",
       "Hyundai",

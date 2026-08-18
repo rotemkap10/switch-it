@@ -18,7 +18,7 @@ export type AuthenticatedAccess = {
 
 type AuthenticatedShellProps = {
   title: string;
-  description: string;
+  description?: string;
   children?: ReactNode;
   /** Immersive map layout: no page header, full-height main. */
   layout?: "default" | "map";

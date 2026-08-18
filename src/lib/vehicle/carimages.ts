@@ -3,6 +3,7 @@ export const CARIMAGES_LOADER_SRC =
 export const CARIMAGES_VIEW = "front34";
 export const CARIMAGES_FORMAT = "webp";
 export const CARIMAGES_TYPE = "car";
+export const CARIMAGES_LOADER_ERROR_EVENT = "switch-it-carimages-loader-error";
 
 export type VehicleImageSize = "default" | "compact" | "handoff" | "hero";
 
@@ -26,6 +27,11 @@ export function isCarImagesLoaderEnabled(): boolean {
 /** Daily cache-bust token used by the official loader snippet. */
 export function carImagesLoaderCacheBust(): string {
   return new Date().toISOString().slice(0, 10).replaceAll("-", "");
+}
+
+/** Exact script URL injected by `CarImagesLoader` (preload must match). */
+export function carImagesLoaderScriptUrl(): string {
+  return `${CARIMAGES_LOADER_SRC}?v=${carImagesLoaderCacheBust()}`;
 }
 
 export function carImagesWidthForSize(size: VehicleImageSize): "400" | "800" {

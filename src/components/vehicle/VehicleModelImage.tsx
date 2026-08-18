@@ -1,10 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 
 import { CarImagesLoader } from "@/components/vehicle/CarImagesLoader";
 import {
   CARIMAGES_FORMAT,
+  CARIMAGES_LOADER_ERROR_EVENT,
   CARIMAGES_TYPE,
   CARIMAGES_VIEW,
   carImagesSrcHostPath,
@@ -15,6 +21,12 @@ import {
   normalizeCarImagesYear,
   type VehicleImageSize,
 } from "@/lib/vehicle/carimages";
+import {
+  carImagesOutcomeKey,
+  forgetCarImagesOutcome,
+  peekCarImagesOutcome,
+  rememberCarImagesOutcome,
+} from "@/lib/vehicle/carimages-outcome-cache";
 
 type VehicleModelImageProps = {
   make?: string | null;
@@ -34,6 +46,10 @@ function trimmed(value: string | null | undefined): string {
 
 function currentImgSrc(img: HTMLImageElement): string {
   return img.currentSrc || img.getAttribute("src") || "";
+}
+
+function isDecoded(img: HTMLImageElement): boolean {
+  return img.complete && img.naturalWidth > 0;
 }
 
 export function VehicleModelImage({
@@ -59,7 +75,7 @@ export function VehicleModelImage({
 
   return (
     <VehicleModelImageRequest
-      key={`${makeValue}:${modelValue}:${yearValue ?? ""}`}
+      key={`${makeValue}:${modelValue}:${yearValue ?? ""}:${size}`}
       make={makeValue}
       model={modelValue}
       year={yearValue}
@@ -89,14 +105,25 @@ function VehicleModelImageRequest({
   size: VehicleImageSize;
   children: ReactNode;
 }) {
+  const outcomeKey = carImagesOutcomeKey(make, model, year, size);
   const imgRef = useRef<HTMLImageElement>(null);
   const lastSrcRef = useRef<string>("");
-  const [status, setStatus] = useState<ModelImageStatus>("pending");
+  const [status, setStatus] = useState<ModelImageStatus>(() => {
+    const cached = peekCarImagesOutcome(outcomeKey);
+    return cached?.status ?? "pending";
+  });
+  const prioritize = size === "handoff" || size === "hero";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const img = imgRef.current;
     if (!img) {
       return;
+    }
+
+    const cached = peekCarImagesOutcome(outcomeKey);
+    if (cached?.status === "ready" && !img.getAttribute("src")) {
+      img.src = cached.src;
+      lastSrcRef.current = cached.src;
     }
 
     logCarImages(
@@ -106,10 +133,16 @@ function VehicleModelImageRequest({
 
     const markFallback = (reason: string) => {
       logCarImages(`fallback reason=${reason}`);
+      rememberCarImagesOutcome(outcomeKey, { status: "fallback" });
       setStatus("fallback");
     };
 
-    const syncFromImage = () => {
+    const markReady = (src: string) => {
+      rememberCarImagesOutcome(outcomeKey, { status: "ready", src });
+      setStatus("ready");
+    };
+
+    const syncFromImage = (fromLoadEvent = false) => {
       const loaded = img.getAttribute("data-ci-loaded");
       const src = currentImgSrc(img);
       if (src && src !== lastSrcRef.current) {
@@ -122,20 +155,16 @@ function VehicleModelImageRequest({
         return;
       }
 
-      // Official loader success: signed /image URL assigned + data-ci-loaded=true.
-      if (loaded === "true" && isCarImagesLoaderResolvedSrc(src)) {
+      const resolved =
+        Boolean(src) &&
+        (loaded === "true" || isCarImagesLoaderResolvedSrc(src));
+      if (resolved && (fromLoadEvent || isDecoded(img))) {
         logCarImages(`resolved url=${carImagesSrcHostPath(src)}`);
-        setStatus("ready");
+        markReady(src);
         return;
       }
 
-      if (loaded === "true" && src) {
-        logCarImages(`resolved url=${carImagesSrcHostPath(src)}`);
-        setStatus("ready");
-        return;
-      }
-
-      if (loaded === "true") {
+      if (loaded === "true" && !src) {
         markFallback("loaded-without-src");
       }
     };
@@ -144,47 +173,79 @@ function VehicleModelImageRequest({
       logCarImages(
         `image load success host/path=${carImagesSrcHostPath(currentImgSrc(img))}`,
       );
-      syncFromImage();
+      syncFromImage(true);
     };
 
     const onError = () => {
       logCarImages(
         `image load error host/path=${carImagesSrcHostPath(currentImgSrc(img))}`,
       );
-      markFallback("image-error");
+      const loaded = img.getAttribute("data-ci-loaded");
+      if (loaded === "error" || loaded === "true") {
+        markFallback("image-error");
+        return;
+      }
+      // Cached/expired URL failed — wait for the loader to assign a fresh one.
+      forgetCarImagesOutcome(outcomeKey);
+      lastSrcRef.current = "";
+      setStatus("pending");
+    };
+
+    const onLoaderScriptError = () => {
+      if (peekCarImagesOutcome(outcomeKey)?.status === "ready") {
+        return;
+      }
+      markFallback("loader-script-error");
     };
 
     img.addEventListener("load", onLoad);
     img.addEventListener("error", onError);
-    const observer = new MutationObserver(syncFromImage);
+    window.addEventListener(CARIMAGES_LOADER_ERROR_EVENT, onLoaderScriptError);
+    const observer = new MutationObserver(() => syncFromImage(false));
     observer.observe(img, {
       attributes: true,
       attributeFilter: ["data-ci-loaded", "src"],
     });
 
+    if (isDecoded(img) && isCarImagesLoaderResolvedSrc(currentImgSrc(img))) {
+      markReady(currentImgSrc(img));
+    } else {
+      syncFromImage(false);
+    }
+
     return () => {
       img.removeEventListener("load", onLoad);
       img.removeEventListener("error", onError);
+      window.removeEventListener(
+        CARIMAGES_LOADER_ERROR_EVENT,
+        onLoaderScriptError,
+      );
       observer.disconnect();
     };
-  }, [make, model, year]);
+  }, [make, model, year, outcomeKey]);
 
   const showModel = status === "ready";
+  const showFallback = status === "fallback";
 
   return (
     <div
       className={["vehicle-model-image", className].filter(Boolean).join(" ")}
       data-testid="vehicle-model-image-root"
+      aria-busy={status === "pending" || undefined}
     >
-      <CarImagesLoader />
-      <div hidden={showModel}>{children}</div>
+      <CarImagesLoader priority={prioritize} />
+      {status === "pending" ? (
+        <span className="sr-only">Loading vehicle image</span>
+      ) : null}
+      <div hidden={!showFallback}>{children}</div>
       <div
         className={[
           "vehicle-photo-frame",
           `vehicle-photo-frame--${size}`,
           "vehicle-photo-frame--model",
           className,
-          showModel ? "" : "vehicle-model-image__pending",
+          status === "fallback" ? "vehicle-model-image__pending" : "",
+          status === "pending" ? "vehicle-model-image__pending--slot" : "",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -207,6 +268,7 @@ function VehicleModelImageRequest({
           data-ci-format={CARIMAGES_FORMAT}
           data-ci-type={CARIMAGES_TYPE}
           data-ci-width={carImagesWidthForSize(size)}
+          fetchPriority={prioritize ? "high" : "auto"}
         />
       </div>
     </div>

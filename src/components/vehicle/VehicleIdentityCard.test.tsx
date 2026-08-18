@@ -1,5 +1,5 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/vehicle/VehicleIllustration", () => ({
   VehicleIllustration: ({
@@ -25,6 +25,7 @@ vi.mock("@/components/vehicle/VehicleIllustration", () => ({
 }));
 
 import { VehicleIdentityCard } from "@/components/vehicle/VehicleIdentityCard";
+import { resetCarImagesOutcomeCacheForTests } from "@/lib/vehicle/carimages-outcome-cache";
 
 const completeVehicle = {
   licensePlateMasked: "123-45-6**",
@@ -35,6 +36,11 @@ const completeVehicle = {
 };
 
 describe("VehicleIdentityCard", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    resetCarImagesOutcomeCacheForTests();
+  });
+
   it("renders type, color, make, model, and masked plate", () => {
     render(<VehicleIdentityCard vehicle={completeVehicle} />);
 
@@ -160,5 +166,62 @@ describe("VehicleIdentityCard", () => {
     expect(
       screen.getByText("White Hyundai Tucson 2025, license plate 123-45-6**"),
     ).toHaveClass("sr-only");
+  });
+
+  it("does not show the generic illustration while the handoff catalog image is loading", () => {
+    vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
+
+    render(
+      <VehicleIdentityCard
+        vehicle={{
+          ...completeVehicle,
+          year: 2025,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-model-image-frame")).toHaveAttribute(
+      "data-status",
+      "pending",
+    );
+    expect(screen.getByTestId("vehicle-model-image-frame")).toHaveAttribute(
+      "data-size",
+      "handoff",
+    );
+    expect(screen.getByTestId("vehicle-illustration")).not.toBeVisible();
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "fetchpriority",
+      "high",
+    );
+  });
+
+  it("reveals the catalog image without first treating the illustration as the vehicle", () => {
+    vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
+
+    render(
+      <VehicleIdentityCard
+        vehicle={{
+          ...completeVehicle,
+          year: 2025,
+        }}
+      />,
+    );
+
+    expect(screen.getByTestId("vehicle-illustration")).not.toBeVisible();
+
+    const img = screen.getByTestId("vehicle-model-image");
+    img.setAttribute(
+      "src",
+      "https://cdn.carimagesapi.com/vehicles/hyundai/tucson/nx4-2024-now-800-wm.webp",
+    );
+    img.setAttribute("data-ci-loaded", "true");
+    fireEvent.load(img);
+
+    expect(screen.getByTestId("vehicle-model-image-frame")).toHaveAttribute(
+      "data-status",
+      "ready",
+    );
+    expect(screen.getByTestId("vehicle-illustration")).not.toBeVisible();
+    expect(screen.getByRole("img", { name: "Hyundai Tucson · 2025" })).toBe(img);
   });
 });

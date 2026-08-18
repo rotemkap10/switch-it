@@ -16,8 +16,8 @@ describe("PageHeader", () => {
   it("centers the title and subtitle together", () => {
     render(
       <PageHeader
-        title="History"
-        description="Your parking handoffs."
+        title="Share a spot"
+        description="Park and go."
         align="center"
       />,
     );
@@ -27,7 +27,19 @@ describe("PageHeader", () => {
     expect(header.className).toContain("items-center");
     expect(header.className).toContain("text-center");
     expect(header.className).toContain("w-full");
+    expect(screen.getByRole("heading", { name: "Share a spot" })).toBeInTheDocument();
+    expect(screen.getByText("Park and go.")).toBeInTheDocument();
+  });
+
+  it("omits the subtitle when no description is provided", () => {
+    render(<PageHeader title="History" align="center" />);
+
+    const header = screen.getByTestId("page-header");
+    expect(header).toHaveAttribute("data-align", "center");
+    expect(header.className).toContain("items-center");
+    expect(header.className).not.toContain("gap-2");
     expect(screen.getByRole("heading", { name: "History" })).toBeInTheDocument();
-    expect(screen.getByText("Your parking handoffs.")).toBeInTheDocument();
+    expect(screen.queryByText("Your parking handoffs.")).not.toBeInTheDocument();
+    expect(header.querySelector("p")).toBeNull();
   });
 });

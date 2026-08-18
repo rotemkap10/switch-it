@@ -15,7 +15,8 @@ export function PageHeader({
   return (
     <div
       className={[
-        "motion-page-header flex w-full flex-col gap-2",
+        "motion-page-header flex w-full flex-col",
+        description ? "gap-2" : "",
         centered ? "items-center text-center" : "",
       ].join(" ")}
       data-testid="page-header"
