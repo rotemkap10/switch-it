@@ -25,7 +25,8 @@ export const APP_ERROR_MESSAGES = {
   HANDOFF_TEMPORARILY_LOCKED:
     "Too many incorrect attempts. Try again in a moment.",
   HANDOFF_UNAVAILABLE: "This handoff can no longer be completed.",
-  HANDOFF_NOT_READY: "You can extend waiting once the handoff window starts.",
+  HANDOFF_NOT_READY: "You can extend waiting once the handoff has started.",
+  HANDOFF_NOT_STARTED: "Wait until the publisher is ready to leave.",
   CLAIM_EXPIRED: "This handoff can no longer be completed.",
   CLAIM_NOT_ACTIVE: "This handoff can no longer be completed.",
   CLAIM_NOT_FOUND: "This handoff can no longer be completed.",

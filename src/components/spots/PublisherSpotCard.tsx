@@ -5,13 +5,11 @@ import { useRouter } from "next/navigation";
 
 import { CancelSpotButton } from "@/components/spots/CancelSpotButton";
 import { ExtendHandoffWaitButton } from "@/components/spots/ExtendHandoffWaitButton";
+import { StartHandoffNowButton } from "@/components/spots/StartHandoffNowButton";
 import { PublisherLiveProgressMapLoader } from "@/components/spots/PublisherLiveProgressMapLoader";
 import { ParkingPinSettle } from "@/components/illustrations/ParkingPinSettle";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
-import {
-  getHandoffPhase,
-  HandoffWindowCountdown,
-} from "@/components/ui/HandoffWindowCountdown";
+import { HandoffWindowCountdown } from "@/components/ui/HandoffWindowCountdown";
 import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { usePublisherLiveLocation } from "@/lib/location/use-publisher-live-location";
 import {
@@ -23,6 +21,10 @@ import {
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
 import { sensoryClaimReceived } from "@/lib/sensory/feedback";
 import { canOfferHandoffExtension } from "@/lib/spots/constants";
+import {
+  hasHandoffStarted,
+  resolveHandoffTimingPhase,
+} from "@/lib/spots/handoff-phase";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 
 export type PublisherSpotSummary = {
@@ -30,6 +32,8 @@ export type PublisherSpotSummary = {
   status: "available" | "claimed";
   available_at: string;
   expires_at: string;
+  handoff_started_at: string | null;
+  handoff_extension_used_at: string | null;
   address: string | null;
   latitude: number;
   longitude: number;
@@ -38,6 +42,7 @@ export type PublisherSpotSummary = {
 export const PUBLISHER_WAITING_STATUS = "Waiting for a driver";
 /** Compact claimed headline — map is the primary surface. */
 export const PUBLISHER_CLAIMED_STATUS = "Driver on the way";
+export const PUBLISHER_CONFIRM_STATUS = "Ready to leave?";
 export const PUBLISHER_CLAIMED_STAY_INSTRUCTION = "Stay at your parking spot.";
 export const PUBLISHER_CLAIMED_NEARBY_INSTRUCTION =
   "Driver is approaching the parking spot";
@@ -66,6 +71,12 @@ export function PublisherSpotCard({
   const router = useRouter();
   const claimed = spot.status === "claimed";
   const [claimedEmphasis, setClaimedEmphasis] = useState(false);
+  const started = hasHandoffStarted(spot.handoff_started_at);
+  const phase = resolveHandoffTimingPhase({
+    availableAtIso: spot.available_at,
+    expiresAtIso: spot.expires_at,
+    handoffStartedAtIso: spot.handoff_started_at,
+  });
   const destinationLabel = publisherSpotTitleLabel(spot.address);
   const parkingLatLng = isValidLatLng({
     latitude: spot.latitude,
@@ -138,9 +149,14 @@ export function PublisherSpotCard({
     }
   }, [claimed, clearLiveLocation]);
 
-  const claimedHeadline = driverNearby
-    ? PUBLISHER_CLAIMED_NEARBY_INSTRUCTION
-    : PUBLISHER_CLAIMED_STATUS;
+  const claimedHeadline =
+    phase === "confirm"
+      ? PUBLISHER_CONFIRM_STATUS
+      : driverNearby
+        ? PUBLISHER_CLAIMED_NEARBY_INSTRUCTION
+        : PUBLISHER_CLAIMED_STATUS;
+  const waitingHeadline =
+    phase === "confirm" ? PUBLISHER_CONFIRM_STATUS : PUBLISHER_WAITING_STATUS;
   const claimedSecondary = !activeClaimId
     ? PUBLISHER_CLAIMED_STAY_INSTRUCTION
     : liveLocation.freshness === "waiting" ||
@@ -169,7 +185,7 @@ export function PublisherSpotCard({
               claimed ? "text-base sm:text-lg" : "text-lg sm:text-xl",
             ].join(" ")}
           >
-            {claimed ? claimedHeadline : PUBLISHER_WAITING_STATUS}
+            {claimed ? claimedHeadline : waitingHeadline}
           </h2>
           {claimed ? (
             <p
@@ -196,17 +212,16 @@ export function PublisherSpotCard({
           {destinationLabel}
         </p>
       ) : null}
-      {!claimed ? (
-        <div className="mt-3">
-          <HandoffWindowCountdown
-            key={spot.expires_at}
-            availableAtIso={spot.available_at}
-            expiresAtIso={spot.expires_at}
-            role="publisher"
-            onExpired={onExpired}
-          />
-        </div>
-      ) : null}
+      <div className="mt-3">
+        <HandoffWindowCountdown
+          key={spot.expires_at}
+          availableAtIso={spot.available_at}
+          expiresAtIso={spot.expires_at}
+          handoffStartedAtIso={spot.handoff_started_at}
+          role="publisher"
+          onExpired={onExpired}
+        />
+      </div>
     </div>
   );
 
@@ -240,17 +255,22 @@ export function PublisherSpotCard({
 
   const cancelBlock = (
     <div className="publisher-spot-cancel flex flex-col gap-2">
+      {!started && phase !== "ended" ? (
+        <StartHandoffNowButton spotId={spot.id} />
+      ) : null}
       {claimed &&
       activeClaimId &&
+      spot.handoff_started_at &&
       canOfferHandoffExtension({
-        availableAtIso: spot.available_at,
+        handoffStartedAtIso: spot.handoff_started_at,
+        extensionUsedAtIso: spot.handoff_extension_used_at,
         expiresAtIso: spot.expires_at,
         claimed: true,
       }) &&
-      getHandoffPhase(spot.available_at, spot.expires_at) === "window" ? (
+      phase === "active" ? (
         <ExtendHandoffWaitButton
           claimId={activeClaimId}
-          availableAtIso={spot.available_at}
+          handoffStartedAtIso={spot.handoff_started_at}
           expiresAtIso={spot.expires_at}
         />
       ) : null}
@@ -258,6 +278,7 @@ export function PublisherSpotCard({
         spotId={spot.id}
         claimId={activeClaimId}
         claimed={claimed}
+        handoffStarted={started}
       />
     </div>
   );
@@ -270,6 +291,7 @@ export function PublisherSpotCard({
       ].join(" ")}
       data-testid="publisher-spot-card"
       data-status={spot.status}
+      data-handoff-phase={phase}
       data-driver-nearby={claimed && driverNearby ? "true" : "false"}
       data-layout={claimed ? "claimed-map-first" : "waiting"}
     >

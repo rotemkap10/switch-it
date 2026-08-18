@@ -48,4 +48,38 @@ describe("CancelSpotButton", () => {
     expect(keep.className).toContain("w-full");
     expect(cancel.className).toContain("w-full");
   });
+
+  it("uses Cancel handoff before the live timer starts", async () => {
+    const user = userEvent.setup();
+    render(<CancelSpotButton spotId={spotId} claimed />);
+
+    const trigger = screen.getByTestId("cancel-spot-trigger");
+    expect(trigger).toHaveTextContent("Cancel handoff");
+    expect(trigger).not.toHaveTextContent("I’m leaving");
+
+    await user.click(screen.getByRole("button", { name: "Cancel handoff" }));
+    expect(screen.getByText("Cancel this handoff?")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Cancel handoff" }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses Leave without handoff after the live timer starts", async () => {
+    const user = userEvent.setup();
+    render(
+      <CancelSpotButton spotId={spotId} claimed handoffStarted />,
+    );
+
+    expect(screen.getByTestId("cancel-spot-trigger")).toHaveTextContent(
+      "Leave without handoff",
+    );
+    expect(
+      screen.queryByRole("button", { name: "I’m leaving" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Leave without handoff" }),
+    );
+    expect(screen.getByText("Leave without a handoff?")).toBeInTheDocument();
+  });
 });

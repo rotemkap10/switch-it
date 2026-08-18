@@ -2,11 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export type HandoffPhase = "waiting" | "window" | "ended";
+import {
+  formatHandoffClock,
+  formatWaitingMinutes,
+  remainingMsUntil,
+  resolveHandoffTimingPhase,
+  type HandoffTimingPhase,
+} from "@/lib/spots/handoff-phase";
+
+export type HandoffPhase = HandoffTimingPhase;
 
 type HandoffWindowCountdownProps = {
   availableAtIso: string;
   expiresAtIso: string;
+  handoffStartedAtIso?: string | null;
   /** Role-specific waiting / window copy. */
   role: "publisher" | "seeker";
   className?: string;
@@ -14,59 +23,32 @@ type HandoffWindowCountdownProps = {
   onExpired?: () => void;
 };
 
-function formatClock(ms: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${String(seconds).padStart(2, "0")}`;
+function scheduledCopy(role: "publisher" | "seeker", minutes: number): string {
+  return role === "publisher"
+    ? `Leaving in ${minutes} min`
+    : `Ready in ${minutes} min`;
 }
 
-function formatWaitingMinutes(ms: number): number {
-  return Math.max(1, Math.ceil(ms / 60_000));
+function confirmCopy(role: "publisher" | "seeker", clock: string): string {
+  return role === "publisher"
+    ? `Start within ${clock}`
+    : `Waiting for departure confirmation · ${clock}`;
 }
 
-function waitingCopy(_role: "publisher" | "seeker", minutes: number): string {
-  return `Ready in ${minutes} min`;
-}
-
-function windowCopy(_role: "publisher" | "seeker", clock: string): string {
-  return `${clock} left`;
-}
-
-function seekerWindowCopy(remainingMs: number): string {
-  if (remainingMs >= 60_000) {
-    const minutes = Math.max(1, Math.ceil(remainingMs / 60_000));
-    return `${minutes} min remaining`;
-  }
-  return `${formatClock(remainingMs)} left`;
-}
-
-function resolvePhase(
-  now: number,
-  availableAt: number,
-  expiresAt: number,
-): HandoffPhase {
-  if (!Number.isFinite(availableAt) || !Number.isFinite(expiresAt)) {
-    return "ended";
-  }
-  if (now < availableAt) {
-    return "waiting";
-  }
-  if (now < expiresAt) {
-    return "window";
-  }
-  return "ended";
+function activeCopy(role: "publisher" | "seeker", clock: string): string {
+  return role === "publisher"
+    ? `Waiting for driver · ${clock} left`
+    : `Complete the handoff · ${clock} left`;
 }
 
 /**
- * Dual-target countdown for the shared handoff window.
- * Derives remaining time from absolute timestamps each tick (no drift counter).
- * Remount with `key={expiresAtIso}` when the deadline extends so near-expiry /
- * ended announcement state resets without flashing a stale terminal UI.
+ * Dual-target countdown for estimated departure vs live handoff.
+ * Remount with `key={expiresAtIso}` when the deadline changes.
  */
 export function HandoffWindowCountdown({
   availableAtIso,
   expiresAtIso,
+  handoffStartedAtIso = null,
   role,
   className = "",
   onExpired,
@@ -101,15 +83,24 @@ export function HandoffWindowCountdown({
     };
   }, []);
 
-  const availableAt = new Date(availableAtIso).getTime();
-  const expiresAt = new Date(expiresAtIso).getTime();
-  const phase = resolvePhase(now, availableAt, expiresAt);
+  const phase = resolveHandoffTimingPhase({
+    availableAtIso,
+    expiresAtIso,
+    handoffStartedAtIso,
+    nowMs: now,
+  });
 
   useEffect(() => {
     const previous = phaseRef.current;
     phaseRef.current = phase;
 
-    if (previous === "waiting" && phase === "window") {
+    if (previous === "scheduled" && phase === "confirm") {
+      setAnnounce("Waiting for departure confirmation.");
+    }
+    if (
+      (previous === "scheduled" || previous === "confirm") &&
+      phase === "active"
+    ) {
       setAnnounce("Handoff window is open.");
     }
     if (phase === "ended" && previous && previous !== "ended") {
@@ -122,21 +113,20 @@ export function HandoffWindowCountdown({
   }, [phase, onExpired]);
 
   useEffect(() => {
-    if (phase !== "window") {
+    if (phase !== "active" && phase !== "confirm") {
       return;
     }
-    const remaining = expiresAt - now;
+    const remaining = remainingMsUntil(expiresAtIso, now);
     if (
       remaining > 0 &&
       remaining <= 60_000 &&
       !oneMinuteAnnouncedRef.current
     ) {
       oneMinuteAnnouncedRef.current = true;
-      setAnnounce("One minute remaining in the handoff window.");
+      setAnnounce("One minute remaining.");
     }
-  }, [phase, expiresAt, now]);
+  }, [phase, expiresAtIso, now]);
 
-  // After expiry: no frozen 00:00 — parent refresh takes over; brief terminal hint only.
   if (phase === "ended") {
     return (
       <div
@@ -153,13 +143,18 @@ export function HandoffWindowCountdown({
   }
 
   const remainingMs =
-    phase === "waiting" ? availableAt - now : expiresAt - now;
-  const nearExpiry = phase === "window" && remainingMs <= 60_000;
+    phase === "scheduled"
+      ? remainingMsUntil(availableAtIso, now)
+      : remainingMsUntil(expiresAtIso, now);
+  const nearExpiry =
+    (phase === "active" || phase === "confirm") && remainingMs <= 60_000;
 
   const line =
-    phase === "waiting"
-      ? waitingCopy(role, formatWaitingMinutes(remainingMs))
-      : seekerWindowCopy(remainingMs);
+    phase === "scheduled"
+      ? scheduledCopy(role, formatWaitingMinutes(remainingMs))
+      : phase === "confirm"
+        ? confirmCopy(role, formatHandoffClock(remainingMs))
+        : activeCopy(role, formatHandoffClock(remainingMs));
 
   return (
     <div
@@ -168,6 +163,9 @@ export function HandoffWindowCountdown({
       data-phase={phase}
       data-near-expiry={nearExpiry ? "true" : "false"}
     >
+      {phase === "confirm" && role === "publisher" ? (
+        <p className="text-sm font-semibold text-foreground">Ready to leave?</p>
+      ) : null}
       <p
         className={[
           "text-sm font-semibold text-foreground",
@@ -187,18 +185,21 @@ export function getHandoffPhase(
   availableAtIso: string,
   expiresAtIso: string,
   nowMs: number = Date.now(),
+  handoffStartedAtIso: string | null = null,
 ): HandoffPhase {
-  return resolvePhase(
+  return resolveHandoffTimingPhase({
+    availableAtIso,
+    expiresAtIso,
+    handoffStartedAtIso,
     nowMs,
-    new Date(availableAtIso).getTime(),
-    new Date(expiresAtIso).getTime(),
-  );
+  });
 }
 
 export {
-  formatClock as formatHandoffClock,
+  formatHandoffClock,
   formatWaitingMinutes,
-  waitingCopy as handoffWaitingCopy,
-  windowCopy as handoffWindowCopy,
-  seekerWindowCopy as handoffSeekerWindowCopy,
+  scheduledCopy as handoffWaitingCopy,
+  activeCopy as handoffWindowCopy,
+  confirmCopy as handoffConfirmCopy,
+  activeCopy as handoffSeekerWindowCopy,
 };

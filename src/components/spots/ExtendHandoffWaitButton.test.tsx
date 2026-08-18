@@ -37,7 +37,7 @@ describe("ExtendHandoffWaitButton", () => {
       <FeedbackShell>
         <ExtendHandoffWaitButton
           claimId="11111111-1111-4111-8111-111111111111"
-          availableAtIso="2026-08-04T22:45:00.000Z"
+          handoffStartedAtIso="2026-08-04T22:45:00.000Z"
           expiresAtIso="2026-08-04T22:47:00.000Z"
         />
       </FeedbackShell>,
@@ -66,7 +66,7 @@ describe("ExtendHandoffWaitButton", () => {
       <FeedbackShell>
         <ExtendHandoffWaitButton
           claimId="11111111-1111-4111-8111-111111111111"
-          availableAtIso="2026-08-04T22:45:00.000Z"
+          handoffStartedAtIso="2026-08-04T22:45:00.000Z"
           expiresAtIso="2026-08-04T22:50:00.000Z"
         />
       </FeedbackShell>,
@@ -80,7 +80,7 @@ describe("ExtendHandoffWaitButton", () => {
       <FeedbackShell>
         <ExtendHandoffWaitButton
           claimId="11111111-1111-4111-8111-111111111111"
-          availableAtIso="2026-08-04T22:45:00.000Z"
+          handoffStartedAtIso="2026-08-04T22:45:00.000Z"
           expiresAtIso="2026-08-04T22:49:00.000Z"
         />
       </FeedbackShell>,

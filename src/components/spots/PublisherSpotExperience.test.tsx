@@ -73,6 +73,8 @@ const spot = {
   status: "available" as const,
   available_at: "2026-08-17T09:00:00.000Z",
   expires_at: "2026-08-17T09:30:00.000Z",
+  handoff_started_at: null,
+  handoff_extension_used_at: null,
   address: "Test St",
   latitude: 32.1,
   longitude: 34.8,

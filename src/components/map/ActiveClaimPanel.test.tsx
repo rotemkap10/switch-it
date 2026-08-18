@@ -140,6 +140,7 @@ const claim = {
   claimExpiresAt: "2026-08-04T13:00:00.000Z",
   spotAvailableAt: "2026-08-04T12:45:00.000Z",
   spotExpiresAt: "2026-08-04T12:50:00.000Z",
+  handoffStartedAt: "2026-08-04T12:45:00.000Z",
   spotAddress: "Rothschild Blvd 1",
 };
 
@@ -272,6 +273,30 @@ describe("ActiveClaimPanel sheet UX", () => {
         /You can still complete the handoff using navigation/i,
       ),
     ).not.toBeInTheDocument();
+  });
+
+  it("hides plate verification until the publisher starts the handoff", () => {
+    renderPanel(
+      <ActiveClaimPanel
+        claim={{ ...claim, handoffStartedAt: null }}
+        destination={destination}
+        counterpartVehicle={ownerVehicle}
+        variant="overlay"
+        expanded
+      />,
+    );
+
+    expect(screen.getByTestId("active-claim-complete-actions")).toBeInTheDocument();
+    expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Complete handoff" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Release spot" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
   });
 
   it("uses collapsed sheet class without verification UI", async () => {

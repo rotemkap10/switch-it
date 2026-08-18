@@ -15,12 +15,31 @@ vi.mock("@/components/spots/CancelSpotButton", () => ({
   CancelSpotButton: ({
     spotId,
     claimed,
+    handoffStarted,
   }: {
     spotId: string;
     claimed?: boolean;
+    handoffStarted?: boolean;
   }) => (
-    <button type="button" data-spot-id={spotId} data-claimed={String(!!claimed)}>
-      {claimed ? "I’m leaving" : "Cancel spot"}
+    <button
+      type="button"
+      data-spot-id={spotId}
+      data-claimed={String(!!claimed)}
+      data-started={String(!!handoffStarted)}
+    >
+      {claimed
+        ? handoffStarted
+          ? "Leave without handoff"
+          : "Cancel handoff"
+        : "Cancel spot"}
+    </button>
+  ),
+}));
+
+vi.mock("@/components/spots/StartHandoffNowButton", () => ({
+  StartHandoffNowButton: ({ spotId }: { spotId: string }) => (
+    <button type="button" data-testid="start-handoff-now" data-spot-id={spotId}>
+      I’m leaving now
     </button>
   ),
 }));
@@ -43,16 +62,19 @@ vi.mock("@/components/ui/HandoffWindowCountdown", async () => {
       role,
       availableAtIso,
       expiresAtIso,
+      handoffStartedAtIso,
     }: {
       role: string;
       availableAtIso: string;
       expiresAtIso: string;
+      handoffStartedAtIso?: string | null;
     }) => (
       <div
         data-testid="handoff-window-countdown"
         data-role={role}
         data-available={availableAtIso}
         data-expires={expiresAtIso}
+        data-started={handoffStartedAtIso ?? ""}
       >
         {role}
       </div>
@@ -183,6 +205,8 @@ const baseSpot = {
   id: "550e8400-e29b-41d4-a716-446655440000",
   available_at: "2026-08-04T22:45:00.000Z",
   expires_at: "2026-08-04T22:50:00.000Z",
+  handoff_started_at: null as string | null,
+  handoff_extension_used_at: null as string | null,
   address: "Dizengoff 50" as string | null,
   latitude: 32.0853,
   longitude: 34.7818,
@@ -246,6 +270,7 @@ describe("PublisherSpotCard", () => {
   afterEach(() => {
     resetSensoryAdaptersForTests();
     resetSensoryOnceForTests();
+    vi.useRealTimers();
   });
 
   it("shows waiting copy for an available spot", () => {
@@ -282,7 +307,7 @@ describe("PublisherSpotCard", () => {
     expect(
       screen.getByText(PUBLISHER_CLAIMED_STAY_INSTRUCTION),
     ).toBeInTheDocument();
-    expect(screen.queryByTestId("handoff-window-countdown")).not.toBeInTheDocument();
+    expect(screen.getByTestId("handoff-window-countdown")).toBeInTheDocument();
     expect(screen.queryByTestId("publisher-parking-context")).not.toBeInTheDocument();
     expect(screen.queryByText("A driver is on the way")).not.toBeInTheDocument();
     expect(screen.queryByText(/^Driver coming$/i)).not.toBeInTheDocument();
@@ -312,6 +337,67 @@ describe("PublisherSpotCard", () => {
     expect(screen.getByRole("button", { name: "Cancel spot" })).toBeInTheDocument();
   });
 
+  it("lets the publisher start the handoff before the estimated departure", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:41:00.000Z"),
+    });
+    render(
+      <PublisherSpotCard
+        spot={{
+          ...baseSpot,
+          status: "claimed",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:48:00.000Z",
+          handoff_started_at: null,
+        }}
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+        layout="page"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-spot-card")).toHaveAttribute(
+      "data-handoff-phase",
+      "scheduled",
+    );
+    expect(screen.getByTestId("start-handoff-now")).toHaveTextContent(
+      "I’m leaving now",
+    );
+    expect(screen.queryByTestId("extend-handoff-wait")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Cancel handoff" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "I’m leaving" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a confirmation countdown after the estimate if the publisher has not started", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:46:00.000Z"),
+    });
+    render(
+      <PublisherSpotCard
+        spot={{
+          ...baseSpot,
+          status: "claimed",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:48:00.000Z",
+          handoff_started_at: null,
+        }}
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+        layout="page"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-spot-card")).toHaveAttribute(
+      "data-handoff-phase",
+      "confirm",
+    );
+    expect(screen.getByText("Ready to leave?")).toBeInTheDocument();
+    expect(screen.getByTestId("start-handoff-now")).toBeInTheDocument();
+    expect(screen.queryByTestId("extend-handoff-wait")).not.toBeInTheDocument();
+  });
+
   it("shows Wait 2 more min during the claimed window when headroom remains", () => {
     vi.useFakeTimers({
       now: new Date("2026-08-04T22:46:00.000Z"),
@@ -322,7 +408,8 @@ describe("PublisherSpotCard", () => {
           ...baseSpot,
           status: "claimed",
           available_at: "2026-08-04T22:45:00.000Z",
-          expires_at: "2026-08-04T22:47:00.000Z",
+          expires_at: "2026-08-04T22:48:00.000Z",
+          handoff_started_at: "2026-08-04T22:45:00.000Z",
         }}
         activeClaimId="11111111-1111-4111-8111-111111111111"
         layout="page"
@@ -332,9 +419,36 @@ describe("PublisherSpotCard", () => {
     expect(screen.getByTestId("extend-handoff-wait")).toHaveTextContent(
       "Wait 2 more min",
     );
+    expect(screen.queryByTestId("start-handoff-now")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "I’m leaving" }),
+      screen.getByRole("button", { name: "Leave without handoff" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "I’m leaving" }),
+    ).not.toBeInTheDocument();
+    vi.useRealTimers();
+  });
+
+  it("hides extension after it has already been used", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:46:00.000Z"),
+    });
+    render(
+      <PublisherSpotCard
+        spot={{
+          ...baseSpot,
+          status: "claimed",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:50:00.000Z",
+          handoff_started_at: "2026-08-04T22:45:00.000Z",
+          handoff_extension_used_at: "2026-08-04T22:47:00.000Z",
+        }}
+        activeClaimId="11111111-1111-4111-8111-111111111111"
+        layout="page"
+      />,
+    );
+
+    expect(screen.queryByTestId("extend-handoff-wait")).not.toBeInTheDocument();
     vi.useRealTimers();
   });
 
@@ -349,6 +463,7 @@ describe("PublisherSpotCard", () => {
           status: "claimed",
           available_at: "2026-08-04T22:45:00.000Z",
           expires_at: "2026-08-04T22:50:00.000Z",
+          handoff_started_at: "2026-08-04T22:45:00.000Z",
         }}
         activeClaimId="11111111-1111-4111-8111-111111111111"
         layout="page"
@@ -402,7 +517,7 @@ describe("PublisherSpotCard", () => {
     expect(screen.getByTestId("publisher-claimed-instruction")).toHaveTextContent(
       "Waiting for driver location",
     );
-    expect(screen.queryByTestId("handoff-window-countdown")).not.toBeInTheDocument();
+    expect(screen.getByTestId("handoff-window-countdown")).toBeInTheDocument();
     expect(screen.queryByTestId("publisher-parking-context")).not.toBeInTheDocument();
     expect(screen.queryByTestId("publisher-spot-preview-map")).not.toBeInTheDocument();
     expect(
@@ -565,8 +680,11 @@ describe("PublisherSpotCard", () => {
     expect(screen.queryByLabelText("Handoff code")).not.toBeInTheDocument();
     expect(screen.queryByText("Give this code to the driver")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "I’m leaving" }),
+      screen.getByRole("button", { name: "Cancel handoff" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "I’m leaving" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders live freshness and keeps last-known progress during pause", () => {

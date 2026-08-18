@@ -17,6 +17,8 @@ type OwnedSpotRow = {
   status: string;
   available_at: string;
   expires_at: string;
+  handoff_started_at: string | null;
+  handoff_extension_used_at: string | null;
   address: string | null;
   latitude: number;
   longitude: number;
@@ -46,6 +48,14 @@ function toPublisherSpot(row: unknown): PublisherSpotSummary | null {
     status: spot.status,
     available_at: spot.available_at,
     expires_at: spot.expires_at,
+    handoff_started_at:
+      typeof spot.handoff_started_at === "string"
+        ? spot.handoff_started_at
+        : null,
+    handoff_extension_used_at:
+      typeof spot.handoff_extension_used_at === "string"
+        ? spot.handoff_extension_used_at
+        : null,
     address: typeof spot.address === "string" ? spot.address : null,
     latitude: spot.latitude,
     longitude: spot.longitude,
@@ -93,7 +103,9 @@ export default async function NewSpotPage() {
 
   const { data, error } = await supabase
     .from("parking_spots")
-    .select("id, status, available_at, expires_at, address, latitude, longitude")
+    .select(
+      "id, status, available_at, expires_at, handoff_started_at, handoff_extension_used_at, address, latitude, longitude",
+    )
     .eq("owner_id", user.id)
     .in("status", ["available", "claimed"])
     .maybeSingle();

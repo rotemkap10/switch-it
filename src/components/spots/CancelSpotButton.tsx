@@ -22,12 +22,28 @@ type CancelSpotButtonProps = {
   claimId?: string | null;
   /** When true, use claimed-handoff copy. */
   claimed?: boolean;
+  /** When true, the live handoff timer has already started. */
+  handoffStarted?: boolean;
 };
+
+export function publisherCancelTriggerLabel(options: {
+  claimed: boolean;
+  handoffStarted: boolean;
+}): string {
+  if (!options.claimed) {
+    return "Cancel spot";
+  }
+  if (!options.handoffStarted) {
+    return "Cancel handoff";
+  }
+  return "Leave without handoff";
+}
 
 export function CancelSpotButton({
   spotId,
   claimId = null,
   claimed = false,
+  handoffStarted = false,
 }: CancelSpotButtonProps) {
   const [confirming, setConfirming] = useState(false);
   const [state, formAction, pending] = useActionState(
@@ -38,6 +54,10 @@ export function CancelSpotButton({
   const keepFocusRef = useRef<HTMLButtonElement | null>(null);
   const titleId = useId();
   const descId = useId();
+  const triggerLabel = publisherCancelTriggerLabel({
+    claimed,
+    handoffStarted,
+  });
 
   useActionFeedback(state, {
     successMessage: claimed
@@ -90,10 +110,21 @@ export function CancelSpotButton({
         onClick={() => setConfirming(true)}
         data-testid="cancel-spot-trigger"
       >
-        {claimed ? "I’m leaving" : "Cancel spot"}
+        {triggerLabel}
       </Button>
     );
   }
+
+  const title = !claimed
+    ? "Cancel this parking spot?"
+    : handoffStarted
+      ? "Leave without a handoff?"
+      : "Cancel this handoff?";
+  const description = claimed
+    ? "The driver will be notified and this parking spot will no longer be available. No credits will be transferred."
+    : "It will no longer be visible to nearby drivers.";
+  const keepLabel = claimed ? "Keep waiting" : "Keep spot active";
+  const confirmPendingLabel = claimed && handoffStarted ? "Leaving…" : "Cancelling…";
 
   return (
     <div
@@ -106,12 +137,10 @@ export function CancelSpotButton({
       data-testid="cancel-spot-confirm"
     >
       <p id={titleId} className="text-sm font-semibold text-foreground">
-        {claimed ? "Leave this handoff?" : "Cancel this parking spot?"}
+        {title}
       </p>
       <p id={descId} className="mt-1 text-xs leading-5 text-muted">
-        {claimed
-          ? "The driver will be notified and this parking spot will no longer be available. No credits will be transferred."
-          : "It will no longer be visible to nearby drivers."}
+        {description}
       </p>
       <form action={formAction} className="mt-3 flex flex-col gap-2">
         <input type="hidden" name="spot_id" value={spotId} />
@@ -123,7 +152,7 @@ export function CancelSpotButton({
           className="w-full !min-h-[var(--app-tap-min)]"
           onClick={() => setConfirming(false)}
         >
-          {claimed ? "Keep waiting" : "Keep spot active"}
+          {keepLabel}
         </Button>
         <Button
           type="submit"
@@ -132,11 +161,7 @@ export function CancelSpotButton({
           disabled={pending}
           className="w-full !min-h-[var(--app-tap-min)]"
         >
-          {pending
-            ? "Leaving…"
-            : claimed
-              ? "I’m leaving"
-              : "Cancel spot"}
+          {pending ? confirmPendingLabel : triggerLabel}
         </Button>
       </form>
     </div>

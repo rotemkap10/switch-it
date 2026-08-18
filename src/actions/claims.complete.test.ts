@@ -89,4 +89,17 @@ describe("completeClaim plate verification", () => {
     );
     expect(result.error).not.toMatch(/\b67\b/);
   });
+
+  it("rejects completion before the publisher starts the handoff", async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { message: "HANDOFF_NOT_STARTED" },
+    });
+
+    const result = await completeClaim({}, form("67"));
+
+    expect(result.success).toBeUndefined();
+    expect(result.error).toBe("Wait until the publisher is ready to leave.");
+    expect(result.errorCode).toBe("HANDOFF_NOT_STARTED");
+  });
 });

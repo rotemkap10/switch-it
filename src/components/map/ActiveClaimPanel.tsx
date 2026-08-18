@@ -23,6 +23,7 @@ import {
 import { isCloseToSpot } from "@/lib/map/distance";
 import { useDistanceToSpot } from "@/lib/map/use-distance-to-spot";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
+import { hasHandoffStarted } from "@/lib/spots/handoff-phase";
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
 import {
   formatVehicleIdentityTitle,
@@ -36,6 +37,7 @@ export type ActiveClaimSummary = {
   claimExpiresAt: string;
   spotAvailableAt: string;
   spotExpiresAt: string;
+  handoffStartedAt?: string | null;
   spotAddress: string | null;
 };
 
@@ -214,6 +216,7 @@ function ActiveClaimSheetBody({
               key={claim.spotExpiresAt}
               availableAtIso={claim.spotAvailableAt}
               expiresAtIso={claim.spotExpiresAt}
+              handoffStartedAtIso={claim.handoffStartedAt}
               role="seeker"
               className="mt-1"
               onExpired={onExpired}
@@ -279,11 +282,13 @@ function ActiveClaimSheetBody({
           className="map-bottom-sheet-actions"
           data-testid="active-claim-complete-actions"
         >
-          <CompleteHandoffForm
-            claimId={claim.claimId}
-            onCompleted={onHandoffTerminal}
-            emphasized={closeToSpot}
-          />
+          {hasHandoffStarted(claim.handoffStartedAt) ? (
+            <CompleteHandoffForm
+              claimId={claim.claimId}
+              onCompleted={onHandoffTerminal}
+              emphasized={closeToSpot}
+            />
+          ) : null}
           <CancelClaimButton
             claimId={claim.claimId}
             onCancelled={onHandoffTerminal}

@@ -5,6 +5,7 @@ import {
   cancelSpotSchema,
   claimSpotSchema,
   completeClaimSchema,
+  startHandoffNowSchema,
 } from "@/lib/validations/claim";
 
 const validUuid = "550e8400-e29b-41d4-a716-446655440000";
@@ -88,6 +89,20 @@ describe("cancelClaimSchema", () => {
 
   it("rejects a non-uuid claim_id", () => {
     expect(cancelClaimSchema.safeParse({ claim_id: "" }).success).toBe(false);
+  });
+});
+
+describe("startHandoffNowSchema", () => {
+  it("accepts a valid spot_id uuid", () => {
+    expect(
+      startHandoffNowSchema.safeParse({ spot_id: validUuid }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a non-uuid spot_id", () => {
+    expect(
+      startHandoffNowSchema.safeParse({ spot_id: "not-a-spot" }).success,
+    ).toBe(false);
   });
 });
 

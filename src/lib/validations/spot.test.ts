@@ -131,9 +131,10 @@ describe("computeSpotAvailabilityWindow", () => {
     vi.useRealTimers();
   });
 
-  it("calculates available_at from trusted now and expires_at +2 minutes initial grace", () => {
+  it("calculates available_at from trusted now and a +3 minute confirmation window", () => {
     const window = computeSpotAvailabilityWindow(10);
     expect(window.available_at).toBe("2026-08-03T12:10:00.000Z");
+    expect(window.handoff_started_at).toBeNull();
     expect(window.expires_at).toBe(
       new Date(
         Date.parse("2026-08-03T12:10:00.000Z") +
@@ -142,9 +143,10 @@ describe("computeSpotAvailabilityWindow", () => {
     );
   });
 
-  it("supports delay 0 as Now", () => {
+  it("supports delay 0 as Now and starts the live handoff", () => {
     const window = computeSpotAvailabilityWindow(0);
     expect(window.available_at).toBe("2026-08-03T12:00:00.000Z");
-    expect(window.expires_at).toBe("2026-08-03T12:02:00.000Z");
+    expect(window.handoff_started_at).toBe("2026-08-03T12:00:00.000Z");
+    expect(window.expires_at).toBe("2026-08-03T12:03:00.000Z");
   });
 });

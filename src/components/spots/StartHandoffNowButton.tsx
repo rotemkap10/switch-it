@@ -4,41 +4,29 @@ import { useActionState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 import {
-  extendHandoffWait,
-  type ExtendHandoffWaitActionState,
-} from "@/actions/claims";
+  startHandoffNow,
+  type StartHandoffNowActionState,
+} from "@/actions/spots";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
-import { formatHandoffExtensionButtonLabel } from "@/lib/spots/constants";
+import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 
-const initialState: ExtendHandoffWaitActionState = {};
+const initialState: StartHandoffNowActionState = {};
 
-type ExtendHandoffWaitButtonProps = {
-  claimId: string;
-  handoffStartedAtIso: string;
-  expiresAtIso: string;
+type StartHandoffNowButtonProps = {
+  spotId: string;
 };
 
-export function ExtendHandoffWaitButton({
-  claimId,
-  handoffStartedAtIso,
-  expiresAtIso,
-}: ExtendHandoffWaitButtonProps) {
+export function StartHandoffNowButton({ spotId }: StartHandoffNowButtonProps) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(
-    extendHandoffWait,
+    startHandoffNow,
     initialState,
   );
   const refreshedForSuccessRef = useRef<string | null>(null);
 
-  const label = formatHandoffExtensionButtonLabel(
-    handoffStartedAtIso,
-    expiresAtIso,
-  );
-
   useActionFeedback(state, {
-    successMessage: (s) =>
-      s.changed ? "Waiting time extended." : "Maximum wait already reached.",
+    successMessage: FEEDBACK_SUCCESS_KEYS["handoff-started"],
     toastErrors: true,
   });
 
@@ -53,23 +41,18 @@ export function ExtendHandoffWaitButton({
     router.refresh();
   }, [state.success, state.expiresAt, router]);
 
-  if (!label) {
-    return null;
-  }
-
   return (
     <form action={formAction} className="w-full">
-      <input type="hidden" name="claim_id" value={claimId} />
+      <input type="hidden" name="spot_id" value={spotId} />
       <Button
         type="submit"
-        variant="secondary"
+        variant="primary"
         loading={pending}
         disabled={pending}
-        className="w-full"
-        data-testid="extend-handoff-wait"
-        aria-label={label}
+        className="w-full !min-h-[var(--app-tap-min)]"
+        data-testid="start-handoff-now"
       >
-        {pending ? "Extending…" : label}
+        {pending ? "Starting…" : "I’m leaving now"}
       </Button>
     </form>
   );
