@@ -86,7 +86,30 @@ describe("startHandoffNow", () => {
     expect(result.expiresAt).toBe("2026-08-04T13:06:00.000Z");
   });
 
-  it("rejects a start after the lateness window", async () => {
+  it("treats early leave with no claim as a listing end, not a live unmatched window", async () => {
+    rpcMock.mockResolvedValue({
+      data: [
+        {
+          spot_id: spotId,
+          claim_id: null,
+          handoff_started_at: null,
+          expires_at: "2026-08-04T13:02:00.000Z",
+          already_started: false,
+          changed: true,
+        },
+      ],
+      error: null,
+    });
+
+    const result = await startHandoffNow({}, form());
+
+    expect(result.success).toBe(true);
+    expect(result.alreadyStarted).toBe(false);
+    expect(result.handoffStartedAt).toBeUndefined();
+    expect(result.expiresAt).toBe("2026-08-04T13:02:00.000Z");
+  });
+
+  it("rejects a start after the live window has already ended", async () => {
     rpcMock.mockResolvedValue({
       data: null,
       error: { message: "HANDOFF_UNAVAILABLE" },

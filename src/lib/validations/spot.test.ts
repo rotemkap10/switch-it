@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   computeSpotAvailabilityWindow,
-  INITIAL_HANDOFF_GRACE_MINUTES,
   LEAVE_DELAY_MAX_MINUTES,
   LEAVE_DELAY_MIN_MINUTES,
 } from "@/lib/spots/constants";
@@ -131,16 +130,11 @@ describe("computeSpotAvailabilityWindow", () => {
     vi.useRealTimers();
   });
 
-  it("calculates available_at from trusted now and a +3 minute confirmation window", () => {
+  it("ends the unclaimed listing at estimated departure", () => {
     const window = computeSpotAvailabilityWindow(10);
     expect(window.available_at).toBe("2026-08-03T12:10:00.000Z");
     expect(window.handoff_started_at).toBeNull();
-    expect(window.expires_at).toBe(
-      new Date(
-        Date.parse("2026-08-03T12:10:00.000Z") +
-          INITIAL_HANDOFF_GRACE_MINUTES * 60_000,
-      ).toISOString(),
-    );
+    expect(window.expires_at).toBe("2026-08-03T12:10:00.000Z");
   });
 
   it("supports delay 0 as Now and starts the live handoff", () => {

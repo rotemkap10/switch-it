@@ -2,37 +2,35 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatHandoffClock,
-  formatWaitingMinutes,
   getHandoffPhase,
-  handoffConfirmCopy,
   handoffSeekerWindowCopy,
+  handoffUnclaimedDueCopy,
   handoffWaitingCopy,
   handoffWindowCopy,
 } from "@/components/ui/HandoffWindowCountdown";
 
 describe("getHandoffPhase", () => {
   const available = "2026-08-04T12:10:00.000Z";
-  const confirmDeadline = "2026-08-04T12:13:00.000Z";
   const liveDeadline = "2026-08-04T12:13:00.000Z";
 
   it("is scheduled before available_at when the handoff has not started", () => {
     expect(
       getHandoffPhase(
         available,
-        confirmDeadline,
+        liveDeadline,
         Date.parse("2026-08-04T12:05:00.000Z"),
       ),
     ).toBe("scheduled");
   });
 
-  it("is confirm between available_at and the lateness deadline", () => {
+  it("is due between available_at and the live deadline when not yet started", () => {
     expect(
       getHandoffPhase(
         available,
-        confirmDeadline,
+        liveDeadline,
         Date.parse("2026-08-04T12:11:00.000Z"),
       ),
-    ).toBe("confirm");
+    ).toBe("due");
   });
 
   it("is active after I'm leaving now, even before the original estimate", () => {
@@ -46,11 +44,21 @@ describe("getHandoffPhase", () => {
     ).toBe("active");
   });
 
+  it("is ended at available_at when the unclaimed listing has no extra window", () => {
+    expect(
+      getHandoffPhase(
+        available,
+        available,
+        Date.parse("2026-08-04T12:10:00.000Z"),
+      ),
+    ).toBe("ended");
+  });
+
   it("is ended at or after expires_at", () => {
     expect(
       getHandoffPhase(
         available,
-        confirmDeadline,
+        liveDeadline,
         Date.parse("2026-08-04T12:13:00.000Z"),
       ),
     ).toBe("ended");
@@ -70,20 +78,19 @@ describe("getHandoffPhase", () => {
 });
 
 describe("handoff countdown copy", () => {
-  it("shows estimated departure remaining before start", () => {
-    expect(handoffWaitingCopy("publisher", 4)).toBe("Leaving in 4 min");
-    expect(handoffWaitingCopy("seeker", 4)).toBe("Ready in 4 min");
-    expect(formatWaitingMinutes(3 * 60_000 + 1)).toBe(4);
+  it("shows a live estimated-departure clock before start", () => {
+    expect(handoffWaitingCopy("publisher", "4:37")).toBe("Leaving in 4:37");
+    expect(handoffWaitingCopy("seeker", "4:37")).toBe("Leaving in 4:37");
+    expect(formatHandoffClock(4 * 60_000 + 37_000)).toBe("4:37");
   });
 
-  it("shows a confirmation countdown after the estimate", () => {
-    expect(handoffConfirmCopy("publisher", "2:14")).toBe("Start within 2:14");
-    expect(handoffConfirmCopy("seeker", "2:14")).toBe(
-      "Waiting for departure confirmation · 2:14",
+  it("keeps fallback waiting copy if an unclaimed listing is still open after the estimate", () => {
+    expect(handoffUnclaimedDueCopy("publisher", "2:14")).toBe(
+      "Waiting for a driver · 2:14 left",
     );
   });
 
-  it("shows the live handoff countdown after I'm leaving now", () => {
+  it("shows the live handoff countdown after start", () => {
     expect(handoffWindowCopy("publisher", "2:59")).toBe(
       "Waiting for driver · 2:59 left",
     );

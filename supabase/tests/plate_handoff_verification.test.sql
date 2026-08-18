@@ -51,7 +51,8 @@
 -- As seeker: complete_claim(..., suffix) → NOT_OWNER
 -- As unrelated user → NOT_OWNER or CLAIM_NOT_FOUND
 -- Terminal/cancelled/expired claim → HANDOFF_UNAVAILABLE
--- Before handoff_started_at → HANDOFF_NOT_STARTED
+-- Before available_at without an early start → HANDOFF_NOT_STARTED
+-- After available_at → complete_claim auto-starts, then verifies as usual
 
 -- ---------------------------------------------------------------------------
 -- 6. Spoken-code RPC is dormant

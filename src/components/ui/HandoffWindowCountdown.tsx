@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   formatHandoffClock,
-  formatWaitingMinutes,
+  isLiveHandoffDisplay,
   remainingMsUntil,
   resolveHandoffTimingPhase,
   type HandoffTimingPhase,
@@ -16,23 +16,28 @@ type HandoffWindowCountdownProps = {
   availableAtIso: string;
   expiresAtIso: string;
   handoffStartedAtIso?: string | null;
+  /** When true, the due phase displays as the live 3-minute window. */
+  claimed?: boolean;
   /** Role-specific waiting / window copy. */
   role: "publisher" | "seeker";
   className?: string;
   /** Fired once when the shared deadline is reached (client hint). */
   onExpired?: () => void;
+  /**
+   * Fired once when a claimed handoff reaches estimated departure.
+   * Persist canonical start on the server — not a client-only transition.
+   */
+  onDepartureDue?: () => void;
 };
 
-function scheduledCopy(role: "publisher" | "seeker", minutes: number): string {
-  return role === "publisher"
-    ? `Leaving in ${minutes} min`
-    : `Ready in ${minutes} min`;
+function scheduledCopy(_role: "publisher" | "seeker", clock: string): string {
+  return `Leaving in ${clock}`;
 }
 
-function confirmCopy(role: "publisher" | "seeker", clock: string): string {
+function waitingCopy(role: "publisher" | "seeker", clock: string): string {
   return role === "publisher"
-    ? `Start within ${clock}`
-    : `Waiting for departure confirmation · ${clock}`;
+    ? `Waiting for a driver · ${clock} left`
+    : `Leaving in ${clock}`;
 }
 
 function activeCopy(role: "publisher" | "seeker", clock: string): string {
@@ -49,14 +54,18 @@ export function HandoffWindowCountdown({
   availableAtIso,
   expiresAtIso,
   handoffStartedAtIso = null,
+  claimed,
   role,
   className = "",
   onExpired,
+  onDepartureDue,
 }: HandoffWindowCountdownProps) {
+  const isClaimed = claimed ?? role === "seeker";
   const [now, setNow] = useState(() => Date.now());
   const [announce, setAnnounce] = useState<string | null>(null);
   const phaseRef = useRef<HandoffPhase | null>(null);
   const expiredNotifiedRef = useRef(false);
+  const dueNotifiedRef = useRef(false);
   const oneMinuteAnnouncedRef = useRef(false);
 
   useEffect(() => {
@@ -89,18 +98,26 @@ export function HandoffWindowCountdown({
     handoffStartedAtIso,
     nowMs: now,
   });
+  const liveDisplay = isLiveHandoffDisplay(phase, isClaimed);
 
   useEffect(() => {
     const previous = phaseRef.current;
     phaseRef.current = phase;
 
-    if (previous === "scheduled" && phase === "confirm") {
-      setAnnounce("Waiting for departure confirmation.");
-    }
     if (
-      (previous === "scheduled" || previous === "confirm") &&
-      phase === "active"
+      previous === "scheduled" &&
+      phase === "due" &&
+      isClaimed &&
+      !dueNotifiedRef.current
     ) {
+      dueNotifiedRef.current = true;
+      setAnnounce("Handoff window is open.");
+      onDepartureDue?.();
+    }
+    if (previous === "scheduled" && phase === "active") {
+      setAnnounce("Handoff window is open.");
+    }
+    if (phase === "active" && previous === "due") {
       setAnnounce("Handoff window is open.");
     }
     if (phase === "ended" && previous && previous !== "ended") {
@@ -110,10 +127,17 @@ export function HandoffWindowCountdown({
         onExpired?.();
       }
     }
-  }, [phase, onExpired]);
+  }, [phase, isClaimed, onDepartureDue, onExpired]);
 
   useEffect(() => {
-    if (phase !== "active" && phase !== "confirm") {
+    if (phase === "due" && isClaimed && !dueNotifiedRef.current) {
+      dueNotifiedRef.current = true;
+      onDepartureDue?.();
+    }
+  }, [phase, isClaimed, onDepartureDue]);
+
+  useEffect(() => {
+    if (!liveDisplay) {
       return;
     }
     const remaining = remainingMsUntil(expiresAtIso, now);
@@ -125,7 +149,7 @@ export function HandoffWindowCountdown({
       oneMinuteAnnouncedRef.current = true;
       setAnnounce("One minute remaining.");
     }
-  }, [phase, expiresAtIso, now]);
+  }, [liveDisplay, expiresAtIso, now]);
 
   if (phase === "ended") {
     return (
@@ -146,26 +170,26 @@ export function HandoffWindowCountdown({
     phase === "scheduled"
       ? remainingMsUntil(availableAtIso, now)
       : remainingMsUntil(expiresAtIso, now);
-  const nearExpiry =
-    (phase === "active" || phase === "confirm") && remainingMs <= 60_000;
+  const displayPhase: HandoffPhase = liveDisplay
+    ? "active"
+    : phase === "due"
+      ? "due"
+      : phase;
+  const nearExpiry = liveDisplay && remainingMs <= 60_000;
 
-  const line =
-    phase === "scheduled"
-      ? scheduledCopy(role, formatWaitingMinutes(remainingMs))
-      : phase === "confirm"
-        ? confirmCopy(role, formatHandoffClock(remainingMs))
-        : activeCopy(role, formatHandoffClock(remainingMs));
+  const line = liveDisplay
+    ? activeCopy(role, formatHandoffClock(remainingMs))
+    : phase === "due"
+      ? waitingCopy(role, formatHandoffClock(remainingMs))
+      : scheduledCopy(role, formatHandoffClock(remainingMs));
 
   return (
     <div
       className={className}
       data-testid="handoff-window-countdown"
-      data-phase={phase}
+      data-phase={displayPhase}
       data-near-expiry={nearExpiry ? "true" : "false"}
     >
-      {phase === "confirm" && role === "publisher" ? (
-        <p className="text-sm font-semibold text-foreground">Ready to leave?</p>
-      ) : null}
       <p
         className={[
           "text-sm font-semibold text-foreground",
@@ -197,9 +221,8 @@ export function getHandoffPhase(
 
 export {
   formatHandoffClock,
-  formatWaitingMinutes,
   scheduledCopy as handoffWaitingCopy,
+  waitingCopy as handoffUnclaimedDueCopy,
   activeCopy as handoffWindowCopy,
-  confirmCopy as handoffConfirmCopy,
   activeCopy as handoffSeekerWindowCopy,
 };

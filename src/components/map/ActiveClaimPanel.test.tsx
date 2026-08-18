@@ -4,6 +4,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
 }));
 
+vi.mock("@/actions/reconcile-claim", () => ({
+  reconcileClaimTiming: vi.fn().mockResolvedValue({ success: true }),
+}));
+
 vi.mock("@/components/map/CancelClaimButton", () => ({
   CancelClaimButton: ({
     claimId,
@@ -267,6 +271,10 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(screen.getByTestId("active-claim-complete-actions")).toBeInTheDocument();
+    expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
+      "data-available",
+      claim.spotAvailableAt,
+    );
     expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
     expect(screen.queryByTestId("seeker-waiting-confirmation")).not.toBeInTheDocument();
     expect(screen.queryByTestId("plate-suffix-input")).not.toBeInTheDocument();

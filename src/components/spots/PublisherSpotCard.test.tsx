@@ -11,6 +11,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), prefetch: vi.fn() }),
 }));
 
+vi.mock("@/actions/reconcile-claim", () => ({
+  reconcileClaimTiming: vi.fn().mockResolvedValue({ success: true }),
+}));
+
 vi.mock("@/components/spots/CancelSpotButton", () => ({
   CancelSpotButton: ({
     spotId,
@@ -387,7 +391,31 @@ describe("PublisherSpotCard", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows a confirmation countdown after the estimate if the publisher has not started", () => {
+  it("still lets the publisher start early on an unclaimed future spot", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:41:00.000Z"),
+    });
+    render(
+      <PublisherSpotCard
+        spot={{
+          ...baseSpot,
+          status: "available",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:45:00.000Z",
+          handoff_started_at: null,
+        }}
+        layout="page"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-spot-card")).toHaveAttribute(
+      "data-handoff-phase",
+      "scheduled",
+    );
+    expect(screen.getByTestId("start-handoff-now")).toBeInTheDocument();
+  });
+
+  it("treats estimated departure as an automatic start and hides I'm leaving now", () => {
     vi.useFakeTimers({
       now: new Date("2026-08-04T22:46:00.000Z"),
     });
@@ -407,10 +435,38 @@ describe("PublisherSpotCard", () => {
 
     expect(screen.getByTestId("publisher-spot-card")).toHaveAttribute(
       "data-handoff-phase",
-      "confirm",
+      "due",
     );
-    expect(screen.getByText("Ready to leave?")).toBeInTheDocument();
-    expect(screen.getByTestId("start-handoff-now")).toBeInTheDocument();
+    expect(screen.getByText(PUBLISHER_CLAIMED_STATUS)).toBeInTheDocument();
+    expect(screen.queryByText("Ready to leave?")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("start-handoff-now")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("extend-handoff-wait")).not.toBeInTheDocument();
+  });
+
+  it("does not start a live handoff for an unclaimed spot after the estimate", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:46:00.000Z"),
+    });
+    render(
+      <PublisherSpotCard
+        spot={{
+          ...baseSpot,
+          status: "available",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:45:00.000Z",
+          handoff_started_at: null,
+        }}
+        layout="page"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-spot-card")).toHaveAttribute(
+      "data-handoff-phase",
+      "ended",
+    );
+    expect(screen.queryByTestId("start-handoff-now")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("complete-handoff-form")).not.toBeInTheDocument();
     expect(screen.queryByTestId("extend-handoff-wait")).not.toBeInTheDocument();
   });
 

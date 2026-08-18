@@ -178,14 +178,9 @@ function hasOpenOwnedSpot(row: unknown): boolean {
   );
 }
 
-function isPastDue(expiresAt: string, nowIso: string): boolean {
-  return expiresAt <= nowIso;
-}
-
 async function expireDueClaims(
   supabase: MapSupabase,
   userId: string,
-  nowIso: string,
 ): Promise<void> {
   await runRscQuery(
     "expire_due_map_claims",
@@ -194,7 +189,7 @@ async function expireDueClaims(
         await Promise.all([
           supabase
             .from("claims")
-            .select("id, expires_at")
+            .select("id")
             .eq("seeker_id", userId)
             .eq("status", "active")
             .maybeSingle(),
@@ -206,7 +201,7 @@ async function expireDueClaims(
             .maybeSingle(),
           supabase
             .from("parking_spots")
-            .select("id, expires_at")
+            .select("id")
             .eq("owner_id", userId)
             .eq("status", "available")
             .maybeSingle(),
@@ -215,12 +210,7 @@ async function expireDueClaims(
       const claimIds = new Set<string>();
 
       const seekerClaim = seekerClaimResult.data;
-      if (
-        seekerClaim &&
-        typeof seekerClaim.id === "string" &&
-        typeof seekerClaim.expires_at === "string" &&
-        isPastDue(seekerClaim.expires_at, nowIso)
-      ) {
+      if (seekerClaim && typeof seekerClaim.id === "string") {
         claimIds.add(seekerClaim.id);
       }
 
@@ -228,17 +218,12 @@ async function expireDueClaims(
       if (ownedClaimedSpot && typeof ownedClaimedSpot.id === "string") {
         const { data: claimOnSpot } = await supabase
           .from("claims")
-          .select("id, expires_at")
+          .select("id")
           .eq("spot_id", ownedClaimedSpot.id)
           .eq("status", "active")
           .maybeSingle();
 
-        if (
-          claimOnSpot &&
-          typeof claimOnSpot.id === "string" &&
-          typeof claimOnSpot.expires_at === "string" &&
-          isPastDue(claimOnSpot.expires_at, nowIso)
-        ) {
+        if (claimOnSpot && typeof claimOnSpot.id === "string") {
           claimIds.add(claimOnSpot.id);
         }
       }
@@ -248,12 +233,7 @@ async function expireDueClaims(
       }
 
       const ownedAvailable = ownedAvailableSpotResult.data;
-      if (
-        ownedAvailable &&
-        typeof ownedAvailable.id === "string" &&
-        typeof ownedAvailable.expires_at === "string" &&
-        isPastDue(ownedAvailable.expires_at, nowIso)
-      ) {
+      if (ownedAvailable && typeof ownedAvailable.id === "string") {
         await supabase.rpc("expire_spot_if_needed", {
           p_spot_id: ownedAvailable.id,
         });
@@ -270,9 +250,7 @@ export default async function MapPage() {
     handoffException: "active-seeker",
   });
   const { supabase, user } = access;
-  const nowIso = new Date().toISOString();
-
-  await expireDueClaims(supabase, user.id, nowIso);
+  await expireDueClaims(supabase, user.id);
 
   const mapState = await runRscQuery(
     "load_map_handoff_state",

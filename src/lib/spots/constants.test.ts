@@ -48,8 +48,8 @@ describe("handoff waiting constants", () => {
     const window = computeSpotAvailabilityWindow(10);
     expect(window.available_at).toBe("2026-08-03T12:10:00.000Z");
     expect(window.handoff_started_at).toBeNull();
-    expect(window.expires_at).toBe("2026-08-03T12:13:00.000Z");
-    expect(DEPARTURE_LATENESS_MINUTES).toBe(3);
+    expect(window.expires_at).toBe("2026-08-03T12:10:00.000Z");
+    expect(DEPARTURE_LATENESS_MINUTES).toBe(INITIAL_HANDOFF_WINDOW_MINUTES);
   });
 
   it("caps the live window from the actual start, not the estimate", () => {

@@ -1,19 +1,22 @@
 /**
  * Publisher-controlled handoff timing.
  *
- * available_at = estimated departure (chosen at publish).
- * handoff_started_at = actual "I'm leaving now" (or implicit for "Now").
+ * available_at = promised departure (chosen at publish).
+ * handoff_started_at = actual start (Now, early "I'm leaving now", or auto at available_at).
  * expires_at = current authoritative deadline:
- *   - before start: available_at + DEPARTURE_LATENESS_MINUTES
- *   - after start: handoff_started_at + INITIAL_HANDOFF_WINDOW_MINUTES
+ *   - unclaimed unstarted: available_at (listing ends at promised departure)
+ *   - after a claim / live start: handoff_started_at + INITIAL_HANDOFF_WINDOW_MINUTES
  *     (or + MAX after the single +2 extension)
  */
 
 /** Initial live handoff window after the real start. */
 export const INITIAL_HANDOFF_WINDOW_MINUTES = 3;
 
-/** How late the publisher may still press "I'm leaving now". */
-export const DEPARTURE_LATENESS_MINUTES = 3;
+/**
+ * @deprecated The +3 minutes are the live matched-handoff window, not a
+ * listing tail after departure. Use INITIAL_HANDOFF_WINDOW_MINUTES.
+ */
+export const DEPARTURE_LATENESS_MINUTES = INITIAL_HANDOFF_WINDOW_MINUTES;
 
 /** Absolute maximum live handoff after handoff_started_at. */
 export const MAX_HANDOFF_WINDOW_MINUTES = 5;
@@ -57,9 +60,10 @@ export type SpotAvailabilityWindow = {
  * Authoritative spot window from a trusted clock (server action / tests).
  * Do not call with untrusted client-supplied absolute timestamps.
  *
- * Delay 0 ("Now"): starts the live handoff immediately.
- * Future delay: estimated departure only — confirmation deadline is
- * available_at + DEPARTURE_LATENESS_MINUTES.
+ * Delay 0 ("Now"): starts the live handoff immediately; seekers may claim
+ * until start + 3 minutes while the publisher is waiting.
+ * Future delay: listing ends at available_at. A claim before then reserves
+ * the 3-minute matched handoff window.
  */
 export function computeSpotAvailabilityWindow(
   delayMinutes: number,
@@ -80,9 +84,7 @@ export function computeSpotAvailabilityWindow(
   }
   return {
     available_at: availableAt.toISOString(),
-    expires_at: new Date(
-      availableAt.getTime() + DEPARTURE_LATENESS_MINUTES * 60_000,
-    ).toISOString(),
+    expires_at: availableAt.toISOString(),
     handoff_started_at: null,
   };
 }

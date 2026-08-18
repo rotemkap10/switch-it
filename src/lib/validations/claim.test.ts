@@ -5,6 +5,7 @@ import {
   cancelSpotSchema,
   claimSpotSchema,
   completeClaimSchema,
+  reconcileClaimTimingSchema,
   startHandoffNowSchema,
 } from "@/lib/validations/claim";
 
@@ -102,6 +103,20 @@ describe("startHandoffNowSchema", () => {
   it("rejects a non-uuid spot_id", () => {
     expect(
       startHandoffNowSchema.safeParse({ spot_id: "not-a-spot" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("reconcileClaimTimingSchema", () => {
+  it("accepts a valid claim_id uuid", () => {
+    expect(
+      reconcileClaimTimingSchema.safeParse({ claim_id: validUuid }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a non-uuid claim_id", () => {
+    expect(
+      reconcileClaimTimingSchema.safeParse({ claim_id: "not-a-claim" }).success,
     ).toBe(false);
   });
 });

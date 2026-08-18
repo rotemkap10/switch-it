@@ -31,6 +31,9 @@ describe("spot availability helpers", () => {
     expect(
       isSpotStillListed({ expires_at: "2026-08-05T11:59:00.000Z" }, now),
     ).toBe(false);
+    expect(
+      isSpotStillListed({ expires_at: "2026-08-05T12:00:00.000Z" }, now),
+    ).toBe(false);
   });
 
   it("uses address fallback", () => {

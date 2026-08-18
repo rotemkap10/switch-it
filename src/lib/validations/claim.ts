@@ -60,6 +60,10 @@ export const startHandoffNowSchema = z.object({
   spot_id: z.uuid("Choose a valid parking spot."),
 });
 
+export const reconcileClaimTimingSchema = z.object({
+  claim_id: z.uuid("Choose a valid claim."),
+});
+
 export const cancelSpotSchema = z.object({
   spot_id: z.uuid("Choose a valid parking spot."),
 });
@@ -70,3 +74,6 @@ export type CancelClaimInput = z.infer<typeof cancelClaimSchema>;
 export type ExtendHandoffWaitInput = z.infer<typeof extendHandoffWaitSchema>;
 export type CancelSpotInput = z.infer<typeof cancelSpotSchema>;
 export type StartHandoffNowInput = z.infer<typeof startHandoffNowSchema>;
+export type ReconcileClaimTimingInput = z.infer<
+  typeof reconcileClaimTimingSchema
+>;

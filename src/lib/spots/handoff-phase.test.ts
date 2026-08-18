@@ -2,13 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import {
   hasHandoffStarted,
+  isLiveHandoffDisplay,
   remainingMsUntil,
   resolveHandoffTimingPhase,
 } from "@/lib/spots/handoff-phase";
 
 describe("handoff timing phase", () => {
   const available = "2026-08-04T13:05:00.000Z";
-  const confirmDeadline = "2026-08-04T13:08:00.000Z";
+  const liveDeadline = "2026-08-04T13:08:00.000Z";
 
   it("treats a missing start as not started", () => {
     expect(hasHandoffStarted(null)).toBe(false);
@@ -20,22 +21,29 @@ describe("handoff timing phase", () => {
     expect(
       resolveHandoffTimingPhase({
         availableAtIso: available,
-        expiresAtIso: confirmDeadline,
+        expiresAtIso: liveDeadline,
         handoffStartedAtIso: null,
         nowMs: Date.parse("2026-08-04T13:01:00.000Z"),
       }),
     ).toBe("scheduled");
   });
 
-  it("is confirm after the estimate until the lateness deadline", () => {
+  it("is due after the estimate until canonical start is persisted", () => {
     expect(
       resolveHandoffTimingPhase({
         availableAtIso: available,
-        expiresAtIso: confirmDeadline,
+        expiresAtIso: liveDeadline,
         handoffStartedAtIso: null,
         nowMs: Date.parse("2026-08-04T13:06:00.000Z"),
       }),
-    ).toBe("confirm");
+    ).toBe("due");
+  });
+
+  it("treats a claimed due handoff as the live window", () => {
+    expect(isLiveHandoffDisplay("due", true)).toBe(true);
+    expect(isLiveHandoffDisplay("due", false)).toBe(false);
+    expect(isLiveHandoffDisplay("scheduled", true)).toBe(false);
+    expect(isLiveHandoffDisplay("active", true)).toBe(true);
   });
 
   it("is active once I'm leaving now has been pressed", () => {
@@ -43,7 +51,7 @@ describe("handoff timing phase", () => {
       resolveHandoffTimingPhase({
         availableAtIso: available,
         expiresAtIso: "2026-08-04T13:09:00.000Z",
-        handoffStartedAtIso: "2026-08-04T13:06:00.000Z",
+        handoffStartedAtIso: "2026-08-04T13:03:00.000Z",
         nowMs: Date.parse("2026-08-04T13:04:00.000Z"),
       }),
     ).toBe("active");
@@ -53,7 +61,7 @@ describe("handoff timing phase", () => {
     expect(
       resolveHandoffTimingPhase({
         availableAtIso: available,
-        expiresAtIso: confirmDeadline,
+        expiresAtIso: liveDeadline,
         handoffStartedAtIso: null,
         nowMs: Date.parse("2026-08-04T13:08:00.000Z"),
       }),

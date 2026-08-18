@@ -1,6 +1,6 @@
 export type HandoffTimingPhase =
   | "scheduled"
-  | "confirm"
+  | "due"
   | "active"
   | "ended";
 
@@ -38,7 +38,15 @@ export function resolveHandoffTimingPhase(
   if (now < availableAt) {
     return "scheduled";
   }
-  return "confirm";
+  return "due";
+}
+
+/** Claimed handoffs that have reached the estimate display as the live window. */
+export function isLiveHandoffDisplay(
+  phase: HandoffTimingPhase,
+  claimed: boolean,
+): boolean {
+  return phase === "active" || (phase === "due" && claimed);
 }
 
 export function formatHandoffClock(ms: number): string {

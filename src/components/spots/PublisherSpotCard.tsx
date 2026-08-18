@@ -21,6 +21,7 @@ import {
 } from "@/lib/map/distance";
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
 import { sensoryClaimReceived } from "@/lib/sensory/feedback";
+import { reconcileClaimTiming } from "@/actions/reconcile-claim";
 import { canOfferHandoffExtension } from "@/lib/spots/constants";
 import {
   hasHandoffStarted,
@@ -43,7 +44,6 @@ export type PublisherSpotSummary = {
 export const PUBLISHER_WAITING_STATUS = "Waiting for a driver";
 /** Compact claimed headline — map is the primary surface. */
 export const PUBLISHER_CLAIMED_STATUS = "Driver on the way";
-export const PUBLISHER_CONFIRM_STATUS = "Ready to leave?";
 export const PUBLISHER_CLAIMED_STAY_INSTRUCTION = "Stay at your parking spot.";
 export const PUBLISHER_CLAIMED_NEARBY_INSTRUCTION =
   "Driver is approaching the parking spot";
@@ -118,6 +118,13 @@ export function PublisherSpotCard({
     router.refresh();
   }, [clearLiveLocation, router]);
 
+  const onDepartureDue = useCallback(() => {
+    if (!activeClaimId) {
+      return;
+    }
+    void reconcileClaimTiming(activeClaimId);
+  }, [activeClaimId]);
+
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -165,14 +172,10 @@ export function PublisherSpotCard({
     }
   }, [claimed, clearLiveLocation]);
 
-  const claimedHeadline =
-    phase === "confirm"
-      ? PUBLISHER_CONFIRM_STATUS
-      : driverNearby
-        ? PUBLISHER_CLAIMED_NEARBY_INSTRUCTION
-        : PUBLISHER_CLAIMED_STATUS;
-  const waitingHeadline =
-    phase === "confirm" ? PUBLISHER_CONFIRM_STATUS : PUBLISHER_WAITING_STATUS;
+  const claimedHeadline = driverNearby
+    ? PUBLISHER_CLAIMED_NEARBY_INSTRUCTION
+    : PUBLISHER_CLAIMED_STATUS;
+  const waitingHeadline = PUBLISHER_WAITING_STATUS;
   const claimedSecondary = !activeClaimId
     ? PUBLISHER_CLAIMED_STAY_INSTRUCTION
     : liveLocation.freshness === "waiting" ||
@@ -234,8 +237,10 @@ export function PublisherSpotCard({
           availableAtIso={spot.available_at}
           expiresAtIso={spot.expires_at}
           handoffStartedAtIso={spot.handoff_started_at}
+          claimed={claimed}
           role="publisher"
           onExpired={onExpired}
+          onDepartureDue={claimed && activeClaimId ? onDepartureDue : undefined}
         />
       </div>
     </div>
@@ -270,7 +275,7 @@ export function PublisherSpotCard({
 
   const cancelBlock = (
     <div className="publisher-spot-cancel flex flex-col gap-2">
-      {!started && phase !== "ended" ? (
+      {!started && phase === "scheduled" ? (
         <StartHandoffNowButton
           spotId={spot.id}
           onStarted={(result) => {

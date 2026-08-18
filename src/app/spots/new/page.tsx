@@ -20,24 +20,18 @@ export default async function NewSpotPage() {
     handoffException: "active-publisher",
   });
   const { supabase, user } = access;
-  const nowIso = new Date().toISOString();
 
   await runRscQuery(
     "expire_open_publisher_spot",
     async () => {
       const { data: openSpot } = await supabase
         .from("parking_spots")
-        .select("id, status, expires_at")
+        .select("id, status")
         .eq("owner_id", user.id)
         .in("status", ["available", "claimed"])
         .maybeSingle();
 
-      if (
-        openSpot &&
-        typeof openSpot.id === "string" &&
-        typeof openSpot.expires_at === "string" &&
-        openSpot.expires_at <= nowIso
-      ) {
+      if (openSpot && typeof openSpot.id === "string") {
         if (openSpot.status === "available") {
           await supabase.rpc("expire_spot_if_needed", {
             p_spot_id: openSpot.id,

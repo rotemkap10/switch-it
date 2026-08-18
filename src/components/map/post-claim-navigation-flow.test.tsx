@@ -20,6 +20,10 @@ vi.mock("@/actions/claims", () => ({
   claimSpot: claimSpotMock,
 }));
 
+vi.mock("@/actions/reconcile-claim", () => ({
+  reconcileClaimTiming: vi.fn().mockResolvedValue({ success: true }),
+}));
+
 vi.mock("@/lib/map/request-current-device-location", () => ({
   requestCurrentDeviceLocation: (...args: unknown[]) =>
     requestLocationMock(...args),

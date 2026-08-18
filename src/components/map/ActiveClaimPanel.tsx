@@ -22,6 +22,7 @@ import {
 import { isCloseToSpot } from "@/lib/map/distance";
 import { useDistanceToSpot } from "@/lib/map/use-distance-to-spot";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
+import { reconcileClaimTiming } from "@/actions/reconcile-claim";
 import { hasHandoffStarted } from "@/lib/spots/handoff-phase";
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
 import {
@@ -159,6 +160,10 @@ function ActiveClaimSheetBody({
     router.refresh();
   }, [forceStopLiveShare, router]);
 
+  const onDepartureDue = useCallback(() => {
+    void reconcileClaimTiming(claim.claimId);
+  }, [claim.claimId]);
+
   const onHandoffTerminal = useCallback(() => {
     forceStopLiveShare();
   }, [forceStopLiveShare]);
@@ -225,9 +230,11 @@ function ActiveClaimSheetBody({
               availableAtIso={claim.spotAvailableAt}
               expiresAtIso={claim.spotExpiresAt}
               handoffStartedAtIso={claim.handoffStartedAt}
+              claimed
               role="seeker"
               className="mt-1"
               onExpired={onExpired}
+              onDepartureDue={onDepartureDue}
             />
           </div>
         </div>
