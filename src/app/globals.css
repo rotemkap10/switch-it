@@ -1299,6 +1299,36 @@ html[data-native-status-bar="inset"] .app-shell-header {
   flex-shrink: 0;
 }
 
+.vehicle-photo-frame--handoff {
+  width: min(100%, 12.5rem);
+  height: auto;
+  aspect-ratio: 16 / 10;
+  max-height: 9.25rem;
+  margin-inline: auto;
+  flex-shrink: 0;
+  overflow: visible;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.vehicle-photo-frame--handoff.vehicle-photo-frame--model,
+.vehicle-photo-frame--handoff .vehicle-photo-frame__image,
+.vehicle-photo-frame--handoff .vehicle-photo-frame__image--model {
+  background: transparent;
+}
+
+.vehicle-photo-frame--handoff .vehicle-photo-frame__image--model {
+  filter: drop-shadow(0 10px 16px rgb(18 50 74 / 14%));
+}
+
+@media (min-width: 640px) {
+  .vehicle-photo-frame--handoff {
+    width: 14.5rem;
+    max-height: 10.75rem;
+  }
+}
+
 .vehicle-photo-controls {
   display: flex;
   flex-direction: column;

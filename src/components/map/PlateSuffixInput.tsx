@@ -22,7 +22,7 @@ export function PlateSuffixInput({
   const [value, setValue] = useState("");
   const firstRef = useRef<HTMLInputElement>(null);
   const secondRef = useRef<HTMLInputElement>(null);
-  const describedBy = error ? `${id}-error` : `${id}-hint`;
+  const describedBy = error ? `${id}-error` : undefined;
 
   function applyDigits(next: string, focusSecondWhenFilled = true) {
     const digits = digitsOnly(next);
@@ -52,10 +52,7 @@ export function PlateSuffixInput({
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-sm font-medium text-foreground" id={`${id}-label`}>
-        Hidden plate digits
-      </p>
-      <p id={`${id}-hint`} className="text-xs text-muted">
-        Enter the 2 hidden digits from the license plate.
+        Last 2 digits
       </p>
       <input type="hidden" name={name} value={value} />
       <div
@@ -104,7 +101,7 @@ export function PlateSuffixInput({
           pattern="[0-9]*"
           maxLength={1}
           disabled={disabled}
-          aria-label="Second hidden plate digit"
+          aria-label="Second plate digit"
           aria-invalid={Boolean(error)}
           className="plate-suffix-input__digit app-form-control"
           value={value[1] ?? ""}

@@ -21,9 +21,10 @@ type VehicleIllustrationProps = {
   /**
    * `hero` — full-width profile showcase (not a side icon).
    * `default` — standard card preview.
-   * `compact` — handoff / inline identity only.
+   * `handoff` — floating identity image during an active handoff.
+   * `compact` — inline / animation thumbnail only.
    */
-  size?: "default" | "compact" | "hero";
+  size?: "default" | "compact" | "handoff" | "hero";
   /** Marks one-shot entrance for tests / analytics-free contracts. */
   dataEntrance?: boolean;
 };
@@ -32,6 +33,11 @@ const SIZE_CLASSES = {
   default: "max-w-full bg-accent-soft/70 p-2 [&_svg]:h-auto [&_svg]:w-[11rem]",
   compact:
     "max-w-full bg-accent-soft/70 p-1.5 [&_svg]:h-auto [&_svg]:w-[6.25rem]",
+  handoff: [
+    "w-[12.5rem] max-w-full bg-transparent p-0 sm:w-[14.5rem]",
+    "[&_svg]:h-auto [&_svg]:w-full",
+    "[&_svg]:drop-shadow-[0_10px_16px_rgb(18_50_74_/_14%)]",
+  ].join(" "),
   hero: [
     "w-full bg-accent-soft",
     "px-4 py-[clamp(0.75rem,2.5dvh,1.5rem)] sm:px-8 sm:py-8",
@@ -55,7 +61,8 @@ export function VehicleIllustration({
   return (
     <div
       className={[
-        "flex items-center justify-center rounded-[var(--radius-card)]",
+        "flex items-center justify-center",
+        size === "handoff" ? "" : "rounded-[var(--radius-card)]",
         SIZE_CLASSES[size],
         animate ? "motion-soft-scale-in" : "",
         className,

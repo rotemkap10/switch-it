@@ -20,7 +20,7 @@ export function SeekerShareLocationCard({
 
   const label =
     uiState === "acquiring"
-      ? "Starting live location…"
+      ? "Starting…"
       : uiState === "waiting"
         ? "Waiting for GPS…"
         : uiState === "weak"
@@ -32,7 +32,7 @@ export function SeekerShareLocationCard({
               : uiState === "denied"
                 ? "Location permission needed"
                 : uiState === "unavailable" || uiState === "off"
-                  ? "Live location update delayed"
+                  ? "Live location delayed"
                   : null;
   if (!label) {
     return null;
@@ -50,8 +50,10 @@ export function SeekerShareLocationCard({
     >
       <p
         className={[
-          "text-xs font-medium",
-          needsAttention ? "text-danger" : "text-muted",
+          "inline-flex w-fit rounded-full px-2 py-0.5 text-[11px] font-medium leading-4",
+          needsAttention
+            ? "bg-danger-bg text-danger"
+            : "bg-accent-soft text-muted",
         ].join(" ")}
       >
         {label}

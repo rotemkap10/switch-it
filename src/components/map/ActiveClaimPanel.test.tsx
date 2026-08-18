@@ -774,6 +774,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     const identity = screen.getByTestId("vehicle-identity-card");
+    expect(identity).toHaveAttribute("data-layout", "stacked");
     expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
@@ -911,7 +912,7 @@ describe("ActiveClaimPanel sheet UX", () => {
       <ActiveClaimPanel claim={claim} destination={destination} />,
     );
 
-    expect(screen.getByText("Live location update delayed")).toBeInTheDocument();
+    expect(screen.getByText("Live location delayed")).toBeInTheDocument();
     expect(screen.getByTestId("seeker-share-location-hint")).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Stop sharing" }),

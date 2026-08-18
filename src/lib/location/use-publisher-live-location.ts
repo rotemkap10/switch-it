@@ -55,6 +55,56 @@ const EMPTY_SNAPSHOT: LiveSnapshot = {
   generation: 0,
 };
 
+type CachedLiveLocation = {
+  location: SeekerLocationPayload;
+  lastReceivedAtMs: number;
+};
+
+/** Survives Share-a-Spot unmount when navigating to Profile and back. */
+const liveLocationByClaimId = new Map<string, CachedLiveLocation>();
+
+function readCachedLiveLocation(claimId: string | null): CachedLiveLocation | null {
+  if (!claimId) {
+    return null;
+  }
+  return liveLocationByClaimId.get(claimId) ?? null;
+}
+
+function writeCachedLiveLocation(
+  claimId: string,
+  location: SeekerLocationPayload,
+  lastReceivedAtMs: number,
+) {
+  liveLocationByClaimId.set(claimId, { location, lastReceivedAtMs });
+}
+
+function clearCachedLiveLocation(claimId: string | null) {
+  if (!claimId) {
+    liveLocationByClaimId.clear();
+    return;
+  }
+  liveLocationByClaimId.delete(claimId);
+}
+
+function snapshotFromCache(claimId: string | null): LiveSnapshot {
+  const cached = readCachedLiveLocation(claimId);
+  if (!cached) {
+    return EMPTY_SNAPSHOT;
+  }
+  return {
+    location: cached.location,
+    lastReceivedAtMs: cached.lastReceivedAtMs,
+    explicitPaused: false,
+    connectionFailed: false,
+    generation: 0,
+  };
+}
+
+/** Test-only: drop in-memory last-known locations between cases. */
+export function resetPublisherLiveLocationCacheForTests() {
+  liveLocationByClaimId.clear();
+}
+
 function publisherStatusLabel(
   freshness: LiveLocationFreshness,
   hasLocation: boolean,
@@ -80,7 +130,9 @@ export function usePublisherLiveLocation({
   clear: () => void;
 } {
   const active = enabled && !!claimId;
-  const [snapshot, setSnapshot] = useState<LiveSnapshot>(EMPTY_SNAPSHOT);
+  const [snapshot, setSnapshot] = useState<LiveSnapshot>(() =>
+    snapshotFromCache(claimId),
+  );
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -98,6 +150,7 @@ export function usePublisherLiveLocation({
     lastSequenceRef.current = 0;
     lastKnownRef.current = null;
     lastReceivedAtRef.current = null;
+    clearCachedLiveLocation(lastKnownClaimIdRef.current);
     lastKnownClaimIdRef.current = null;
     hadSubscribedRef.current = false;
     generationRef.current += 1;
@@ -123,12 +176,18 @@ export function usePublisherLiveLocation({
     }
 
     terminalRef.current = false;
-    lastSequenceRef.current = 0;
     hadSubscribedRef.current = false;
     const generation = ++generationRef.current;
-    if (lastKnownClaimIdRef.current !== claimId) {
+    const cached = readCachedLiveLocation(claimId);
+    if (cached) {
+      lastKnownRef.current = cached.location;
+      lastReceivedAtRef.current = cached.lastReceivedAtMs;
+      lastSequenceRef.current = cached.location.sequence;
+      lastKnownClaimIdRef.current = claimId;
+    } else if (lastKnownClaimIdRef.current !== claimId) {
       lastKnownRef.current = null;
       lastReceivedAtRef.current = null;
+      lastSequenceRef.current = 0;
       lastKnownClaimIdRef.current = claimId;
     }
 
@@ -164,6 +223,7 @@ export function usePublisherLiveLocation({
       const receivedAt = Date.now();
       lastKnownRef.current = parsed;
       lastReceivedAtRef.current = receivedAt;
+      writeCachedLiveLocation(activeClaimId, parsed, receivedAt);
 
       if (source === "broadcast") {
         logHandoffLive("publisher location received", {
@@ -246,6 +306,22 @@ export function usePublisherLiveLocation({
         connectionFailed: false,
         generation,
       });
+
+      void reconcileLatestSnapshot("mount");
+
+      const existingChannels =
+        typeof client.getChannels === "function" ? client.getChannels() : [];
+      await Promise.all(
+        existingChannels
+          .filter((channel) => {
+            const name = channel.topic ?? "";
+            return name === topic || name.endsWith(`:${topic}`) || name.includes(topic);
+          })
+          .map((channel) => client.removeChannel(channel)),
+      );
+      if (cancelled) {
+        return;
+      }
 
       const channel = client.channel(topic, {
         config: {
@@ -351,14 +427,26 @@ export function usePublisherLiveLocation({
       void reconcileLatestSnapshot("network online");
     }
 
+    function onPageShow() {
+      void reconcileLatestSnapshot("pageshow");
+    }
+
+    function onWindowFocus() {
+      void reconcileLatestSnapshot("window focus");
+    }
+
     document.addEventListener("visibilitychange", onVisibilityRestore);
     window.addEventListener("online", onOnline);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("focus", onWindowFocus);
 
     return () => {
       cancelled = true;
       terminalRef.current = true;
       document.removeEventListener("visibilitychange", onVisibilityRestore);
       window.removeEventListener("online", onOnline);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("focus", onWindowFocus);
       const channel = channelRef.current;
       channelRef.current = null;
       if (channel) {

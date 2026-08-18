@@ -75,9 +75,11 @@ describe("CompleteHandoffForm", () => {
     renderForm();
 
     expect(screen.getByText("Confirm the vehicle")).toBeInTheDocument();
+    expect(screen.getByText("Last 2 digits")).toBeInTheDocument();
     expect(
-      screen.getByText("Enter the 2 hidden digits from the license plate."),
-    ).toBeInTheDocument();
+      screen.queryByText("Enter the 2 hidden digits from the license plate."),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Hidden plate digits")).not.toBeInTheDocument();
     expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
     expect(
       screen.queryByText(
@@ -120,7 +122,7 @@ describe("CompleteHandoffForm", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Enter the 2 hidden digits.")).toBeInTheDocument();
+      expect(screen.getByText("Enter the last 2 digits.")).toBeInTheDocument();
     });
   });
 
@@ -131,7 +133,7 @@ describe("CompleteHandoffForm", () => {
       </FeedbackShell>,
     );
 
-    expect(screen.getByText("Hidden plate digits")).toBeInTheDocument();
+    expect(screen.getByText("Last 2 digits")).toBeInTheDocument();
     const button = screen.getByRole("button", { name: "Complete handoff" });
     expect(button).toHaveAttribute("data-emphasized", "true");
     expect(button.className).toContain("border-accent");

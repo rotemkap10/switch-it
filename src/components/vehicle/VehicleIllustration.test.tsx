@@ -160,4 +160,26 @@ describe("VehicleIllustration", () => {
       "xMidYMid meet",
     );
   });
+
+  it("renders a centered handoff identity size without cropping proportions", () => {
+    render(
+      <VehicleIllustration
+        vehicleType="suv"
+        vehicleColor="blue"
+        size="handoff"
+        animate={false}
+      />,
+    );
+
+    const illustration = screen.getByTestId("vehicle-illustration");
+    expect(illustration).toHaveAttribute("data-size", "handoff");
+    expect(illustration).toHaveClass("w-[12.5rem]", "bg-transparent");
+    expect(illustration).not.toHaveClass("rounded-[var(--radius-card)]");
+    expect(illustration).not.toHaveClass("bg-accent-soft");
+    expect(illustration).not.toHaveClass("h-[10.5rem]");
+    expect(illustration.querySelector("svg")).toHaveAttribute(
+      "preserveAspectRatio",
+      "xMidYMid meet",
+    );
+  });
 });

@@ -391,9 +391,14 @@ describe("PublisherSpotCard", () => {
     expect(testIds.indexOf("publisher-claimed-map-priority")).toBeLessThan(
       testIds.indexOf("handoff-vehicle-section"),
     );
-    expect(testIds.indexOf("handoff-vehicle-section")).toBeLessThan(
-      testIds.indexOf("publisher-plate-handoff-note"),
-    );
+    expect(
+      screen.queryByTestId("publisher-plate-handoff-note"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "The arriving driver will confirm your vehicle using its license plate.",
+      ),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("publisher-claimed-instruction")).toHaveTextContent(
       "Waiting for driver location",
     );
@@ -437,12 +442,18 @@ describe("PublisherSpotCard", () => {
     expect(screen.getByText("Mazda 3")).toBeInTheDocument();
     const identity = screen.getByTestId("vehicle-identity-card");
     expect(identity).toHaveAttribute("data-compact", "true");
+    expect(identity).toHaveAttribute("data-layout", "stacked");
     expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(screen.queryByTestId("handoff-vehicle-animation")).not.toBeInTheDocument();
-    expect(screen.getByTestId("publisher-plate-handoff-note")).toHaveTextContent(
-      "The arriving driver will confirm your vehicle using its license plate.",
-    );
+    expect(
+      screen.queryByTestId("publisher-plate-handoff-note"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "The arriving driver will confirm your vehicle using its license plate.",
+      ),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
     expect(screen.queryByText("Give this code to the driver")).not.toBeInTheDocument();
     expect(screen.queryByText("76-543-21")).not.toBeInTheDocument();
@@ -492,6 +503,7 @@ describe("PublisherSpotCard", () => {
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
     const identity = screen.getByTestId("vehicle-identity-card");
     expect(identity).toHaveAttribute("data-compact", "true");
+    expect(identity).toHaveAttribute("data-layout", "stacked");
     expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(screen.getByText("Mazda 3")).toBeInTheDocument();

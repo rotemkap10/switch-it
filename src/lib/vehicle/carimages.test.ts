@@ -31,6 +31,7 @@ describe("carimages helpers", () => {
 
   it("maps compact frames to the free-tier 400px WebP size", () => {
     expect(carImagesWidthForSize("compact")).toBe("400");
+    expect(carImagesWidthForSize("handoff")).toBe("400");
     expect(carImagesWidthForSize("default")).toBe("800");
     expect(carImagesWidthForSize("hero")).toBe("800");
   });

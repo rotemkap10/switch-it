@@ -186,6 +186,38 @@ describe("PublisherLiveProgressMap", () => {
     );
   });
 
+  it("seeds the live car source when a known location exists at map ready", () => {
+    render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+
+    const map = readyMap();
+    const seekerSource = map.addSource.mock.calls.find(
+      (call) => call[0] === "publisher-live-seeker-src",
+    );
+    expect(seekerSource?.[1]).toEqual(
+      expect.objectContaining({
+        type: "geojson",
+        data: expect.objectContaining({
+          features: [
+            expect.objectContaining({
+              geometry: {
+                type: "Point",
+                coordinates: [seekerLocation.longitude, seekerLocation.latitude],
+              },
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it("shows paused copy and keeps the last known seeker marker", () => {
     render(
       <PublisherLiveProgressMap

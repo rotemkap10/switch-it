@@ -6,15 +6,18 @@ vi.mock("@/components/vehicle/VehicleIllustration", () => ({
     label,
     vehicleType,
     vehicleColor,
+    size,
   }: {
     label?: string;
     vehicleType: string;
     vehicleColor: string;
+    size?: string;
   }) => (
     <div
       data-testid="vehicle-illustration"
       data-vehicle-type={vehicleType}
       data-vehicle-color={vehicleColor}
+      data-size={size}
       aria-label={label}
       role="img"
     />
@@ -36,11 +39,22 @@ describe("VehicleIdentityCard", () => {
     render(<VehicleIdentityCard vehicle={completeVehicle} />);
 
     expect(screen.getByTestId("vehicle-identity-card")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-identity-card")).toHaveAttribute(
+      "data-layout",
+      "stacked",
+    );
+    expect(screen.getByTestId("vehicle-identity-card")).toHaveAttribute(
+      "data-presentation",
+      "float",
+    );
     expect(screen.getByTestId("vehicle-identity-color")).toHaveTextContent("White");
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
     expect(screen.getByText("123-45-6**")).toBeInTheDocument();
     expect(screen.queryByText("123-45-678")).not.toBeInTheDocument();
-    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).toHaveAttribute(
+      "data-size",
+      "handoff",
+    );
     expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(screen.getByTestId("vehicle-identity-plate")).toHaveClass(
       "vehicle-plate-display",

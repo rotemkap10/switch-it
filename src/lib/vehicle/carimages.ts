@@ -4,7 +4,7 @@ export const CARIMAGES_VIEW = "front34";
 export const CARIMAGES_FORMAT = "webp";
 export const CARIMAGES_TYPE = "car";
 
-export type VehicleImageSize = "default" | "compact" | "hero";
+export type VehicleImageSize = "default" | "compact" | "handoff" | "hero";
 
 declare global {
   interface Window {
@@ -29,7 +29,7 @@ export function carImagesLoaderCacheBust(): string {
 }
 
 export function carImagesWidthForSize(size: VehicleImageSize): "400" | "800" {
-  return size === "compact" ? "400" : "800";
+  return size === "compact" || size === "handoff" ? "400" : "800";
 }
 
 export function normalizeCarImagesYear(

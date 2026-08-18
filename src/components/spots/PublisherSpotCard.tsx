@@ -238,15 +238,6 @@ export function PublisherSpotCard({
       </div>
     ) : null;
 
-  const handoffBlock = claimed ? (
-    <p
-      className="text-sm text-muted"
-      data-testid="publisher-plate-handoff-note"
-    >
-      The arriving driver will confirm your vehicle using its license plate.
-    </p>
-  ) : null;
-
   const cancelBlock = (
     <div className="publisher-spot-cancel flex flex-col gap-2">
       {claimed &&
@@ -287,7 +278,6 @@ export function PublisherSpotCard({
           {statusBlock}
           {mapBlock}
           {vehicleBlock}
-          {handoffBlock}
           {cancelBlock}
         </>
       ) : (

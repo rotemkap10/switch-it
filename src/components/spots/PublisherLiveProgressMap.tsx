@@ -54,6 +54,38 @@ function emptyCollection(): GeoJSON.FeatureCollection {
   return { type: "FeatureCollection", features: [] };
 }
 
+function pointCollection(
+  longitude: number,
+  latitude: number,
+  properties: GeoJSON.GeoJsonProperties = {},
+): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties,
+        geometry: { type: "Point", coordinates: [longitude, latitude] },
+      },
+    ],
+  };
+}
+
+function collectionsForSeeker(location: SeekerLocationPayload | null): {
+  seeker: GeoJSON.FeatureCollection;
+  accuracy: GeoJSON.FeatureCollection;
+} {
+  if (!location) {
+    return { seeker: emptyCollection(), accuracy: emptyCollection() };
+  }
+  return {
+    seeker: pointCollection(location.longitude, location.latitude),
+    accuracy: pointCollection(location.longitude, location.latitude, {
+      radiusPx: Math.min(48, Math.max(12, location.accuracyMeters / 2)),
+    }),
+  };
+}
+
 /**
  * Compact publisher live-progress map: parking marker + ephemeral seeker vehicle.
  * Updates GeoJSON via setData — does not recreate MapLibre.
@@ -432,7 +464,7 @@ export function PublisherLiveProgressMap({
           onMapUnavailable={() => setMapUnavailable(true)}
           onMapReady={(map) => {
             mapRef.current = map;
-            if (initializedRef.current) {
+            if (initializedRef.current && map.getSource(DEST_SOURCE)) {
               setMapReady(true);
               return;
             }
@@ -466,29 +498,23 @@ export function PublisherLiveProgressMap({
 
             registerSeekerMarkerImages(map);
 
+            const knownSeeker = seekerRef.current;
+            const live = collectionsForSeeker(knownSeeker);
+            if (knownSeeker) {
+              accuracyRef.current = knownSeeker.accuracyMeters;
+            }
+
             map.addSource(DEST_SOURCE, {
               type: "geojson",
-              data: {
-                type: "FeatureCollection",
-                features: [
-                  {
-                    type: "Feature",
-                    properties: {},
-                    geometry: {
-                      type: "Point",
-                      coordinates: [parkingLongitude, parkingLatitude],
-                    },
-                  },
-                ],
-              },
+              data: pointCollection(parkingLongitude, parkingLatitude),
             });
             map.addSource(SEEKER_SOURCE, {
               type: "geojson",
-              data: emptyCollection(),
+              data: live.seeker,
             });
             map.addSource(ACCURACY_SOURCE, {
               type: "geojson",
-              data: emptyCollection(),
+              data: live.accuracy,
             });
 
             map.addLayer({

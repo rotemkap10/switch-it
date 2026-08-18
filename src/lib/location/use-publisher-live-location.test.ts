@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   LIVE_LOCATION_PAUSE_WHILE_NAVIGATING,
 } from "@/lib/location/stale";
-import { usePublisherLiveLocation } from "@/lib/location/use-publisher-live-location";
+import {
+  resetPublisherLiveLocationCacheForTests,
+  usePublisherLiveLocation,
+} from "@/lib/location/use-publisher-live-location";
 
 const CLAIM_ID = "11111111-1111-4111-8111-111111111111";
 const TOPIC = `claim-location:${CLAIM_ID}`;
@@ -41,6 +44,7 @@ const on = vi.fn(
 );
 const channel = vi.fn(() => ({ on, subscribe }));
 const setAuth = vi.fn(async () => undefined);
+const getChannels = vi.fn(() => []);
 const getSession = vi.fn(async () => ({
   data: { session: { access_token: "token" } },
 }));
@@ -49,6 +53,7 @@ vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
     channel,
     removeChannel,
+    getChannels,
     from,
     realtime: { setAuth },
     auth: { getSession },
@@ -70,6 +75,7 @@ function validPayload(overrides: Record<string, unknown> = {}) {
 describe("usePublisherLiveLocation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetPublisherLiveLocationCacheForTests();
     subscribeStatus = null;
     locationHandler = null;
     statusHandler = null;
@@ -447,7 +453,10 @@ describe("usePublisherLiveLocation", () => {
     await act(async () => {
       subscribeStatus?.("SUBSCRIBED");
     });
-    expect(from).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(from).toHaveBeenCalled();
+    });
+    const fetchesAfterFirstSubscribe = from.mock.calls.length;
 
     maybeSingle.mockResolvedValue({
       data: {
@@ -466,7 +475,7 @@ describe("usePublisherLiveLocation", () => {
     });
 
     await waitFor(() => {
-      expect(from).toHaveBeenCalledTimes(2);
+      expect(from.mock.calls.length).toBeGreaterThan(fetchesAfterFirstSubscribe);
       expect(result.current.location?.latitude).toBe(32.2);
     });
   });
@@ -511,5 +520,52 @@ describe("usePublisherLiveLocation", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("fetches the latest snapshot on mount without waiting for SUBSCRIBED", async () => {
+    maybeSingle.mockResolvedValue({
+      data: {
+        latitude: 32.099,
+        longitude: 34.7818,
+        accuracy_meters: 12,
+        heading_degrees: null,
+        sequence: 1,
+        location_timestamp: new Date().toISOString(),
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(result.current.location?.latitude).toBe(32.099);
+    });
+    expect(from).toHaveBeenCalledWith("claim_live_locations");
+  });
+
+  it("restores the last known live location immediately after remount", async () => {
+    const { result, unmount } = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(locationHandler).toBeTypeOf("function");
+    });
+
+    await act(async () => {
+      locationHandler?.({ payload: validPayload({ sequence: 4, latitude: 32.15 }) });
+    });
+    expect(result.current.location?.latitude).toBe(32.15);
+
+    unmount();
+
+    const remounted = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    expect(remounted.result.current.location?.latitude).toBe(32.15);
+    expect(remounted.result.current.location?.sequence).toBe(4);
   });
 });

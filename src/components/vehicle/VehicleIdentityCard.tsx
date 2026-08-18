@@ -10,7 +10,7 @@ import { VehicleImage } from "@/components/vehicle/VehicleImage";
 type VehicleIdentityCardProps = {
   vehicle: HandoffVehicle;
   showRepresentativeNote?: boolean;
-  /** Tighter row used on the publisher live-handoff screen. */
+  /** Hides the masked plate (publisher counterpart view). */
   compact?: boolean;
 };
 
@@ -28,8 +28,10 @@ export function VehicleIdentityCard({
 
   return (
     <div
-      className="flex items-center gap-3"
+      className="flex flex-col items-center gap-2.5 text-center"
       data-testid="vehicle-identity-card"
+      data-layout="stacked"
+      data-presentation="float"
       data-compact={compact ? "true" : "false"}
     >
       <VehicleImage
@@ -39,11 +41,11 @@ export function VehicleIdentityCard({
         model={model}
         year={year}
         animate={false}
-        size="compact"
+        size="handoff"
         label={name}
-        className="shrink-0 shadow-[var(--shadow-card)]"
+        className="shrink-0"
       />
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 w-full">
         <p
           className="truncate text-sm font-semibold text-foreground"
           data-testid="vehicle-identity-make-model"

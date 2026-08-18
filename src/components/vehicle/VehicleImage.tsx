@@ -17,7 +17,7 @@ type VehicleImageProps = {
   model?: string | null;
   year?: string | number | null;
   placeholderPreview?: boolean;
-  size?: "default" | "compact" | "hero";
+  size?: "default" | "compact" | "handoff" | "hero";
   label?: string;
   className?: string;
   animate?: boolean;
@@ -78,7 +78,7 @@ function vehicleFallback({
   vehicleType?: VehicleType | null;
   vehicleColor?: VehicleColor | null;
   placeholderPreview: boolean;
-  size: "default" | "compact" | "hero";
+  size: "default" | "compact" | "handoff" | "hero";
   label?: string;
   className: string;
   animate: boolean;
