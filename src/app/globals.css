@@ -1119,16 +1119,13 @@ html[data-native-status-bar="inset"] .app-shell-header {
 }
 
 .plate-suffix-input {
-  display: flex;
-  gap: 0.75rem;
-  justify-content: flex-start;
-}
-
-.plate-suffix-input__digit {
-  width: 3.25rem;
+  width: 8rem;
+  max-width: 100%;
   min-height: var(--app-tap-min);
-  padding: 0;
+  padding-block: 0.5rem;
+  padding-inline: 0.9rem;
   text-align: center;
+  letter-spacing: 0.4em;
   font-family:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
@@ -1136,6 +1133,12 @@ html[data-native-status-bar="inset"] .app-shell-header {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
+}
+
+@media (min-width: 640px) {
+  .plate-suffix-input {
+    width: 8.5rem;
+  }
 }
 
 .mobile-form-primary {

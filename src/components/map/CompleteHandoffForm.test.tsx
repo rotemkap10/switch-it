@@ -52,7 +52,10 @@ async function enterPlateSuffix(
   user: ReturnType<typeof userEvent.setup>,
   digits: string,
 ) {
-  await user.type(screen.getAllByRole("textbox")[0]!, digits);
+  await user.type(
+    screen.getByRole("textbox", { name: "Last 2 digits" }),
+    digits,
+  );
 }
 
 describe("CompleteHandoffForm", () => {
@@ -89,6 +92,34 @@ describe("CompleteHandoffForm", () => {
     expect(
       screen.getByRole("button", { name: "Complete handoff" }),
     ).toBeInTheDocument();
+    const suffix = screen.getByTestId("plate-suffix-input");
+    expect(suffix).not.toHaveFocus();
+    expect(suffix).not.toHaveAttribute("autoFocus");
+    expect(screen.getAllByRole("textbox")).toHaveLength(1);
+  });
+
+  it("does not autofocus the plate suffix on the active handoff form", () => {
+    renderForm();
+
+    expect(screen.getByTestId("plate-suffix-input")).not.toHaveFocus();
+    expect(document.activeElement).not.toBe(
+      screen.getByTestId("plate-suffix-input"),
+    );
+  });
+
+  it("does not refocus the suffix input after a validation error", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await enterPlateSuffix(user, "6");
+    await user.click(
+      screen.getByRole("button", { name: "Complete handoff" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Enter the last 2 digits.")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("plate-suffix-input")).not.toHaveFocus();
   });
 
   it("submits claim_id and plate_suffix only", async () => {
