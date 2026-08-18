@@ -36,7 +36,7 @@ function mockCompleteWithSchemaValidation() {
     async (_prev: unknown, formData: FormData) => {
       const parsed = completeClaimSchema.safeParse({
         claim_id: formData.get("claim_id"),
-        handoff_code: formData.get("handoff_code"),
+        plate_suffix: formData.get("plate_suffix"),
       });
 
       if (!parsed.success) {
@@ -46,6 +46,13 @@ function mockCompleteWithSchemaValidation() {
       return { success: true, claimId: parsed.data.claim_id };
     },
   );
+}
+
+async function enterPlateSuffix(
+  user: ReturnType<typeof userEvent.setup>,
+  digits: string,
+) {
+  await user.type(screen.getAllByRole("textbox")[0]!, digits);
 }
 
 describe("CompleteHandoffForm", () => {
@@ -64,29 +71,29 @@ describe("CompleteHandoffForm", () => {
     );
   }
 
-  it("shows the verification form instead of the old direct completion button", () => {
+  it("shows plate-digit verification instead of the spoken handoff code", () => {
     renderForm();
 
-    expect(screen.queryByText("Complete the handoff")).not.toBeInTheDocument();
+    expect(screen.getByText("Confirm the vehicle")).toBeInTheDocument();
+    expect(
+      screen.getByText("Enter the 2 hidden digits from the license plate."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
     expect(
       screen.queryByText(
         "Once you’re safely stopped, enter the code to complete the handoff.",
       ),
     ).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Handoff code")).toHaveClass("app-form-control");
     expect(
       screen.getByRole("button", { name: "Complete handoff" }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "I got the spot" }),
-    ).not.toBeInTheDocument();
   });
 
-  it("submits claim_id and handoff_code only", async () => {
+  it("submits claim_id and plate_suffix only", async () => {
     const user = userEvent.setup();
     renderForm();
 
-    await user.type(screen.getByLabelText("Handoff code"), "12345");
+    await enterPlateSuffix(user, "67");
     await user.click(
       screen.getByRole("button", { name: "Complete handoff" }),
     );
@@ -97,24 +104,23 @@ describe("CompleteHandoffForm", () => {
 
     const formData = completeClaimMock.mock.calls.at(-1)?.[1] as FormData;
     expect(formData.get("claim_id")).toBe(claimId);
-    expect(formData.get("handoff_code")).toBe("12345");
+    expect(formData.get("plate_suffix")).toBe("67");
+    expect(formData.get("handoff_code")).toBeNull();
     expect(formData.get("owner_id")).toBeNull();
     expect(formData.get("credits")).toBeNull();
   });
 
-  it("shows validation feedback for invalid codes", async () => {
+  it("shows validation feedback for a single digit", async () => {
     const user = userEvent.setup();
     renderForm();
 
-    await user.type(screen.getByLabelText("Handoff code"), "1234");
+    await enterPlateSuffix(user, "6");
     await user.click(
       screen.getByRole("button", { name: "Complete handoff" }),
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Enter a 5-digit handoff code."),
-      ).toBeInTheDocument();
+      expect(screen.getByText("Enter the 2 hidden digits.")).toBeInTheDocument();
     });
   });
 
@@ -125,7 +131,7 @@ describe("CompleteHandoffForm", () => {
       </FeedbackShell>,
     );
 
-    expect(screen.getByLabelText("Handoff code")).toBeInTheDocument();
+    expect(screen.getByText("Hidden plate digits")).toBeInTheDocument();
     const button = screen.getByRole("button", { name: "Complete handoff" });
     expect(button).toHaveAttribute("data-emphasized", "true");
     expect(button.className).toContain("border-accent");
@@ -142,7 +148,7 @@ describe("CompleteHandoffForm", () => {
       </FeedbackShell>,
     );
 
-    await user.type(screen.getByLabelText("Handoff code"), "12345");
+    await enterPlateSuffix(user, "67");
     await user.click(
       screen.getByRole("button", { name: "Complete handoff" }),
     );
@@ -167,7 +173,7 @@ describe("CompleteHandoffForm", () => {
       </FeedbackShell>,
     );
 
-    await user.type(screen.getByLabelText("Handoff code"), "12345");
+    await enterPlateSuffix(user, "67");
     await user.click(
       screen.getByRole("button", { name: "Complete handoff" }),
     );
@@ -194,7 +200,7 @@ describe("CompleteHandoffForm", () => {
       </FeedbackShell>,
     );
 
-    await user.type(screen.getByLabelText("Handoff code"), "12345");
+    await enterPlateSuffix(user, "67");
     await user.click(
       screen.getByRole("button", { name: "Complete handoff" }),
     );

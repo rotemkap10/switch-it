@@ -20,8 +20,10 @@ export const APP_ERROR_MESSAGES = {
     "You need at least one parking credit to claim a spot.",
   CLAIM_TOO_FAR: "This spot is too far away to claim.",
   LOCATION_REQUIRED: "Live location is required during a parking handoff.",
-  INVALID_HANDOFF_CODE: "That handoff code isn’t correct.",
-  HANDOFF_TEMPORARILY_LOCKED: "Too many attempts. Try again shortly.",
+  INVALID_PLATE_DIGITS: "Those digits don't match.",
+  INVALID_HANDOFF_CODE: "Those digits don't match.",
+  HANDOFF_TEMPORARILY_LOCKED:
+    "Too many incorrect attempts. Try again in a moment.",
   HANDOFF_UNAVAILABLE: "This handoff can no longer be completed.",
   HANDOFF_NOT_READY: "You can extend waiting once the handoff window starts.",
   CLAIM_EXPIRED: "This handoff can no longer be completed.",
@@ -42,6 +44,7 @@ export type AppErrorCode = keyof typeof APP_ERROR_MESSAGES;
 
 /** Codes that should stay next to the handoff input — not toasted. */
 export const INLINE_HANDOFF_ERROR_CODES: ReadonlySet<string> = new Set([
+  "INVALID_PLATE_DIGITS",
   "INVALID_HANDOFF_CODE",
   "HANDOFF_TEMPORARILY_LOCKED",
 ]);

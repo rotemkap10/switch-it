@@ -29,7 +29,6 @@ import {
   isCompleteHandoffVehicle,
   type HandoffVehicle,
 } from "@/lib/vehicle/handoff-vehicle";
-import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
 
 export type ActiveClaimSummary = {
   claimId: string;
@@ -180,7 +179,7 @@ function ActiveClaimSheetBody({
   const showDetails = expanded || closeToSpot;
   const compactVehicleLabel =
     counterpartVehicle && isCompleteHandoffVehicle(counterpartVehicle)
-      ? `${formatVehicleIdentityTitle(counterpartVehicle.make!, counterpartVehicle.model!, counterpartVehicle.year)} · ${VEHICLE_COLOR_LABELS[counterpartVehicle.color!]} · ${formatLicensePlateForDisplay(counterpartVehicle.licensePlate!)}`
+      ? `${formatVehicleIdentityTitle(counterpartVehicle.make!, counterpartVehicle.model!, counterpartVehicle.year)} · ${VEHICLE_COLOR_LABELS[counterpartVehicle.color!]} · ${counterpartVehicle.licensePlateMasked}`
       : null;
 
   return (

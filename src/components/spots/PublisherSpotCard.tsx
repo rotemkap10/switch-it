@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 
 import { CancelSpotButton } from "@/components/spots/CancelSpotButton";
 import { ExtendHandoffWaitButton } from "@/components/spots/ExtendHandoffWaitButton";
-import { HandoffCodeSection } from "@/components/spots/HandoffCodeSection";
 import { PublisherLiveProgressMapLoader } from "@/components/spots/PublisherLiveProgressMapLoader";
 import { ParkingPinSettle } from "@/components/illustrations/ParkingPinSettle";
 import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSection";
@@ -48,7 +47,6 @@ type PublisherSpotCardProps = {
   layout?: "page" | "compact";
   counterpartVehicle?: HandoffVehicle | null;
   ownVehicle?: HandoffVehicle | null;
-  handoffCode?: string | null;
   /** Active claim id when status is claimed — required for live location. */
   activeClaimId?: string | null;
 };
@@ -63,7 +61,6 @@ export function PublisherSpotCard({
   spot,
   layout = "page",
   counterpartVehicle = null,
-  handoffCode = null,
   activeClaimId = null,
 }: PublisherSpotCardProps) {
   const router = useRouter();
@@ -241,12 +238,14 @@ export function PublisherSpotCard({
       </div>
     ) : null;
 
-  const handoffBlock =
-    claimed && handoffCode ? (
-      <div className="motion-fade-in" data-testid="publisher-handoff-priority">
-        <HandoffCodeSection code={handoffCode} />
-      </div>
-    ) : null;
+  const handoffBlock = claimed ? (
+    <p
+      className="text-sm text-muted"
+      data-testid="publisher-plate-handoff-note"
+    >
+      The arriving driver will confirm your vehicle using its license plate.
+    </p>
+  ) : null;
 
   const cancelBlock = (
     <div className="publisher-spot-cancel flex flex-col gap-2">

@@ -42,7 +42,7 @@ import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSectio
 import { resetSessionHandoffAnimationForTests } from "@/components/vehicle/useSessionHandoffAnimation";
 
 const completeVehicle = {
-  licensePlate: "1234567",
+  licensePlateMasked: "12-345-**",
   make: "Mazda",
   model: "3",
   color: "red" as const,
@@ -55,7 +55,7 @@ describe("HandoffVehicleSection", () => {
       <HandoffVehicleSection
         title="Look for this vehicle"
         vehicle={{
-          licensePlate: null,
+          licensePlateMasked: null,
           make: null,
           model: null,
           color: null,

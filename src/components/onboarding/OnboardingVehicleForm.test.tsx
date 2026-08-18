@@ -6,16 +6,6 @@ vi.mock("@/actions/onboarding", () => ({
   completeVehicleOnboarding: vi.fn(),
 }));
 
-vi.mock("@/actions/vehicle-photo", () => ({
-  saveVehiclePhotoPath: vi.fn(),
-  removeVehiclePhoto: vi.fn(),
-}));
-
-vi.mock("@/lib/vehicle/upload-vehicle-photo-client", () => ({
-  uploadVehiclePhotoToStorage: vi.fn(),
-  removeUploadedVehiclePhoto: vi.fn(),
-}));
-
 import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { OnboardingVehicleForm } from "@/components/onboarding/OnboardingVehicleForm";
 
@@ -43,15 +33,8 @@ describe("OnboardingVehicleForm", () => {
       "onboarding-vehicle-form",
     );
     expect(screen.getByTestId("vehicle-illustration-placeholder")).toBeInTheDocument();
-    expect(screen.getByText("Add a photo of your car")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Optional — helps other drivers recognize you during the handoff.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Add photo" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByText("Add a photo of your car")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add photo" })).not.toBeInTheDocument();
     expect(screen.getByText("Start finding parking")).toBeInTheDocument();
     expect(screen.getByLabelText("Manufacturer")).toHaveClass("app-form-control");
     expect(screen.getByLabelText("Manufacturer")).toHaveAttribute("role", "combobox");
@@ -72,6 +55,10 @@ describe("OnboardingVehicleForm", () => {
     expect(screen.getByLabelText("License plate")).toHaveAttribute(
       "inputmode",
       "numeric",
+    );
+    expect(screen.getByLabelText("License plate")).toHaveAttribute(
+      "placeholder",
+      "e.g. 12-345-67",
     );
     expect(screen.getByLabelText("License plate")).toHaveClass("app-form-control");
     expect(screen.queryByRole("link", { name: /skip/i })).not.toBeInTheDocument();

@@ -17,20 +17,17 @@ import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 const claimId = "11111111-1111-4111-8111-111111111111";
 
 describe("claim action confirmations", () => {
-  it("shows the handoff code form without revealing the expected code", async () => {
+  it("shows plate-digit verification without revealing expected digits", async () => {
     render(<FeedbackShell><CompleteHandoffForm claimId={claimId} /></FeedbackShell>);
 
-    expect(screen.getByLabelText("Handoff code")).toBeInTheDocument();
+    expect(screen.getByText("Confirm the vehicle")).toBeInTheDocument();
+    expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Complete handoff" }),
     ).toBeInTheDocument();
     expect(screen.queryByText("Complete the handoff")).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(
-        "Once you’re safely stopped, enter the code to complete the handoff.",
-      ),
-    ).not.toBeInTheDocument();
     expect(screen.queryByText(/^\d{5}$/)).not.toBeInTheDocument();
+    expect(screen.queryByText("67")).not.toBeInTheDocument();
 
     const form = screen.getByTestId("complete-handoff-form");
     expect(form.querySelector('input[name="claim_id"]')).toHaveValue(claimId);

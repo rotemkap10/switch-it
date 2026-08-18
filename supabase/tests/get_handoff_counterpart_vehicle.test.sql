@@ -61,15 +61,14 @@
 -- 10. RPC returns only allowlisted vehicle fields
 -- ---------------------------------------------------------------------------
 -- select
---   vehicle_license_plate,
+--   vehicle_license_plate_masked,
 --   vehicle_make,
 --   vehicle_model,
 --   vehicle_color,
 --   vehicle_type,
 --   vehicle_year
---   vehicle_photo_path
 -- from public.get_handoff_counterpart_vehicle('<active-claim-id>');
--- Expected columns only; no profile id, email, credits, role, or timestamps.
+-- Expected: masked plate such as 12-345-**; no full plate, photo path, profile id, email, credits.
 
 -- ---------------------------------------------------------------------------
 -- 11. Profiles RLS remains unchanged

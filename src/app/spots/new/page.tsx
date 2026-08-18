@@ -9,7 +9,6 @@ import {
 } from "@/components/spots/PublisherSpotCard";
 import { Alert } from "@/components/ui/Alert";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
-import { fetchHandoffCode } from "@/lib/handoff/fetch-handoff-code";
 import { fetchHandoffCounterpartVehicle } from "@/lib/vehicle/fetch-handoff-counterpart-vehicle";
 import { mapProfileVehicleToHandoff } from "@/lib/vehicle/handoff-vehicle";
 
@@ -111,7 +110,6 @@ export default async function NewSpotPage() {
   const ownVehicle = mapProfileVehicleToHandoff(ownProfile);
 
   let counterpartVehicle = null;
-  let handoffCode: string | null = null;
   let activeClaimId: string | null = null;
   if (publisherSpot?.status === "claimed") {
     const { data: activeClaim } = await supabase
@@ -123,10 +121,10 @@ export default async function NewSpotPage() {
 
     if (activeClaim && typeof activeClaim.id === "string") {
       activeClaimId = activeClaim.id;
-      [counterpartVehicle, handoffCode] = await Promise.all([
-        fetchHandoffCounterpartVehicle(supabase, activeClaim.id),
-        fetchHandoffCode(supabase, activeClaim.id),
-      ]);
+      counterpartVehicle = await fetchHandoffCounterpartVehicle(
+        supabase,
+        activeClaim.id,
+      );
     }
   }
 
@@ -152,7 +150,6 @@ export default async function NewSpotPage() {
           activeClaimId={activeClaimId}
           counterpartVehicle={counterpartVehicle}
           ownVehicle={ownVehicle}
-          handoffCode={handoffCode}
         />
       ) : (
         <PublishSpotForm />

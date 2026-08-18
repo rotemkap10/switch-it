@@ -8,9 +8,9 @@ import {
 } from "@/actions/claims";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { HandoffCompleteCelebration } from "@/components/illustrations/HandoffCompleteCelebration";
+import { PlateSuffixInput } from "@/components/map/PlateSuffixInput";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 import { sensoryHandoffCompleted } from "@/lib/sensory/feedback";
 import {
@@ -43,7 +43,6 @@ export function CompleteHandoffForm({
       s.alreadyCompleted
         ? "Handoff already completed."
         : FEEDBACK_SUCCESS_KEYS["handoff-completed"],
-    // Incorrect / locked codes stay next to the input — no duplicate toast.
     toastErrors: false,
   });
 
@@ -74,26 +73,16 @@ export function CompleteHandoffForm({
     <form action={formAction} className="space-y-3" data-testid="complete-handoff-form">
       <input type="hidden" name="claim_id" value={claimId} />
 
-      <Input
-        id={`handoff_code_${claimId}`}
-        name="handoff_code"
-        label="Handoff code"
-        type="text"
-        inputMode="numeric"
-        autoComplete="one-time-code"
-        pattern="[0-9]*"
-        maxLength={5}
+      <div>
+        <h3 className="text-sm font-semibold text-foreground">Confirm the vehicle</h3>
+      </div>
+
+      <PlateSuffixInput
+        id={`plate_suffix_${claimId}`}
+        name="plate_suffix"
         disabled={pending || state.lockout}
-        defaultValue=""
+        error={state.fieldErrors?.plate_suffix?.[0]}
         key={state.lockout ? "lockout" : "default"}
-        error={state.fieldErrors?.handoff_code?.[0]}
-        className="font-mono tracking-[0.2em]"
-        onFocus={(event) => {
-          event.currentTarget.scrollIntoView?.({
-            block: "center",
-            behavior: "auto",
-          });
-        }}
       />
 
       {state.error ? <Alert tone="error">{state.error}</Alert> : null}

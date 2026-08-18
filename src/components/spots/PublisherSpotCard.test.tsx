@@ -189,7 +189,7 @@ const baseSpot = {
 };
 
 const seekerVehicle = {
-  licensePlate: "7654321",
+  licensePlateMasked: "76-543-**",
   make: "Mazda",
   model: "3",
   color: "red" as const,
@@ -376,7 +376,6 @@ describe("PublisherSpotCard", () => {
         spot={{ ...baseSpot, status: "claimed" }}
         layout="page"
         counterpartVehicle={seekerVehicle}
-        handoffCode="48291"
         activeClaimId="11111111-1111-4111-8111-111111111111"
       />,
     );
@@ -393,7 +392,7 @@ describe("PublisherSpotCard", () => {
       testIds.indexOf("handoff-vehicle-section"),
     );
     expect(testIds.indexOf("handoff-vehicle-section")).toBeLessThan(
-      testIds.indexOf("handoff-code-section"),
+      testIds.indexOf("publisher-plate-handoff-note"),
     );
     expect(screen.getByTestId("publisher-claimed-instruction")).toHaveTextContent(
       "Waiting for driver location",
@@ -425,7 +424,6 @@ describe("PublisherSpotCard", () => {
         spot={{ ...baseSpot, status: "claimed" }}
         layout="page"
         counterpartVehicle={seekerVehicle}
-        handoffCode="48291"
         activeClaimId="11111111-1111-4111-8111-111111111111"
       />,
     );
@@ -435,15 +433,19 @@ describe("PublisherSpotCard", () => {
       "data-compact",
       "true",
     );
-    expect(screen.getByText("Red · 76-543-21")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-identity-color")).toHaveTextContent("Red");
     expect(screen.getByText("Mazda 3")).toBeInTheDocument();
     const identity = screen.getByTestId("vehicle-identity-card");
     expect(identity).toHaveAttribute("data-compact", "true");
     expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(screen.queryByTestId("handoff-vehicle-animation")).not.toBeInTheDocument();
-    expect(screen.getByText("Handoff code")).toBeInTheDocument();
-    expect(screen.getByTestId("handoff-code-value")).toHaveTextContent("48291");
+    expect(screen.getByTestId("publisher-plate-handoff-note")).toHaveTextContent(
+      "The arriving driver will confirm your vehicle using its license plate.",
+    );
+    expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
+    expect(screen.queryByText("Give this code to the driver")).not.toBeInTheDocument();
+    expect(screen.queryByText("76-543-21")).not.toBeInTheDocument();
     expect(screen.queryByText(/@/)).not.toBeInTheDocument();
     expect(screen.queryByText(baseSpot.id)).not.toBeInTheDocument();
   });
@@ -454,7 +456,6 @@ describe("PublisherSpotCard", () => {
         spot={{ ...baseSpot, status: "available" }}
         layout="page"
         counterpartVehicle={seekerVehicle}
-        handoffCode="48291"
       />,
     );
 
@@ -469,25 +470,21 @@ describe("PublisherSpotCard", () => {
         spot={{ ...baseSpot, status: "available" }}
         layout="page"
         counterpartVehicle={seekerVehicle}
-        handoffCode="48291"
       />,
     );
 
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
-    expect(screen.queryByText("Red · 76-543-21")).not.toBeInTheDocument();
+    expect(screen.queryByText("Red")).not.toBeInTheDocument();
     expect(screen.queryByText("Handoff code")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("publisher-plate-handoff-note")).not.toBeInTheDocument();
   });
 
-  it("shows the seeker photo during an active handoff when one exists", () => {
+  it("does not show an uploaded seeker photo during an active handoff", () => {
     render(
       <PublisherSpotCard
         spot={{ ...baseSpot, status: "claimed" }}
         layout="page"
-        counterpartVehicle={{
-          ...seekerVehicle,
-          photoUrl: "https://example.test/seeker-car.jpg",
-        }}
-        handoffCode="48291"
+        counterpartVehicle={seekerVehicle}
         activeClaimId="11111111-1111-4111-8111-111111111111"
       />,
     );
@@ -495,13 +492,9 @@ describe("PublisherSpotCard", () => {
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
     const identity = screen.getByTestId("vehicle-identity-card");
     expect(identity).toHaveAttribute("data-compact", "true");
-    expect(within(identity).getByTestId("vehicle-photo")).toBeInTheDocument();
-    expect(within(identity).getByRole("img", { name: "Mazda 3" })).toHaveAttribute(
-      "src",
-      "https://example.test/seeker-car.jpg",
-    );
+    expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
+    expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(screen.getByText("Mazda 3")).toBeInTheDocument();
-    expect(within(identity).queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
   });
 
   it("shows fallback when seeker vehicle is incomplete", () => {
@@ -511,7 +504,7 @@ describe("PublisherSpotCard", () => {
         layout="page"
         activeClaimId="11111111-1111-4111-8111-111111111111"
         counterpartVehicle={{
-          licensePlate: null,
+          licensePlateMasked: null,
           make: null,
           model: null,
           color: null,
@@ -550,7 +543,6 @@ describe("PublisherSpotCard", () => {
         spot={{ ...baseSpot, status: "claimed" }}
         layout="page"
         counterpartVehicle={seekerVehicle}
-        handoffCode="48291"
         activeClaimId="11111111-1111-4111-8111-111111111111"
       />,
     );
@@ -559,6 +551,7 @@ describe("PublisherSpotCard", () => {
       screen.queryByRole("button", { name: /Complete handoff/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Handoff code")).not.toBeInTheDocument();
+    expect(screen.queryByText("Give this code to the driver")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "I’m leaving" }),
     ).toBeInTheDocument();

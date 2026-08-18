@@ -10,6 +10,10 @@ import {
   mapAppError,
 } from "@/lib/feedback/error-map";
 import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
+import {
+  invalidPlateDigitsMessage,
+  parseAttemptsRemaining,
+} from "@/lib/handoff/plate-verification";
 import { shouldRevalidateMapAfterClaimFailure } from "@/lib/map/stale-discovery-errors";
 import {
   cancelClaimSchema,
@@ -137,7 +141,7 @@ export async function completeClaim(
 ): Promise<CompleteClaimActionState> {
   const parsed = completeClaimSchema.safeParse({
     claim_id: formData.get("claim_id"),
-    handoff_code: formData.get("handoff_code"),
+    plate_suffix: formData.get("plate_suffix"),
   });
 
   if (!parsed.success) {
@@ -147,7 +151,7 @@ export async function completeClaim(
   const { supabase } = await requireUser();
   const { data, error } = await supabase.rpc("complete_claim", {
     p_claim_id: parsed.data.claim_id,
-    p_handoff_code: parsed.data.handoff_code,
+    p_plate_suffix: parsed.data.plate_suffix,
   });
 
   if (error) {
@@ -158,6 +162,13 @@ export async function completeClaim(
         error: mapped.message,
         errorCode: mapped.code,
         lockout: true,
+      };
+    }
+
+    if (mapped.code === "INVALID_PLATE_DIGITS" || mapped.code === "INVALID_HANDOFF_CODE") {
+      return {
+        error: invalidPlateDigitsMessage(parseAttemptsRemaining(error)),
+        errorCode: mapped.code,
       };
     }
 

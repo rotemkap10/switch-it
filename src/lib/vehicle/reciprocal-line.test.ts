@@ -4,7 +4,7 @@ import { formatOwnVehicleReciprocalLine } from "@/lib/vehicle/reciprocal-line";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 
 const complete: HandoffVehicle = {
-  licensePlate: "1234567",
+  licensePlateMasked: "12-345-**",
   make: "Hyundai",
   model: "Tucson",
   color: "white",
@@ -12,9 +12,9 @@ const complete: HandoffVehicle = {
 };
 
 describe("formatOwnVehicleReciprocalLine", () => {
-  it("builds the reciprocal recognition line", () => {
+  it("builds the reciprocal recognition line with a masked plate", () => {
     expect(formatOwnVehicleReciprocalLine(complete)).toBe(
-      "They are looking for your White Hyundai Tucson, plate 12-345-67.",
+      "They are looking for your White Hyundai Tucson, plate 12-345-**.",
     );
   });
 

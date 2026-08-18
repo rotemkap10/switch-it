@@ -3,7 +3,6 @@ import {
   isCompleteHandoffVehicle,
   type HandoffVehicle,
 } from "@/lib/vehicle/handoff-vehicle";
-import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
 import { formatCanonicalMakeModelYear } from "@/lib/vehicle/catalog";
 
 /** Compact reciprocal summary — viewer's own vehicle. */
@@ -19,6 +18,9 @@ export function formatOwnVehicleReciprocalLine(
     vehicle.model!,
     vehicle.year,
   );
-  const plate = formatLicensePlateForDisplay(vehicle.licensePlate!);
+  const plate = vehicle.licensePlateMasked;
+  if (!plate) {
+    return null;
+  }
   return `They are looking for your ${color} ${identity}, plate ${plate}.`;
 }

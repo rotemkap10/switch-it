@@ -9,7 +9,6 @@ import {
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { VehicleProfileSummary } from "@/components/profile/VehicleProfileSummary";
 import { VehicleFields } from "@/components/vehicle/VehicleFields";
-import { VehiclePhotoControls } from "@/components/vehicle/VehiclePhotoControls";
 import { Button } from "@/components/ui/Button";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 import { isVehicleProfileComplete } from "@/lib/vehicle/profile-fields";
@@ -21,13 +20,11 @@ export type VehicleFormValues = VehicleProfileFields;
 
 type VehicleFormProps = {
   initialVehicle: VehicleFormValues;
-  initialPhotoUrl?: string | null;
   requiresSetup?: boolean;
 };
 
 export function VehicleForm({
   initialVehicle,
-  initialPhotoUrl = null,
   requiresSetup = false,
 }: VehicleFormProps) {
   const hasVehicle = isVehicleProfileComplete(initialVehicle);
@@ -35,10 +32,6 @@ export function VehicleForm({
     () => requiresSetup || !hasVehicle,
   );
   const [formKey, setFormKey] = useState(0);
-  const [photoPath, setPhotoPath] = useState(
-    initialVehicle.vehicle_photo_path ?? null,
-  );
-  const [photoUrl, setPhotoUrl] = useState(initialPhotoUrl);
   const editButtonRef = useRef<HTMLButtonElement>(null);
 
   const [state, dispatch, pending] = useActionState(
@@ -91,17 +84,8 @@ export function VehicleForm({
         <div className="flex flex-col gap-4" data-testid="vehicle-summary-panel">
           <VehicleProfileSummary
             vehicle={saved}
-            photoUrl={photoUrl}
             variant="stacked"
             entranceAnimation
-          />
-          <VehiclePhotoControls
-            photoPath={photoPath}
-            photoUrl={photoUrl}
-            onPhotoChange={(next) => {
-              setPhotoPath(next.photoPath);
-              setPhotoUrl(next.photoUrl);
-            }}
           />
           <Button
             ref={editButtonRef}
@@ -133,7 +117,6 @@ export function VehicleForm({
                 showPreview
                 previewSize="hero"
                 previewEmphasis
-                photoUrl={photoUrl}
                 state={state}
               />
 

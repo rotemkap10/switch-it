@@ -24,7 +24,7 @@ vi.mock("@/components/vehicle/VehicleIllustration", () => ({
 import { VehicleIdentityCard } from "@/components/vehicle/VehicleIdentityCard";
 
 const completeVehicle = {
-  licensePlate: "12345678",
+  licensePlateMasked: "123-45-6**",
   make: "Hyundai",
   model: "Tucson",
   color: "white" as const,
@@ -32,13 +32,14 @@ const completeVehicle = {
 };
 
 describe("VehicleIdentityCard", () => {
-  it("renders type, color, make, model, and formatted plate", () => {
+  it("renders type, color, make, model, and masked plate", () => {
     render(<VehicleIdentityCard vehicle={completeVehicle} />);
 
     expect(screen.getByTestId("vehicle-identity-card")).toBeInTheDocument();
-    expect(screen.getByText("White · 123-45-678")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-identity-color")).toHaveTextContent("White");
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
-    expect(screen.getByText("123-45-678")).toBeInTheDocument();
+    expect(screen.getByText("123-45-6**")).toBeInTheDocument();
+    expect(screen.queryByText("123-45-678")).not.toBeInTheDocument();
     expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
     expect(screen.getByTestId("vehicle-identity-plate")).toHaveClass(
@@ -46,24 +47,20 @@ describe("VehicleIdentityCard", () => {
     );
   });
 
-  it("shows the claimant photo when a signed url is present", () => {
+  it("ignores an uploaded photo URL and keeps CarImages/illustration fallback", () => {
     render(
       <VehicleIdentityCard
         vehicle={{
           ...completeVehicle,
-          photoUrl: "https://example.test/seeker-car.jpg",
+          // leftover field from older payloads
+          ...({ photoUrl: "https://example.test/seeker-car.jpg" } as object),
         }}
       />,
     );
 
-    expect(screen.getByTestId("vehicle-photo")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "Hyundai Tucson" })).toHaveAttribute(
-      "src",
-      "https://example.test/seeker-car.jpg",
-    );
+    expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
-    expect(screen.getByText("White · 123-45-678")).toBeInTheDocument();
-    expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
   });
 
   it("truncates long make and model text", () => {
@@ -85,11 +82,11 @@ describe("VehicleIdentityCard", () => {
     );
   });
 
-  it("exposes an accessible label with plate", () => {
+  it("exposes an accessible label with the masked plate", () => {
     render(<VehicleIdentityCard vehicle={completeVehicle} />);
 
     expect(
-      screen.getByText("White Hyundai Tucson, license plate 123-45-678"),
+      screen.getByText("White Hyundai Tucson, license plate 123-45-6**"),
     ).toHaveClass("sr-only");
   });
 
@@ -121,7 +118,7 @@ describe("VehicleIdentityCard", () => {
     const { container } = render(
       <VehicleIdentityCard
         vehicle={{
-          licensePlate: null,
+          licensePlateMasked: null,
           make: null,
           model: null,
           color: null,
@@ -147,7 +144,7 @@ describe("VehicleIdentityCard", () => {
       "Hyundai Tucson · 2025",
     );
     expect(
-      screen.getByText("White Hyundai Tucson 2025, license plate 123-45-678"),
+      screen.getByText("White Hyundai Tucson 2025, license plate 123-45-6**"),
     ).toHaveClass("sr-only");
   });
 });

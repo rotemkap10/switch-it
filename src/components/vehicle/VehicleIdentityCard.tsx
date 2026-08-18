@@ -5,7 +5,6 @@ import {
   isCompleteHandoffVehicle,
   type HandoffVehicle,
 } from "@/lib/vehicle/handoff-vehicle";
-import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
 import { VehicleImage } from "@/components/vehicle/VehicleImage";
 
 type VehicleIdentityCardProps = {
@@ -23,8 +22,7 @@ export function VehicleIdentityCard({
     return null;
   }
 
-  const { color, type, make, model, year, licensePlate } = vehicle;
-  const plate = formatLicensePlateForDisplay(licensePlate!);
+  const { color, type, make, model, year, licensePlateMasked } = vehicle;
   const name = formatVehicleIdentityTitle(make!, model!, year);
   const colorLabel = VEHICLE_COLOR_LABELS[color!];
 
@@ -35,7 +33,6 @@ export function VehicleIdentityCard({
       data-compact={compact ? "true" : "false"}
     >
       <VehicleImage
-        photoUrl={vehicle.photoUrl}
         vehicleType={type}
         vehicleColor={color!}
         make={make}
@@ -54,16 +51,19 @@ export function VehicleIdentityCard({
         >
           {name}
         </p>
-        <p className="mt-0.5 truncate text-sm text-muted">
-          {colorLabel} · {plate}
+        <p
+          className="mt-0.5 truncate text-sm text-muted"
+          data-testid="vehicle-identity-color"
+        >
+          {colorLabel}
         </p>
         {compact ? null : (
           <p
             className="vehicle-plate-display mt-2"
             data-testid="vehicle-identity-plate"
-            aria-label={`License plate ${plate}`}
+            aria-label={`License plate ${licensePlateMasked}`}
           >
-            {plate}
+            {licensePlateMasked}
           </p>
         )}
         <p className="sr-only">{handoffVehicleAccessibleLabel(vehicle)}</p>

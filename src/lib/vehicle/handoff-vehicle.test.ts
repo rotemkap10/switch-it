@@ -8,11 +8,10 @@ import {
   mapHandoffVehicleRow,
 } from "@/lib/vehicle/handoff-vehicle";
 import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
-import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
 import { VEHICLE_TYPE_LABELS } from "@/lib/vehicle/types";
 
 const completeRow = {
-  vehicle_license_plate: "12345678",
+  vehicle_license_plate_masked: "123-45-6**",
   vehicle_make: "Hyundai",
   vehicle_model: "Tucson",
   vehicle_color: "white",
@@ -20,16 +19,30 @@ const completeRow = {
 };
 
 describe("mapHandoffVehicleRow", () => {
-  it("maps RPC snake_case columns to HandoffVehicle", () => {
+  it("maps RPC snake_case columns to a masked HandoffVehicle", () => {
     expect(mapHandoffVehicleRow(completeRow)).toEqual({
-      licensePlate: "12345678",
+      licensePlateMasked: "123-45-6**",
       make: "Hyundai",
       model: "Tucson",
       year: null,
       color: "white",
       type: "suv",
-      photoPath: null,
     });
+  });
+
+  it("drops an unmasked plate instead of passing it through", () => {
+    expect(
+      mapHandoffVehicleRow({
+        ...completeRow,
+        vehicle_license_plate_masked: "12345678",
+      }).licensePlateMasked,
+    ).toBeNull();
+    expect(
+      mapHandoffVehicleRow({
+        ...completeRow,
+        vehicle_license_plate_masked: "123-45-678",
+      }).licensePlateMasked,
+    ).toBeNull();
   });
 
   it("nulls invalid enum values", () => {
@@ -40,13 +53,12 @@ describe("mapHandoffVehicleRow", () => {
         vehicle_type: "coupe",
       }),
     ).toEqual({
-      licensePlate: "12345678",
+      licensePlateMasked: "123-45-6**",
       make: "Hyundai",
       model: "Tucson",
       year: null,
       color: null,
       type: null,
-      photoPath: null,
     });
   });
 
@@ -69,28 +81,16 @@ describe("mapHandoffVehicleRow", () => {
     ).toBe(true);
   });
 
-  it("maps an optional vehicle photo path without treating it as required", () => {
-    expect(
-      mapHandoffVehicleRow({
-        ...completeRow,
-        vehicle_photo_path: "seeker-id/photo.jpg",
-      }),
-    ).toMatchObject({
-      photoPath: "seeker-id/photo.jpg",
-    });
-    expect(
-      isCompleteHandoffVehicle(
-        mapHandoffVehicleRow({
-          ...completeRow,
-          vehicle_photo_path: null,
-        }),
-      ),
-    ).toBe(true);
+  it("does not map a leftover photo path onto the client vehicle", () => {
+    const vehicle = mapHandoffVehicleRow(completeRow);
+    expect(vehicle).not.toHaveProperty("photoPath");
+    expect(vehicle).not.toHaveProperty("photoUrl");
+    expect(vehicle).not.toHaveProperty("licensePlate");
   });
 });
 
 describe("isCompleteHandoffVehicle", () => {
-  it("returns true for complete data", () => {
+  it("returns true for complete masked data", () => {
     expect(
       isCompleteHandoffVehicle(mapHandoffVehicleRow(completeRow)),
     ).toBe(true);
@@ -99,7 +99,7 @@ describe("isCompleteHandoffVehicle", () => {
   it("returns false for null or partial data", () => {
     expect(
       isCompleteHandoffVehicle({
-        licensePlate: null,
+        licensePlateMasked: null,
         make: null,
         model: null,
         color: null,
@@ -109,7 +109,7 @@ describe("isCompleteHandoffVehicle", () => {
 
     expect(
       isCompleteHandoffVehicle({
-        licensePlate: "1234567",
+        licensePlateMasked: "12-345-**",
         make: "Hyundai",
         model: null,
         color: "white",
@@ -119,7 +119,7 @@ describe("isCompleteHandoffVehicle", () => {
 
     expect(
       isCompleteHandoffVehicle({
-        licensePlate: "1234567",
+        licensePlateMasked: "12-345-**",
         make: "Hyundai",
         model: "Tucson",
         color: "white",
@@ -130,13 +130,13 @@ describe("isCompleteHandoffVehicle", () => {
 });
 
 describe("handoffVehicleAccessibleLabel", () => {
-  it("formats a complete vehicle label with plate", () => {
+  it("formats a complete vehicle label with the masked plate", () => {
     const vehicle = mapHandoffVehicleRow(completeRow);
-    const plate = formatLicensePlateForDisplay(vehicle.licensePlate!);
 
     expect(handoffVehicleAccessibleLabel(vehicle)).toBe(
-      `${VEHICLE_COLOR_LABELS.white} Hyundai Tucson, license plate ${plate}`,
+      `${VEHICLE_COLOR_LABELS.white} Hyundai Tucson, license plate 123-45-6**`,
     );
+    expect(handoffVehicleAccessibleLabel(vehicle)).not.toContain("678");
   });
 
   it("includes year in the accessible label when present", () => {
@@ -144,17 +144,16 @@ describe("handoffVehicleAccessibleLabel", () => {
       ...completeRow,
       vehicle_year: 2025,
     });
-    const plate = formatLicensePlateForDisplay(vehicle.licensePlate!);
 
     expect(handoffVehicleAccessibleLabel(vehicle)).toBe(
-      `${VEHICLE_COLOR_LABELS.white} Hyundai Tucson 2025, license plate ${plate}`,
+      `${VEHICLE_COLOR_LABELS.white} Hyundai Tucson 2025, license plate 123-45-6**`,
     );
   });
 
   it("uses fallback copy for incomplete vehicles", () => {
     expect(
       handoffVehicleAccessibleLabel({
-        licensePlate: null,
+        licensePlateMasked: null,
         make: null,
         model: null,
         color: null,

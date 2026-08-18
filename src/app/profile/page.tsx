@@ -7,7 +7,6 @@ import { VehicleForm } from "@/components/profile/VehicleForm";
 import { Alert } from "@/components/ui/Alert";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
 import { isVehicleProfileComplete } from "@/lib/vehicle/profile-fields";
-import { createVehiclePhotoSignedUrl } from "@/lib/vehicle/signed-photo-url";
 
 export default async function ProfilePage() {
   const { supabase, user, status } = await requireAuthenticatedVehicleAccess({
@@ -45,12 +44,6 @@ export default async function ProfilePage() {
     vehicle_photo_path: profile.vehicle_photo_path ?? null,
   };
   const vehicleComplete = isVehicleProfileComplete(vehicle);
-  const photoUrl = await createVehiclePhotoSignedUrl(
-    supabase,
-    typeof profile.vehicle_photo_path === "string"
-      ? profile.vehicle_photo_path
-      : null,
-  );
 
   return (
     <AuthenticatedShell
@@ -117,7 +110,6 @@ export default async function ProfilePage() {
           </p>
           <VehicleForm
             initialVehicle={vehicle}
-            initialPhotoUrl={photoUrl}
             requiresSetup={!status.vehicleComplete}
           />
         </section>

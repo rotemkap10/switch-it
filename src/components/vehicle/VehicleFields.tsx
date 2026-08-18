@@ -40,8 +40,6 @@ type VehicleFieldsProps = {
   previewSize?: "default" | "compact" | "hero";
   /** Short nudge when opening the editor (not a full drive-in). */
   previewEmphasis?: boolean;
-  /** Signed or local preview URL for an uploaded vehicle photo. */
-  photoUrl?: string | null;
   state?: VehicleFieldsState;
 };
 
@@ -53,7 +51,6 @@ export function VehicleFields({
   placeholderPreview = false,
   previewSize = "default",
   previewEmphasis = false,
-  photoUrl = null,
   state,
 }: VehicleFieldsProps) {
   const [vehicleColor, setVehicleColor] = useState(
@@ -114,7 +111,6 @@ export function VehicleFields({
       {showPreview ? (
         <div className="vehicle-illustration-shell">
           <VehicleImage
-            photoUrl={photoUrl}
             vehicleType={previewType}
             vehicleColor={previewColor}
             make={vehicleMake}
@@ -123,7 +119,7 @@ export function VehicleFields({
             placeholderPreview={placeholderPreview}
             size={previewSize}
             animate={false}
-            className={previewEmphasis && !photoUrl ? "motion-vehicle-preview-nudge" : ""}
+            className={previewEmphasis ? "motion-vehicle-preview-nudge" : ""}
             label={
               previewColor
                 ? VEHICLE_COLOR_LABELS[previewColor]

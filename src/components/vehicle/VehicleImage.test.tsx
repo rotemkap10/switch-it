@@ -30,7 +30,7 @@ describe("VehicleImage", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
-  it("shows the uploaded photo when a url is present", () => {
+  it("does not show an uploaded photo even when a url is passed", () => {
     render(
       <VehicleImage
         photoUrl="https://example.test/car.jpg"
@@ -41,13 +41,8 @@ describe("VehicleImage", () => {
       />,
     );
 
-    const photo = screen.getByTestId("vehicle-photo");
-    expect(photo).toHaveAttribute("data-size", "hero");
-    expect(screen.getByRole("img", { name: "White SUV" })).toHaveAttribute(
-      "src",
-      "https://example.test/car.jpg",
-    );
-    expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
   });
 
   it("falls back to the illustration when there is no photo", () => {
@@ -71,7 +66,9 @@ describe("VehicleImage", () => {
     );
   });
 
-  it("still prefers an uploaded photo over a CarImages make/model match", () => {
+  it("uses CarImages before the generic illustration and ignores uploaded photos", () => {
+    vi.stubEnv("NEXT_PUBLIC_CARIMAGES_API_KEY", "ci_public_test");
+
     render(
       <VehicleImage
         photoUrl="https://example.test/car.jpg"
@@ -85,13 +82,12 @@ describe("VehicleImage", () => {
       />,
     );
 
-    expect(screen.getByTestId("vehicle-photo")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "White SUV" })).toHaveAttribute(
-      "src",
-      "https://example.test/car.jpg",
+    expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-model-image")).toHaveAttribute(
+      "data-ci-make",
+      "Hyundai",
     );
-    expect(screen.queryByTestId("vehicle-model-image")).not.toBeInTheDocument();
-    expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
   });
 
   it("sends canonical make and model to CarImages even when stored casing differs", () => {

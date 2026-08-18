@@ -29,7 +29,7 @@ type UseActionFeedbackOptions = {
 
 /**
  * Bridges useActionState results to the global feedback viewport.
- * Field validation stays inline. Handoff code errors stay inline by default.
+ * Field validation stays inline. Plate-digit verification errors stay inline by default.
  */
 export function useActionFeedback(
   state: ActionFeedbackState,

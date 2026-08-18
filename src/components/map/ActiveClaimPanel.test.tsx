@@ -149,7 +149,7 @@ const destination = {
 };
 
 const ownerVehicle = {
-  licensePlate: "1234567",
+  licensePlateMasked: "12-345-**",
   make: "Hyundai",
   model: "Tucson",
   color: "white" as const,
@@ -610,9 +610,10 @@ describe("ActiveClaimPanel sheet UX", () => {
         "Meet the other driver before they pull away so you can take the spot smoothly.",
       ),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("White · 12-345-67")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-identity-color")).toHaveTextContent("White");
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
-    expect(screen.getByText("12-345-67")).toBeInTheDocument();
+    expect(screen.getByText("12-345-**")).toBeInTheDocument();
+    expect(screen.queryByText("12-345-67")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("handoff-vehicle-animation"),
     ).not.toBeInTheDocument();
@@ -622,9 +623,9 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
-    expect(screen.queryByText("White · 12-345-67")).not.toBeInTheDocument();
+    expect(screen.queryByText("12-345-**")).not.toBeInTheDocument();
     expect(screen.getByTestId("active-claim-compact-vehicle")).toHaveTextContent(
-      "Hyundai Tucson · White · 12-345-67",
+      "Hyundai Tucson · White · 12-345-**",
     );
     expect(
       screen.queryByTestId("handoff-vehicle-animation"),
@@ -657,7 +658,8 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.queryByTestId("handoff-vehicle-animation"),
     ).not.toBeInTheDocument();
-    expect(screen.getByText("White · 12-345-67")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-identity-color")).toHaveTextContent("White");
+    expect(screen.getByText("12-345-**")).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Navigate to spot" }),
     ).toBeInTheDocument();
@@ -670,7 +672,7 @@ describe("ActiveClaimPanel sheet UX", () => {
         claim={claim}
         destination={destination}
         counterpartVehicle={{
-          licensePlate: null,
+          licensePlateMasked: null,
           make: null,
           model: null,
           color: null,
@@ -759,27 +761,24 @@ describe("ActiveClaimPanel sheet UX", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the vehicle photo when a signed URL is available", () => {
+  it("does not show an uploaded vehicle photo to the seeker", () => {
     renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
         counterpartVehicle={{
           ...ownerVehicle,
-          photoUrl: "https://example.test/vehicle.jpg",
         }}
         variant="overlay"
       />,
     );
 
     const identity = screen.getByTestId("vehicle-identity-card");
-    expect(within(identity).getByTestId("vehicle-photo").querySelector("img")).toHaveAttribute(
-      "src",
-      "https://example.test/vehicle.jpg",
-    );
-    expect(within(identity).queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
+    expect(within(identity).queryByTestId("vehicle-photo")).not.toBeInTheDocument();
+    expect(within(identity).getByTestId("vehicle-illustration")).toBeInTheDocument();
     expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
-    expect(screen.getByText("White · 12-345-67")).toBeInTheDocument();
+    expect(screen.getByText("12-345-**")).toBeInTheDocument();
+    expect(screen.queryByText("12-345-67")).not.toBeInTheDocument();
   });
 
   it("falls back to the vehicle illustration when no photo is available", () => {

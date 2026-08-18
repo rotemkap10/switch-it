@@ -52,10 +52,10 @@ describe("claimSpotSchema", () => {
 });
 
 describe("completeClaimSchema", () => {
-  it("accepts a valid claim_id and handoff_code", () => {
+  it("accepts a valid claim_id and two plate digits", () => {
     const result = completeClaimSchema.safeParse({
       claim_id: validUuid,
-      handoff_code: "12345",
+      plate_suffix: "67",
     });
     expect(result.success).toBe(true);
   });
@@ -64,16 +64,16 @@ describe("completeClaimSchema", () => {
     expect(
       completeClaimSchema.safeParse({
         claim_id: "abc",
-        handoff_code: "12345",
+        plate_suffix: "67",
       }).success,
     ).toBe(false);
   });
 
-  it("rejects an invalid handoff_code", () => {
+  it("rejects an invalid plate suffix", () => {
     expect(
       completeClaimSchema.safeParse({
         claim_id: validUuid,
-        handoff_code: "12ab",
+        plate_suffix: "6a",
       }).success,
     ).toBe(false);
   });

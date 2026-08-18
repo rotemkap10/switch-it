@@ -14,16 +14,6 @@ vi.mock("@/actions/profile", () => ({
   updateVehicle: updateVehicleMock,
 }));
 
-vi.mock("@/actions/vehicle-photo", () => ({
-  saveVehiclePhotoPath: vi.fn(),
-  removeVehiclePhoto: vi.fn(),
-}));
-
-vi.mock("@/lib/vehicle/upload-vehicle-photo-client", () => ({
-  uploadVehiclePhotoToStorage: vi.fn(),
-  removeUploadedVehiclePhoto: vi.fn(),
-}));
-
 function fieldErrorsFromZod(error: import("zod").ZodError) {
   const fieldErrors: Record<string, string[]> = {};
   for (const issue of error.issues) {
@@ -116,9 +106,7 @@ describe("VehicleForm", () => {
       "data-size",
       "hero",
     );
-    expect(
-      screen.getByRole("button", { name: "Add photo" }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add photo" })).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Edit vehicle details" }),
     ).toHaveAttribute("aria-expanded", "false");
@@ -158,31 +146,21 @@ describe("VehicleForm", () => {
     expect(screen.queryByLabelText("Vehicle type")).not.toBeInTheDocument();
   });
 
-  it("shows change and remove when a vehicle photo already exists", () => {
+  it("does not show uploaded photos or photo controls even when a path exists", () => {
     renderForm(
       <VehicleForm
         initialVehicle={{
           ...existingVehicle,
           vehicle_photo_path: "user/photo.jpg",
         }}
-        initialPhotoUrl="https://example.test/car.jpg"
       />,
     );
 
-    expect(screen.getByTestId("vehicle-photo")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "White" })).toHaveAttribute(
-      "src",
-      "https://example.test/car.jpg",
-    );
-    expect(screen.getByRole("button", { name: "Change photo" })).toBeInTheDocument();
-    expect(screen.getByTestId("vehicle-photo-picker").className).toContain(
-      "border-border",
-    );
-    expect(screen.getByRole("button", { name: "Remove photo" })).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Take Photo" }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-photo")).not.toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add photo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Change photo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove photo" })).not.toBeInTheDocument();
   });
 
   it("expands the editor and populates existing vehicle values", async () => {

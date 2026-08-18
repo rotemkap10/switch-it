@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { type ReactNode } from "react";
 
 import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
 import { VehicleModelImage } from "@/components/vehicle/VehicleModelImage";
@@ -9,6 +9,7 @@ import type { VehicleColor } from "@/lib/vehicle/colors";
 import type { VehicleType } from "@/lib/vehicle/types";
 
 type VehicleImageProps = {
+  /** Uploaded photos are no longer shown. Kept so legacy callers can pass it. */
   photoUrl?: string | null;
   vehicleType?: VehicleType | null;
   vehicleColor?: VehicleColor | null;
@@ -24,7 +25,6 @@ type VehicleImageProps = {
 };
 
 export function VehicleImage({
-  photoUrl = null,
   vehicleType = null,
   vehicleColor = null,
   make = null,
@@ -37,32 +37,6 @@ export function VehicleImage({
   animate = false,
   dataEntrance = false,
 }: VehicleImageProps) {
-  const [photoFailed, setPhotoFailed] = useState(false);
-  const showPhoto = Boolean(photoUrl) && !photoFailed;
-
-  if (showPhoto && photoUrl) {
-    return (
-      <div
-        className={[
-          "vehicle-photo-frame",
-          `vehicle-photo-frame--${size}`,
-          className,
-        ].join(" ")}
-        data-testid="vehicle-photo"
-        data-size={size}
-      >
-        {/* Signed or blob URLs; keep native img so expired/local previews work. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={photoUrl}
-          alt={label || "Your vehicle"}
-          className="vehicle-photo-frame__image"
-          onError={() => setPhotoFailed(true)}
-        />
-      </div>
-    );
-  }
-
   const identity = resolveCanonicalVehicleIdentity(make, model);
   const derivedType = getVehicleClass(identity.make, identity.model, vehicleType);
 

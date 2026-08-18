@@ -7,7 +7,6 @@ import type { VehicleProfileFields } from "@/lib/vehicle/profile-fields";
 
 type VehicleProfileSummaryProps = {
   vehicle: VehicleProfileFields;
-  photoUrl?: string | null;
   /**
    * `stacked` — large full-width illustration above compact text (profile card).
    * `inline` — text-only compact block (top summary row).
@@ -20,7 +19,6 @@ type VehicleProfileSummaryProps = {
 
 export function VehicleProfileSummary({
   vehicle,
-  photoUrl = null,
   variant = "inline",
   entranceAnimation = false,
   className = "",
@@ -85,7 +83,6 @@ export function VehicleProfileSummary({
         data-testid="vehicle-summary"
       >
         <VehicleImage
-          photoUrl={photoUrl}
           vehicleType={summary.vehicleType}
           vehicleColor={summary.vehicleColor}
           make={vehicle.vehicle_make}
@@ -94,8 +91,8 @@ export function VehicleProfileSummary({
           animate={false}
           size="hero"
           label={summary.colorType}
-          className={driveIn && !photoUrl ? "motion-vehicle-drive-in" : ""}
-          dataEntrance={driveIn && !photoUrl}
+          className={driveIn ? "motion-vehicle-drive-in" : ""}
+          dataEntrance={driveIn}
         />
         {details}
       </div>

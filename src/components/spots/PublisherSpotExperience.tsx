@@ -19,7 +19,6 @@ type PublisherSpotExperienceProps = {
   activeClaimId: string | null;
   counterpartVehicle?: HandoffVehicle | null;
   ownVehicle?: HandoffVehicle | null;
-  handoffCode?: string | null;
 };
 
 /**
@@ -31,7 +30,6 @@ export function PublisherSpotExperience({
   activeClaimId: serverClaimId,
   counterpartVehicle = null,
   ownVehicle = null,
-  handoffCode = null,
 }: PublisherSpotExperienceProps) {
   const [claimHint, setClaimHint] = useState<PublisherClaimHint | null>(null);
 
@@ -58,7 +56,6 @@ export function PublisherSpotExperience({
         layout="page"
         counterpartVehicle={counterpartVehicle}
         ownVehicle={ownVehicle}
-        handoffCode={handoffCode}
         activeClaimId={merged.activeClaimId}
       />
     </>

@@ -5,7 +5,6 @@ import {
   type HandoffVehicle,
   type HandoffVehicleRow,
 } from "@/lib/vehicle/handoff-vehicle";
-import { createVehiclePhotoSignedUrl } from "@/lib/vehicle/signed-photo-url";
 
 export async function fetchHandoffCounterpartVehicle(
   supabase: SupabaseClient,
@@ -29,14 +28,5 @@ export async function fetchHandoffCounterpartVehicle(
     return null;
   }
 
-  const vehicle = mapHandoffVehicleRow(row as HandoffVehicleRow);
-  const photoUrl = await createVehiclePhotoSignedUrl(
-    supabase,
-    vehicle.photoPath,
-  );
-
-  return {
-    ...vehicle,
-    photoUrl,
-  };
+  return mapHandoffVehicleRow(row as HandoffVehicleRow);
 }

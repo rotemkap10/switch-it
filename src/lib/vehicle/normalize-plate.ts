@@ -74,3 +74,51 @@ export function formatLicensePlateForDisplay(normalized: string): string {
   }
   return parts.join("-");
 }
+
+const NON_DIGIT_OR_MASK = /[^0-9*]/g;
+
+/**
+ * Last two digits of a stored (normalized) plate. Comparison-only helper;
+ * never send this value to a counterpart client.
+ */
+export function licensePlateSuffix(normalized: string): string | null {
+  const digits = normalized.replace(NON_DIGIT_PATTERN, "");
+  if (digits.length < 2) {
+    return null;
+  }
+  return digits.slice(-2);
+}
+
+/**
+ * True when a display string is a masked plate (visible prefix + `**`)
+ * and does not contain the hidden digits.
+ */
+export function isMaskedLicensePlateDisplay(value: string): boolean {
+  const compact = value.replace(NON_DIGIT_OR_MASK, "");
+  return /^\d+\*{2}$/.test(compact) && compact.length >= 3;
+}
+
+/**
+ * Format a stored plate with the last two digits replaced by `**`.
+ * Example: `1234567` → `12-345-**`.
+ */
+export function maskLicensePlateForHandoff(normalized: string): string | null {
+  const digits = normalized.replace(NON_DIGIT_PATTERN, "");
+  if (digits.length < 2) {
+    return null;
+  }
+
+  const formatted = formatLicensePlateForDisplay(digits);
+  let remaining = 2;
+  let masked = "";
+  for (let index = formatted.length - 1; index >= 0; index -= 1) {
+    const character = formatted[index]!;
+    if (remaining > 0 && character >= "0" && character <= "9") {
+      masked = `*${masked}`;
+      remaining -= 1;
+    } else {
+      masked = `${character}${masked}`;
+    }
+  }
+  return isMaskedLicensePlateDisplay(masked) ? masked : null;
+}

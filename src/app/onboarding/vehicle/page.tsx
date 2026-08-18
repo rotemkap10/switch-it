@@ -2,7 +2,6 @@ import { AuthBrand } from "@/components/brand/AuthBrand";
 import { OnboardingVehicleForm } from "@/components/onboarding/OnboardingVehicleForm";
 import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMarker";
 import { requireAuthenticatedVehicleAccess } from "@/lib/auth/vehicle-access";
-import { createVehiclePhotoSignedUrl } from "@/lib/vehicle/signed-photo-url";
 
 const emptyVehicle = {
   license_plate: null,
@@ -15,14 +14,10 @@ const emptyVehicle = {
 };
 
 export default async function VehicleOnboardingPage() {
-  const { supabase, status } = await requireAuthenticatedVehicleAccess({
+  const { status } = await requireAuthenticatedVehicleAccess({
     mode: "onboarding-only",
   });
   const initialVehicle = status.vehicle ?? emptyVehicle;
-  const initialPhotoUrl = await createVehiclePhotoSignedUrl(
-    supabase,
-    initialVehicle.vehicle_photo_path,
-  );
 
   return (
     <main className="auth-page motion-page-enter" data-testid="onboarding-vehicle-page">
@@ -37,10 +32,7 @@ export default async function VehicleOnboardingPage() {
         </p>
       </div>
       <div className="mobile-form-surface">
-        <OnboardingVehicleForm
-          initialVehicle={initialVehicle}
-          initialPhotoUrl={initialPhotoUrl}
-        />
+        <OnboardingVehicleForm initialVehicle={initialVehicle} />
       </div>
     </main>
   );

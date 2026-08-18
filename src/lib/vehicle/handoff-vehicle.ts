@@ -1,33 +1,42 @@
 import { isVehicleColor, VEHICLE_COLOR_LABELS, type VehicleColor } from "@/lib/vehicle/colors";
-import { formatLicensePlateForDisplay } from "@/lib/vehicle/normalize-plate";
+import {
+  isMaskedLicensePlateDisplay,
+  maskLicensePlateForHandoff,
+} from "@/lib/vehicle/normalize-plate";
 import { isVehicleType, type VehicleType } from "@/lib/vehicle/types";
 import { formatCanonicalMakeModelYear } from "@/lib/vehicle/catalog";
 import { coerceVehicleYear } from "@/lib/vehicle/years";
 
 export type HandoffVehicle = {
-  licensePlate: string | null;
+  /** Already-masked display plate (e.g. `12-345-**`). Never the full plate. */
+  licensePlateMasked: string | null;
   make: string | null;
   model: string | null;
   year?: number | null;
   color: VehicleColor | null;
   type: VehicleType | null;
-  photoPath?: string | null;
-  photoUrl?: string | null;
 };
 
 export type HandoffVehicleRow = {
-  vehicle_license_plate: string | null;
+  vehicle_license_plate_masked?: string | null;
   vehicle_make: string | null;
   vehicle_model: string | null;
   vehicle_year?: number | null;
   vehicle_color: string | null;
   vehicle_type: string | null;
-  vehicle_photo_path?: string | null;
 };
+
+function sanitizeMaskedPlate(value: string | null | undefined): string | null {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return isMaskedLicensePlateDisplay(trimmed) ? trimmed : null;
+}
 
 export function mapHandoffVehicleRow(row: HandoffVehicleRow): HandoffVehicle {
   return {
-    licensePlate: row.vehicle_license_plate,
+    licensePlateMasked: sanitizeMaskedPlate(row.vehicle_license_plate_masked),
     make: row.vehicle_make,
     model: row.vehicle_model,
     year: coerceVehicleYear(row.vehicle_year),
@@ -39,11 +48,10 @@ export function mapHandoffVehicleRow(row: HandoffVehicleRow): HandoffVehicle {
       row.vehicle_type && isVehicleType(row.vehicle_type)
         ? row.vehicle_type
         : null,
-    photoPath: row.vehicle_photo_path ?? null,
   };
 }
 
-/** Map a profiles vehicle row (own vehicle) into handoff shape. */
+/** Map a profiles vehicle row (own vehicle) into handoff shape with a masked plate. */
 export function mapProfileVehicleToHandoff(row: {
   license_plate?: string | null;
   vehicle_make?: string | null;
@@ -51,26 +59,26 @@ export function mapProfileVehicleToHandoff(row: {
   vehicle_year?: number | null;
   vehicle_color?: string | null;
   vehicle_type?: string | null;
-  vehicle_photo_path?: string | null;
 } | null | undefined): HandoffVehicle | null {
   if (!row) {
     return null;
   }
   return mapHandoffVehicleRow({
-    vehicle_license_plate: row.license_plate ?? null,
+    vehicle_license_plate_masked: row.license_plate
+      ? maskLicensePlateForHandoff(row.license_plate)
+      : null,
     vehicle_make: row.vehicle_make ?? null,
     vehicle_model: row.vehicle_model ?? null,
     vehicle_year: row.vehicle_year ?? null,
     vehicle_color: row.vehicle_color ?? null,
     vehicle_type: row.vehicle_type ?? null,
-    vehicle_photo_path: row.vehicle_photo_path ?? null,
   });
 }
 
 export function isCompleteHandoffVehicle(vehicle: HandoffVehicle): boolean {
   return (
-    typeof vehicle.licensePlate === "string" &&
-    vehicle.licensePlate.length > 0 &&
+    typeof vehicle.licensePlateMasked === "string" &&
+    isMaskedLicensePlateDisplay(vehicle.licensePlateMasked) &&
     typeof vehicle.make === "string" &&
     vehicle.make.trim().length > 0 &&
     typeof vehicle.model === "string" &&
@@ -103,7 +111,6 @@ export function handoffVehicleAccessibleLabel(vehicle: HandoffVehicle): string {
     return "Vehicle details not added yet";
   }
 
-  const plate = formatLicensePlateForDisplay(vehicle.licensePlate!);
   const yearSuffix = vehicle.year != null ? ` ${vehicle.year}` : "";
-  return `${VEHICLE_COLOR_LABELS[vehicle.color!]} ${vehicle.make} ${vehicle.model}${yearSuffix}, license plate ${plate}`;
+  return `${VEHICLE_COLOR_LABELS[vehicle.color!]} ${vehicle.make} ${vehicle.model}${yearSuffix}, license plate ${vehicle.licensePlateMasked}`;
 }

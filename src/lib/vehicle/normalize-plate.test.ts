@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatLicensePlateForDisplay,
+  isMaskedLicensePlateDisplay,
+  licensePlateSuffix,
+  maskLicensePlateForHandoff,
   normalizeLicensePlate,
   PLATE_MAX_DIGITS,
   PLATE_MIN_DIGITS,
@@ -77,5 +80,27 @@ describe("formatLicensePlateForDisplay", () => {
 
   it("strips non-digits before formatting", () => {
     expect(formatLicensePlateForDisplay("12-345-67")).toBe("12-345-67");
+  });
+});
+
+describe("maskLicensePlateForHandoff", () => {
+  it("masks the last two digits while keeping Israeli grouping", () => {
+    expect(maskLicensePlateForHandoff("1234567")).toBe("12-345-**");
+    expect(maskLicensePlateForHandoff("12-345-67")).toBe("12-345-**");
+    expect(maskLicensePlateForHandoff("12345678")).toBe("123-45-6**");
+    expect(maskLicensePlateForHandoff("12345")).toBe("12-3**");
+    expect(maskLicensePlateForHandoff("123456")).toBe("123-4**");
+  });
+
+  it("does not include the hidden digits in the masked value", () => {
+    expect(maskLicensePlateForHandoff("1234567")).not.toContain("67");
+    expect(isMaskedLicensePlateDisplay("12-345-**")).toBe(true);
+    expect(isMaskedLicensePlateDisplay("12-345-67")).toBe(false);
+    expect(isMaskedLicensePlateDisplay("1234567")).toBe(false);
+  });
+
+  it("extracts the last two digits only from normalized plates", () => {
+    expect(licensePlateSuffix("1234567")).toBe("67");
+    expect(licensePlateSuffix("12-345-67")).toBe("67");
   });
 });

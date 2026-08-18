@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { APP_ERROR_MESSAGES } from "@/lib/feedback/error-map";
-import { handoffCodeSchema } from "@/lib/validations/handoff-code";
+import { plateSuffixSchema } from "@/lib/validations/plate-suffix";
 
 const LOCATION_REQUIRED_MESSAGE = APP_ERROR_MESSAGES.LOCATION_REQUIRED;
 
@@ -45,7 +45,7 @@ export const claimSpotSchema = z.object({
 
 export const completeClaimSchema = z.object({
   claim_id: z.uuid("Choose a valid claim."),
-  handoff_code: handoffCodeSchema,
+  plate_suffix: plateSuffixSchema,
 });
 
 export const cancelClaimSchema = z.object({
