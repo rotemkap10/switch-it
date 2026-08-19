@@ -79,6 +79,26 @@ describe("SpotDiscoveryCarousel", () => {
     expect(screen.queryByText(/away$/)).not.toBeInTheDocument();
   });
 
+  it("labels an early-started listing as Available now", () => {
+    render(
+      <SpotDiscoveryCarousel
+        spots={[
+          spot({
+            id: "live",
+            available_at: new Date(now + 4 * 60_000).toISOString(),
+            expires_at: new Date(now + 3 * 60_000).toISOString(),
+            handoff_started_at: new Date(now).toISOString(),
+          }),
+        ]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Available now")).toBeInTheDocument();
+    expect(screen.queryByText(/Available in/)).not.toBeInTheDocument();
+  });
+
   it("hides expired spots", () => {
     render(
       <SpotDiscoveryCarousel

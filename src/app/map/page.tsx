@@ -16,6 +16,7 @@ type SpotRow = {
   address: string | null;
   available_at: string;
   expires_at: string;
+  handoff_started_at?: string | null;
   owner_id: string;
 };
 
@@ -85,6 +86,10 @@ function toMapSpots(rows: unknown, userId: string): MapSpot[] {
         address: spot.address ?? null,
         available_at: spot.available_at,
         expires_at: spot.expires_at,
+        handoff_started_at:
+          typeof spot.handoff_started_at === "string"
+            ? spot.handoff_started_at
+            : null,
         canClaim: spot.owner_id !== userId,
       },
     ];
@@ -261,7 +266,7 @@ export default async function MapPage() {
           supabase
             .from("parking_spots")
             .select(
-              "id, latitude, longitude, address, available_at, expires_at, owner_id",
+              "id, latitude, longitude, address, available_at, expires_at, handoff_started_at, owner_id",
             )
             .eq("status", "available")
             .gt("expires_at", new Date().toISOString()),

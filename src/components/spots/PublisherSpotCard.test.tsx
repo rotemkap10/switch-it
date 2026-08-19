@@ -415,6 +415,42 @@ describe("PublisherSpotCard", () => {
     expect(screen.getByTestId("start-handoff-now")).toBeInTheDocument();
   });
 
+  it("keeps an unclaimed live Now-style listing after I'm leaving now", () => {
+    vi.useFakeTimers({
+      now: new Date("2026-08-04T22:42:00.000Z"),
+    });
+    render(
+      <PublisherSpotCard
+        spot={{
+          ...baseSpot,
+          status: "available",
+          available_at: "2026-08-04T22:45:00.000Z",
+          expires_at: "2026-08-04T22:45:00.000Z",
+          handoff_started_at: "2026-08-04T22:42:00.000Z",
+        }}
+        layout="page"
+      />,
+    );
+
+    expect(screen.getByTestId("publisher-spot-card")).toHaveAttribute(
+      "data-handoff-phase",
+      "active",
+    );
+    expect(screen.getByText(PUBLISHER_WAITING_STATUS)).toBeInTheDocument();
+    expect(screen.queryByTestId("start-handoff-now")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("extend-handoff-wait")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Cancel spot" })).toBeInTheDocument();
+    expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
+      "data-started",
+      "2026-08-04T22:42:00.000Z",
+    );
+    expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
+      "data-expires",
+      "2026-08-04T22:45:00.000Z",
+    );
+    vi.useRealTimers();
+  });
+
   it("treats estimated departure as an automatic start and hides I'm leaving now", () => {
     vi.useFakeTimers({
       now: new Date("2026-08-04T22:46:00.000Z"),

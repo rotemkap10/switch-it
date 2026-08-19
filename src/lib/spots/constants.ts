@@ -4,7 +4,8 @@
  * available_at = promised departure (chosen at publish).
  * handoff_started_at = actual start (Now, early "I'm leaving now", or auto at available_at).
  * expires_at = current authoritative deadline:
- *   - unclaimed unstarted: available_at (listing ends at promised departure)
+ *   - unclaimed unstarted: available_at (listing end)
+ *   - unclaimed live start (Now or I'm leaving now): start + 3 minutes
  *   - after a claim / live start: handoff_started_at + INITIAL_HANDOFF_WINDOW_MINUTES
  *     (or + MAX after the single +2 extension)
  */
@@ -62,8 +63,9 @@ export type SpotAvailabilityWindow = {
  *
  * Delay 0 ("Now"): starts the live handoff immediately; seekers may claim
  * until start + 3 minutes while the publisher is waiting.
- * Future delay: listing ends at available_at. A claim before then reserves
- * the 3-minute matched handoff window.
+ * Future delay: listing ends at available_at unless the publisher presses
+ * I'm leaving now, which converts it into the same live 3-minute window.
+ * A claim before start reserves the 3-minute matched handoff window.
  */
 export function computeSpotAvailabilityWindow(
   delayMinutes: number,

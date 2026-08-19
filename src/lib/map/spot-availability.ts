@@ -5,7 +5,14 @@ import type { MapSpot } from "@/types/map-spot";
 export function formatSpotAvailabilityLabel(
   availableAt: string,
   now = Date.now(),
+  handoffStartedAt?: string | null,
 ): string {
+  if (
+    typeof handoffStartedAt === "string" &&
+    Number.isFinite(new Date(handoffStartedAt).getTime())
+  ) {
+    return "Available now";
+  }
   const target = new Date(availableAt).getTime();
   if (Number.isNaN(target) || target <= now) {
     return "Available now";

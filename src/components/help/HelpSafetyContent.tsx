@@ -57,7 +57,8 @@ export function HelpSafetyContent() {
           <li>The active handoff starts automatically at that departure time</li>
           <li>
             <strong className="font-medium text-foreground">I&apos;m leaving now</strong>{" "}
-            starts it earlier
+            starts it earlier. If nobody has claimed yet, the spot stays
+            live and claimable for those 3 minutes.
           </li>
           <li>
             Active handoff = <strong className="font-medium text-foreground">3 minutes</strong>

@@ -26,6 +26,7 @@ type SpotRowLike = {
   address?: unknown;
   available_at?: unknown;
   expires_at?: unknown;
+  handoff_started_at?: unknown;
   owner_id?: unknown;
 };
 
@@ -106,6 +107,7 @@ export function mapSpotFromParkingRow(
     address: typeof row.address === "string" ? row.address : null,
     available_at: availableAt,
     expires_at: expiresAt,
+    handoff_started_at: asTimestampString(row.handoff_started_at),
     canClaim: row.owner_id !== userId,
   };
 }

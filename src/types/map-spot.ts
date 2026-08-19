@@ -5,6 +5,8 @@ export type MapSpot = {
   address: string | null;
   available_at: string;
   expires_at: string;
+  /** Set when the live Now-style window has already started. */
+  handoff_started_at?: string | null;
   /** True when the signed-in user may claim this spot (not their own). */
   canClaim: boolean;
 };

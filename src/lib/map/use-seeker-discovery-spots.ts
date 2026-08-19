@@ -76,6 +76,7 @@ export function useSeekerDiscoverySpots({
             spot.address === next.address &&
             spot.available_at === next.available_at &&
             spot.expires_at === next.expires_at &&
+            spot.handoff_started_at === next.handoff_started_at &&
             spot.canClaim === next.canClaim
           );
         })

@@ -91,6 +91,22 @@ describe("SelectedSpotCard bottom sheet", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows Available now after I'm leaving now even if available_at is still future", () => {
+    render(
+      <SelectedSpotCard
+        spot={{
+          ...spot,
+          available_at: "2099-08-04T12:45:00.000Z",
+          handoff_started_at: "2026-08-04T12:40:00.000Z",
+        }}
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Available now")).toBeInTheDocument();
+    expect(screen.queryByText("Available in 5:00")).not.toBeInTheDocument();
+  });
+
   it("re-enables claim when the seeker moves inside the radius", () => {
     const { rerender } = render(
       <SelectedSpotCard

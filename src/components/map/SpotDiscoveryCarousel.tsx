@@ -70,7 +70,11 @@ export function SpotDiscoveryCarousel({
 
       return {
         id: spot.id,
-        availability: formatSpotAvailabilityLabel(spot.available_at, now),
+        availability: formatSpotAvailabilityLabel(
+          spot.available_at,
+          now,
+          spot.handoff_started_at,
+        ),
         distance: distance || null,
         address: spotCarouselAddressLabel(spot.address),
       };

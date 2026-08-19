@@ -94,4 +94,42 @@ describe("HandoffWindowCountdown live clock", () => {
     ).toBeInTheDocument();
     expect(screen.queryByText(/^Leaving in /)).not.toBeInTheDocument();
   });
+
+  it("shows remaining live time for an unclaimed Now-style listing", () => {
+    vi.setSystemTime(new Date("2026-08-04T12:07:00.000Z"));
+    render(
+      <HandoffWindowCountdown
+        availableAtIso="2026-08-04T12:10:00.000Z"
+        expiresAtIso="2026-08-04T12:10:00.000Z"
+        handoffStartedAtIso="2026-08-04T12:07:00.000Z"
+        claimed={false}
+        role="publisher"
+      />,
+    );
+
+    expect(screen.getByTestId("handoff-window-countdown")).toHaveAttribute(
+      "data-phase",
+      "active",
+    );
+    expect(
+      screen.getByText("Waiting for driver · 3:00 left"),
+    ).toBeInTheDocument();
+  });
+
+  it("does not reset the live window when a seeker claims mid-handoff", () => {
+    vi.setSystemTime(new Date("2026-08-04T12:09:00.000Z"));
+    render(
+      <HandoffWindowCountdown
+        availableAtIso="2026-08-04T12:10:00.000Z"
+        expiresAtIso="2026-08-04T12:10:00.000Z"
+        handoffStartedAtIso="2026-08-04T12:07:00.000Z"
+        claimed
+        role="seeker"
+      />,
+    );
+
+    expect(
+      screen.getByText("Complete the handoff · 1:00 left"),
+    ).toBeInTheDocument();
+  });
 });

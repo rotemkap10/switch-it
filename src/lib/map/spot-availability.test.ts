@@ -24,6 +24,16 @@ describe("spot availability helpers", () => {
     ).toBe("Available in 7 min");
   });
 
+  it("shows Available now after I'm leaving now even if available_at is still future", () => {
+    expect(
+      formatSpotAvailabilityLabel(
+        "2026-08-05T12:07:00.000Z",
+        now,
+        "2026-08-05T12:00:00.000Z",
+      ),
+    ).toBe("Available now");
+  });
+
   it("filters expired spots", () => {
     expect(
       isSpotStillListed({ expires_at: "2026-08-05T12:01:00.000Z" }, now),

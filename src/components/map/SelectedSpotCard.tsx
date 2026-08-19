@@ -17,6 +17,7 @@ import {
   isWithinClaimDistance,
   type LatLng,
 } from "@/lib/map/distance";
+import { hasHandoffStarted } from "@/lib/spots/handoff-phase";
 import type { MapSpot } from "@/types/map-spot";
 
 const PANEL_EXIT_MS = 200;
@@ -89,11 +90,17 @@ export function SelectedSpotCard({
               {addressLabel}
             </p>
             <p className="mt-2 text-base">
-              <Countdown
-                targetIso={spot.available_at}
-                pendingLabel="Available in"
-                readyLabel="Available now"
-              />
+              {hasHandoffStarted(spot.handoff_started_at) ? (
+                <span className="countdown-value countdown-ready">
+                  Available now
+                </span>
+              ) : (
+                <Countdown
+                  targetIso={spot.available_at}
+                  pendingLabel="Available in"
+                  readyLabel="Available now"
+                />
+              )}
             </p>
             {resolvedDistanceLabel ? (
               <p

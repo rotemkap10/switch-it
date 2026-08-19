@@ -86,14 +86,14 @@ describe("startHandoffNow", () => {
     expect(result.expiresAt).toBe("2026-08-04T13:06:00.000Z");
   });
 
-  it("treats early leave with no claim as a listing end, not a live unmatched window", async () => {
+  it("starts a live unmatched window when the publisher leaves early with no claim", async () => {
     rpcMock.mockResolvedValue({
       data: [
         {
           spot_id: spotId,
           claim_id: null,
-          handoff_started_at: null,
-          expires_at: "2026-08-04T13:02:00.000Z",
+          handoff_started_at: "2026-08-04T13:02:00.000Z",
+          expires_at: "2026-08-04T13:05:00.000Z",
           already_started: false,
           changed: true,
         },
@@ -105,8 +105,8 @@ describe("startHandoffNow", () => {
 
     expect(result.success).toBe(true);
     expect(result.alreadyStarted).toBe(false);
-    expect(result.handoffStartedAt).toBeUndefined();
-    expect(result.expiresAt).toBe("2026-08-04T13:02:00.000Z");
+    expect(result.handoffStartedAt).toBe("2026-08-04T13:02:00.000Z");
+    expect(result.expiresAt).toBe("2026-08-04T13:05:00.000Z");
   });
 
   it("rejects a start after the live window has already ended", async () => {

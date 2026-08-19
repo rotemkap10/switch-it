@@ -140,6 +140,28 @@ describe("seeker discovery realtime reconciliation", () => {
     expect(result.tombstones.has("spot-a")).toBe(false);
   });
 
+  it("keeps a live available listing after an unclaimed I'm leaving now UPDATE", () => {
+    const result = applyParkingSpotRealtimeEvent(
+      [availableSpot],
+      new Map(),
+      payload(
+        "UPDATE",
+        availableRow({
+          expires_at: "2026-08-16T12:20:00.000Z",
+          handoff_started_at: "2026-08-16T12:01:00.000Z",
+        }),
+      ),
+      userId,
+      now,
+    );
+    expect(result.action).toBe("upsert");
+    expect(result.spots[0]?.id).toBe("spot-a");
+    expect(result.spots[0]?.expires_at).toBe("2026-08-16T12:20:00.000Z");
+    expect(result.spots[0]?.handoff_started_at).toBe(
+      "2026-08-16T12:01:00.000Z",
+    );
+  });
+
   it("claimed → available UPDATE re-adds the listing and clears the claimed tombstone", () => {
     const afterClaim = applyParkingSpotRealtimeEvent(
       [availableSpot],
