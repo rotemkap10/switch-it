@@ -47,11 +47,34 @@ describe("ProfileMenu", () => {
     await user.click(trigger);
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("menuitem", { name: "Profile" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitem", { name: "Help & Safety" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "History" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "Log out" })).toBeInTheDocument();
 
     await user.keyboard("{Escape}");
     expect(trigger).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("closes when clicking outside the menu", async () => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <button type="button">Outside</button>
+        <ProfileMenu displayName="Alex" />
+      </div>,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Profile menu for Alex" }),
+    );
+    expect(screen.getByRole("menu", { name: "Account" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Outside" }));
+    expect(
+      screen.getByRole("button", { name: "Profile menu for Alex" }),
+    ).toHaveAttribute("aria-expanded", "false");
   });
 
   it("shows Install app only when eligible", async () => {
@@ -74,5 +97,25 @@ describe("ProfileMenu", () => {
     expect(
       screen.queryByRole("menuitem", { name: "Install app" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("links Profile and Help & Safety then closes after a navigation item", async () => {
+    const user = userEvent.setup();
+    render(<ProfileMenu displayName="Alex" />);
+
+    const trigger = screen.getByRole("button", {
+      name: "Profile menu for Alex",
+    });
+    await user.click(trigger);
+
+    const profile = screen.getByRole("menuitem", { name: "Profile" });
+    expect(profile).toHaveAttribute("href", "/profile");
+    const help = screen.getByRole("menuitem", { name: "Help & Safety" });
+    expect(help).toHaveAttribute("href", "/help");
+    expect(screen.getByTestId("help-info-icon")).toBeInTheDocument();
+
+    await user.click(help);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("menu", { name: "Account" })).not.toBeInTheDocument();
   });
 });

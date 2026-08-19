@@ -135,6 +135,9 @@ describe("AppNav", () => {
       "href",
       "/profile",
     );
+    expect(
+      screen.getByRole("menuitem", { name: "Help & Safety" }),
+    ).toHaveAttribute("href", "/help");
     expect(screen.getByRole("menuitem", { name: "History" })).toHaveAttribute(
       "href",
       "/history",

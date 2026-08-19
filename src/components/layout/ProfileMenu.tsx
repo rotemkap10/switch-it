@@ -5,9 +5,10 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { logout } from "@/actions/auth";
+import { HelpInfoIcon } from "@/components/illustrations/HelpInfoIcon";
+import { UserInitialAvatar } from "@/components/illustrations/UserInitialAvatar";
 import { InstallAppSheet } from "@/components/pwa/InstallAppSheet";
 import { onLogoutSubmit } from "@/lib/location/stop-handoff-on-logout";
-import { UserInitialAvatar } from "@/components/illustrations/UserInitialAvatar";
 import { usePwaInstall } from "@/lib/pwa/use-pwa-install";
 import { useOneShotAnimation } from "@/lib/motion/use-one-shot-animation";
 
@@ -62,6 +63,8 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
 
   const onProfile = pathname === "/profile";
   const onHistory = pathname === "/history";
+  const onHelp = pathname === "/help";
+  const onAccountPage = onProfile || onHistory || onHelp;
 
   return (
     <>
@@ -73,12 +76,12 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
             "inline-flex max-w-[10rem] items-center gap-2 rounded-[var(--radius-card)] border border-border bg-surface px-2.5",
             "min-h-[var(--app-tap-min)] text-sm font-medium text-foreground motion-interactive-press",
             "hover:bg-accent-soft transition-colors duration-[var(--motion-fast)]",
-            onProfile || onHistory ? "border-accent bg-accent-soft" : "",
+            onAccountPage ? "border-accent bg-accent-soft" : "",
           ].join(" ")}
           aria-haspopup="menu"
           aria-expanded={open}
           aria-controls={menuId}
-          aria-current={onProfile || onHistory ? "page" : undefined}
+          aria-current={onAccountPage ? "page" : undefined}
           aria-label={
             trimmedName ? `Profile menu for ${trimmedName}` : "Profile menu"
           }
@@ -101,7 +104,7 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
             id={menuId}
             role="menu"
             aria-label="Account"
-            className="absolute right-0 z-50 mt-2 min-w-[10.5rem] overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface py-1 shadow-[var(--shadow-card)] motion-fade-slide-down"
+            className="absolute right-0 z-50 mt-2 min-w-[11.5rem] max-w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-[var(--radius-card)] border border-border bg-surface py-1 shadow-[var(--shadow-card)] motion-fade-slide-down"
           >
             <Link
               href="/profile"
@@ -114,6 +117,19 @@ export function ProfileMenu({ displayName }: ProfileMenuProps) {
               onClick={() => closeMenu()}
             >
               Profile
+            </Link>
+            <Link
+              href="/help"
+              role="menuitem"
+              aria-current={onHelp ? "page" : undefined}
+              className={[
+                "flex min-h-[var(--app-tap-min)] items-center gap-2 px-3 py-2.5 text-sm text-foreground hover:bg-accent-soft",
+                onHelp ? "bg-accent-soft font-semibold" : "",
+              ].join(" ")}
+              onClick={() => closeMenu()}
+            >
+              <HelpInfoIcon className="h-4 w-4 shrink-0 text-muted" />
+              Help & Safety
             </Link>
             <Link
               href="/history"

@@ -96,7 +96,8 @@ describe("Help & Safety route wiring", () => {
     expect(page).not.toContain("<AppNav");
     expect(loading).toContain("PageRouteLoadingChrome");
     expect(loading).toContain("help-loading-shell");
-    expect(profile).toContain("<ProfileHelpLink");
+    expect(profile).not.toContain("ProfileHelpLink");
+    expect(profile).not.toContain("Help & Safety");
     expect(proxy).toContain('"/help"');
   });
 });

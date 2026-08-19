@@ -124,7 +124,6 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".mobile-form-primary");
     expect(css).toContain(".mobile-form-section");
     expect(css).toContain(".profile-page");
-    expect(css).toContain(".profile-action-row");
     expect(css).toContain(".help-page");
     expect(css).toContain(".app-form-control");
     expect(css).toContain("font-size: max(1rem, 16px)");
