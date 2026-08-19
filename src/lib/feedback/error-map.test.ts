@@ -44,6 +44,16 @@ describe("mapAppError", () => {
     );
   });
 
+  it("does not map an unrelated unique violation to a claim business error", () => {
+    expect(
+      mapAppError({
+        code: "23505",
+        message:
+          'duplicate key value violates unique constraint "profiles_pkey"',
+      }).message,
+    ).toBe(GENERIC_APP_ERROR);
+  });
+
   it("never returns raw database constraint text for known 23505 cases", () => {
     expect(
       mapAppError({

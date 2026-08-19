@@ -35,9 +35,21 @@ describe("20260819130000 prevent seeker reclaim of a released listing", () => {
     expect(migrationSql).toContain("and spots.status = 'available'");
     expect(migrationSql).toContain("if not found then");
     expect(migrationSql).toContain("when unique_violation then");
-    expect(migrationSql).toContain("claims_one_active_per_seeker");
-    expect(migrationSql).toContain("SPOT_UNAVAILABLE");
+    expect(migrationSql).toContain("get stacked diagnostics");
+    expect(migrationSql).toContain("v_constraint_name = constraint_name");
+    expect(migrationSql).toContain(
+      "if v_constraint_name = 'claims_one_active_per_seeker' then",
+    );
+    expect(migrationSql).toContain(
+      "elsif v_constraint_name = 'claims_one_active_per_spot' then",
+    );
+    expect(migrationSql).toContain("else");
+    expect(migrationSql).toMatch(/else\s+raise;/);
     expect(migrationSql).toContain("ACTIVE_CLAIM_EXISTS");
+    expect(migrationSql).toContain("SPOT_UNAVAILABLE");
+    expect(migrationSql).not.toContain("pg_catalog.sqlerrm");
+    expect(migrationSql).not.toContain("pg_catalog.position");
+    expect(migrationSql).not.toContain("sqlerrm");
   });
 
   it("preserves future-listing vs Now claim timing", () => {

@@ -24,6 +24,7 @@ declare
   v_claim_expires timestamptz;
   v_h double precision;
   v_distance_m double precision;
+  v_constraint_name text;
   c_earth_radius_m constant double precision := 6371000;
   c_max_claim_distance_m constant double precision := 1500;
 begin
@@ -142,12 +143,16 @@ begin
     returning id into v_claim_id;
   exception
     when unique_violation then
-      if pg_catalog.position(
-        'claims_one_active_per_seeker' in pg_catalog.sqlerrm
-      ) > 0 then
+      get stacked diagnostics
+        v_constraint_name = constraint_name;
+
+      if v_constraint_name = 'claims_one_active_per_seeker' then
         raise exception 'ACTIVE_CLAIM_EXISTS' using errcode = 'P0001';
+      elsif v_constraint_name = 'claims_one_active_per_spot' then
+        raise exception 'SPOT_UNAVAILABLE' using errcode = 'P0001';
+      else
+        raise;
       end if;
-      raise exception 'SPOT_UNAVAILABLE' using errcode = 'P0001';
   end;
 
   perform public.create_claim_handoff_secret(v_claim_id);
