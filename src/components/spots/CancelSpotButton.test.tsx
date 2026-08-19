@@ -54,6 +54,15 @@ describe("CancelSpotButton", () => {
     const confirm = within(dialog).getByRole("button", { name: "Cancel spot" });
     expect(confirm).toBeDisabled();
     expect(dialog.querySelector('input[name="spot_id"]')).toHaveValue(spotId);
+    expect(dialog.className).toContain("cancellation-sheet");
+    expect(dialog.querySelector(".cancellation-sheet__reasons")).toBeTruthy();
+    expect(dialog.querySelector(".cancellation-sheet__actions")).toBeTruthy();
+    expect(
+      within(dialog).getByRole("button", { name: "Keep spot active" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("radio", { name: "Other" }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Keep spot active" }));
     expect(screen.queryByTestId("cancel-spot-confirm")).not.toBeInTheDocument();

@@ -74,6 +74,17 @@ describe("mobile shell CSS foundation", () => {
     expect(css).not.toContain("46vh");
   });
 
+  it("keeps overlay sheets inside the viewport with safe-area padding and inner scroll", () => {
+    expect(css).toContain(
+      "padding-top: max(1.25rem, calc(var(--app-safe-top) + 0.75rem))",
+    );
+    expect(css).toContain(".cancellation-sheet");
+    expect(css).toContain("max-height: 100%");
+    expect(css).toContain(".cancellation-sheet__reasons");
+    expect(css).toContain(".cancellation-sheet__actions");
+    expect(css).toContain("--map-selected-sheet-clearance: 8.75rem");
+  });
+
   it("defines publisher compose and leaver picker shell utilities", () => {
     expect(css).toContain(".leaver-map-picker-shell");
     expect(css).toContain(".leaver-map-picker-shell--fill");

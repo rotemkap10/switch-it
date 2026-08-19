@@ -117,15 +117,15 @@ export function CancellationReasonSheet({
           </p>
         ) : null}
 
-        <form action={formAction} className="mt-3 flex flex-col gap-3">
+        <form action={formAction} className="cancellation-sheet__form">
           {Object.entries(hiddenFields).map(([name, value]) => (
             <input key={name} type="hidden" name={name} value={value} />
           ))}
           {extraFields}
-          <fieldset className="m-0 min-w-0 border-0 p-0">
+          <fieldset className="m-0 flex min-h-0 min-w-0 flex-1 flex-col border-0 p-0">
             <legend className="sr-only">Choose a reason</legend>
             <div
-              className="flex flex-col gap-2"
+              className="cancellation-sheet__reasons"
               role="radiogroup"
               aria-labelledby={titleId}
             >
@@ -156,24 +156,26 @@ export function CancellationReasonSheet({
             </div>
           </fieldset>
 
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={pending}
-            className="w-full !min-h-[var(--app-tap-min)]"
-            onClick={onClose}
-          >
-            {closeLabel}
-          </Button>
-          <Button
-            type="submit"
-            variant="dangerOutline"
-            loading={pending}
-            disabled={!canConfirm}
-            className="w-full !min-h-[var(--app-tap-min)]"
-          >
-            {pending ? confirmPendingLabel : confirmLabel}
-          </Button>
+          <div className="cancellation-sheet__actions">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={pending}
+              className="w-full !min-h-[var(--app-tap-min)]"
+              onClick={onClose}
+            >
+              {closeLabel}
+            </Button>
+            <Button
+              type="submit"
+              variant="dangerOutline"
+              loading={pending}
+              disabled={!canConfirm}
+              className="w-full !min-h-[var(--app-tap-min)]"
+            >
+              {pending ? confirmPendingLabel : confirmLabel}
+            </Button>
+          </div>
         </form>
       </div>
     </div>

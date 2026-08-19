@@ -43,8 +43,15 @@ describe("SelectedSpotCard bottom sheet", () => {
     expect(screen.getByText("120 m away")).toBeInTheDocument();
     expect(screen.getByTestId("selected-spot-claim-action")).toBeInTheDocument();
     expect(
-      screen.getByText(/Claim this shared handoff if you can arrive in time/i),
-    ).toBeInTheDocument();
+      screen.queryByText(/Claim this shared handoff if you can arrive in time/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Parking is not guaranteed/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Live location is required/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Available in 5:00")).toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: "I’m on my way" }),
     ).toHaveLength(1);

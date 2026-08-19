@@ -81,7 +81,7 @@ export function SelectedSpotCard({
         <div className="map-sheet-handle" aria-hidden="true" />
 
         <div className="flex items-start justify-between gap-3">
-          <div className="status-band min-w-0 flex-1 px-3 py-2">
+          <div className="status-band min-w-0 flex-1 px-3 py-1.5">
             <p
               id={titleId}
               className="truncate text-sm font-semibold text-foreground"
@@ -89,7 +89,7 @@ export function SelectedSpotCard({
             >
               {addressLabel}
             </p>
-            <p className="mt-2 text-base">
+            <p className="mt-1 text-base">
               {hasHandoffStarted(spot.handoff_started_at) ? (
                 <span className="countdown-value countdown-ready">
                   Available now
@@ -133,18 +133,12 @@ export function SelectedSpotCard({
                 This spot is too far away to claim.
               </p>
             ) : (
-              <>
-                <p className="text-xs leading-5 text-muted">
-                  Claim this shared handoff if you can arrive in time. Parking is
-                  not guaranteed against other street drivers.
-                </p>
-                <ClaimSpotButton
-                  spotId={spot.id}
-                  latitude={spot.latitude}
-                  longitude={spot.longitude}
-                  seekerLocation={seekerLocation}
-                />
-              </>
+              <ClaimSpotButton
+                spotId={spot.id}
+                latitude={spot.latitude}
+                longitude={spot.longitude}
+                seekerLocation={seekerLocation}
+              />
             )}
           </div>
         ) : (

@@ -157,11 +157,15 @@ describe("ClaimSpotButton", () => {
     expect(claimSpotMock).not.toHaveBeenCalled();
   });
 
-  it("explains that live location is required before claiming", () => {
+  it("does not explain live location until a fresh fix is unavailable", () => {
     renderClaimButton({ seekerLocation: null });
-    expect(screen.getByTestId("claim-location-hint")).toHaveTextContent(
-      "Live location is required during a parking handoff.",
-    );
+    expect(screen.queryByTestId("claim-location-hint")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Live location is required during a parking handoff/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "I’m on my way" }),
+    ).toBeInTheDocument();
   });
 
   it("shows a pending disabled state that prevents duplicate submits", async () => {

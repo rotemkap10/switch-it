@@ -60,7 +60,7 @@
   --map-attribution-clearance: 1.75rem;
   --map-bottom-sheet-gap: 0.75rem;
   --map-carousel-height: 5.75rem;
-  --map-selected-sheet-clearance: 11.25rem;
+  --map-selected-sheet-clearance: 8.75rem;
   --map-compose-sheet-clearance: 12.5rem;
   --map-claim-collapsed-clearance: 10.25rem;
   --map-claim-expanded-clearance: min(52dvh, 24rem);
@@ -353,6 +353,8 @@ html[data-native-status-bar="inset"] .app-shell-header {
 
 .map-bottom-sheet--selected {
   max-width: 28rem;
+  gap: 0.5rem;
+  padding: 0.625rem 0.75rem 0.75rem;
 }
 
 .map-bottom-sheet--claim-collapsed {
@@ -2483,6 +2485,7 @@ html.app-boot-splash-exiting #app-boot-splash {
   justify-content: center;
   background: rgb(18 50 74 / 28%);
   padding-inline: var(--app-phone-gutter);
+  padding-top: max(1.25rem, calc(var(--app-safe-top) + 0.75rem));
   padding-bottom: max(1rem, var(--app-safe-bottom));
 }
 
@@ -2525,6 +2528,39 @@ html.app-boot-splash-exiting #app-boot-splash {
 
 .cancellation-sheet {
   max-width: 24rem;
+  max-height: 100%;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.cancellation-sheet__form {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.cancellation-sheet__reasons {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cancellation-sheet__actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 0.125rem;
 }
 
 .cancellation-reason-option {

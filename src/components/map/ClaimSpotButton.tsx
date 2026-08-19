@@ -131,7 +131,7 @@ export function ClaimSpotButton({
 
   return (
     <form
-      className="space-y-2"
+      className="flex flex-col gap-2"
       onSubmit={(event) => {
         event.preventDefault();
         sensoryLightTap();
@@ -172,13 +172,6 @@ export function ClaimSpotButton({
         })();
       }}
     >
-      <p
-        className="text-xs leading-5 text-muted"
-        data-testid="claim-location-hint"
-      >
-        Live location is required during a parking handoff. We’ll confirm
-        you’re close enough to claim.
-      </p>
       {errorMessage ? (
         <p
           className="text-sm text-danger"
