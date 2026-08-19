@@ -232,6 +232,28 @@ describe("ClaimSpotButton", () => {
     });
   });
 
+  it("surfaces same-listing reclaim with action-level toast feedback", async () => {
+    const user = userEvent.setup();
+    claimSpotMock.mockResolvedValue({
+      error: "You already released this spot.",
+      errorCode: "ALREADY_RELEASED_THIS_SPOT",
+    });
+
+    renderClaimButton();
+    await user.click(screen.getByRole("button", { name: "I’m on my way" }));
+
+    expect(await screen.findByTestId("feedback-toast-error")).toHaveTextContent(
+      "You already released this spot.",
+    );
+    expect(
+      screen.getByRole("button", { name: "I’m on my way" }),
+    ).toBeInTheDocument();
+    expect(peekPostClaimNavigationPendingForTests()).toBeNull();
+    await waitFor(() => {
+      expect(requestDiscoverySpotTombstoneMock).toHaveBeenCalledWith(spotId);
+    });
+  });
+
   it("opens the navigation chooser after a successful claim action", async () => {
     const user = userEvent.setup();
     claimSpotMock.mockResolvedValue({

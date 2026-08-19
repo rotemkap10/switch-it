@@ -98,6 +98,12 @@ describe("Help & Safety route wiring", () => {
     expect(loading).toContain("help-loading-shell");
     expect(profile).not.toContain("ProfileHelpLink");
     expect(profile).not.toContain("Help & Safety");
+    expect(source("src/components/layout/ProfileMenu.tsx")).toContain(
+      "Help & Safety",
+    );
+    expect(source("src/components/layout/ProfileMenu.tsx")).not.toContain(
+      "HelpInfoIcon",
+    );
     expect(proxy).toContain('"/help"');
   });
 });

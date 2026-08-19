@@ -38,6 +38,12 @@ describe("mapAppError", () => {
     );
   });
 
+  it("maps ALREADY_RELEASED_THIS_SPOT to reclaim copy", () => {
+    expect(mapAppError("ALREADY_RELEASED_THIS_SPOT").message).toBe(
+      "You already released this spot.",
+    );
+  });
+
   it("never returns raw database constraint text for known 23505 cases", () => {
     expect(
       mapAppError({
@@ -46,6 +52,13 @@ describe("mapAppError", () => {
           'duplicate key value violates unique constraint "claims_one_active_per_seeker"',
       }).message,
     ).toBe(APP_ERROR_MESSAGES.ACTIVE_CLAIM_EXISTS);
+    expect(
+      mapAppError({
+        code: "23505",
+        message:
+          'duplicate key value violates unique constraint "claims_one_active_per_spot"',
+      }).message,
+    ).toBe(APP_ERROR_MESSAGES.SPOT_UNAVAILABLE);
   });
 
   it("maps network-like failures", () => {

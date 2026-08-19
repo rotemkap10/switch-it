@@ -145,5 +145,8 @@ describe("AppNav", () => {
     expect(
       screen.getByRole("menuitem", { name: "Log out" }),
     ).toBeInTheDocument();
+    expect(screen.queryByTestId("help-info-icon")).not.toBeInTheDocument();
+    const items = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items.slice(0, 3)).toEqual(["Profile", "History", "Help & Safety"]);
   });
 });

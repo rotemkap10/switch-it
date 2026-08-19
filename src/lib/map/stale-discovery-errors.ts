@@ -3,6 +3,7 @@ const STALE_DISCOVERY_CLAIM_CODES = new Set([
   "SPOT_UNAVAILABLE",
   "SPOT_NOT_FOUND",
   "SPOT_EXPIRED",
+  "ALREADY_RELEASED_THIS_SPOT",
 ]);
 
 export function shouldRevalidateMapAfterClaimFailure(

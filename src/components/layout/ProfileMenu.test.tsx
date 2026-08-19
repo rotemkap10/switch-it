@@ -110,9 +110,19 @@ describe("ProfileMenu", () => {
 
     const profile = screen.getByRole("menuitem", { name: "Profile" });
     expect(profile).toHaveAttribute("href", "/profile");
+    const history = screen.getByRole("menuitem", { name: "History" });
+    expect(history).toHaveAttribute("href", "/history");
     const help = screen.getByRole("menuitem", { name: "Help & Safety" });
     expect(help).toHaveAttribute("href", "/help");
-    expect(screen.getByTestId("help-info-icon")).toBeInTheDocument();
+    expect(help.className).toBe(history.className);
+    expect(help.className).toBe(profile.className);
+    expect(help.className).toContain("px-3");
+    expect(help.className).toContain("min-h-[var(--app-tap-min)]");
+    expect(help.className).not.toContain("flex");
+    expect(screen.queryByTestId("help-info-icon")).not.toBeInTheDocument();
+
+    const items = screen.getAllByRole("menuitem").map((item) => item.textContent);
+    expect(items.slice(0, 3)).toEqual(["Profile", "History", "Help & Safety"]);
 
     await user.click(help);
     expect(trigger).toHaveAttribute("aria-expanded", "false");

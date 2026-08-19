@@ -35,6 +35,7 @@ export const APP_ERROR_MESSAGES = {
   NOT_HANDOFF_PARTICIPANT: "This handoff is no longer available.",
   SPOT_NOT_CANCELLABLE: "This spot can no longer be cancelled.",
   INVALID_CANCEL_REASON: "Choose a reason to continue.",
+  ALREADY_RELEASED_THIS_SPOT: "You already released this spot.",
   NOT_AUTHENTICATED: "Your session has expired. Please sign in again.",
   PROFILE_NOT_FOUND: GENERIC_APP_ERROR,
   INCONSISTENT_COMPLETION_STATE: GENERIC_APP_ERROR,

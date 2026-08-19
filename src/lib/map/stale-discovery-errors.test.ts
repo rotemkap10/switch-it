@@ -7,6 +7,9 @@ describe("shouldRevalidateMapAfterClaimFailure", () => {
     expect(shouldRevalidateMapAfterClaimFailure("SPOT_UNAVAILABLE")).toBe(true);
     expect(shouldRevalidateMapAfterClaimFailure("SPOT_NOT_FOUND")).toBe(true);
     expect(shouldRevalidateMapAfterClaimFailure("SPOT_EXPIRED")).toBe(true);
+    expect(
+      shouldRevalidateMapAfterClaimFailure("ALREADY_RELEASED_THIS_SPOT"),
+    ).toBe(true);
   });
 
   it("does not revalidate for unrelated claim errors", () => {

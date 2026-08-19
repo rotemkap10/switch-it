@@ -72,6 +72,25 @@ describe("claimSpot server action distance enforcement", () => {
     });
   });
 
+  it("surfaces ALREADY_RELEASED_THIS_SPOT without a generic crash", async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { message: "ALREADY_RELEASED_THIS_SPOT", code: "P0001" },
+    });
+
+    const formData = new FormData();
+    formData.set("spot_id", "550e8400-e29b-41d4-a716-446655440000");
+    formData.set("seeker_latitude", "32.12");
+    formData.set("seeker_longitude", "34.78");
+
+    const result = await claimSpot({}, formData);
+
+    expect(result).toEqual({
+      error: APP_ERROR_MESSAGES.ALREADY_RELEASED_THIS_SPOT,
+      errorCode: "ALREADY_RELEASED_THIS_SPOT",
+    });
+  });
+
   it("rejects invalid seeker coordinates without calling the RPC", async () => {
     const formData = new FormData();
     formData.set("spot_id", "550e8400-e29b-41d4-a716-446655440000");
