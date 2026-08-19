@@ -31,7 +31,7 @@ type AuthenticatedShellProps = {
    * when the page already called requireAuthenticatedVehicleAccess.
    */
   access?: AuthenticatedAccess;
-  /** Centered page title (Profile / History). Does not affect card layout. */
+  /** Centered page title (Profile / History / Help / Share a spot). Does not affect card layout. */
   headerAlign?: "start" | "center";
 };
 

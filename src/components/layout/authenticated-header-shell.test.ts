@@ -47,6 +47,8 @@ describe("authenticated header shell contract", () => {
     expect(profile).toContain('headerAlign="center"');
     expect(history).toContain('headerAlign="center"');
     expect(help).toContain('headerAlign="center"');
+    expect(share).toContain('headerAlign="center"');
     expect(map).toContain('layout="map"');
+    expect(map).not.toContain('headerAlign="center"');
   });
 });

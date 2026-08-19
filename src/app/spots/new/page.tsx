@@ -137,6 +137,7 @@ export default async function NewSpotPage() {
       description=""
       handoffException="active-publisher"
       access={access}
+      headerAlign="center"
     >
       {view.showCompose ? null : <VehicleSetupReminder />}
       {view.showLoadError ? (
