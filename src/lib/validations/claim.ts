@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import { APP_ERROR_MESSAGES } from "@/lib/feedback/error-map";
+import {
+  PUBLISHER_CANCEL_REASONS,
+  SEEKER_CANCEL_REASONS,
+} from "@/lib/handoff/cancellation-reasons";
 import { plateSuffixSchema } from "@/lib/validations/plate-suffix";
 
 const LOCATION_REQUIRED_MESSAGE = APP_ERROR_MESSAGES.LOCATION_REQUIRED;
@@ -50,6 +54,7 @@ export const completeClaimSchema = z.object({
 
 export const cancelClaimSchema = z.object({
   claim_id: z.uuid("Choose a valid claim."),
+  reason: z.enum(SEEKER_CANCEL_REASONS),
 });
 
 export const extendHandoffWaitSchema = z.object({
@@ -66,6 +71,7 @@ export const reconcileClaimTimingSchema = z.object({
 
 export const cancelSpotSchema = z.object({
   spot_id: z.uuid("Choose a valid parking spot."),
+  reason: z.enum(PUBLISHER_CANCEL_REASONS),
 });
 
 export type ClaimSpotInput = z.infer<typeof claimSpotSchema>;

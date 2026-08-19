@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -82,5 +85,23 @@ describe("CurrentLocationControl", () => {
     expect(
       screen.getByTestId("current-location-unavailable-notice"),
     ).toHaveTextContent("You can still move the map manually.");
+  });
+
+  it("is the only live-map recenter control (no MapLibre geolocate control)", () => {
+    const parking = readFileSync(
+      resolve(process.cwd(), "src/components/map/ParkingMapMapLibre.tsx"),
+      "utf8",
+    );
+    const live = readFileSync(
+      resolve(
+        process.cwd(),
+        "src/components/spots/PublisherLiveProgressMap.tsx",
+      ),
+      "utf8",
+    );
+    expect(parking).toContain("CurrentLocationControl");
+    expect(live).toContain("CurrentLocationControl");
+    expect(parking).not.toContain("GeolocateControl");
+    expect(live).not.toContain("GeolocateControl");
   });
 });

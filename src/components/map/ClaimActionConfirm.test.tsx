@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -33,28 +33,42 @@ describe("claim action confirmations", () => {
     expect(form.querySelector('input[name="claim_id"]')).toHaveValue(claimId);
   });
 
-  it("asks for a lightweight release confirmation before submitting", async () => {
+  it("opens a reason sheet before releasing and does not submit until confirmed", async () => {
     const user = userEvent.setup();
     cancelClaimMock.mockResolvedValue({ success: true });
 
     render(<FeedbackShell><CancelClaimButton claimId={claimId} /></FeedbackShell>);
 
-    expect(screen.getByText("Can’t make it?")).toBeInTheDocument();
     const release = screen.getByTestId("cancel-claim-trigger");
     expect(release).toHaveTextContent("Release spot");
-    expect(release.className).toContain("border-danger");
-    expect(release.className).toContain("min-h-[var(--app-tap-min)]");
-    expect(
-      screen.queryByText("Release the spot so another driver can claim it."),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("cancel-claim-confirm")).not.toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole("button", { name: "Release spot" }),
-    );
-    expect(screen.getByText("Release this spot?")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Release spot" }));
 
     const dialog = screen.getByTestId("cancel-claim-confirm");
+    expect(dialog).toHaveAttribute("role", "dialog");
+    expect(
+      screen.getByRole("heading", { name: "Why are you releasing the spot?" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Found another spot" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Can't make it" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Too far" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Other" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("radio", { name: "Someone else took the spot" }),
+    ).not.toBeInTheDocument();
+
+    const confirm = within(dialog).getByRole("button", { name: "Release spot" });
+    expect(confirm).toBeDisabled();
     expect(dialog.querySelector('input[name="claim_id"]')).toHaveValue(claimId);
+    expect(cancelClaimMock).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("radio", { name: "Too far" }));
+    expect(within(dialog).getByRole("button", { name: "Release spot" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "Keep handoff" }));
+    expect(screen.queryByTestId("cancel-claim-confirm")).not.toBeInTheDocument();
+    expect(cancelClaimMock).not.toHaveBeenCalled();
   });
 
   it("renders Confirm handoff as a prominent framed primary action", () => {

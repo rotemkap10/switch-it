@@ -28,6 +28,7 @@ describe("mode constants helpers", () => {
     expect(modeFromPathname("/map")).toBe("seeker");
     expect(modeFromPathname("/spots/new")).toBe("leaver");
     expect(modeFromPathname("/profile")).toBeNull();
+    expect(modeFromPathname("/help")).toBeNull();
   });
 
   it("recognizes valid app modes only", () => {

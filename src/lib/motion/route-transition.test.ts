@@ -131,6 +131,7 @@ describe("route-transition helpers", () => {
     expect(resolveRouteLoadingKind("/spots/new")).toBe("map-publisher");
     expect(resolveRouteLoadingKind("/profile")).toBe("page");
     expect(resolveRouteLoadingKind("/history")).toBe("page");
+    expect(resolveRouteLoadingKind("/help")).toBe("page");
     expect(resolveRouteLoadingKind("/login")).toBe("auth");
     expect(resolveRouteLoadingKind("/onboarding/vehicle")).toBe("auth");
     expect(resolveRouteLoadingKind("/offline")).toBe("none");
@@ -138,6 +139,7 @@ describe("route-transition helpers", () => {
     expect(shouldSkipRouteTransitionOverlay("/map")).toBe(true);
     expect(shouldSkipRouteTransitionOverlay("/spots/new")).toBe(true);
     expect(shouldSkipRouteTransitionOverlay("/profile")).toBe(true);
+    expect(shouldSkipRouteTransitionOverlay("/help")).toBe(true);
     expect(shouldSkipRouteTransitionOverlay("/login")).toBe(true);
     expect(shouldSkipRouteTransitionOverlay("/offline")).toBe(false);
   });

@@ -1,20 +1,30 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 
 import {
   cancelSpot,
   type CancelSpotActionState,
 } from "@/actions/spots";
+import { CancellationReasonSheet } from "@/components/handoff/CancellationReasonSheet";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import {
+  PUBLISHER_CANCEL_REASON_LABELS,
+  PUBLISHER_CANCEL_REASONS,
+} from "@/lib/handoff/cancellation-reasons";
 import {
   realtimeFeedbackKey,
   useSuppressRealtimeOnSuccess,
 } from "@/lib/realtime/use-suppress-realtime-on-success";
 
 const initialState: CancelSpotActionState = {};
+
+const PUBLISHER_OPTIONS = PUBLISHER_CANCEL_REASONS.map((value) => ({
+  value,
+  label: PUBLISHER_CANCEL_REASON_LABELS[value],
+}));
 
 type CancelSpotButtonProps = {
   spotId: string;
@@ -45,15 +55,13 @@ export function CancelSpotButton({
   claimed = false,
   handoffStarted = false,
 }: CancelSpotButtonProps) {
-  const [confirming, setConfirming] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState(
     cancelSpot,
     initialState,
   );
-  const dialogRef = useRef<HTMLDivElement | null>(null);
-  const keepFocusRef = useRef<HTMLButtonElement | null>(null);
-  const titleId = useId();
-  const descId = useId();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
   const triggerLabel = publisherCancelTriggerLabel({
     claimed,
     handoffStarted,
@@ -75,22 +83,6 @@ export function CancelSpotButton({
     claimId ? realtimeFeedbackKey("claim", claimId, "cancelled") : null,
   );
 
-  useEffect(() => {
-    if (!confirming) {
-      return;
-    }
-    keepFocusRef.current?.focus();
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setConfirming(false);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [confirming]);
-
   if (state.success) {
     return (
       <p className="text-xs text-muted" role="status">
@@ -101,69 +93,49 @@ export function CancelSpotButton({
     );
   }
 
-  if (!confirming) {
-    return (
+  const title = claimed
+    ? "Why are you ending the handoff?"
+    : "Why are you cancelling this spot?";
+  const closeLabel = claimed ? "Keep waiting" : "Keep spot active";
+  const confirmLabel = claimed ? "End handoff" : "Cancel spot";
+  const confirmPendingLabel =
+    claimed && handoffStarted ? "Leaving…" : "Cancelling…";
+
+  return (
+    <>
       <Button
+        ref={triggerRef}
         type="button"
         variant="dangerOutline"
         className="w-full !min-h-[var(--app-tap-min)]"
-        onClick={() => setConfirming(true)}
+        onClick={() => {
+          setReason(null);
+          setOpen(true);
+        }}
         data-testid="cancel-spot-trigger"
       >
         {triggerLabel}
       </Button>
-    );
-  }
 
-  const title = !claimed
-    ? "Cancel this parking spot?"
-    : handoffStarted
-      ? "Leave without a handoff?"
-      : "Cancel this handoff?";
-  const description = claimed
-    ? "The driver will be notified and this parking spot will no longer be available. No credits will be transferred."
-    : "It will no longer be visible to nearby drivers.";
-  const keepLabel = claimed ? "Keep waiting" : "Keep spot active";
-  const confirmPendingLabel = claimed && handoffStarted ? "Leaving…" : "Cancelling…";
-
-  return (
-    <div
-      ref={dialogRef}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      aria-describedby={descId}
-      className="rounded-[var(--radius-card)] border border-border bg-accent-soft/60 p-3"
-      data-testid="cancel-spot-confirm"
-    >
-      <p id={titleId} className="text-sm font-semibold text-foreground">
-        {title}
-      </p>
-      <p id={descId} className="mt-1 text-xs leading-5 text-muted">
-        {description}
-      </p>
-      <form action={formAction} className="mt-3 flex flex-col gap-2">
-        <input type="hidden" name="spot_id" value={spotId} />
-        <Button
-          ref={keepFocusRef}
-          type="button"
-          variant="secondary"
-          disabled={pending}
-          className="w-full !min-h-[var(--app-tap-min)]"
-          onClick={() => setConfirming(false)}
-        >
-          {keepLabel}
-        </Button>
-        <Button
-          type="submit"
-          variant="dangerOutline"
-          loading={pending}
-          disabled={pending}
-          className="w-full !min-h-[var(--app-tap-min)]"
-        >
-          {pending ? confirmPendingLabel : triggerLabel}
-        </Button>
-      </form>
-    </div>
+      <CancellationReasonSheet
+        open={open && !state.success}
+        onClose={() => {
+          setOpen(false);
+          setReason(null);
+        }}
+        title={title}
+        options={PUBLISHER_OPTIONS}
+        selected={reason}
+        onSelectedChange={setReason}
+        formAction={formAction}
+        hiddenFields={{ spot_id: spotId }}
+        confirmLabel={confirmLabel}
+        confirmPendingLabel={confirmPendingLabel}
+        closeLabel={closeLabel}
+        pending={pending}
+        testId="cancel-spot-confirm"
+        returnFocusRef={triggerRef}
+      />
+    </>
   );
 }

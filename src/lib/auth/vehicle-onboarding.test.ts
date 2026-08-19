@@ -106,4 +106,9 @@ describe("resolvePostAuthRedirect", () => {
       ),
     ).toBe("/spots/new");
   });
+
+  it("lets incomplete users open Profile or Help & Safety", () => {
+    expect(resolvePostAuthRedirect(status({}), "/profile")).toBe("/profile");
+    expect(resolvePostAuthRedirect(status({}), "/help")).toBe("/help");
+  });
 });

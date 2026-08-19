@@ -94,6 +94,23 @@ describe("AppNav", () => {
     expect(screen.getByTestId("app-nav").className).toContain("app-shell-header");
   });
 
+  it("keeps the official logo on the shared full-width header inner", () => {
+    const { rerender } = render(<AppNav compact />);
+    const inner = screen.getByTestId("app-shell-header-inner");
+    expect(inner.className).toBe("app-shell-header-inner");
+    expect(inner.className).not.toContain("contained");
+    expect(inner.className).not.toContain("wide");
+    expect(inner.querySelector("img")).toHaveAttribute(
+      "src",
+      "/branding/switch-it-logo.png",
+    );
+
+    rerender(<AppNav />);
+    expect(screen.getByTestId("app-shell-header-inner").className).toBe(
+      "app-shell-header-inner",
+    );
+  });
+
   it("selects Find parking on /map and Share a spot on /spots/new", () => {
     const { rerender } = render(<AppNav />);
     expect(

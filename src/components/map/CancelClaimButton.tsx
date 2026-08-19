@@ -1,20 +1,30 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import {
   cancelClaim,
   type CancelClaimActionState,
 } from "@/actions/claims";
+import { CancellationReasonSheet } from "@/components/handoff/CancellationReasonSheet";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import {
+  SEEKER_CANCEL_REASON_LABELS,
+  SEEKER_CANCEL_REASONS,
+} from "@/lib/handoff/cancellation-reasons";
 import {
   realtimeFeedbackKey,
   useSuppressRealtimeOnSuccess,
 } from "@/lib/realtime/use-suppress-realtime-on-success";
 
 const initialState: CancelClaimActionState = {};
+
+const SEEKER_OPTIONS = SEEKER_CANCEL_REASONS.map((value) => ({
+  value,
+  label: SEEKER_CANCEL_REASON_LABELS[value],
+}));
 
 type CancelClaimButtonProps = {
   claimId: string;
@@ -26,14 +36,13 @@ export function CancelClaimButton({
   claimId,
   onCancelled,
 }: CancelClaimButtonProps) {
-  const [confirming, setConfirming] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<string | null>(null);
   const [state, formAction, pending] = useActionState(
     cancelClaim,
     initialState,
   );
-  const keepFocusRef = useRef<HTMLButtonElement | null>(null);
-  const titleId = useId();
-  const descId = useId();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   useActionFeedback(state, {
     successMessage: FEEDBACK_SUCCESS_KEYS["claim-cancelled"],
@@ -55,22 +64,6 @@ export function CancelClaimButton({
     }
   }, [state.success, onCancelled]);
 
-  useEffect(() => {
-    if (!confirming) {
-      return;
-    }
-    keepFocusRef.current?.focus();
-
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setConfirming(false);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [confirming]);
-
   if (state.success) {
     return (
       <p className="text-xs text-muted" role="status">
@@ -79,62 +72,41 @@ export function CancelClaimButton({
     );
   }
 
-  if (!confirming) {
-    return (
-      <div className="flex flex-col gap-2" data-testid="cancel-claim-prompt">
-        <p className="text-center text-xs font-medium text-muted">
-          Can’t make it?
-        </p>
-        <Button
-          type="button"
-          variant="dangerOutline"
-          className="w-full !min-h-[var(--app-tap-min)]"
-          onClick={() => setConfirming(true)}
-          data-testid="cancel-claim-trigger"
-        >
-          Release spot
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      aria-describedby={descId}
-      className="rounded-[var(--radius-card)] border border-border bg-accent-soft/60 p-3"
-      data-testid="cancel-claim-confirm"
-    >
-      <p id={titleId} className="text-sm font-semibold text-foreground">
-        Release this spot?
-      </p>
-      <p id={descId} className="mt-1 text-xs leading-5 text-muted">
-        The parking owner will be notified. No credit will be charged.
-      </p>
-      <form action={formAction} className="mt-3 flex flex-col gap-2">
-        <input type="hidden" name="claim_id" value={claimId} />
-        <Button
-          ref={keepFocusRef}
-          type="button"
-          variant="secondary"
-          disabled={pending}
-          className="w-full !min-h-[var(--app-tap-min)]"
-          onClick={() => setConfirming(false)}
-        >
-          Keep handoff
-        </Button>
-        <Button
-          type="submit"
-          variant="dangerOutline"
-          loading={pending}
-          disabled={pending}
-          className="w-full !min-h-[var(--app-tap-min)]"
-        >
-          {pending ? "Releasing…" : "Release spot"}
-        </Button>
-      </form>
+    <div className="flex flex-col gap-2" data-testid="cancel-claim-prompt">
+      <Button
+        ref={triggerRef}
+        type="button"
+        variant="dangerOutline"
+        className="w-full !min-h-[var(--app-tap-min)]"
+        onClick={() => {
+          setReason(null);
+          setOpen(true);
+        }}
+        data-testid="cancel-claim-trigger"
+      >
+        Release spot
+      </Button>
+
+      <CancellationReasonSheet
+        open={open && !state.success}
+        onClose={() => {
+          setOpen(false);
+          setReason(null);
+        }}
+        title="Why are you releasing the spot?"
+        options={SEEKER_OPTIONS}
+        selected={reason}
+        onSelectedChange={setReason}
+        formAction={formAction}
+        hiddenFields={{ claim_id: claimId }}
+        confirmLabel="Release spot"
+        confirmPendingLabel="Releasing…"
+        closeLabel="Keep handoff"
+        pending={pending}
+        testId="cancel-claim-confirm"
+        returnFocusRef={triggerRef}
+      />
     </div>
   );
 }

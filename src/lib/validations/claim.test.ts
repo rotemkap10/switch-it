@@ -82,14 +82,37 @@ describe("completeClaimSchema", () => {
 });
 
 describe("cancelClaimSchema", () => {
-  it("accepts a valid claim_id uuid", () => {
+  it("accepts a valid claim_id and seeker reason", () => {
     expect(
-      cancelClaimSchema.safeParse({ claim_id: validUuid }).success,
+      cancelClaimSchema.safeParse({
+        claim_id: validUuid,
+        reason: "found_another_spot",
+      }).success,
     ).toBe(true);
   });
 
   it("rejects a non-uuid claim_id", () => {
-    expect(cancelClaimSchema.safeParse({ claim_id: "" }).success).toBe(false);
+    expect(
+      cancelClaimSchema.safeParse({
+        claim_id: "",
+        reason: "other",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a publisher-only reason", () => {
+    expect(
+      cancelClaimSchema.safeParse({
+        claim_id: validUuid,
+        reason: "had_to_leave",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a missing reason", () => {
+    expect(
+      cancelClaimSchema.safeParse({ claim_id: validUuid }).success,
+    ).toBe(false);
   });
 });
 
@@ -122,13 +145,30 @@ describe("reconcileClaimTimingSchema", () => {
 });
 
 describe("cancelSpotSchema", () => {
-  it("accepts a valid spot_id uuid", () => {
-    expect(cancelSpotSchema.safeParse({ spot_id: validUuid }).success).toBe(
-      true,
-    );
+  it("accepts a valid spot_id and publisher reason", () => {
+    expect(
+      cancelSpotSchema.safeParse({
+        spot_id: validUuid,
+        reason: "had_to_leave",
+      }).success,
+    ).toBe(true);
   });
 
   it("rejects a non-uuid spot_id", () => {
-    expect(cancelSpotSchema.safeParse({ spot_id: "123" }).success).toBe(false);
+    expect(
+      cancelSpotSchema.safeParse({
+        spot_id: "123",
+        reason: "other",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects a seeker-only reason", () => {
+    expect(
+      cancelSpotSchema.safeParse({
+        spot_id: validUuid,
+        reason: "too_far",
+      }).success,
+    ).toBe(false);
   });
 });

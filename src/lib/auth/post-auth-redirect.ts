@@ -22,7 +22,8 @@ export function resolvePostAuthRedirect(
   const safeNext = getSafeRedirectPath(next);
   if (
     safeNext === VEHICLE_ONBOARDING_PATH ||
-    safeNext === "/profile"
+    safeNext === "/profile" ||
+    safeNext === "/help"
   ) {
     return safeNext;
   }

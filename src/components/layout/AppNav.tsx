@@ -1,11 +1,12 @@
 "use client";
 
 import { Logo } from "@/components/branding/Logo";
+import { AppShellHeaderInner } from "@/components/layout/AppShellHeaderInner";
 import { ModeHomeLink, ModeSwitch } from "@/components/mode/ModeSwitch";
 import { ProfileMenu } from "@/components/layout/ProfileMenu";
 
 type AppNavProps = {
-  /** Tighter map chrome; header still hosts the mode switch. */
+  /** Map routes: header stays out of the flex shrink of the map stage. */
   compact?: boolean;
   displayName?: string | null;
 };
@@ -24,14 +25,7 @@ export function AppNav({ compact = false, displayName = null }: AppNavProps) {
       ].join(" ")}
       data-testid="app-nav"
     >
-      <div
-        className={[
-          "app-shell-header-inner",
-          compact
-            ? "app-shell-header-inner--wide"
-            : "app-shell-header-inner--contained",
-        ].join(" ")}
-      >
+      <AppShellHeaderInner>
         <div
           className="flex items-center justify-between gap-3"
           data-testid="app-nav-row-brand"
@@ -53,7 +47,7 @@ export function AppNav({ compact = false, displayName = null }: AppNavProps) {
         <div className="md:hidden" data-testid="app-nav-row-mode">
           <ModeSwitch fullWidth />
         </div>
-      </div>
+      </AppShellHeaderInner>
     </header>
   );
 }

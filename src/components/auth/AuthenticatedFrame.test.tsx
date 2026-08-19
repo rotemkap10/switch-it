@@ -115,4 +115,21 @@ describe("AuthenticatedFrame map layout", () => {
       "text-center",
     );
   });
+
+  it("renders AppNav as a shell sibling of main so page max-width cannot move the logo", () => {
+    render(
+      <AuthenticatedFrame userId="user-1" title="Profile" layout="default">
+        <div>Cards</div>
+      </AuthenticatedFrame>,
+    );
+
+    const shell = screen.getByTestId("authenticated-shell");
+    const nav = screen.getByTestId("app-nav");
+    const main = screen.getByTestId("authenticated-main");
+    expect(nav.parentElement).toBe(shell);
+    expect(main.parentElement).toBe(shell);
+    expect(main.contains(nav)).toBe(false);
+    expect(main.className).toContain("app-shell-main--page");
+    expect(nav).toHaveAttribute("data-compact", "false");
+  });
 });

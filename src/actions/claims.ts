@@ -232,6 +232,7 @@ export async function cancelClaim(
 ): Promise<CancelClaimActionState> {
   const parsed = cancelClaimSchema.safeParse({
     claim_id: formData.get("claim_id"),
+    reason: formData.get("reason"),
   });
 
   if (!parsed.success) {
@@ -246,6 +247,7 @@ export async function cancelClaim(
       const { supabase } = await requireUser();
       const { data, error } = await supabase.rpc("cancel_claim", {
         p_claim_id: parsed.data.claim_id,
+        p_reason: parsed.data.reason,
       });
 
       if (error) {

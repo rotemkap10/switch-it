@@ -7,6 +7,7 @@ const PROTECTED_PREFIXES = [
   "/map",
   "/profile",
   "/history",
+  "/help",
   "/spots/new",
   "/onboarding",
 ] as const;

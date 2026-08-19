@@ -1,9 +1,11 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+const cancelSpotMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/actions/spots", () => ({
-  cancelSpot: vi.fn(),
+  cancelSpot: cancelSpotMock,
 }));
 
 vi.mock("@/components/feedback/useActionFeedback", () => ({
@@ -28,25 +30,34 @@ describe("CancelSpotButton", () => {
     expect(trigger.className).toContain("border-danger");
     expect(trigger.className).toContain("w-full");
     expect(trigger.className).toContain("min-h-[var(--app-tap-min)]");
-    expect(trigger.className).not.toContain("underline");
   });
 
-  it("keeps Keep spot active primary and Cancel spot as outlined secondary in confirm", async () => {
+  it("opens publisher reasons for an unclaimed listing and does not submit on close", async () => {
     const user = userEvent.setup();
     render(<CancelSpotButton spotId={spotId} />);
 
     await user.click(screen.getByRole("button", { name: "Cancel spot" }));
 
     const dialog = screen.getByTestId("cancel-spot-confirm");
-    const keep = screen.getByRole("button", { name: "Keep spot active" });
-    const cancel = screen.getByRole("button", { name: "Cancel spot" });
+    expect(
+      screen.getByRole("heading", { name: "Why are you cancelling this spot?" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("radio", { name: "Someone else took the spot" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "I had to leave" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("radio", { name: "Can't complete the handoff" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("radio", { name: "Too far" })).not.toBeInTheDocument();
 
-    expect(dialog).toContainElement(keep);
-    expect(dialog).toContainElement(cancel);
-    expect(keep.className).toContain("border-border");
-    expect(cancel.className).toContain("border-danger");
-    expect(keep.className).toContain("w-full");
-    expect(cancel.className).toContain("w-full");
+    const confirm = within(dialog).getByRole("button", { name: "Cancel spot" });
+    expect(confirm).toBeDisabled();
+    expect(dialog.querySelector('input[name="spot_id"]')).toHaveValue(spotId);
+
+    await user.click(screen.getByRole("button", { name: "Keep spot active" }));
+    expect(screen.queryByTestId("cancel-spot-confirm")).not.toBeInTheDocument();
+    expect(cancelSpotMock).not.toHaveBeenCalled();
   });
 
   it("uses Cancel handoff before the live timer starts", async () => {
@@ -55,13 +66,12 @@ describe("CancelSpotButton", () => {
 
     const trigger = screen.getByTestId("cancel-spot-trigger");
     expect(trigger).toHaveTextContent("Cancel handoff");
-    expect(trigger).not.toHaveTextContent("I’m leaving");
 
     await user.click(screen.getByRole("button", { name: "Cancel handoff" }));
-    expect(screen.getByText("Cancel this handoff?")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Cancel handoff" }),
+      screen.getByRole("heading", { name: "Why are you ending the handoff?" }),
     ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "End handoff" })).toBeDisabled();
   });
 
   it("uses Leave without handoff after the live timer starts", async () => {
@@ -73,13 +83,13 @@ describe("CancelSpotButton", () => {
     expect(screen.getByTestId("cancel-spot-trigger")).toHaveTextContent(
       "Leave without handoff",
     );
-    expect(
-      screen.queryByRole("button", { name: "I’m leaving" }),
-    ).not.toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: "Leave without handoff" }),
     );
-    expect(screen.getByText("Leave without a handoff?")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Why are you ending the handoff?" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "End handoff" })).toBeDisabled();
   });
 });

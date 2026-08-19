@@ -64,6 +64,12 @@ describe("MapRouteLoadingChrome", () => {
     expect(shell.className).toContain("app-shell--map");
     expect(screen.getByTestId("branded-loading-car")).toBeInTheDocument();
     expect(shell.querySelector(".animate-pulse")).toBeNull();
+    const inner = screen.getByTestId("app-shell-header-inner");
+    expect(inner.className).toBe("app-shell-header-inner");
+    expect(inner.querySelector("img")).toHaveAttribute(
+      "src",
+      "/branding/switch-it-logo.png",
+    );
   });
 
   it("renders publisher loading shell with compose map slot", () => {

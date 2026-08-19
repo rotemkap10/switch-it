@@ -34,8 +34,10 @@ export function resolveRouteLoadingKind(pathname: string): RouteLoadingKind {
   if (
     pathname === "/profile" ||
     pathname === "/history" ||
+    pathname === "/help" ||
     pathname.startsWith("/profile/") ||
-    pathname.startsWith("/history/")
+    pathname.startsWith("/history/") ||
+    pathname.startsWith("/help/")
   ) {
     return "page";
   }

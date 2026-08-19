@@ -7,6 +7,7 @@ describe("getSafeRedirectPath", () => {
     expect(getSafeRedirectPath("/map")).toBe("/map");
     expect(getSafeRedirectPath("/spots/new")).toBe("/spots/new");
     expect(getSafeRedirectPath("/profile")).toBe("/profile");
+    expect(getSafeRedirectPath("/help")).toBe("/help");
   });
 
   it("falls back to /map when next is missing", () => {

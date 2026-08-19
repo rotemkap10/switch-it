@@ -176,6 +176,7 @@ export async function cancelSpot(
 ): Promise<CancelSpotActionState> {
   const parsed = cancelSpotSchema.safeParse({
     spot_id: formData.get("spot_id"),
+    reason: formData.get("reason"),
   });
 
   if (!parsed.success) {
@@ -193,6 +194,7 @@ export async function cancelSpot(
       const { supabase } = await requireUser();
       const { data, error } = await supabase.rpc("cancel_spot", {
         p_spot_id: parsed.data.spot_id,
+        p_reason: parsed.data.reason,
       });
 
       if (error) {

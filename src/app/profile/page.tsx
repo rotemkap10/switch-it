@@ -1,5 +1,6 @@
 import { AuthenticatedShell } from "@/components/auth/AuthenticatedShell";
 import { ProfileForm } from "@/components/profile/ProfileForm";
+import { ProfileHelpLink } from "@/components/profile/ProfileHelpLink";
 import { ProfileSummaryRow } from "@/components/profile/ProfileSummaryRow";
 import { NotificationsStatus } from "@/components/profile/NotificationsStatus";
 import { SensoryPreferences } from "@/components/profile/SensoryPreferences";
@@ -50,6 +51,8 @@ export default async function ProfilePage() {
     >
       <div className="profile-page" data-testid="profile-layout">
         <ProfileSummaryRow email={user.email} credits={profile.credits} />
+
+        <ProfileHelpLink />
 
         <section
           className="mobile-form-section"

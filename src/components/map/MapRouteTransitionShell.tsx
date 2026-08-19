@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import { BrandedLoadingState } from "@/components/brand/BrandedLoadingState";
+import { AppShellHeaderLoadingPlaceholder } from "@/components/layout/AppShellHeaderInner";
 import { useAppLaunchReady } from "@/components/shell/AppLaunchReadyContext";
 import {
   MAP_SHEET_CLASS,
@@ -150,41 +151,9 @@ export function MapRouteLoadingChrome({
       data-layout={isMap ? "map" : "page"}
     >
       <div className="app-shell-header border-b border-border">
-        <div
-          className={[
-            "app-shell-header-inner",
-            isMap
-              ? "app-shell-header-inner--wide"
-              : "app-shell-header-inner--contained",
-          ].join(" ")}
-        >
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold tracking-tight text-foreground">
-              Switch It
-            </p>
-            <div
-              className="h-8 w-8 rounded-full bg-accent-soft"
-              aria-hidden="true"
-            />
-          </div>
-          <div
-            className="relative flex h-[var(--app-tap-min)] w-full items-center rounded-[var(--radius-card)] border border-border bg-accent-soft p-0.5 md:hidden"
-            aria-hidden="true"
-          >
-            <span
-              className={[
-                "absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-[calc(var(--radius-card)-2px)] bg-accent shadow-sm",
-                mode === "publisher" ? "translate-x-full" : "",
-              ].join(" ")}
-            />
-            <span className="relative z-[1] flex flex-1 items-center justify-center text-xs font-semibold text-foreground">
-              Find parking
-            </span>
-            <span className="relative z-[1] flex flex-1 items-center justify-center text-xs font-semibold text-muted">
-              Share a spot
-            </span>
-          </div>
-        </div>
+        <AppShellHeaderLoadingPlaceholder
+          mode={mode === "publisher" ? "publisher" : "seeker"}
+        />
       </div>
       <main
         className={[

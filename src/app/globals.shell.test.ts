@@ -28,6 +28,12 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".app-shell--map");
     expect(css).toContain("height: 100dvh");
     expect(css).toContain(".app-shell-header");
+    expect(css).toContain(".app-shell-header-inner");
+    expect(css).toMatch(
+      /\.app-shell-header-inner\s*\{[^}]*max-width:\s*none/s,
+    );
+    expect(css).not.toContain("app-shell-header-inner--contained");
+    expect(css).not.toContain("app-shell-header-inner--wide");
     expect(css).toContain("padding-top: constant(safe-area-inset-top)");
     expect(css).toContain("padding-top: var(--app-safe-top, env(safe-area-inset-top, 0px))");
     expect(css).toContain('html[data-native-status-bar="inset"] .app-shell-header');
@@ -117,6 +123,9 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".mobile-form-fields");
     expect(css).toContain(".mobile-form-primary");
     expect(css).toContain(".mobile-form-section");
+    expect(css).toContain(".profile-page");
+    expect(css).toContain(".profile-action-row");
+    expect(css).toContain(".help-page");
     expect(css).toContain(".app-form-control");
     expect(css).toContain("font-size: max(1rem, 16px)");
     expect(css).toMatch(

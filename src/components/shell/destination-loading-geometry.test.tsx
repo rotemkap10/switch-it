@@ -70,6 +70,9 @@ describe("app-wide destination loading geometry", () => {
     expect(source("src/app/history/loading.tsx")).toContain(
       "PageRouteLoadingChrome",
     );
+    expect(source("src/app/help/loading.tsx")).toContain(
+      "PageRouteLoadingChrome",
+    );
     expect(source("src/app/(auth)/loading.tsx")).toContain(
       "AuthRouteLoadingChrome",
     );
@@ -95,6 +98,7 @@ describe("app-wide destination loading geometry", () => {
     expect(resolveRouteLoadingKind("/spots/new")).toBe("map-publisher");
     expect(resolveRouteLoadingKind("/profile")).toBe("page");
     expect(resolveRouteLoadingKind("/history")).toBe("page");
+    expect(resolveRouteLoadingKind("/help")).toBe("page");
     expect(resolveRouteLoadingKind("/login")).toBe("auth");
     expect(resolveRouteLoadingKind("/register")).toBe("auth");
     expect(resolveRouteLoadingKind("/onboarding/vehicle")).toBe("auth");

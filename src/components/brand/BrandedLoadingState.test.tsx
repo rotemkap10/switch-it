@@ -62,6 +62,17 @@ describe("PageRouteLoadingChrome", () => {
       screen.getByTestId("profile-loading-shell").querySelector(".animate-pulse"),
     ).toBeNull();
   });
+
+  it("reuses the official nav logo on the shared full-width header inner", () => {
+    render(<PageRouteLoadingChrome testId="profile-loading-shell" />);
+    const inner = screen.getByTestId("app-shell-header-inner");
+    expect(inner.className).toBe("app-shell-header-inner");
+    expect(inner.querySelector("img")).toHaveAttribute(
+      "src",
+      "/branding/switch-it-logo.png",
+    );
+    expect(inner.querySelector("p")).toBeNull();
+  });
 });
 
 describe("loader vs map pin and launch splash", () => {
