@@ -215,6 +215,13 @@ export function PublisherRealtimeSync({
         rowId(payload.old as Record<string, unknown>) ??
         claimId;
 
+      if (spotId) {
+        applyClaimHint(
+          { ...payload, table: payload.table || "claims" },
+          spotId,
+        );
+      }
+
       if (id && next === "cancelled") {
         const claimKey = realtimeFeedbackKey("claim", id, "cancelled");
         const spotKey = spotId

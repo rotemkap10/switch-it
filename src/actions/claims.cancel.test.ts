@@ -52,6 +52,22 @@ describe("cancelClaim / cancelSpot reason forwarding", () => {
     expect(result.success).toBe(true);
   });
 
+  it("revalidates publisher share-a-spot after a seeker release", async () => {
+    const { revalidatePath } = await import("next/cache");
+    rpcMock.mockResolvedValue({
+      data: [{ already_cancelled: false }],
+      error: null,
+    });
+    const formData = new FormData();
+    formData.set("claim_id", claimId);
+    formData.set("reason", "found_another_spot");
+
+    await cancelClaim({}, formData);
+
+    expect(revalidatePath).toHaveBeenCalledWith("/map");
+    expect(revalidatePath).toHaveBeenCalledWith("/spots/new");
+  });
+
   it("rejects a publisher reason on seeker cancel", async () => {
     const formData = new FormData();
     formData.set("claim_id", claimId);

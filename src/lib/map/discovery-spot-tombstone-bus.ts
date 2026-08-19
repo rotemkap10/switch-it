@@ -3,7 +3,12 @@
  * without prop-drilling through the map tree.
  */
 
-type DiscoverySpotListener = (spotId: string) => void;
+import type { DiscoveryTombstoneReason } from "@/lib/map/seeker-discovery-spots";
+
+type DiscoverySpotListener = (
+  spotId: string,
+  reason: DiscoveryTombstoneReason,
+) => void;
 
 const listeners = new Set<DiscoverySpotListener>();
 
@@ -16,11 +21,14 @@ export function subscribeDiscoverySpotTombstone(
   };
 }
 
-export function requestDiscoverySpotTombstone(spotId: string): void {
+export function requestDiscoverySpotTombstone(
+  spotId: string,
+  reason: DiscoveryTombstoneReason = "claimed",
+): void {
   if (!spotId) {
     return;
   }
   for (const listener of listeners) {
-    listener(spotId);
+    listener(spotId, reason);
   }
 }

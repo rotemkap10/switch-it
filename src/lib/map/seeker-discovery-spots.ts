@@ -4,7 +4,19 @@ import type { MapSpot } from "@/types/map-spot";
 
 export const DISCOVERY_TOMBSTONE_TTL_MS = 15_000;
 
-export type DiscoveryTombstones = Map<string, number>;
+/**
+ * claimed: temporarily hidden because someone holds the listing (may reopen).
+ * terminal: cancelled / expired / completed (stale RSC must not resurrect).
+ * self-released: this seeker voluntarily released — hide only for them.
+ */
+export type DiscoveryTombstoneReason = "claimed" | "terminal" | "self-released";
+
+export type DiscoveryTombstone = {
+  at: number;
+  reason: DiscoveryTombstoneReason;
+};
+
+export type DiscoveryTombstones = Map<string, DiscoveryTombstone>;
 
 type SpotRowLike = {
   id?: unknown;
@@ -31,6 +43,26 @@ export function logSpotsRealtime(
   console.info(`[switch-it:spots-realtime] ${message}`);
 }
 
+function asFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+function asTimestampString(value: unknown): string | null {
+  if (typeof value === "string" && value.trim() !== "") {
+    return value;
+  }
+  return null;
+}
+
 /** Product rule: seekers only see non-expired available spots. */
 export function isSeekerVisibleParkingSpot(
   row: SpotRowLike,
@@ -39,10 +71,11 @@ export function isSeekerVisibleParkingSpot(
   if (row.status !== "available") {
     return false;
   }
-  if (typeof row.expires_at !== "string") {
+  const expiresAtRaw = asTimestampString(row.expires_at);
+  if (!expiresAtRaw) {
     return false;
   }
-  const expiresAt = Date.parse(row.expires_at);
+  const expiresAt = Date.parse(expiresAtRaw);
   return Number.isFinite(expiresAt) && expiresAt > nowMs;
 }
 
@@ -50,12 +83,17 @@ export function mapSpotFromParkingRow(
   row: SpotRowLike,
   userId: string,
 ): MapSpot | null {
+  const latitude = asFiniteNumber(row.latitude);
+  const longitude = asFiniteNumber(row.longitude);
+  const availableAt = asTimestampString(row.available_at);
+  const expiresAt = asTimestampString(row.expires_at);
+
   if (
     typeof row.id !== "string" ||
-    typeof row.latitude !== "number" ||
-    typeof row.longitude !== "number" ||
-    typeof row.available_at !== "string" ||
-    typeof row.expires_at !== "string" ||
+    latitude == null ||
+    longitude == null ||
+    !availableAt ||
+    !expiresAt ||
     typeof row.owner_id !== "string"
   ) {
     return null;
@@ -63,11 +101,11 @@ export function mapSpotFromParkingRow(
 
   return {
     id: row.id,
-    latitude: row.latitude,
-    longitude: row.longitude,
+    latitude,
+    longitude,
     address: typeof row.address === "string" ? row.address : null,
-    available_at: row.available_at,
-    expires_at: row.expires_at,
+    available_at: availableAt,
+    expires_at: expiresAt,
     canClaim: row.owner_id !== userId,
   };
 }
@@ -75,35 +113,78 @@ export function mapSpotFromParkingRow(
 function pruneTombstones(
   tombstones: DiscoveryTombstones,
   nowMs: number,
+  releasedSpotIds: ReadonlySet<string>,
 ): DiscoveryTombstones {
   const next = new Map(tombstones);
-  for (const [id, at] of next) {
-    if (nowMs - at > DISCOVERY_TOMBSTONE_TTL_MS) {
+  for (const [id, entry] of next) {
+    if (entry.reason === "self-released") {
+      if (
+        !releasedSpotIds.has(id) &&
+        nowMs - entry.at > DISCOVERY_TOMBSTONE_TTL_MS
+      ) {
+        next.delete(id);
+      }
+      continue;
+    }
+    if (nowMs - entry.at > DISCOVERY_TOMBSTONE_TTL_MS) {
       next.delete(id);
     }
   }
   return next;
 }
 
+function hideForReleasedSeeker(
+  spotId: string,
+  releasedSpotIds: ReadonlySet<string>,
+  tombstones: DiscoveryTombstones,
+): boolean {
+  if (releasedSpotIds.has(spotId)) {
+    return true;
+  }
+  return tombstones.get(spotId)?.reason === "self-released";
+}
+
 /**
- * Merge RSC/server discovery list with local tombstones so a stale fetch
- * cannot resurrect a spot realtime already removed.
+ * Merge RSC/server discovery list with local tombstones.
+ * A claimed-then-reopened listing is available again: if the server includes
+ * it, that is canonical and a "claimed" tombstone must not hide it globally.
+ * Terminal tombstones still block stale RSC resurrection of cancelled rows.
+ * Self-released tombstones are per-user and survive an available listing.
  */
 export function mergeServerDiscoverySpots(
   serverSpots: MapSpot[],
   tombstones: DiscoveryTombstones,
   nowMs: number = Date.now(),
+  releasedSpotIds: ReadonlySet<string> = new Set(),
 ): { spots: MapSpot[]; tombstones: DiscoveryTombstones } {
-  const pruned = pruneTombstones(tombstones, nowMs);
+  const pruned = pruneTombstones(tombstones, nowMs, releasedSpotIds);
   const serverIds = new Set(serverSpots.map((spot) => spot.id));
 
   for (const id of [...pruned.keys()]) {
+    const entry = pruned.get(id);
+    if (!entry) {
+      continue;
+    }
+    if (entry.reason === "self-released") {
+      continue;
+    }
     if (!serverIds.has(id)) {
+      pruned.delete(id);
+      continue;
+    }
+    if (entry.reason === "claimed") {
+      // Server still lists it as available → the listing reopened.
       pruned.delete(id);
     }
   }
 
-  const spots = serverSpots.filter((spot) => !pruned.has(spot.id));
+  const spots = serverSpots.filter((spot) => {
+    if (hideForReleasedSeeker(spot.id, releasedSpotIds, pruned)) {
+      return false;
+    }
+    const entry = pruned.get(spot.id);
+    return !entry || entry.reason === "claimed";
+  });
   return { spots, tombstones: pruned };
 }
 
@@ -133,9 +214,16 @@ export type ApplyDiscoveryRealtimeResult = {
   status: string | null;
 };
 
+function tombstoneReasonForStatus(status: string | null): DiscoveryTombstoneReason {
+  if (status === "claimed") {
+    return "claimed";
+  }
+  return "terminal";
+}
+
 /**
  * Canonical discovery reconciliation for one postgres_changes payload.
- * Visible available → upsert; otherwise remove by id.
+ * Visible available → upsert (unless this seeker released it); otherwise remove.
  */
 export function applyParkingSpotRealtimeEvent(
   spots: MapSpot[],
@@ -143,6 +231,7 @@ export function applyParkingSpotRealtimeEvent(
   payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
   userId: string,
   nowMs: number = Date.now(),
+  releasedSpotIds: ReadonlySet<string> = new Set(),
 ): ApplyDiscoveryRealtimeResult {
   const eventType = payload.eventType;
   const newRow = (payload.new ?? null) as SpotRowLike | null;
@@ -158,7 +247,7 @@ export function applyParkingSpotRealtimeEvent(
         ? oldRow.status
         : null;
 
-  let nextTombstones = pruneTombstones(tombstones, nowMs);
+  let nextTombstones = pruneTombstones(tombstones, nowMs, releasedSpotIds);
 
   if (eventType === "DELETE") {
     if (!spotId) {
@@ -172,7 +261,7 @@ export function applyParkingSpotRealtimeEvent(
       };
     }
     nextTombstones = new Map(nextTombstones);
-    nextTombstones.set(spotId, nowMs);
+    nextTombstones.set(spotId, { at: nowMs, reason: "terminal" });
     const nextSpots = removeSpot(spots, spotId);
     return {
       spots: nextSpots,
@@ -207,6 +296,19 @@ export function applyParkingSpotRealtimeEvent(
   }
 
   if (isSeekerVisibleParkingSpot(newRow, nowMs)) {
+    if (hideForReleasedSeeker(newRow.id, releasedSpotIds, nextTombstones)) {
+      nextTombstones = new Map(nextTombstones);
+      nextTombstones.set(newRow.id, { at: nowMs, reason: "self-released" });
+      const nextSpots = removeSpot(spots, newRow.id);
+      return {
+        spots: nextSpots,
+        tombstones: nextTombstones,
+        changed: nextSpots !== spots || !tombstones.has(newRow.id),
+        action: "remove",
+        spotId: newRow.id,
+        status,
+      };
+    }
     const mapped = mapSpotFromParkingRow(newRow, userId);
     if (!mapped) {
       return {
@@ -232,7 +334,11 @@ export function applyParkingSpotRealtimeEvent(
   }
 
   nextTombstones = new Map(nextTombstones);
-  nextTombstones.set(newRow.id, nowMs);
+  const existingSelf = nextTombstones.get(newRow.id)?.reason === "self-released";
+  nextTombstones.set(newRow.id, {
+    at: nowMs,
+    reason: existingSelf ? "self-released" : tombstoneReasonForStatus(status),
+  });
   const nextSpots = removeSpot(spots, newRow.id);
   return {
     spots: nextSpots,
@@ -244,15 +350,17 @@ export function applyParkingSpotRealtimeEvent(
   };
 }
 
-/** Explicit local remove (e.g. failed claim on a just-cancelled spot). */
+/** Explicit local remove (failed claim / this seeker's voluntary release). */
 export function tombstoneDiscoverySpot(
   spots: MapSpot[],
   tombstones: DiscoveryTombstones,
   spotId: string,
   nowMs: number = Date.now(),
+  reason: DiscoveryTombstoneReason = "claimed",
+  releasedSpotIds: ReadonlySet<string> = new Set(),
 ): ApplyDiscoveryRealtimeResult {
-  const nextTombstones = pruneTombstones(tombstones, nowMs);
-  nextTombstones.set(spotId, nowMs);
+  const nextTombstones = pruneTombstones(tombstones, nowMs, releasedSpotIds);
+  nextTombstones.set(spotId, { at: nowMs, reason });
   const nextSpots = removeSpot(spots, spotId);
   return {
     spots: nextSpots,
@@ -262,4 +370,16 @@ export function tombstoneDiscoverySpot(
     spotId,
     status: null,
   };
+}
+
+export function discoveryTombstoneReasonForClaimError(
+  errorCode: string | undefined,
+): DiscoveryTombstoneReason {
+  if (errorCode === "ALREADY_RELEASED_THIS_SPOT") {
+    return "self-released";
+  }
+  if (errorCode === "SPOT_UNAVAILABLE") {
+    return "claimed";
+  }
+  return "terminal";
 }

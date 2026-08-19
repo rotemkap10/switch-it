@@ -27,6 +27,7 @@ import {
   takeClaimSpotDestination,
 } from "@/lib/map/post-claim-navigation";
 import { requestCurrentDeviceLocation } from "@/lib/map/request-current-device-location";
+import { discoveryTombstoneReasonForClaimError } from "@/lib/map/seeker-discovery-spots";
 import { shouldRevalidateMapAfterClaimFailure } from "@/lib/map/stale-discovery-errors";
 import { offerHandoffPushPrepromptBeforeHandoff } from "@/lib/push/preprompt-bus";
 import { sensoryLightTap } from "@/lib/sensory/feedback";
@@ -90,7 +91,10 @@ export function ClaimSpotButton({
     if (!shouldRevalidateMapAfterClaimFailure(state.errorCode)) {
       return;
     }
-    requestDiscoverySpotTombstone(spotId);
+    requestDiscoverySpotTombstone(
+      spotId,
+      discoveryTombstoneReasonForClaimError(state.errorCode),
+    );
     refresh();
   }, [refresh, spotId, state.errorCode]);
 

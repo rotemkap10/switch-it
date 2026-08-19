@@ -33,7 +33,7 @@ const spot: MapSpot = {
   longitude: 34.8,
   address: "A",
   available_at: "2026-08-16T11:55:00.000Z",
-  expires_at: "2026-08-16T12:30:00.000Z",
+  expires_at: "2099-08-16T12:30:00.000Z",
   canClaim: true,
 };
 
@@ -141,5 +141,62 @@ describe("useSeekerDiscoverySpots", () => {
     });
 
     expect(result.current).toEqual([]);
+  });
+
+  it("hides a listing this seeker released even after it becomes available again", () => {
+    const { result } = renderHook(() =>
+      useSeekerDiscoverySpots({
+        serverSpots: initialSpots,
+        userId: "seeker-1",
+        releasedSpotIds: ["spot-a"],
+      }),
+    );
+    expect(result.current).toEqual([]);
+  });
+
+  it("re-adds a claimed listing when Realtime says it is available again", () => {
+    const { result } = renderHook(() =>
+      useSeekerDiscoverySpots({
+        serverSpots: initialSpots,
+        userId: "seeker-c",
+      }),
+    );
+
+    act(() => {
+      onEventRef.current?.({
+        eventType: "UPDATE",
+        new: {
+          id: "spot-a",
+          status: "claimed",
+          latitude: 32.1,
+          longitude: 34.8,
+          address: "A",
+          available_at: spot.available_at,
+          expires_at: spot.expires_at,
+          owner_id: "owner-1",
+        },
+        old: {},
+      });
+    });
+    expect(result.current).toEqual([]);
+
+    act(() => {
+      onEventRef.current?.({
+        eventType: "UPDATE",
+        new: {
+          id: "spot-a",
+          status: "available",
+          latitude: 32.1,
+          longitude: 34.8,
+          address: "A",
+          available_at: spot.available_at,
+          expires_at: spot.expires_at,
+          owner_id: "owner-1",
+        },
+        old: {},
+      });
+    });
+    expect(result.current).toHaveLength(1);
+    expect(result.current[0]?.id).toBe("spot-a");
   });
 });

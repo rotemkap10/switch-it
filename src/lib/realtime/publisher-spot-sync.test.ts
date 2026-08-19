@@ -75,6 +75,51 @@ describe("publisherClaimHintFromPayload", () => {
     );
     expect(hint).toBeNull();
   });
+
+  it("detects parking_spots UPDATE back to available after a pre-start release", () => {
+    const hint = publisherClaimHintFromPayload(
+      {
+        table: "parking_spots",
+        eventType: "UPDATE",
+        new: {
+          id: spot.id,
+          status: "available",
+          expires_at: spot.available_at,
+          handoff_started_at: null,
+        },
+        old: { id: spot.id, status: "claimed" },
+      } as never,
+      spot.id,
+    );
+    expect(hint).toEqual({
+      spotId: spot.id,
+      claimId: null,
+      source: "spot-update",
+      promoteToClaimed: false,
+      handoffStartedAt: null,
+      expiresAt: spot.available_at,
+      extensionUsedAt: null,
+    });
+  });
+
+  it("detects claim cancelled as a demote hint", () => {
+    const claimId = "7c611153-191e-430b-940e-ba25e5399571";
+    const hint = publisherClaimHintFromPayload(
+      {
+        table: "claims",
+        eventType: "UPDATE",
+        new: { id: claimId, spot_id: spot.id, status: "cancelled" },
+        old: { id: claimId, spot_id: spot.id, status: "active" },
+      } as never,
+      spot.id,
+    );
+    expect(hint).toEqual({
+      spotId: spot.id,
+      claimId,
+      source: "claim-update",
+      promoteToClaimed: false,
+    });
+  });
 });
 
 describe("mergePublisherSpotFromServer", () => {
@@ -149,5 +194,38 @@ describe("mergePublisherSpotFromServer", () => {
     expect(merged.spot.status).toBe("available");
     expect(merged.spot.handoff_started_at).toBe("2026-08-17T09:01:00.000Z");
     expect(merged.activeClaimId).toBeNull();
+  });
+
+  it("returns to waiting when the seeker releases before handoff start", () => {
+    const claimedSpot = {
+      ...spot,
+      status: "claimed" as const,
+      expires_at: "2026-08-17T09:03:00.000Z",
+    };
+    const merged = mergePublisherSpotFromServer(claimedSpot, claimId, {
+      spotId: spot.id,
+      claimId: null,
+      source: "spot-update",
+      promoteToClaimed: false,
+      expiresAt: spot.available_at,
+      handoffStartedAt: null,
+    });
+    expect(merged.spot.status).toBe("available");
+    expect(merged.spot.expires_at).toBe(spot.available_at);
+    expect(merged.spot.handoff_started_at).toBeNull();
+    expect(merged.activeClaimId).toBeNull();
+  });
+
+  it("does not drop a later seeker C when B's cancelled hint arrives after C claimed", () => {
+    const claimedSpot = { ...spot, status: "claimed" as const };
+    const seekerC = "cccccccccccccccccccccccccccccccc";
+    const merged = mergePublisherSpotFromServer(claimedSpot, seekerC, {
+      spotId: spot.id,
+      claimId,
+      source: "claim-update",
+      promoteToClaimed: false,
+    });
+    expect(merged.spot.status).toBe("claimed");
+    expect(merged.activeClaimId).toBe(seekerC);
   });
 });

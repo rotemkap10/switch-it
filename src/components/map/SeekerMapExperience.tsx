@@ -34,6 +34,7 @@ type SeekerMapExperienceProps = {
   spotsError: boolean;
   activeClaimError: boolean;
   ownedSpotError: boolean;
+  releasedSpotIds?: readonly string[];
 };
 
 export function SeekerMapExperience({
@@ -47,12 +48,14 @@ export function SeekerMapExperience({
   spotsError,
   activeClaimError,
   ownedSpotError,
+  releasedSpotIds = [],
 }: SeekerMapExperienceProps) {
   const reportInitialMapReady = useReportInitialMapReady();
   const spots = useSeekerDiscoverySpots({
     serverSpots,
     userId,
     enabled: !spotsError,
+    releasedSpotIds,
   });
   const [mapVisuallyReady, setMapVisuallyReady] = useState(false);
   const [claimExpanded, setClaimExpanded] = useState(true);

@@ -227,7 +227,10 @@ describe("ClaimSpotButton", () => {
     expect(peekPostClaimNavigationPendingForTests()).toBeNull();
     expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
     await waitFor(() => {
-      expect(requestDiscoverySpotTombstoneMock).toHaveBeenCalledWith(spotId);
+      expect(requestDiscoverySpotTombstoneMock).toHaveBeenCalledWith(
+        spotId,
+        "claimed",
+      );
       expect(routerRefreshMock).toHaveBeenCalled();
     });
   });
@@ -250,7 +253,10 @@ describe("ClaimSpotButton", () => {
     ).toBeInTheDocument();
     expect(peekPostClaimNavigationPendingForTests()).toBeNull();
     await waitFor(() => {
-      expect(requestDiscoverySpotTombstoneMock).toHaveBeenCalledWith(spotId);
+      expect(requestDiscoverySpotTombstoneMock).toHaveBeenCalledWith(
+        spotId,
+        "self-released",
+      );
     });
   });
 

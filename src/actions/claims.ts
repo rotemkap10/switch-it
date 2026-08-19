@@ -261,6 +261,7 @@ export async function cancelClaim(
       }
 
       revalidatePath("/map");
+      revalidatePath("/spots/new");
 
       return {
         success: true,

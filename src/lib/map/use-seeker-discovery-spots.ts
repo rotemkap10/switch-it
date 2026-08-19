@@ -9,6 +9,7 @@ import {
   logSpotsRealtime,
   mergeServerDiscoverySpots,
   tombstoneDiscoverySpot,
+  type DiscoveryTombstoneReason,
   type DiscoveryTombstones,
 } from "@/lib/map/seeker-discovery-spots";
 import { useDebouncedRouterRefresh } from "@/lib/realtime/use-debounced-router-refresh";
@@ -22,6 +23,8 @@ type UseSeekerDiscoverySpotsOptions = {
   serverSpots: MapSpot[];
   userId: string;
   enabled?: boolean;
+  /** Listings this seeker voluntarily released — hide locally, never globally. */
+  releasedSpotIds?: readonly string[];
 };
 
 /**
@@ -32,12 +35,19 @@ export function useSeekerDiscoverySpots({
   serverSpots,
   userId,
   enabled = true,
+  releasedSpotIds = [],
 }: UseSeekerDiscoverySpotsOptions): MapSpot[] {
   const [spots, setSpots] = useState<MapSpot[]>(serverSpots);
   const tombstonesRef = useRef<DiscoveryTombstones>(new Map());
   const spotsRef = useRef(spots);
   const hadSubscribedRef = useRef(false);
   const scheduleRefresh = useDebouncedRouterRefresh();
+  const releasedSpotIdsKey = releasedSpotIds.join(",");
+  const releasedSpotIdsRef = useRef<ReadonlySet<string>>(new Set(releasedSpotIds));
+
+  useEffect(() => {
+    releasedSpotIdsRef.current = new Set(releasedSpotIds);
+  }, [releasedSpotIds, releasedSpotIdsKey]);
 
   useEffect(() => {
     spotsRef.current = spots;
@@ -45,9 +55,12 @@ export function useSeekerDiscoverySpots({
 
   // Server props win as truth, but tombstones block stale resurrection.
   useEffect(() => {
+    const released = releasedSpotIdsRef.current;
     const merged = mergeServerDiscoverySpots(
       serverSpots,
       tombstonesRef.current,
+      Date.now(),
+      released,
     );
     tombstonesRef.current = merged.tombstones;
     setSpots((prev) => {
@@ -71,7 +84,7 @@ export function useSeekerDiscoverySpots({
       }
       return merged.spots;
     });
-  }, [serverSpots]);
+  }, [releasedSpotIdsKey, serverSpots]);
 
   const applyPayload = useCallback(
     (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
@@ -80,6 +93,8 @@ export function useSeekerDiscoverySpots({
         tombstonesRef.current,
         payload,
         userId,
+        Date.now(),
+        releasedSpotIdsRef.current,
       );
       tombstonesRef.current = result.tombstones;
 
@@ -165,11 +180,14 @@ export function useSeekerDiscoverySpots({
 
   // Failed claim on a spot that just became unavailable.
   useEffect(() => {
-    return subscribeDiscoverySpotTombstone((spotId) => {
+    return subscribeDiscoverySpotTombstone((spotId, reason: DiscoveryTombstoneReason) => {
       const result = tombstoneDiscoverySpot(
         spotsRef.current,
         tombstonesRef.current,
         spotId,
+        Date.now(),
+        reason,
+        releasedSpotIdsRef.current,
       );
       tombstonesRef.current = result.tombstones;
       if (result.changed) {

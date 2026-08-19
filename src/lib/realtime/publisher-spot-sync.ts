@@ -84,6 +84,17 @@ export function publisherClaimHintFromPayload(
         extensionUsedAt,
       };
     }
+    if (status === "available") {
+      return {
+        spotId: expectedSpotId,
+        claimId: null,
+        source: "spot-update",
+        promoteToClaimed: false,
+        handoffStartedAt,
+        expiresAt,
+        extensionUsedAt,
+      };
+    }
     if (handoffStartedAt || extensionUsedAt) {
       return {
         spotId: expectedSpotId,
@@ -121,6 +132,18 @@ export function publisherClaimHintFromPayload(
         promoteToClaimed: true,
       };
     }
+
+    if (
+      eventType === "UPDATE" &&
+      (status === "cancelled" || status === "expired" || status === "completed")
+    ) {
+      return {
+        spotId: expectedSpotId,
+        claimId,
+        source: "claim-update",
+        promoteToClaimed: false,
+      };
+    }
   }
 
   return null;
@@ -141,7 +164,32 @@ export function mergePublisherSpotFromServer(
     serverSpot.status === "claimed" ? serverClaimId : null;
 
   if (claimHint && claimHint.spotId === serverSpot.id) {
-    if (claimHint.promoteToClaimed !== false && serverSpot.status !== "claimed") {
+    if (claimHint.promoteToClaimed === false) {
+      const listingReopened = claimHint.source === "spot-update";
+      const releasedTheServerClaim =
+        !serverClaimId || serverClaimId === claimHint.claimId;
+      if (
+        listingReopened ||
+        serverSpot.status !== "claimed" ||
+        releasedTheServerClaim
+      ) {
+        spot = {
+          ...serverSpot,
+          status: "available",
+          expires_at:
+            claimHint.expiresAt ??
+            (serverSpot.status === "available"
+              ? serverSpot.expires_at
+              : serverSpot.available_at),
+          handoff_started_at:
+            claimHint.handoffStartedAt ??
+            (serverSpot.status === "available"
+              ? serverSpot.handoff_started_at
+              : null),
+        };
+        activeClaimId = null;
+      }
+    } else if (serverSpot.status !== "claimed") {
       spot = { ...spot, status: "claimed" };
     }
     if (spot.status === "claimed" && !activeClaimId) {

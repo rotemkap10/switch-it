@@ -224,4 +224,49 @@ describe("PublisherSpotExperience", () => {
     );
     expect(scheduleRefreshMock).toHaveBeenCalled();
   });
+
+  it("returns to waiting when the listing becomes available after a seeker release", () => {
+    const claimedSpot = { ...spot, status: "claimed" as const };
+    const { rerender } = render(
+      <PublisherSpotExperience
+        userId="owner-1"
+        spot={claimedSpot}
+        activeClaimId={claimId}
+      />,
+    );
+
+    act(() => {
+      onEventHandlers.spot?.({
+        table: "parking_spots",
+        eventType: "UPDATE",
+        new: {
+          id: claimedSpot.id,
+          status: "available",
+          expires_at: claimedSpot.available_at,
+          handoff_started_at: null,
+        },
+        old: { id: claimedSpot.id, status: "claimed" },
+      });
+    });
+
+    expect(screen.getByText("Waiting for a driver")).toBeInTheDocument();
+    expect(screen.getByTestId("publisher-spot-card")).toHaveAttribute(
+      "data-status",
+      "available",
+    );
+    expect(screen.getByTestId("publisher-spot-card")).toHaveAttribute(
+      "data-claim-id",
+      "none",
+    );
+
+    rerender(
+      <PublisherSpotExperience
+        userId="owner-1"
+        spot={{ ...spot, expires_at: spot.available_at }}
+        activeClaimId={null}
+      />,
+    );
+
+    expect(screen.getByText("Waiting for a driver")).toBeInTheDocument();
+  });
 });

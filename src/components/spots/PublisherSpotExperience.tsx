@@ -39,6 +39,17 @@ export function PublisherSpotExperience({
       if (!previous || previous.spotId !== hint.spotId) {
         return hint;
       }
+      if (hint.promoteToClaimed === false) {
+        return {
+          ...previous,
+          ...hint,
+          claimId: hint.claimId ?? null,
+          promoteToClaimed: false,
+          handoffStartedAt: hint.handoffStartedAt ?? null,
+          expiresAt: hint.expiresAt ?? previous.expiresAt,
+          extensionUsedAt: hint.extensionUsedAt ?? null,
+        };
+      }
       return {
         ...previous,
         ...hint,

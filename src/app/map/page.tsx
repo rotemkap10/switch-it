@@ -255,7 +255,8 @@ export default async function MapPage() {
   const mapState = await runRscQuery(
     "load_map_handoff_state",
     async () => {
-      const [spotsResult, activeClaimResult, ownedSpotResult] = await Promise.all(
+      const [spotsResult, activeClaimResult, ownedSpotResult, releasedResult] =
+        await Promise.all(
         [
           supabase
             .from("parking_spots")
@@ -278,9 +279,15 @@ export default async function MapPage() {
             .eq("owner_id", user.id)
             .in("status", ["available", "claimed"])
             .maybeSingle(),
+          supabase
+            .from("claims")
+            .select("spot_id")
+            .eq("seeker_id", user.id)
+            .eq("status", "cancelled")
+            .eq("cancelled_by", "seeker"),
         ],
       );
-      return { spotsResult, activeClaimResult, ownedSpotResult };
+      return { spotsResult, activeClaimResult, ownedSpotResult, releasedResult };
     },
     null,
     { route: "/map" },
@@ -289,11 +296,27 @@ export default async function MapPage() {
   const spotsResult = mapState?.spotsResult;
   const activeClaimResult = mapState?.activeClaimResult;
   const ownedSpotResult = mapState?.ownedSpotResult;
+  const releasedSpotIds = Array.from(
+    new Set(
+      (Array.isArray(mapState?.releasedResult?.data)
+        ? mapState.releasedResult.data
+        : []
+      ).flatMap((row) => {
+        if (!row || typeof row !== "object") {
+          return [];
+        }
+        const spotId = (row as { spot_id?: unknown }).spot_id;
+        return typeof spotId === "string" ? [spotId] : [];
+      }),
+    ),
+  );
 
   const spots =
     !spotsResult || spotsResult.error
       ? []
-      : toMapSpots(spotsResult.data, user.id);
+      : toMapSpots(spotsResult.data, user.id).filter(
+          (spot) => !releasedSpotIds.includes(spot.id),
+        );
   const activeClaim =
     !activeClaimResult || activeClaimResult.error
       ? null
@@ -353,6 +376,7 @@ export default async function MapPage() {
         spotsError={Boolean(!spotsResult || spotsResult.error)}
         activeClaimError={Boolean(!activeClaimResult || activeClaimResult.error)}
         ownedSpotError={Boolean(!ownedSpotResult || ownedSpotResult.error)}
+        releasedSpotIds={releasedSpotIds}
       />
     </AuthenticatedShell>
   );

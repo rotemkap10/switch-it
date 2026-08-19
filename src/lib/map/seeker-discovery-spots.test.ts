@@ -88,6 +88,7 @@ describe("seeker discovery realtime reconciliation", () => {
     expect(result.action).toBe("remove");
     expect(result.spots.map((s) => s.id)).toEqual(["spot-b"]);
     expect(result.tombstones.has("spot-a")).toBe(true);
+    expect(result.tombstones.get("spot-a")?.reason).toBe("terminal");
   });
 
   it("available → claimed UPDATE removes spot for other seekers", () => {
@@ -129,7 +130,7 @@ describe("seeker discovery realtime reconciliation", () => {
   it("UPDATE-to-available upserts correctly", () => {
     const result = applyParkingSpotRealtimeEvent(
       [],
-      new Map([["spot-a", now]]),
+      new Map([["spot-a", { at: now, reason: "terminal" as const }]]),
       payload("UPDATE", availableRow()),
       userId,
       now,
@@ -137,6 +138,102 @@ describe("seeker discovery realtime reconciliation", () => {
     expect(result.action).toBe("upsert");
     expect(result.spots).toHaveLength(1);
     expect(result.tombstones.has("spot-a")).toBe(false);
+  });
+
+  it("claimed → available UPDATE re-adds the listing and clears the claimed tombstone", () => {
+    const afterClaim = applyParkingSpotRealtimeEvent(
+      [availableSpot],
+      new Map(),
+      payload("UPDATE", availableRow({ status: "claimed" })),
+      userId,
+      now,
+    );
+    expect(afterClaim.action).toBe("remove");
+    expect(afterClaim.tombstones.get("spot-a")?.reason).toBe("claimed");
+
+    const afterRelease = applyParkingSpotRealtimeEvent(
+      afterClaim.spots,
+      afterClaim.tombstones,
+      payload("UPDATE", availableRow()),
+      userId,
+      now,
+    );
+    expect(afterRelease.action).toBe("upsert");
+    expect(afterRelease.spots).toHaveLength(1);
+    expect(afterRelease.tombstones.has("spot-a")).toBe(false);
+  });
+
+  it("string lat/lng from Realtime still reopen the marker", () => {
+    const afterClaim = applyParkingSpotRealtimeEvent(
+      [availableSpot],
+      new Map(),
+      payload("UPDATE", availableRow({ status: "claimed" })),
+      userId,
+      now,
+    );
+    const afterRelease = applyParkingSpotRealtimeEvent(
+      afterClaim.spots,
+      afterClaim.tombstones,
+      payload(
+        "UPDATE",
+        availableRow({
+          latitude: "32.1",
+          longitude: "34.8",
+        }),
+      ),
+      userId,
+      now,
+    );
+    expect(afterRelease.action).toBe("upsert");
+    expect(afterRelease.spots[0]?.latitude).toBe(32.1);
+  });
+
+  it("does not re-add an available listing for the seeker who released it", () => {
+    const result = applyParkingSpotRealtimeEvent(
+      [],
+      new Map(),
+      payload("UPDATE", availableRow()),
+      userId,
+      now,
+      new Set(["spot-a"]),
+    );
+    expect(result.action).toBe("remove");
+    expect(result.spots).toEqual([]);
+    expect(result.tombstones.get("spot-a")?.reason).toBe("self-released");
+  });
+
+  it("server available list unhides a claimed tombstone for other seekers", () => {
+    const tombstones = new Map([
+      ["spot-a", { at: now, reason: "claimed" as const }],
+    ]);
+    const merged = mergeServerDiscoverySpots(
+      [availableSpot, otherSpot],
+      tombstones,
+      now,
+    );
+    expect(merged.spots.map((s) => s.id).sort()).toEqual(["spot-a", "spot-b"]);
+    expect(merged.tombstones.has("spot-a")).toBe(false);
+  });
+
+  it("self-released tombstone hides only for that seeker while server still lists the spot", () => {
+    const merged = mergeServerDiscoverySpots(
+      [availableSpot, otherSpot],
+      new Map([["spot-a", { at: now, reason: "self-released" }]]),
+      now,
+      new Set(["spot-a"]),
+    );
+    expect(merged.spots.map((s) => s.id)).toEqual(["spot-b"]);
+    expect(merged.tombstones.get("spot-a")?.reason).toBe("self-released");
+  });
+
+  it("releasedSpotIds hide the listing without a tombstone", () => {
+    const merged = mergeServerDiscoverySpots(
+      [availableSpot, otherSpot],
+      new Map(),
+      now,
+      new Set(["spot-a"]),
+    );
+    expect(merged.spots.map((s) => s.id)).toEqual(["spot-b"]);
   });
 
   it("repeated realtime upsert does not duplicate markers", () => {
@@ -212,7 +309,9 @@ describe("seeker discovery realtime reconciliation", () => {
   });
 
   it("clears tombstone once server confirms the spot is gone", () => {
-    const tombstones = new Map([["spot-a", now]]);
+    const tombstones = new Map([
+      ["spot-a", { at: now, reason: "terminal" as const }],
+    ]);
     const merged = mergeServerDiscoverySpots([otherSpot], tombstones, now);
     expect(merged.tombstones.has("spot-a")).toBe(false);
     expect(merged.spots.map((s) => s.id)).toEqual(["spot-b"]);

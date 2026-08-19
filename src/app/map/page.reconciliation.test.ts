@@ -38,4 +38,9 @@ describe("claimed handoff due-state reconciliation", () => {
     expect(publisherPage).toContain("expire_spot_if_needed");
     expect(publisherPage).not.toMatch(/expires_at <= nowIso/);
   });
+
+  it("hides listings this seeker voluntarily released from discovery", () => {
+    expect(mapPage).toContain('eq("cancelled_by", "seeker")');
+    expect(mapPage).toContain("releasedSpotIds");
+  });
 });
