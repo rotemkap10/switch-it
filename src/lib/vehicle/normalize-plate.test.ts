@@ -55,6 +55,26 @@ describe("normalizeLicensePlate", () => {
   });
 
   it("accepts supported Israeli-style lengths", () => {
+    expect(PLATE_MIN_DIGITS).toBe(5);
+    expect(PLATE_MAX_DIGITS).toBe(8);
+
+    expect(normalizeLicensePlate("12345")).toEqual({
+      ok: true,
+      normalized: "12345",
+    });
+    expect(normalizeLicensePlate("123456")).toEqual({
+      ok: true,
+      normalized: "123456",
+    });
+    expect(normalizeLicensePlate("1234567")).toEqual({
+      ok: true,
+      normalized: "1234567",
+    });
+    expect(normalizeLicensePlate("12345678")).toEqual({
+      ok: true,
+      normalized: "12345678",
+    });
+
     for (let len = PLATE_MIN_DIGITS; len <= PLATE_MAX_DIGITS; len += 1) {
       const digits = "1".repeat(len);
       expect(normalizeLicensePlate(digits)).toEqual({
@@ -66,6 +86,7 @@ describe("normalizeLicensePlate", () => {
 
   it("rejects plates outside the supported length range", () => {
     expect(normalizeLicensePlate("1234").ok).toBe(false);
+    expect(normalizeLicensePlate("123").ok).toBe(false);
     expect(normalizeLicensePlate("123456789").ok).toBe(false);
   });
 });

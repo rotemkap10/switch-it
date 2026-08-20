@@ -2,7 +2,7 @@
 
 **Switch It** is a phone-first web app that helps drivers coordinate direct handoffs of **public street parking spots**.
 
-A driver who is about to leave a parking spot can share when they expect to depart. Another driver looking for parking can claim the handoff, navigate to the location, optionally share live location, identify the other vehicle, and complete the exchange.
+A driver who is about to leave a parking spot can share when they expect to depart. Another driver looking for parking can claim the handoff, navigate to the location, share live location during the active handoff (subject to device permission and GPS), identify the other vehicle, and complete the exchange.
 
 Switch It coordinates the drivers — it does **not** sell, reserve, own, or guarantee a public parking spot.
 
@@ -32,7 +32,7 @@ Once a seeker claims the spot, the handoff is coordinated between those two driv
   * Waze
   * Google Maps
   * Apple Maps
-* Optional live seeker location during an active handoff
+* Live seeker location during an active handoff (starts with the claim UI; depends on permission/GPS)
 * Vehicle recognition using make, model, year, color, masked plate, and catalog imagery
 * Publisher verifies the arriving seeker's vehicle using the **last 2 digits of the seeker's license plate**
 * Credits transfer only after successful handoff completion
@@ -224,11 +224,14 @@ Switch It itself does not provide turn-by-turn navigation or route ETA calculati
 
 ## Live location
 
-The seeker may optionally share live location with the publisher during an active handoff.
+During an active claim, the seeker app starts live-location sharing with the publisher (subject to device permission and GPS availability). There is no separate “optional share” toggle in the current active-claim UI.
 
 The publisher can use the live handoff map to see the approaching seeker.
 
-Live seeker location is temporary and is **not stored as location or route history**.
+Live seeker location is temporary and is **not stored as a route-history trail**.
+
+- Web/PWA: private Realtime Broadcast (foreground-dependent)
+- Native/Edge pilot: may also upsert an ephemeral **latest** snapshot row for recovery; that row is replaced on update and deleted when the claim becomes terminal
 
 ### PWA
 
@@ -319,7 +322,7 @@ Supabase Edge Function
 Private handoff Broadcast topic
 ```
 
-Live seeker location is ephemeral and is not persisted as route history.
+Live seeker location is temporary. Web/PWA uses private Broadcast; the native/Edge path may keep an ephemeral latest snapshot (not a route-history trail).
 
 ## Local setup
 
@@ -426,7 +429,7 @@ Use two real Switch It accounts.
 8. See the countdown to the publisher's estimated departure.
 9. Tap **Navigate to spot**.
 10. Choose Waze, Google Maps, or Apple Maps.
-11. Optionally share live location while approaching.
+11. Live location sharing starts for the active claim if permission/GPS allow.
 
 If the seeker cannot make it, they can press:
 
@@ -440,7 +443,7 @@ No credits move.
 
 Otherwise, the active handoff begins automatically when the estimated departure time is reached.
 
-13. View the seeker's vehicle details and optional live marker.
+13. View the seeker's vehicle details and live marker when available.
 14. If needed, press **Wait 2 more min** once.
 15. When the seeker arrives, confirm that the arriving vehicle matches.
 16. Enter the last 2 digits of the seeker's license plate.
@@ -481,7 +484,7 @@ Before presenting:
 * No GPS/proximity requirement for handoff completion
 * No payments
 * No chat
-* No push notifications
+* Push infrastructure exists as an optional pilot, but production push delivery is not part of the verified core MVP
 * No ratings
 * No no-show penalties
 * Credits are virtual MVP points, not money

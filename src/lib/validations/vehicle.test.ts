@@ -207,6 +207,28 @@ describe("updateVehicleSchema", () => {
     }
   });
 
+  it("accepts normalized 5–8 digit license plates and separator input", () => {
+    for (const plate of ["12345", "123456", "1234567", "12345678"]) {
+      const result = updateVehicleSchema.safeParse({
+        ...validVehicle,
+        license_plate: plate,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.license_plate).toBe(plate);
+      }
+    }
+
+    const separated = updateVehicleSchema.safeParse({
+      ...validVehicle,
+      license_plate: "12-345-67",
+    });
+    expect(separated.success).toBe(true);
+    if (separated.success) {
+      expect(separated.data.license_plate).toBe("1234567");
+    }
+  });
+
   it("rejects invalid license plates", () => {
     expect(
       updateVehicleSchema.safeParse({
@@ -219,6 +241,20 @@ describe("updateVehicleSchema", () => {
       updateVehicleSchema.safeParse({
         ...validVehicle,
         license_plate: "1234",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      updateVehicleSchema.safeParse({
+        ...validVehicle,
+        license_plate: "123456789",
+      }).success,
+    ).toBe(false);
+
+    expect(
+      updateVehicleSchema.safeParse({
+        ...validVehicle,
+        license_plate: "ABCDE",
       }).success,
     ).toBe(false);
   });
