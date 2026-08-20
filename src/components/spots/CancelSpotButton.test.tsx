@@ -38,7 +38,7 @@ describe("CancelSpotButton", () => {
 
     await user.click(screen.getByRole("button", { name: "Cancel spot" }));
 
-    const dialog = screen.getByTestId("cancel-spot-confirm");
+    const dialog = await screen.findByTestId("cancel-spot-confirm");
     expect(
       screen.getByRole("heading", { name: "Why are you cancelling this spot?" }),
     ).toBeInTheDocument();

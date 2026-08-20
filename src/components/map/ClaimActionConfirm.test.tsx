@@ -45,8 +45,9 @@ describe("claim action confirmations", () => {
 
     await user.click(screen.getByRole("button", { name: "Release spot" }));
 
-    const dialog = screen.getByTestId("cancel-claim-confirm");
+    const dialog = await screen.findByTestId("cancel-claim-confirm");
     expect(dialog).toHaveAttribute("role", "dialog");
+    expect(dialog.parentElement?.parentElement).toBe(document.body);
     expect(
       screen.getByRole("heading", { name: "Why are you releasing the spot?" }),
     ).toBeInTheDocument();

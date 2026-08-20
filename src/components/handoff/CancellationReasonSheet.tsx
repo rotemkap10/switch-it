@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/Button";
 
@@ -29,6 +30,12 @@ type CancellationReasonSheetProps = {
   extraFields?: ReactNode;
 };
 
+/**
+ * Shared centered cancellation modal for publisher + seeker flows.
+ * Always portaled to document.body so parent transforms (e.g. motion on
+ * PublisherSpotCard / ActiveClaimPanel) cannot turn fixed positioning into
+ * a bottom-sheet-within-card.
+ */
 export function CancellationReasonSheet({
   open,
   onClose,
@@ -88,32 +95,32 @@ export function CancellationReasonSheet({
     wasOpenRef.current = open;
   }, [open, returnFocusRef]);
 
-  if (!open) {
+  if (!open || typeof document === "undefined") {
     return null;
   }
 
   const canConfirm = Boolean(selected) && !pending;
 
-  return (
+  return createPortal(
     <div
-        className="cancellation-sheet-backdrop motion-fade-in"
-        role="presentation"
-        data-testid={`${testId}-backdrop`}
-        onMouseDown={(event) => {
-          if (event.target === event.currentTarget && !pending) {
-            onClose();
-          }
-        }}
+      className="cancellation-sheet-backdrop motion-fade-in"
+      role="presentation"
+      data-testid={`${testId}-backdrop`}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget && !pending) {
+          onClose();
+        }
+      }}
+    >
+      <div
+        ref={sheetRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={description ? descId : undefined}
+        className="install-sheet cancellation-sheet motion-soft-scale-in"
+        data-testid={testId}
       >
-        <div
-          ref={sheetRef}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby={titleId}
-          aria-describedby={description ? descId : undefined}
-          className="install-sheet cancellation-sheet motion-fade-slide-up"
-          data-testid={testId}
-        >
         <header className="cancellation-sheet__header">
           <h2 id={titleId} className="install-sheet__title">
             {title}
@@ -131,10 +138,6 @@ export function CancellationReasonSheet({
           ))}
           {extraFields}
 
-          {/*
-            Reasons are a normal-flow list (no fieldset). Short viewports scroll
-            via .cancellation-sheet__reasons max-height — see globals.css.
-          */}
           <div
             className="cancellation-sheet__reasons"
             role="radiogroup"
@@ -188,6 +191,7 @@ export function CancellationReasonSheet({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

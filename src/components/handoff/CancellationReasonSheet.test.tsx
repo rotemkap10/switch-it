@@ -42,12 +42,15 @@ describe("CancellationReasonSheet layout", () => {
       />,
     );
 
-    const backdrop = screen.getByTestId("cancel-spot-confirm-backdrop");
+    const backdrop = await screen.findByTestId("cancel-spot-confirm-backdrop");
     expect(backdrop.className).toContain("cancellation-sheet-backdrop");
     expect(backdrop.className).not.toContain("install-sheet-backdrop");
+    expect(backdrop.parentElement).toBe(document.body);
 
     const dialog = screen.getByTestId("cancel-spot-confirm");
     expect(dialog.className).toContain("cancellation-sheet");
+    expect(dialog.className).toContain("motion-soft-scale-in");
+    expect(dialog.className).not.toContain("motion-fade-slide-up");
     expect(dialog.querySelector(".cancellation-sheet__header")).toBeTruthy();
     expect(dialog.querySelector("fieldset")).toBeNull();
 
@@ -80,9 +83,35 @@ describe("CancellationReasonSheet layout", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it("uses the same centered portal presentation for claimed-handoff copy", async () => {
+    render(
+      <CancellationReasonSheet
+        open
+        onClose={vi.fn()}
+        title="Why are you ending the handoff?"
+        options={options}
+        selected={null}
+        onSelectedChange={vi.fn()}
+        formAction={vi.fn()}
+        hiddenFields={{ spot_id: "11111111-1111-4111-8111-111111111111" }}
+        confirmLabel="End handoff"
+        confirmPendingLabel="Cancelling…"
+        closeLabel="Keep waiting"
+        testId="cancel-handoff-confirm"
+      />,
+    );
+
+    const backdrop = await screen.findByTestId("cancel-handoff-confirm-backdrop");
+    expect(backdrop.parentElement).toBe(document.body);
+    expect(backdrop.className).toContain("cancellation-sheet-backdrop");
+    expect(
+      within(screen.getByTestId("cancel-handoff-confirm")).getByRole("heading", {
+        name: "Why are you ending the handoff?",
+      }),
+    ).toBeInTheDocument();
+  });
+
   it("keeps the dialog viewport-bounded on short heights (~1584x472)", () => {
-    // Root clip: bottom-aligned (flex-end) tall sheets push the title above the
-    // viewport. Cancellation uses centered flex + min(max-content, max-height).
     expect(globalsCss).toMatch(
       /\.cancellation-sheet-backdrop\s*\{[^}]*align-items:\s*center/s,
     );
