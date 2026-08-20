@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -10,6 +13,11 @@ const options = [
   { value: "cant_complete_handoff", label: "Can't complete the handoff" },
   { value: "other", label: "Other" },
 ] as const;
+
+const globalsCss = readFileSync(
+  join(process.cwd(), "src/app/globals.css"),
+  "utf8",
+);
 
 describe("CancellationReasonSheet layout", () => {
   it("keeps header, scrollable reasons, and in-flow footer as siblings", async () => {
@@ -50,7 +58,11 @@ describe("CancellationReasonSheet layout", () => {
         name: "Why are you cancelling this spot?",
       }),
     ).toBeInTheDocument();
-    expect(within(dialog).getByRole("radio", { name: "Other" })).toBeInTheDocument();
+    for (const option of options) {
+      expect(
+        within(dialog).getByRole("radio", { name: option.label }),
+      ).toBeInTheDocument();
+    }
     expect(
       within(dialog).getByRole("button", { name: "Keep spot active" }),
     ).toBeInTheDocument();
@@ -62,5 +74,28 @@ describe("CancellationReasonSheet layout", () => {
 
     await user.click(screen.getByRole("button", { name: "Keep spot active" }));
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("avoids flex-basis 0 collapse on short viewports (~1584x472)", () => {
+    // Parent only has max-height. flex: 1 1 0 made the form contribute 0
+    // intrinsic height so only the title remained visible.
+    expect(globalsCss).not.toMatch(
+      /\.cancellation-sheet__form\s*\{[^}]*flex:\s*1\s+1\s+0/s,
+    );
+    expect(globalsCss).not.toMatch(
+      /\.cancellation-sheet__reasons\s*\{[^}]*flex:\s*1\s+1\s+0/s,
+    );
+    expect(globalsCss).toMatch(
+      /\.cancellation-sheet__form\s*\{[^}]*flex:\s*0\s+1\s+auto/s,
+    );
+    expect(globalsCss).toMatch(
+      /\.cancellation-sheet__reasons\s*\{[^}]*max-height:\s*calc\(100dvh - var\(--cancellation-sheet-chrome\)\)/s,
+    );
+    expect(globalsCss).toMatch(
+      /\.cancellation-sheet__reasons\s*\{[^}]*overflow-y:\s*auto/s,
+    );
+    expect(globalsCss).toMatch(
+      /\.cancellation-sheet__actions\s*\{[^}]*flex-shrink:\s*0/s,
+    );
   });
 });

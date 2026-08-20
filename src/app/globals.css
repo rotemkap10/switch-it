@@ -2528,20 +2528,29 @@ html.app-boot-splash-exiting #app-boot-splash {
 }
 
 /*
- * Cancellation sheet: header / scrollable reasons / sticky-in-flow footer.
- * Root cause of overlap was flex children sizing to content under max-height
- * (fieldset flex quirks + flex-basis:auto), so the reasons list painted under
- * the action buttons. Use a viewport max-height and flex-basis:0 so only the
- * reasons region scrolls.
+ * Cancellation sheet layout (short-viewport safe):
+ *
+ * Do NOT use `flex: 1 1 0` on the form/reasons when the sheet only has
+ * max-height (no definite height). That sets flex-basis to 0, so the form
+ * contributes no intrinsic height, the sheet collapses to the title, and
+ * reasons/actions disappear (reproduced ~1584x472).
+ *
+ * Instead: size naturally to content; put a viewport max-height only on the
+ * reasons list so it scrolls when needed while header + footer stay in flow.
  */
 .cancellation-sheet {
+  --cancellation-sheet-chrome: calc(
+    max(1.25rem, calc(var(--app-safe-top) + 0.75rem)) +
+      max(1rem, var(--app-safe-bottom)) + 2.5rem + 3rem + 0.75rem + 0.75rem +
+      0.125rem + (2 * var(--app-tap-min) + 0.75rem)
+  );
+
   display: flex;
   width: 100%;
   max-width: 24rem;
   min-height: 0;
   flex: 0 1 auto;
   flex-direction: column;
-  overflow: hidden;
   max-height: calc(
     100dvh - max(1.25rem, calc(var(--app-safe-top) + 0.75rem)) -
       max(1rem, var(--app-safe-bottom))
@@ -2554,20 +2563,20 @@ html.app-boot-splash-exiting #app-boot-splash {
 
 .cancellation-sheet__form {
   display: flex;
-  min-height: 0;
-  flex: 1 1 0;
+  min-width: 0;
+  flex: 0 1 auto;
   flex-direction: column;
   gap: 0.75rem;
   margin-top: 0.75rem;
-  overflow: hidden;
 }
 
 .cancellation-sheet__reasons {
   display: flex;
-  min-height: 0;
-  flex: 1 1 0;
+  min-width: 0;
   flex-direction: column;
   gap: 0.5rem;
+  /* Cap only — does not force height when the list is shorter than the viewport. */
+  max-height: calc(100dvh - var(--cancellation-sheet-chrome));
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;

@@ -132,8 +132,8 @@ export function CancellationReasonSheet({
           {extraFields}
 
           {/*
-            No fieldset: fieldset+flex is unreliable across engines and caused
-            the reason list to grow past the sheet and under the footer.
+            Reasons are a normal-flow list (no fieldset). Short viewports scroll
+            via .cancellation-sheet__reasons max-height — see globals.css.
           */}
           <div
             className="cancellation-sheet__reasons"

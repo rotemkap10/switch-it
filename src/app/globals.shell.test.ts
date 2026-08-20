@@ -80,6 +80,7 @@ describe("mobile shell CSS foundation", () => {
     );
     expect(css).toContain(".cancellation-sheet");
     expect(css).toContain("100dvh");
+    expect(css).toContain("--cancellation-sheet-chrome");
     expect(css).toContain(".cancellation-sheet__header");
     expect(css).toContain(".cancellation-sheet__reasons");
     expect(css).toContain(".cancellation-sheet__actions");
@@ -87,12 +88,18 @@ describe("mobile shell CSS foundation", () => {
       /\.cancellation-sheet__reasons\s*\{[^}]*overflow-y:\s*auto/s,
     );
     expect(css).toMatch(
-      /\.cancellation-sheet__actions\s*\{[^}]*flex-shrink:\s*0/s,
+      /\.cancellation-sheet__reasons\s*\{[^}]*max-height:\s*calc\(100dvh - var\(--cancellation-sheet-chrome\)\)/s,
     );
     expect(css).toMatch(
+      /\.cancellation-sheet__actions\s*\{[^}]*flex-shrink:\s*0/s,
+    );
+    // Regression: flex-basis 0 under max-height-only collapsed the form (~1584x472).
+    expect(css).not.toMatch(
       /\.cancellation-sheet__form\s*\{[^}]*flex:\s*1\s+1\s+0/s,
     );
-    expect(css).not.toContain(".cancellation-sheet__form > fieldset");
+    expect(css).not.toMatch(
+      /\.cancellation-sheet__reasons\s*\{[^}]*flex:\s*1\s+1\s+0/s,
+    );
     expect(css).toContain("--map-selected-sheet-clearance: 8.75rem");
   });
 
