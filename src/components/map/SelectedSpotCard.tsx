@@ -14,7 +14,6 @@ import {
   formatClaimDistanceLabel,
   haversineDistanceMeters,
   isValidLatLng,
-  isWithinClaimDistance,
   type LatLng,
 } from "@/lib/map/distance";
 import { hasHandoffStarted } from "@/lib/spots/handoff-phase";
@@ -58,9 +57,6 @@ export function SelectedSpotCard({
     distanceMeters != null
       ? formatClaimDistanceLabel(distanceMeters) || null
       : distanceLabel;
-  const tooFar =
-    distanceMeters != null &&
-    !isWithinClaimDistance(seekerLocation, spotCoords);
 
   return (
     <div
@@ -124,22 +120,12 @@ export function SelectedSpotCard({
 
         {spot.canClaim ? (
           <div className="flex flex-col gap-2" data-testid="selected-spot-claim-action">
-            {tooFar ? (
-              <p
-                className="text-sm text-foreground"
-                role="status"
-                data-testid="claim-too-far-notice"
-              >
-                This spot is too far away to claim.
-              </p>
-            ) : (
-              <ClaimSpotButton
-                spotId={spot.id}
-                latitude={spot.latitude}
-                longitude={spot.longitude}
-                seekerLocation={seekerLocation}
-              />
-            )}
+            <ClaimSpotButton
+              spotId={spot.id}
+              latitude={spot.latitude}
+              longitude={spot.longitude}
+              seekerLocation={seekerLocation}
+            />
           </div>
         ) : (
           <p className="text-sm text-muted">This is your published spot.</p>

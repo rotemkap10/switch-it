@@ -114,15 +114,53 @@ describe("ClaimSpotButton", () => {
     );
   });
 
-  it("blocks claim when known seeker location is outside the radius", () => {
+  it("keeps the claim button available when the seeker is outside the max claim radius", () => {
     renderClaimButton({ seekerLocation: farSeeker });
 
-    expect(screen.getByTestId("claim-too-far-notice")).toHaveTextContent(
-      "This spot is too far away to claim.",
-    );
     expect(
-      screen.queryByRole("button", { name: "I’m on my way" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "I’m on my way" }),
+    ).toBeEnabled();
+    expect(screen.queryByTestId("claim-local-error")).not.toBeInTheDocument();
+  });
+
+  it("shows the distance message on claim tap when known location is too far without calling the Server Action", async () => {
+    const user = userEvent.setup();
+    renderClaimButton({ seekerLocation: farSeeker });
+
+    await user.click(screen.getByRole("button", { name: "I’m on my way" }));
+
+    const error = await screen.findByTestId("claim-local-error");
+    expect(error).toHaveTextContent(
+      "You need to be within 1.5 km of the parking spot to claim it.",
+    );
+    expect(error).toHaveTextContent("Move closer to the spot and try again.");
+    expect(requestLocationMock).not.toHaveBeenCalled();
+    expect(claimSpotMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "I’m on my way" }),
+    ).toBeInTheDocument();
+  });
+
+  it("blocks claim when a fresh fix is outside the radius without calling claim_spot", async () => {
+    const user = userEvent.setup();
+    requestLocationMock.mockResolvedValue({
+      ok: true,
+      fix: {
+        latitude: farSeeker.latitude,
+        longitude: farSeeker.longitude,
+        accuracy: 12,
+        timestamp: Date.now(),
+      },
+    });
+
+    renderClaimButton({ seekerLocation: null });
+    await user.click(screen.getByRole("button", { name: "I’m on my way" }));
+
+    expect(await screen.findByTestId("claim-local-error")).toHaveTextContent(
+      "You need to be within 1.5 km of the parking spot to claim it.",
+    );
+    expect(requestLocationMock).toHaveBeenCalled();
+    expect(claimSpotMock).not.toHaveBeenCalled();
   });
 
   it("shows a location-required message when a fresh fix is unavailable", async () => {

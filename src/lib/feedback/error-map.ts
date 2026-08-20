@@ -18,7 +18,8 @@ export const APP_ERROR_MESSAGES = {
   OPEN_SPOT_EXISTS: "You already have an active parking spot.",
   INSUFFICIENT_CREDITS:
     "This handoff needs 1 parking credit.",
-  CLAIM_TOO_FAR: "This spot is too far away to claim.",
+  CLAIM_TOO_FAR:
+    "You need to be within 1.5 km of the parking spot to claim it.",
   LOCATION_REQUIRED: "Live location is required during a parking handoff.",
   INVALID_PLATE_DIGITS: "Those digits don't match.",
   INVALID_HANDOFF_CODE: "Those digits don't match.",
@@ -42,6 +43,10 @@ export const APP_ERROR_MESSAGES = {
   INCONSISTENT_STATE: GENERIC_APP_ERROR,
   NETWORK: NETWORK_APP_ERROR,
 } as const;
+
+/** Optional secondary line for claim-distance UX (not an RPC error code). */
+export const CLAIM_TOO_FAR_HINT =
+  "Move closer to the spot and try again." as const;
 
 export type AppErrorCode = keyof typeof APP_ERROR_MESSAGES;
 

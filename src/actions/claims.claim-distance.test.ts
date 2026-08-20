@@ -70,6 +70,28 @@ describe("claimSpot server action distance enforcement", () => {
       error: APP_ERROR_MESSAGES.CLAIM_TOO_FAR,
       errorCode: "CLAIM_TOO_FAR",
     });
+    expect(result.error).toBe(
+      "You need to be within 1.5 km of the parking spot to claim it.",
+    );
+  });
+
+  it("does not mutate claim state when CLAIM_TOO_FAR is returned", async () => {
+    rpcMock.mockResolvedValue({
+      data: null,
+      error: { message: "CLAIM_TOO_FAR", code: "P0001" },
+    });
+
+    const formData = new FormData();
+    formData.set("spot_id", "550e8400-e29b-41d4-a716-446655440000");
+    formData.set("seeker_latitude", "32.12");
+    formData.set("seeker_longitude", "34.78");
+
+    const result = await claimSpot({}, formData);
+
+    expect(result.success).toBeUndefined();
+    expect(result.claimId).toBeUndefined();
+    expect(result.errorCode).toBe("CLAIM_TOO_FAR");
+    expect(rpcMock).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces ALREADY_RELEASED_THIS_SPOT without a generic crash", async () => {

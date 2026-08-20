@@ -62,6 +62,9 @@ export function CancellationReasonSheet({
 
     firstRadioRef.current?.focus();
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -72,7 +75,10 @@ export function CancellationReasonSheet({
     }
 
     document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open, onClose, pending]);
 
   useEffect(() => {
@@ -108,53 +114,57 @@ export function CancellationReasonSheet({
         className="install-sheet cancellation-sheet motion-fade-slide-up"
         data-testid={testId}
       >
-        <h2 id={titleId} className="install-sheet__title">
-          {title}
-        </h2>
-        {description ? (
-          <p id={descId} className="mt-1 text-xs leading-5 text-muted">
-            {description}
-          </p>
-        ) : null}
+        <header className="cancellation-sheet__header">
+          <h2 id={titleId} className="install-sheet__title">
+            {title}
+          </h2>
+          {description ? (
+            <p id={descId} className="mt-1 text-xs leading-5 text-muted">
+              {description}
+            </p>
+          ) : null}
+        </header>
 
         <form action={formAction} className="cancellation-sheet__form">
           {Object.entries(hiddenFields).map(([name, value]) => (
             <input key={name} type="hidden" name={name} value={value} />
           ))}
           {extraFields}
-          <fieldset className="m-0 flex min-h-0 min-w-0 flex-1 flex-col border-0 p-0">
-            <legend className="sr-only">Choose a reason</legend>
-            <div
-              className="cancellation-sheet__reasons"
-              role="radiogroup"
-              aria-labelledby={titleId}
-            >
-              {options.map((option, index) => {
-                const optionId = `${groupName}-${option.value}`;
-                const isSelected = selected === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    htmlFor={optionId}
-                    data-selected={isSelected ? "true" : "false"}
-                    className="cancellation-reason-option"
-                  >
-                    <input
-                      ref={index === 0 ? firstRadioRef : undefined}
-                      id={optionId}
-                      type="radio"
-                      name={reasonFieldName}
-                      value={option.value}
-                      checked={isSelected}
-                      disabled={pending}
-                      onChange={() => onSelectedChange(option.value)}
-                    />
-                    <span>{option.label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
+
+          {/*
+            No fieldset: fieldset+flex is unreliable across engines and caused
+            the reason list to grow past the sheet and under the footer.
+          */}
+          <div
+            className="cancellation-sheet__reasons"
+            role="radiogroup"
+            aria-labelledby={titleId}
+          >
+            {options.map((option, index) => {
+              const optionId = `${groupName}-${option.value}`;
+              const isSelected = selected === option.value;
+              return (
+                <label
+                  key={option.value}
+                  htmlFor={optionId}
+                  data-selected={isSelected ? "true" : "false"}
+                  className="cancellation-reason-option"
+                >
+                  <input
+                    ref={index === 0 ? firstRadioRef : undefined}
+                    id={optionId}
+                    type="radio"
+                    name={reasonFieldName}
+                    value={option.value}
+                    checked={isSelected}
+                    disabled={pending}
+                    onChange={() => onSelectedChange(option.value)}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              );
+            })}
+          </div>
 
           <div className="cancellation-sheet__actions">
             <Button

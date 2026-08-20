@@ -78,7 +78,7 @@ describe("SelectedSpotCard bottom sheet", () => {
     expect(host.className).not.toContain("bottom-28");
   });
 
-  it("hides the claim button when the seeker is outside the max claim radius", () => {
+  it("keeps the claim button available when the seeker is outside the max claim radius", () => {
     render(
       <SelectedSpotCard
         spot={spot}
@@ -87,15 +87,14 @@ describe("SelectedSpotCard bottom sheet", () => {
       />,
     );
 
-    expect(screen.getByTestId("claim-too-far-notice")).toHaveTextContent(
-      "This spot is too far away to claim.",
-    );
     expect(screen.getByTestId("selected-spot-distance")).toHaveTextContent(
       "Too far to claim",
     );
     expect(
-      screen.queryByRole("button", { name: "I’m on my way" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "I’m on my way" }),
+    ).toBeEnabled();
+    expect(screen.queryByTestId("claim-too-far-notice")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("claim-local-error")).not.toBeInTheDocument();
   });
 
   it("shows Available now after I'm leaving now even if available_at is still future", () => {
@@ -114,7 +113,7 @@ describe("SelectedSpotCard bottom sheet", () => {
     expect(screen.queryByText("Available in 5:00")).not.toBeInTheDocument();
   });
 
-  it("re-enables claim when the seeker moves inside the radius", () => {
+  it("keeps claim available when the seeker moves between outside and inside the radius", () => {
     const { rerender } = render(
       <SelectedSpotCard
         spot={spot}
@@ -123,7 +122,9 @@ describe("SelectedSpotCard bottom sheet", () => {
       />,
     );
 
-    expect(screen.getByTestId("claim-too-far-notice")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "I’m on my way" }),
+    ).toBeInTheDocument();
 
     rerender(
       <SelectedSpotCard
@@ -133,7 +134,6 @@ describe("SelectedSpotCard bottom sheet", () => {
       />,
     );
 
-    expect(screen.queryByTestId("claim-too-far-notice")).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "I’m on my way" }),
     ).toBeInTheDocument();

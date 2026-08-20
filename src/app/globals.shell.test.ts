@@ -79,9 +79,20 @@ describe("mobile shell CSS foundation", () => {
       "padding-top: max(1.25rem, calc(var(--app-safe-top) + 0.75rem))",
     );
     expect(css).toContain(".cancellation-sheet");
-    expect(css).toContain("max-height: 100%");
+    expect(css).toContain("100dvh");
+    expect(css).toContain(".cancellation-sheet__header");
     expect(css).toContain(".cancellation-sheet__reasons");
     expect(css).toContain(".cancellation-sheet__actions");
+    expect(css).toMatch(
+      /\.cancellation-sheet__reasons\s*\{[^}]*overflow-y:\s*auto/s,
+    );
+    expect(css).toMatch(
+      /\.cancellation-sheet__actions\s*\{[^}]*flex-shrink:\s*0/s,
+    );
+    expect(css).toMatch(
+      /\.cancellation-sheet__form\s*\{[^}]*flex:\s*1\s+1\s+0/s,
+    );
+    expect(css).not.toContain(".cancellation-sheet__form > fieldset");
     expect(css).toContain("--map-selected-sheet-clearance: 8.75rem");
   });
 

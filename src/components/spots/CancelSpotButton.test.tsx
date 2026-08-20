@@ -55,8 +55,11 @@ describe("CancelSpotButton", () => {
     expect(confirm).toBeDisabled();
     expect(dialog.querySelector('input[name="spot_id"]')).toHaveValue(spotId);
     expect(dialog.className).toContain("cancellation-sheet");
+    expect(dialog.querySelector(".cancellation-sheet__header")).toBeTruthy();
     expect(dialog.querySelector(".cancellation-sheet__reasons")).toBeTruthy();
     expect(dialog.querySelector(".cancellation-sheet__actions")).toBeTruthy();
+    expect(dialog.querySelector("fieldset")).toBeNull();
+    expect(document.body.style.overflow).toBe("hidden");
     expect(
       within(dialog).getByRole("button", { name: "Keep spot active" }),
     ).toBeInTheDocument();
@@ -66,6 +69,7 @@ describe("CancelSpotButton", () => {
 
     await user.click(screen.getByRole("button", { name: "Keep spot active" }));
     expect(screen.queryByTestId("cancel-spot-confirm")).not.toBeInTheDocument();
+    expect(document.body.style.overflow).not.toBe("hidden");
     expect(cancelSpotMock).not.toHaveBeenCalled();
   });
 

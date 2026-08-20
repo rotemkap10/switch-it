@@ -11,7 +11,10 @@ import { useRouter } from "next/navigation";
 import { claimSpot, type ClaimSpotActionState } from "@/actions/claims";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
-import { APP_ERROR_MESSAGES } from "@/lib/feedback/error-map";
+import {
+  APP_ERROR_MESSAGES,
+  CLAIM_TOO_FAR_HINT,
+} from "@/lib/feedback/error-map";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 import { requestDiscoverySpotTombstone } from "@/lib/map/discovery-spot-tombstone-bus";
 import {
@@ -104,9 +107,6 @@ export function ClaimSpotButton({
   });
 
   const spotCoords = { latitude, longitude };
-  const knownTooFar =
-    isValidLatLng(seekerLocation) &&
-    !isWithinClaimDistance(seekerLocation, spotCoords);
 
   if (state.success) {
     return (
@@ -116,18 +116,11 @@ export function ClaimSpotButton({
     );
   }
 
-  if (knownTooFar) {
-    return (
-      <div className="space-y-1" data-testid="claim-too-far-notice">
-        <p className="text-sm text-foreground" role="status">
-          This spot is too far away to claim.
-        </p>
-      </div>
-    );
-  }
-
   const busy = pending || locating;
   const errorMessage = localError ?? state.error ?? null;
+  const showTooFarHint =
+    errorMessage === APP_ERROR_MESSAGES.CLAIM_TOO_FAR ||
+    state.errorCode === "CLAIM_TOO_FAR";
 
   return (
     <form
@@ -138,6 +131,17 @@ export function ClaimSpotButton({
         logPostClaimNavigationDev("claim click");
         registerClaimSpotDestination(spotId, latitude, longitude);
         setLocalError(null);
+
+        // UX-only early check when a known seeker fix is already available.
+        // PostgreSQL claim_spot remains the authoritative distance gate.
+        if (
+          isValidLatLng(seekerLocation) &&
+          !isWithinClaimDistance(seekerLocation, spotCoords)
+        ) {
+          setLocalError(APP_ERROR_MESSAGES.CLAIM_TOO_FAR);
+          return;
+        }
+
         setLocating(true);
 
         void (async () => {
@@ -173,13 +177,12 @@ export function ClaimSpotButton({
       }}
     >
       {errorMessage ? (
-        <p
-          className="text-sm text-danger"
-          role="alert"
-          data-testid="claim-local-error"
-        >
-          {errorMessage}
-        </p>
+        <div className="space-y-1" role="alert" data-testid="claim-local-error">
+          <p className="text-sm text-danger">{errorMessage}</p>
+          {showTooFarHint ? (
+            <p className="text-xs text-muted">{CLAIM_TOO_FAR_HINT}</p>
+          ) : null}
+        </div>
       ) : null}
       <Button type="submit" loading={busy} disabled={busy} className="w-full">
         {locating

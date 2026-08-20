@@ -32,10 +32,11 @@ describe("mapAppError", () => {
     );
   });
 
-  it("maps SPOT_UNAVAILABLE to friendly stale-claim copy", () => {
-    expect(mapAppError("SPOT_UNAVAILABLE").message).toBe(
-      "This spot was just claimed by another driver.",
+  it("maps CLAIM_TOO_FAR to a clear 1.5 km eligibility message", () => {
+    expect(mapAppError("CLAIM_TOO_FAR").message).toBe(
+      "You need to be within 1.5 km of the parking spot to claim it.",
     );
+    expect(APP_ERROR_MESSAGES.CLAIM_TOO_FAR).toMatch(/1\.5 km/);
   });
 
   it("maps ALREADY_RELEASED_THIS_SPOT to reclaim copy", () => {
