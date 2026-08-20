@@ -42,6 +42,10 @@ describe("CancellationReasonSheet layout", () => {
       />,
     );
 
+    const backdrop = screen.getByTestId("cancel-spot-confirm-backdrop");
+    expect(backdrop.className).toContain("cancellation-sheet-backdrop");
+    expect(backdrop.className).not.toContain("install-sheet-backdrop");
+
     const dialog = screen.getByTestId("cancel-spot-confirm");
     expect(dialog.className).toContain("cancellation-sheet");
     expect(dialog.querySelector(".cancellation-sheet__header")).toBeTruthy();
@@ -76,26 +80,44 @@ describe("CancellationReasonSheet layout", () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("avoids flex-basis 0 collapse on short viewports (~1584x472)", () => {
-    // Parent only has max-height. flex: 1 1 0 made the form contribute 0
-    // intrinsic height so only the title remained visible.
-    expect(globalsCss).not.toMatch(
-      /\.cancellation-sheet__form\s*\{[^}]*flex:\s*1\s+1\s+0/s,
+  it("keeps the dialog viewport-bounded on short heights (~1584x472)", () => {
+    // Root clip: bottom-aligned (flex-end) tall sheets push the title above the
+    // viewport. Cancellation uses centered flex + min(max-content, max-height).
+    expect(globalsCss).toMatch(
+      /\.cancellation-sheet-backdrop\s*\{[^}]*align-items:\s*center/s,
     );
     expect(globalsCss).not.toMatch(
-      /\.cancellation-sheet__reasons\s*\{[^}]*flex:\s*1\s+1\s+0/s,
+      /\.cancellation-sheet-backdrop\s*\{[^}]*align-items:\s*flex-end/s,
     );
     expect(globalsCss).toMatch(
-      /\.cancellation-sheet__form\s*\{[^}]*flex:\s*0\s+1\s+auto/s,
+      /\.cancellation-sheet\s*\{[^}]*height:\s*min\(max-content,\s*var\(--cancellation-sheet-max-height\)\)/s,
     );
     expect(globalsCss).toMatch(
-      /\.cancellation-sheet__reasons\s*\{[^}]*max-height:\s*calc\(100dvh - var\(--cancellation-sheet-chrome\)\)/s,
+      /\.cancellation-sheet\s*\{[^}]*overflow:\s*hidden/s,
+    );
+    expect(globalsCss).toMatch(
+      /\.cancellation-sheet__form\s*\{[^}]*flex:\s*1\s+1\s+auto/s,
+    );
+    expect(globalsCss).toMatch(
+      /\.cancellation-sheet__form\s*\{[^}]*min-height:\s*0/s,
     );
     expect(globalsCss).toMatch(
       /\.cancellation-sheet__reasons\s*\{[^}]*overflow-y:\s*auto/s,
     );
     expect(globalsCss).toMatch(
       /\.cancellation-sheet__actions\s*\{[^}]*flex-shrink:\s*0/s,
+    );
+    expect(globalsCss).not.toMatch(
+      /\.cancellation-sheet__form\s*\{[^}]*flex:\s*1\s+1\s+0/s,
+    );
+    expect(globalsCss).not.toMatch(
+      /\.cancellation-sheet__reasons\s*\{[^}]*flex:\s*1\s+1\s+0/s,
+    );
+    expect(globalsCss).not.toMatch(
+      /\.cancellation-sheet[^\{]*\{[^}]*top:\s*50%/s,
+    );
+    expect(globalsCss).not.toMatch(
+      /\.cancellation-sheet[^\{]*\{[^}]*translateY\(-50%\)/s,
     );
   });
 });

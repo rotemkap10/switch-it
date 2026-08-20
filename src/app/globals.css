@@ -2490,6 +2490,27 @@ html.app-boot-splash-exiting #app-boot-splash {
   overscroll-behavior: none;
 }
 
+/*
+ * Cancellation dialog: full-viewport flex center (not bottom-sheet flex-end).
+ * flex-end pinned the bottom of a tall dialog and clipped the title above the
+ * viewport on short desktop heights (~1584x472).
+ */
+.cancellation-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: rgb(18 50 74 / 28%);
+  padding-top: max(1rem, var(--app-safe-top));
+  padding-right: max(1rem, var(--app-safe-right), var(--app-phone-gutter));
+  padding-bottom: max(1rem, var(--app-safe-bottom));
+  padding-left: max(1rem, var(--app-safe-left), var(--app-phone-gutter));
+  overscroll-behavior: none;
+}
+
 .install-sheet {
   width: 100%;
   max-width: 24rem;
@@ -2528,33 +2549,25 @@ html.app-boot-splash-exiting #app-boot-splash {
 }
 
 /*
- * Cancellation sheet layout (short-viewport safe):
- *
- * Do NOT use `flex: 1 1 0` on the form/reasons when the sheet only has
- * max-height (no definite height). That sets flex-basis to 0, so the form
- * contributes no intrinsic height, the sheet collapses to the title, and
- * reasons/actions disappear (reproduced ~1584x472).
- *
- * Instead: size naturally to content; put a viewport max-height only on the
- * reasons list so it scrolls when needed while header + footer stay in flow.
+ * Viewport-bounded cancellation modal:
+ * - height: min(max-content, viewport-pad) → compact when content fits,
+ *   definite max when it does not (so inner flex scroll works).
+ * - No flex-basis: 0 (collapses under indefinite height).
+ * - No top/transform centering.
  */
 .cancellation-sheet {
-  --cancellation-sheet-chrome: calc(
-    max(1.25rem, calc(var(--app-safe-top) + 0.75rem)) +
-      max(1rem, var(--app-safe-bottom)) + 2.5rem + 3rem + 0.75rem + 0.75rem +
-      0.125rem + (2 * var(--app-tap-min) + 0.75rem)
+  --cancellation-sheet-max-height: calc(
+    100dvh - max(1rem, var(--app-safe-top)) - max(1rem, var(--app-safe-bottom))
   );
 
   display: flex;
   width: 100%;
   max-width: 24rem;
   min-height: 0;
-  flex: 0 1 auto;
   flex-direction: column;
-  max-height: calc(
-    100dvh - max(1.25rem, calc(var(--app-safe-top) + 0.75rem)) -
-      max(1rem, var(--app-safe-bottom))
-  );
+  overflow: hidden;
+  max-height: var(--cancellation-sheet-max-height);
+  height: min(max-content, var(--cancellation-sheet-max-height));
 }
 
 .cancellation-sheet__header {
@@ -2563,20 +2576,20 @@ html.app-boot-splash-exiting #app-boot-splash {
 
 .cancellation-sheet__form {
   display: flex;
-  min-width: 0;
-  flex: 0 1 auto;
+  min-height: 0;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.75rem;
   margin-top: 0.75rem;
+  overflow: hidden;
 }
 
 .cancellation-sheet__reasons {
   display: flex;
-  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 0.5rem;
-  /* Cap only — does not force height when the list is shorter than the viewport. */
-  max-height: calc(100dvh - var(--cancellation-sheet-chrome));
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;

@@ -96,24 +96,24 @@ export function CancellationReasonSheet({
 
   return (
     <div
-      className="install-sheet-backdrop motion-fade-in"
-      role="presentation"
-      data-testid={`${testId}-backdrop`}
-      onMouseDown={(event) => {
-        if (event.target === event.currentTarget && !pending) {
-          onClose();
-        }
-      }}
-    >
-      <div
-        ref={sheetRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descId : undefined}
-        className="install-sheet cancellation-sheet motion-fade-slide-up"
-        data-testid={testId}
+        className="cancellation-sheet-backdrop motion-fade-in"
+        role="presentation"
+        data-testid={`${testId}-backdrop`}
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !pending) {
+            onClose();
+          }
+        }}
       >
+        <div
+          ref={sheetRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          aria-describedby={description ? descId : undefined}
+          className="install-sheet cancellation-sheet motion-fade-slide-up"
+          data-testid={testId}
+        >
         <header className="cancellation-sheet__header">
           <h2 id={titleId} className="install-sheet__title">
             {title}
