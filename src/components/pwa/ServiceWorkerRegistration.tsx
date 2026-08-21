@@ -2,8 +2,17 @@
 
 import { useEffect } from "react";
 
+import { isNativeHandoffPlatform } from "@/lib/location/is-native-handoff-platform";
+
 function shouldRegisterServiceWorker(): boolean {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+    return false;
+  }
+
+  // Capacitor WebView + hosted Next.js: SW registration can stall startup,
+  // serve stale shells, or fight the remote CAPACITOR_SERVER_URL load.
+  // Native shells are not the installed PWA — never register there.
+  if (isNativeHandoffPlatform()) {
     return false;
   }
 
@@ -15,7 +24,7 @@ function shouldRegisterServiceWorker(): boolean {
 }
 
 /**
- * Registers the conservative PWA service worker in production only.
+ * Registers the conservative PWA service worker in production browser/PWA only.
  * Failures are non-blocking and never surfaced to users.
  */
 export function ServiceWorkerRegistration() {

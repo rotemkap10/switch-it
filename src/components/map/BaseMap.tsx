@@ -24,7 +24,7 @@ import {
   MAP_ATTRIBUTION_CONTROL_OPTIONS,
   keepMapLibreAttributionInitiallyCollapsed,
 } from "@/lib/map/maplibre-attribution";
-import { MAP_INTERACTION_OPTIONS, isMapCameraBusy } from "@/lib/map/maplibre-interaction";
+import { MAP_INTERACTION_OPTIONS, isMapCameraBusy, MAP_DRAG_PAN_INERTIA_OPTIONS, resolveMapReduceMotion } from "@/lib/map/maplibre-interaction";
 import { logMapInteractionSnapshot } from "@/lib/map/log-map-interaction-snapshot";
 import {
   MAP_MAX_ZOOM,
@@ -249,6 +249,8 @@ export function BaseMap({
         renderWorldCopies: false,
         transformRequest,
         attributionControl: MAP_ATTRIBUTION_CONTROL_OPTIONS,
+        // Explicit: MapLibre disables pan inertia when prefers-reduced-motion.
+        reduceMotion: resolveMapReduceMotion(),
         // Shared with Share a Spot picker — same pan inertia / touch profile.
         ...MAP_INTERACTION_OPTIONS,
       });
@@ -258,6 +260,12 @@ export function BaseMap({
         "map:constructor-start",
         "map:constructor-end",
       );
+
+      // Re-assert inertia options after construct (MapLibre enable path).
+      // Keeps Find Parking + Share a Spot on the same DragPanHandler profile.
+      if (!resolveMapReduceMotion()) {
+        map.dragPan.enable({ ...MAP_DRAG_PAN_INERTIA_OPTIONS });
+      }
 
       mapRef.current = map;
       const stopCollapsingAttribution =
@@ -366,6 +374,19 @@ export function BaseMap({
         resizeObserver.observe(container);
       }
 
+      const onVisibilityOrResume = () => {
+        if (document.visibilityState === "hidden") {
+          return;
+        }
+        // Android WebView often resumes without a container size change event;
+        // force MapLibre to remeasure so the canvas is not blank/stale.
+        requestResize();
+      };
+      document.addEventListener("visibilitychange", onVisibilityOrResume);
+      window.addEventListener("pageshow", onVisibilityOrResume);
+      window.addEventListener("orientationchange", onVisibilityOrResume);
+      window.addEventListener("focus", onVisibilityOrResume);
+
       const rafId = window.requestAnimationFrame(() => {
         requestResize();
       });
@@ -376,6 +397,10 @@ export function BaseMap({
         window.cancelAnimationFrame(paintFrame);
         window.clearTimeout(idleFallbackTimer);
         resizeObserver?.disconnect();
+        document.removeEventListener("visibilitychange", onVisibilityOrResume);
+        window.removeEventListener("pageshow", onVisibilityOrResume);
+        window.removeEventListener("orientationchange", onVisibilityOrResume);
+        window.removeEventListener("focus", onVisibilityOrResume);
         stopCollapsingAttribution();
         if (mapRef.current) {
           mapRef.current.remove();
@@ -400,7 +425,7 @@ export function BaseMap({
       <div
         ref={containerRef}
         className={[
-          "absolute inset-0 h-full w-full touch-none map-canvas-fade",
+          "absolute inset-0 h-full w-full touch-none overscroll-none map-canvas-fade",
           visuallyReady ? "is-ready" : "",
         ].join(" ")}
       />

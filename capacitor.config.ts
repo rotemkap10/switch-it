@@ -89,6 +89,11 @@ const config: CapacitorConfig = {
   },
   android: {
     backgroundColor: NATIVE_SPLASH_BACKGROUND,
+    /**
+     * Device-testing note: CAPACITOR_SERVER_URL loads remote Next.js.
+     * SplashScreen.launchAutoHide stays false for continuity with iOS; Android
+     * MainActivity adds a 10s native failsafe hide if JS never boots.
+     */
   },
 };
 

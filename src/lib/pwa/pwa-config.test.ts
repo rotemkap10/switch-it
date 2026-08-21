@@ -116,6 +116,7 @@ describe("service worker registration component", () => {
   it("registers in production with updateViaCache none", () => {
     expect(source).toContain('register("/sw.js"');
     expect(source).toContain('updateViaCache: "none"');
+    expect(source).toContain("isNativeHandoffPlatform");
   });
 });
 

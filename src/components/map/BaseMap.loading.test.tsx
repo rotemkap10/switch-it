@@ -25,6 +25,11 @@ const {
     resize: vi.fn(),
     isMoving: vi.fn(() => false),
     isEasing: vi.fn(() => false),
+    dragPan: {
+      enable: vi.fn(),
+      disable: vi.fn(),
+      isEnabled: vi.fn(() => true),
+    },
     getStyle: vi.fn(() => ({})),
     getSprite: vi.fn(() => []),
     getContainer: vi.fn(() => {
@@ -61,6 +66,8 @@ const {
       mapInstance.getContainer.mockClear();
       mapInstance.remove.mockClear();
       mapInstance.resize.mockClear();
+      mapInstance.dragPan.enable.mockClear();
+      mapInstance.dragPan.disable.mockClear();
       mapInstance.isMoving.mockClear();
       mapInstance.isMoving.mockReturnValue(false);
       mapInstance.isEasing.mockClear();
@@ -212,6 +219,7 @@ describe("BaseMap loading lifecycle", () => {
 
     expect(MapMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        reduceMotion: expect.any(Boolean),
         dragPan: {
           linearity: 0.3,
           deceleration: 2500,
@@ -223,6 +231,11 @@ describe("BaseMap loading lifecycle", () => {
         maxPitch: 0,
       }),
     );
+    expect(mapInstance.dragPan.enable).toHaveBeenCalledWith({
+      linearity: 0.3,
+      deceleration: 2500,
+      maxSpeed: 1400,
+    });
   });
 
   it("replaces the loading path with unavailable when init fails before load", async () => {
