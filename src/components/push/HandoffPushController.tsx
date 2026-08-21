@@ -5,7 +5,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { HandoffPushPreprompt } from "@/components/push/HandoffPushPreprompt";
 import { NotificationsOffBanner } from "@/components/push/NotificationsOffBanner";
-import { isNativePushEnabledForPlatform } from "@/lib/push/is-native-push-platform";
+import {
+  isNativePushEnabledForPlatform,
+  nativePushPlatform,
+} from "@/lib/push/is-native-push-platform";
 import { logPush, tokenSuffix } from "@/lib/push/log-push";
 import {
   addNativePushListeners,
@@ -89,6 +92,9 @@ export function HandoffPushController({
 
   useEffect(() => {
     if (!isNativePushEnabledForPlatform()) {
+      if (nativePushPlatform() === "android") {
+        logPush("android push disabled until FCM is configured");
+      }
       return;
     }
 

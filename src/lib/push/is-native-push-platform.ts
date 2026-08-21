@@ -21,6 +21,26 @@ import { Capacitor } from "@capacitor/core";
  */
 export const IOS_APNS_PUSH_ENABLED = false;
 
+/**
+ * Android FCM push is prepared in the architecture but OFF for the course MVP.
+ *
+ * `android/app/google-services.json` is intentionally absent, so the Google
+ * Services Gradle plugin is not applied. Calling
+ * `PushNotifications.register()` without FirebaseApp crashes the process:
+ * `IllegalStateException: Default FirebaseApp is not initialized`.
+ *
+ * Keep this `false` until a real Firebase project + `google-services.json`
+ * are configured. Do not add placeholder Firebase config.
+ *
+ * Future Android activation:
+ * 1. Add a real `android/app/google-services.json` from Firebase Console
+ * 2. Confirm `com.google.gms.google-services` applies in `android/app/build.gradle`
+ * 3. Configure FCM HTTP v1 secrets for the Edge sender
+ * 4. Set `ANDROID_FCM_PUSH_ENABLED` to `true` in this file
+ * 5. `npx cap sync android` and verify on a physical device
+ */
+export const ANDROID_FCM_PUSH_ENABLED = false;
+
 /** Native iOS/Android only. Web/PWA never register push in this task. */
 export function isNativePushPlatform(): boolean {
   try {
@@ -43,14 +63,15 @@ export function nativePushPlatform(): "ios" | "android" | null {
 
 /**
  * Whether this install should request permission, register a token, or show
- * handoff push UI. Android FCM is enabled (needs google-services.json at runtime).
- * iOS APNs stays dormant until `IOS_APNS_PUSH_ENABLED` is flipped after paid
- * Apple Developer Program enrollment.
+ * handoff push UI.
+ *
+ * Both platforms stay dormant until their native push prerequisites exist.
+ * Architecture (controller, Edge sender, DB) remains in place but inactive.
  */
 export function isNativePushEnabledForPlatform(): boolean {
   const platform = nativePushPlatform();
   if (platform === "android") {
-    return true;
+    return ANDROID_FCM_PUSH_ENABLED;
   }
   if (platform === "ios") {
     return IOS_APNS_PUSH_ENABLED;

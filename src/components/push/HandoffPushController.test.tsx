@@ -7,6 +7,7 @@ const requestPermissions = vi.fn();
 const register = vi.fn();
 const addListener = vi.fn();
 const getPlatform = vi.fn(() => "android");
+const pushEnabledMock = vi.fn(() => false);
 
 vi.mock("@capacitor/core", () => ({
   Capacitor: {
@@ -26,6 +27,15 @@ vi.mock("@capacitor/push-notifications", () => ({
   },
 }));
 
+vi.mock("@/lib/push/is-native-push-platform", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/push/is-native-push-platform")>();
+  return {
+    ...actual,
+    isNativePushEnabledForPlatform: () => pushEnabledMock(),
+  };
+});
+
 vi.mock("@/lib/push/register-device", () => ({
   uploadPushDeviceToken: vi.fn(),
   disableCurrentPushDevice: vi.fn(),
@@ -42,6 +52,7 @@ describe("HandoffPushController", () => {
   beforeEach(() => {
     resetHandoffPushPrepromptShownForTests();
     getPlatform.mockReturnValue("android");
+    pushEnabledMock.mockReturnValue(false);
     checkPermissions.mockReset();
     requestPermissions.mockReset();
     register.mockReset();
@@ -54,6 +65,7 @@ describe("HandoffPushController", () => {
   describe("iOS Personal Team (APNs gated off)", () => {
     beforeEach(() => {
       getPlatform.mockReturnValue("ios");
+      pushEnabledMock.mockReturnValue(false);
     });
 
     it("does not show the preprompt, OS prompt, or notifications-off banner", async () => {
@@ -71,7 +83,31 @@ describe("HandoffPushController", () => {
     });
   });
 
-  describe("Android", () => {
+  describe("Android FCM gated off (no google-services.json)", () => {
+    beforeEach(() => {
+      getPlatform.mockReturnValue("android");
+      pushEnabledMock.mockReturnValue(false);
+    });
+
+    it("never calls PushNotifications.register or permission APIs", async () => {
+      render(<HandoffPushController userId="user-1" hasActiveHandoff />);
+      await Promise.resolve();
+      expect(requestPermissions).not.toHaveBeenCalled();
+      expect(register).not.toHaveBeenCalled();
+      expect(checkPermissions).not.toHaveBeenCalled();
+      expect(addListener).not.toHaveBeenCalled();
+      expect(
+        screen.queryByTestId("handoff-push-preprompt"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe("when native push is enabled", () => {
+    beforeEach(() => {
+      getPlatform.mockReturnValue("android");
+      pushEnabledMock.mockReturnValue(true);
+    });
+
     it("does not request OS permission on launch", async () => {
       render(
         <HandoffPushController userId="user-1" hasActiveHandoff={false} />,
@@ -90,7 +126,9 @@ describe("HandoffPushController", () => {
         await screen.findByTestId("handoff-push-preprompt"),
       ).toBeInTheDocument();
       expect(
-        screen.getByRole("heading", { name: /Stay updated during your handoff/i }),
+        screen.getByRole("heading", {
+          name: /Stay updated during your handoff/i,
+        }),
       ).toBeInTheDocument();
       expect(requestPermissions).not.toHaveBeenCalled();
     });

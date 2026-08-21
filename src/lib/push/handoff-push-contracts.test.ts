@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -25,6 +25,22 @@ describe("native handoff push contracts", () => {
       "utf8",
     );
     expect(gate).toContain("export const IOS_APNS_PUSH_ENABLED = false");
+  });
+
+  it("keeps Android FCM dormant without google-services.json", () => {
+    const gate = readFileSync(
+      resolve(root, "src/lib/push/is-native-push-platform.ts"),
+      "utf8",
+    );
+    expect(gate).toContain("export const ANDROID_FCM_PUSH_ENABLED = false");
+    expect(existsSync(resolve(root, "android/app/google-services.json"))).toBe(
+      false,
+    );
+    const appGradle = readFileSync(
+      resolve(root, "android/app/build.gradle"),
+      "utf8",
+    );
+    expect(appGradle).toContain("google-services.json not found");
   });
 
   it("does not request push permission from AppDelegate launch", () => {

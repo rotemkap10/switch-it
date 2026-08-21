@@ -11,6 +11,7 @@ vi.mock("@capacitor/core", () => ({
 }));
 
 import {
+  ANDROID_FCM_PUSH_ENABLED,
   IOS_APNS_PUSH_ENABLED,
   isNativePushEnabledForPlatform,
 } from "@/lib/push/is-native-push-platform";
@@ -23,10 +24,11 @@ describe("isNativePushEnabledForPlatform", () => {
     expect(isNativePushEnabledForPlatform()).toBe(false);
   });
 
-  it("enables Android FCM independently", () => {
+  it("keeps Android FCM dormant until google-services.json is configured", () => {
+    expect(ANDROID_FCM_PUSH_ENABLED).toBe(false);
     isNativePlatform.mockReturnValue(true);
     getPlatform.mockReturnValue("android");
-    expect(isNativePushEnabledForPlatform()).toBe(true);
+    expect(isNativePushEnabledForPlatform()).toBe(false);
   });
 
   it("does not enable web push", () => {
