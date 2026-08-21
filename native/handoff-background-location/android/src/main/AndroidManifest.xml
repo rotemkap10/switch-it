@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      While-in-use fine/coarse + location FGS is enough for claim-scoped tracking
+      while the foreground service runs (including when Waze is on top).
+      Do NOT require ACCESS_BACKGROUND_LOCATION for this architecture.
+    -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -11,6 +16,6 @@
             android:name=".HandoffLocationForegroundService"
             android:exported="false"
             android:foregroundServiceType="location"
-            android:stopWithTask="true" />
+            android:stopWithTask="false" />
     </application>
 </manifest>

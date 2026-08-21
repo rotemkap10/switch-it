@@ -65,6 +65,7 @@ function nativeService(): HandoffLocationService {
           if (result.reason === "invalid_claim") {
             return { ok: false, reason: "invalid_claim" };
           }
+          // foreground_start_denied / unavailable — claim stays live; UI shows off.
           return { ok: false, reason: "unavailable" };
         }
         return { ok: true, source: "native", alreadyRunning: result.alreadyRunning === true };

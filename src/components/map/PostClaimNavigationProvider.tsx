@@ -143,8 +143,11 @@ export function PostClaimNavigationProvider({
               description={getHandoffLocationDisclosure()}
               dismissLabel="Dismiss"
               onChoose={(url, providerId) => {
-                openExternalNavigationUrl(url);
+                // Start / reinforce native tracking WHILE Switch It is still
+                // foreground. Android 12+ blocks startForegroundService once
+                // the Activity is backgrounded by Waze / Google Maps.
                 requestSeekerLiveLocationStart();
+                openExternalNavigationUrl(url);
                 selectProvider(providerId);
               }}
             />,

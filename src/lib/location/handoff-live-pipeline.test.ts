@@ -207,8 +207,38 @@ describe("handoff live-location pipeline contracts", () => {
     expect(swift).toContain("gps accepted");
     expect(swift).toContain("gps rejected");
     expect(swift).toContain("native post status=");
-    expect(android).toContain("native post attempt");
-    expect(android).toContain("native post status=");
+    expect(android).toContain("android POST started");
+    expect(android).toContain("android POST status=");
+    expect(android).toContain("android location accepted");
+  });
+
+  it("Android FGS survives leaving Switch It for Waze (stopWithTask false)", () => {
+    const manifest = readFileSync(
+      resolve(
+        root,
+        "native/handoff-background-location/android/src/main/AndroidManifest.xml",
+      ),
+      "utf8",
+    );
+    expect(manifest).toContain('android:foregroundServiceType="location"');
+    expect(manifest).toContain('android:stopWithTask="false"');
+    expect(manifest).not.toContain('android:stopWithTask="true"');
+    expect(manifest).toContain("FOREGROUND_SERVICE_LOCATION");
+    expect(manifest).not.toContain(
+      'android.permission.ACCESS_BACKGROUND_LOCATION',
+    );
+  });
+
+  it("starts live location before opening external navigation on Android", () => {
+    const provider = readFileSync(
+      resolve(root, "src/components/map/PostClaimNavigationProvider.tsx"),
+      "utf8",
+    );
+    const startIdx = provider.indexOf("requestSeekerLiveLocationStart()");
+    const openIdx = provider.indexOf("openExternalNavigationUrl(url)");
+    expect(startIdx).toBeGreaterThan(-1);
+    expect(openIdx).toBeGreaterThan(-1);
+    expect(startIdx).toBeLessThan(openIdx);
   });
 
   it("publisher map uses Recenter, not Follow", () => {
