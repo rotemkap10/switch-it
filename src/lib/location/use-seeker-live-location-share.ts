@@ -1,7 +1,7 @@
 "use client";
 
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
   LIVE_LOCATION_GEO_OPTIONS,
@@ -114,14 +114,21 @@ export function useSeekerLiveLocationShare({
     null,
   );
   const nativePluginClaimRef = useRef<string | null>(null);
+  const nativeStartInFlightRef = useRef<string | null>(null);
+  const nativeStartSucceededRef = useRef<string | null>(null);
   const watchRetryTimerRef = useRef<number | null>(null);
   const startWatchRef = useRef<() => void>(() => {});
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     claimIdRef.current = claimId;
     spotIdRef.current = spotId;
     expiresAtRef.current = spotExpiresAtIso;
-  }, [claimId, spotId, spotExpiresAtIso]);
+    // Eligible claim must clear terminal from a prior no-claim cleanup before any
+    // startSharing effect runs (layout runs before useEffect).
+    if (enabled && claimId) {
+      terminalRef.current = false;
+    }
+  }, [claimId, spotId, spotExpiresAtIso, enabled]);
 
   const clearWatch = useCallback(() => {
     if (watchRetryTimerRef.current !== null) {
@@ -475,37 +482,64 @@ export function useSeekerLiveLocationShare({
       return;
     }
     const service = getHandoffLocationService();
+    const claimForStart = claimIdRef.current;
     sharingEnabledRef.current = true;
     hasUsableFixRef.current = false;
     setUiState("acquiring");
 
     logHandoffLive("nativePluginStart()", {
-      claimId: claimIdRef.current,
+      claimId: claimForStart,
       provider: "native",
     });
     try {
-      if (
-        nativePluginClaimRef.current === claimIdRef.current &&
-        sharingEnabledRef.current
-      ) {
+      if (nativeStartInFlightRef.current === claimForStart) {
         logHandoffLive("nativePluginStart skipped duplicate", {
-          claimId: claimIdRef.current,
+          claimId: claimForStart,
           alreadyRunning: true,
+          reason: "in_flight",
         });
         await attachNativeUiListener();
-        if (!hasDeliveredRef.current) {
-          setUiState(hasUsableFixRef.current ? "waiting" : "acquiring");
-        }
         return;
       }
 
+      if (nativePluginClaimRef.current === claimForStart) {
+        const existingForSkip = await service.getTrackingState();
+        if (
+          existingForSkip.active &&
+          existingForSkip.claimId === claimForStart
+        ) {
+          logHandoffLive("nativePluginStart skipped duplicate", {
+            claimId: claimForStart,
+            alreadyRunning: true,
+          });
+          await attachNativeUiListener();
+          if (!hasDeliveredRef.current) {
+            setUiState(hasUsableFixRef.current ? "waiting" : "acquiring");
+          }
+          return;
+        }
+        if (nativeStartSucceededRef.current === claimForStart) {
+          // Plugin already accepted start for this claim in-session; avoid a
+          // second startHandoffTracking while FGS is still reporting inactive.
+          logHandoffLive("nativePluginStart skipped duplicate", {
+            claimId: claimForStart,
+            alreadyRunning: true,
+            reason: "session_started",
+          });
+          await attachNativeUiListener();
+          return;
+        }
+        // Sticky session ref after a failed/killed native start — allow retry.
+        nativePluginClaimRef.current = null;
+      }
+
       const existing = await service.getTrackingState();
-      if (existing.active && existing.claimId === claimIdRef.current) {
+      if (existing.active && existing.claimId === claimForStart) {
         sharingEnabledRef.current = true;
-        nativePluginClaimRef.current = claimIdRef.current;
+        nativePluginClaimRef.current = claimForStart;
         setUiState("acquiring");
         logHandoffLive("nativePluginStarted", {
-          claimId: claimIdRef.current,
+          claimId: claimForStart,
           alreadyRunning: true,
         });
         await attachNativeUiListener();
@@ -519,19 +553,21 @@ export function useSeekerLiveLocationShare({
         sharingEnabledRef.current = false;
         setUiState("unavailable");
         logHandoffLive("nativePluginStart() failed", {
-          claimId: claimIdRef.current,
+          claimId: claimForStart,
           reason: "missing_session_or_config",
         });
         return;
       }
 
+      nativeStartInFlightRef.current = claimForStart;
       const result = await service.startHandoffTracking({
-        claimId: claimIdRef.current,
+        claimId: claimForStart,
         expiresAtIso: expiresAtRef.current,
         accessToken,
         supabaseUrl,
         supabasePublishableKey: publishableKey,
       });
+      nativeStartInFlightRef.current = null;
 
       if (!result.ok) {
         sharingEnabledRef.current = false;
@@ -539,30 +575,49 @@ export function useSeekerLiveLocationShare({
           result.reason === "permission_denied" ? "denied" : "unavailable",
         );
         logHandoffLive("nativePluginStart() failed", {
-          claimId: claimIdRef.current,
+          claimId: claimForStart,
           reason: result.reason,
         });
         return;
       }
 
       logHandoffLive("nativePluginStarted", {
-        claimId: claimIdRef.current,
+        claimId: claimForStart,
         alreadyRunning: result.alreadyRunning === true,
       });
-      nativePluginClaimRef.current = claimIdRef.current;
+      nativePluginClaimRef.current = claimForStart;
+      nativeStartSucceededRef.current = claimForStart;
       await attachNativeUiListener();
     } catch {
+      nativeStartInFlightRef.current = null;
       sharingEnabledRef.current = false;
       setUiState("unavailable");
     }
   }, [attachNativeUiListener, manageNativeTracker]);
 
   const startSharing = useCallback(async () => {
-    if (!enabled || terminalRef.current) {
+    if (!enabled) {
+      logHandoffLive("startSharing skipped", {
+        reason: "not_enabled",
+        claimId: claimIdRef.current,
+      });
+      return;
+    }
+    if (terminalRef.current) {
+      logHandoffLive("startSharing skipped", {
+        reason: "terminal",
+        claimId: claimIdRef.current,
+      });
       return;
     }
     uiEpochRef.current += 1;
-    if (new Date(expiresAtRef.current).getTime() <= Date.now()) {
+    const expiresAtMs = new Date(expiresAtRef.current).getTime();
+    if (!Number.isFinite(expiresAtMs) || expiresAtMs <= Date.now()) {
+      setUiState("unavailable");
+      logHandoffLive("startSharing skipped", {
+        reason: "expired_or_invalid_deadline",
+        claimId: claimIdRef.current,
+      });
       return;
     }
 
@@ -608,6 +663,9 @@ export function useSeekerLiveLocationShare({
 
   const stopSharing = useCallback(async () => {
     uiEpochRef.current += 1;
+    nativeStartSucceededRef.current = null;
+    nativeStartInFlightRef.current = null;
+    nativePluginClaimRef.current = null;
     await sendStatus("stopped");
     if (manageNativeTracker) {
       await getHandoffLocationService().stopHandoffTracking("explicit_stop");
@@ -626,6 +684,9 @@ export function useSeekerLiveLocationShare({
   const forceStop = useCallback(() => {
     terminalRef.current = true;
     uiEpochRef.current += 1;
+    nativeStartSucceededRef.current = null;
+    nativeStartInFlightRef.current = null;
+    nativePluginClaimRef.current = null;
     void (async () => {
       await sendStatus("stopped");
       if (manageNativeTracker) {
@@ -683,12 +744,16 @@ export function useSeekerLiveLocationShare({
   }, [clearWatch, enabled, ensureChannel, sendStatus, startWatch]);
 
   useEffect(() => {
-    terminalRef.current = false;
+    // Reconcile native tracker with the current claim. Do NOT flip terminalRef in
+    // cleanup — that blocked startSharing after no-claim → active-claim because
+    // parent/layout effects could observe terminal=true across the transition.
     sharingEnabledRef.current = false;
     hasUsableFixRef.current = false;
     hasDeliveredRef.current = false;
     pendingSampleRef.current = null;
     nativePluginClaimRef.current = null;
+    nativeStartInFlightRef.current = null;
+    nativeStartSucceededRef.current = null;
     clearWatch();
     void leaveChannel();
     const epoch = ++uiEpochRef.current;
@@ -714,6 +779,7 @@ export function useSeekerLiveLocationShare({
             await service.stopHandoffTracking(decision.reason);
           } else if (decision.action === "keep") {
             sharingEnabledRef.current = true;
+            nativePluginClaimRef.current = claimId;
             // Native tracker alive ≠ publisher receiving. Wait for POST success.
             setUiState("acquiring");
             setResumedOnce(false);
@@ -721,7 +787,7 @@ export function useSeekerLiveLocationShare({
             return;
           }
         } catch {
-          // Fall through to idle.
+          // Fall through to idle; parent startSharing still owns first start.
         }
       }
       if (cancelled || uiEpochRef.current !== epoch) {
@@ -741,7 +807,7 @@ export function useSeekerLiveLocationShare({
       if (idleTimer !== null) {
         window.clearTimeout(idleTimer);
       }
-      terminalRef.current = true;
+      // Leave terminalRef alone — only forceStop / expiry / explicit stop set it.
       sharingEnabledRef.current = false;
       clearWatch();
       void leaveChannel();

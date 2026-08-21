@@ -158,6 +158,30 @@ describe("SeekerMapExperience overlay hierarchy", () => {
     expect(screen.queryByTestId("active-claim-panel")).not.toBeInTheDocument();
   });
 
+  it("starts live sharing when transitioning from no claim to an active claim", () => {
+    startSharingMock.mockClear();
+    stopHandoffTrackingBestEffortMock.mockClear();
+    const { rerender } = renderExperience({ activeClaim: null });
+
+    expect(stopHandoffTrackingBestEffortMock).toHaveBeenCalledWith("claim_ended");
+    startSharingMock.mockClear();
+
+    rerender(
+      <SeekerMapExperience
+        spots={[]}
+        userId="seeker-1"
+        destination={{ latitude: 32.08, longitude: 34.78 }}
+        activeClaim={claim}
+        showOwnSpotNotice={false}
+        spotsError={false}
+        activeClaimError={false}
+        ownedSpotError={false}
+      />,
+    );
+
+    expect(startSharingMock).toHaveBeenCalled();
+  });
+
   it("reports initial map ready for cold-launch splash when the map is usable", () => {
     reportInitialMapReadyMock.mockClear();
     renderExperience();

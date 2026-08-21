@@ -304,6 +304,95 @@ describe("native seeker live location share", () => {
     expect(stopHandoffTracking).not.toHaveBeenCalled();
   });
 
+  it("starts native tracking when an eligible claim appears after no-claim", async () => {
+    getTrackingState.mockResolvedValue({
+      active: false,
+      claimId: null,
+      source: null,
+    });
+
+    const { result, rerender } = renderHook(
+      ({
+        claimId: id,
+        enabled,
+      }: {
+        claimId: string;
+        enabled: boolean;
+      }) =>
+        useSeekerLiveLocationShare({
+          claimId: id,
+          spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+          enabled,
+        }),
+      {
+        initialProps: {
+          claimId: "",
+          enabled: false,
+        },
+      },
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(startHandoffTracking).not.toHaveBeenCalled();
+
+    rerender({ claimId, enabled: true });
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(startHandoffTracking).toHaveBeenCalledTimes(1);
+    expect(startHandoffTracking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        claimId,
+        accessToken: "fresh-token",
+      }),
+    );
+    expect(watchPosition).not.toHaveBeenCalled();
+  });
+
+  it("does not leave terminal stuck after no-claim cleanup so a later claim can start", async () => {
+    getTrackingState.mockResolvedValue({
+      active: false,
+      claimId: null,
+      source: null,
+    });
+
+    const { result, rerender } = renderHook(
+      ({
+        claimId: id,
+        enabled,
+      }: {
+        claimId: string;
+        enabled: boolean;
+      }) =>
+        useSeekerLiveLocationShare({
+          claimId: id,
+          spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+          enabled,
+        }),
+      {
+        initialProps: { claimId: "", enabled: false },
+      },
+    );
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    rerender({ claimId, enabled: true });
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(startHandoffTracking).toHaveBeenCalled();
+  });
+
   it("stops native tracking when a managing instance is disabled", async () => {
     getTrackingState.mockResolvedValue({
       active: true,

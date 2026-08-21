@@ -3,7 +3,11 @@
     package="il.ac.runi.switchit.handoff" >
 
     <uses-sdk android:minSdkVersion="24" />
-
+    <!--
+      While-in-use fine/coarse + location FGS is enough for claim-scoped tracking
+      while the foreground service runs (including when Waze is on top).
+      Do NOT require ACCESS_BACKGROUND_LOCATION for this architecture.
+    -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -15,7 +19,7 @@
             android:name="il.ac.runi.switchit.handoff.HandoffLocationForegroundService"
             android:exported="false"
             android:foregroundServiceType="location"
-            android:stopWithTask="true" />
+            android:stopWithTask="false" />
     </application>
 
 </manifest>
