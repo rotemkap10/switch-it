@@ -104,27 +104,52 @@ public class HandoffBackgroundLocationPlugin extends Plugin {
         String supabaseUrl = call.getString("supabaseUrl");
         String publishableKey = call.getString("publishableKey");
         String edgeFunctionUrl = call.getString("edgeFunctionUrl");
-        Double expiresAt = call.getDouble("expiresAtEpochMs");
 
-        if (claimId == null || accessToken == null || supabaseUrl == null
-                || publishableKey == null || edgeFunctionUrl == null || expiresAt == null) {
+        // Capacitor stores epoch-ms (> Integer.MAX_VALUE) as Long.
+        // PluginCall.getDouble does NOT accept Long and returns null — that used
+        // to be reported as a misleading "invalid_claim". Prefer Long, then Double.
+        Long expiresAt = call.getLong("expiresAtEpochMs");
+        if (expiresAt == null) {
+            Double expiresAtDouble = call.getDouble("expiresAtEpochMs");
+            if (expiresAtDouble != null) {
+                expiresAt = expiresAtDouble.longValue();
+            } else {
+                expiresAt = HandoffStartValidation.readEpochMs(
+                    call.getData() != null ? call.getData().opt("expiresAtEpochMs") : null
+                );
+            }
+        }
+
+        long nowMs = System.currentTimeMillis();
+        HandoffStartValidation.ValidationResult validation = HandoffStartValidation.validate(
+            claimId,
+            expiresAt,
+            accessToken,
+            supabaseUrl,
+            publishableKey,
+            edgeFunctionUrl,
+            nowMs
+        );
+
+        liveLog("android start validation"
+            + " claimIdValid=" + validation.claimIdValid
+            + " expiresPresent=" + validation.expiresPresent
+            + " expiresDeltaMs=" + validation.expiresDeltaMs
+            + " accessTokenPresent=" + validation.accessTokenPresent
+            + " supabaseUrlValid=" + validation.supabaseUrlValid
+            + " publishableKeyPresent=" + validation.publishableKeyPresent
+            + " edgeFunctionUrlValid=" + validation.edgeFunctionUrlValid);
+
+        if (!validation.ok) {
             JSObject result = new JSObject();
             result.put("started", false);
-            result.put("reason", "invalid_claim");
-            liveLog("android error reason=invalid_claim");
+            result.put("reason", validation.reason);
+            liveLog("android error reason=" + validation.reason);
             call.resolve(result);
             return;
         }
-        if (expiresAt <= System.currentTimeMillis()) {
-            JSObject result = new JSObject();
-            result.put("started", false);
-            result.put("reason", "expired");
-            liveLog("android error reason=expired claimId=" + claimId);
-            call.resolve(result);
-            return;
-        }
 
-        String normalizedClaimId = claimId.toLowerCase();
+        String normalizedClaimId = claimId.trim().toLowerCase();
         if (HandoffLocationForegroundService.isActive()
                 && normalizedClaimId.equals(HandoffLocationForegroundService.getActiveClaimId())) {
             HandoffLocationForegroundService.setPlugin(this);

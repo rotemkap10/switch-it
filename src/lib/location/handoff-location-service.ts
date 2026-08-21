@@ -62,7 +62,16 @@ function nativeService(): HandoffLocationService {
           if (result.reason === "expired") {
             return { ok: false, reason: "expired" };
           }
-          if (result.reason === "invalid_claim") {
+          if (
+            result.reason === "invalid_claim" ||
+            result.reason === "invalid_claim_id" ||
+            result.reason === "invalid_expiry" ||
+            result.reason === "missing_access_token" ||
+            result.reason === "invalid_supabase_url" ||
+            result.reason === "missing_publishable_key" ||
+            result.reason === "invalid_edge_function_url"
+          ) {
+            // Specific Android validation failures — keep claim live; share UI delayed.
             return { ok: false, reason: "invalid_claim" };
           }
           // foreground_start_denied / unavailable — claim stays live; UI shows off.
