@@ -33,7 +33,7 @@ export function Select({
         id={id}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
-        className={`app-form-control rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-foreground disabled:opacity-60 ${className}`}
+        className={`app-form-control rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-foreground disabled:border-dashed ${className}`}
         {...props}
       >
         {options.map((option) => (

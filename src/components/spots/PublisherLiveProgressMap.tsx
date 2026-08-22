@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BaseMap } from "@/components/map/BaseMap";
 import { CurrentLocationControl } from "@/components/map/CurrentLocationControl";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
+import { PORCELAIN, SIGNAL_BLUE } from "@/lib/branding/colors";
 import { logHandoffLive } from "@/lib/location/log-handoff-live";
 import type { SeekerLocationPayload } from "@/lib/location/payload";
 import {
@@ -13,7 +14,7 @@ import {
   keepPublisherHandoffInView,
 } from "@/lib/map/focus-publisher-handoff";
 import { publisherPreviewShellClass } from "@/lib/map/leaverMapShell";
-import { isMapCameraBusy } from "@/lib/map/maplibre-interaction";
+import { applyMapDragPanInertia, isMapCameraBusy } from "@/lib/map/maplibre-interaction";
 import {
   MAP_SELECTED_SPOT_ZOOM,
   assertMapTilerStyleUrlOrNull,
@@ -27,8 +28,43 @@ const DEST_SOURCE = "publisher-live-dest-src";
 const DEST_LAYER = "publisher-live-dest-layer";
 const SEEKER_SOURCE = "publisher-live-seeker-src";
 const SEEKER_LAYER = "publisher-live-seeker-layer";
+const SEEKER_LAYER_FALLBACK = "publisher-live-seeker-fallback-layer";
 const ACCURACY_SOURCE = "publisher-live-accuracy-src";
 const ACCURACY_LAYER = "publisher-live-accuracy-layer";
+
+function addSeekerDisplayLayer(map: MapLibreMap) {
+  if (map.getLayer(SEEKER_LAYER) || map.getLayer(SEEKER_LAYER_FALLBACK)) {
+    return;
+  }
+  if (map.hasImage(SEEKER_MARKER_IMAGE_IDS.seekerLive)) {
+    map.addLayer({
+      id: SEEKER_LAYER,
+      type: "symbol",
+      source: SEEKER_SOURCE,
+      layout: {
+        "icon-image": SEEKER_MARKER_IMAGE_IDS.seekerLive,
+        "icon-size": 0.78,
+        "icon-anchor": "center",
+        "icon-allow-overlap": true,
+      },
+    });
+    return;
+  }
+  map.addLayer({
+    id: SEEKER_LAYER_FALLBACK,
+    type: "circle",
+    source: SEEKER_SOURCE,
+    paint: {
+      "circle-radius": 9,
+      "circle-color": SIGNAL_BLUE,
+      "circle-stroke-width": 2,
+      "circle-stroke-color": PORCELAIN,
+    },
+  });
+  logHandoffLive("publisher marker fallback layer", {
+    reason: "seekerLive_image_unavailable",
+  });
+}
 
 export type PublisherLiveProgressMapProps = {
   parkingLatitude: number;
@@ -244,6 +280,13 @@ export function PublisherLiveProgressMap({
     if (!seekerLocation) {
       // Keep the last known marker during brief update gaps.
       return;
+    }
+
+    if (
+      !map.getLayer(SEEKER_LAYER) &&
+      !map.getLayer(SEEKER_LAYER_FALLBACK)
+    ) {
+      addSeekerDisplayLayer(map);
     }
 
     accuracyRef.current = seekerLocation.accuracyMeters;
@@ -471,8 +514,8 @@ export function PublisherLiveProgressMap({
             }
             initializedRef.current = true;
 
-            // Live tracking must never disable MapLibre gestures.
-            map.dragPan.enable();
+            // Live tracking must never disable MapLibre gestures or pan inertia.
+            applyMapDragPanInertia(map);
             map.touchZoomRotate.enable();
             map.scrollZoom.enable();
             map.keyboard.enable();
@@ -524,9 +567,9 @@ export function PublisherLiveProgressMap({
               source: ACCURACY_SOURCE,
               paint: {
                 "circle-radius": ["get", "radiusPx"],
-                "circle-color": "rgba(85,191,243,0.18)",
-                "circle-stroke-color": "rgba(85,191,243,0.5)",
-                "circle-stroke-width": 1,
+                "circle-color": PORCELAIN,
+                "circle-stroke-color": SIGNAL_BLUE,
+                "circle-stroke-width": 2,
               },
             });
 
@@ -556,6 +599,8 @@ export function PublisherLiveProgressMap({
                   "icon-allow-overlap": true,
                 },
               });
+            } else {
+              addSeekerDisplayLayer(map);
             }
 
             map.resize();

@@ -24,7 +24,14 @@ import {
   MAP_ATTRIBUTION_CONTROL_OPTIONS,
   keepMapLibreAttributionInitiallyCollapsed,
 } from "@/lib/map/maplibre-attribution";
-import { MAP_INTERACTION_OPTIONS, isMapCameraBusy, MAP_DRAG_PAN_INERTIA_OPTIONS, resolveMapReduceMotion } from "@/lib/map/maplibre-interaction";
+import {
+  MAP_INTERACTION_OPTIONS,
+  applyMapDragPanInertia,
+  isMapCameraBusy,
+  isNativeAndroidCapacitor,
+  resolveMapLibreReduceMotion,
+  resolveMapReduceMotion,
+} from "@/lib/map/maplibre-interaction";
 import { logMapInteractionSnapshot } from "@/lib/map/log-map-interaction-snapshot";
 import {
   MAP_MAX_ZOOM,
@@ -249,8 +256,8 @@ export function BaseMap({
         renderWorldCopies: false,
         transformRequest,
         attributionControl: MAP_ATTRIBUTION_CONTROL_OPTIONS,
-        // Explicit: MapLibre disables pan inertia when prefers-reduced-motion.
-        reduceMotion: resolveMapReduceMotion(),
+        // Explicit: MapLibre disables pan inertia when reduceMotion is true.
+        reduceMotion: resolveMapLibreReduceMotion(),
         // Shared with Share a Spot picker — same pan inertia / touch profile.
         ...MAP_INTERACTION_OPTIONS,
       });
@@ -263,8 +270,31 @@ export function BaseMap({
 
       // Re-assert inertia options after construct (MapLibre enable path).
       // Keeps Find Parking + Share a Spot on the same DragPanHandler profile.
-      if (!resolveMapReduceMotion()) {
-        map.dragPan.enable({ ...MAP_DRAG_PAN_INERTIA_OPTIONS });
+      applyMapDragPanInertia(map);
+
+      if (process.env.NODE_ENV === "development") {
+        let loggedPanRelease = false;
+        map.on("dragend", (event) => {
+          if (loggedPanRelease || !event.originalEvent) {
+            return;
+          }
+          loggedPanRelease = true;
+          window.setTimeout(() => {
+            const mapWithEasing = map as MapLibreMap & {
+              isEasing?: () => boolean;
+            };
+            console.info("[map-interaction:pan-release]", {
+              nativeAndroid: isNativeAndroidCapacitor(),
+              prefersReducedMotion: resolveMapReduceMotion(),
+              mapLibreReduceMotion: resolveMapLibreReduceMotion(),
+              isMoving: map.isMoving(),
+              isEasing:
+                typeof mapWithEasing.isEasing === "function"
+                  ? mapWithEasing.isEasing()
+                  : null,
+            });
+          }, 0);
+        });
       }
 
       mapRef.current = map;

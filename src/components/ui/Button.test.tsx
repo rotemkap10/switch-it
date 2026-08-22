@@ -12,8 +12,8 @@ describe("Button", () => {
     );
 
     const button = screen.getByTestId("danger-outline");
-    expect(button.className).toContain("border-danger");
-    expect(button.className).toContain("text-danger");
+    expect(button.className).toContain("border-accent");
+    expect(button.className).toContain("text-accent");
     expect(button.className).toContain("bg-surface");
     expect(button.className).toContain("rounded-[var(--radius-card)]");
   });

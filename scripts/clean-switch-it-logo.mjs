@@ -1,7 +1,9 @@
 /**
- * Removes the baked-in square fill from the official Switch It logo.
+ * Removes the baked-in square fill from the official Switch It logo and
+ * recolors opaque pixels to the strict two-color brand palette.
  * Does not redesign the mark — only flood-fills the outer background to
- * transparent and crops to the lockup. Run: node scripts/clean-switch-it-logo.mjs
+ * transparent, recolors, and crops to the lockup.
+ * Run: npm run clean:logo
  */
 import { writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -13,12 +15,29 @@ const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const sourcePath = resolve(rootDir, "scripts/assets/switch-it-logo-source.png");
 const outPath = resolve(rootDir, "public/branding/switch-it-logo.png");
 
+const SIGNAL_BLUE = [0, 87, 255];
+const PORCELAIN = [248, 247, 244];
+
 const COLOR_TOLERANCE = 34;
 const EDGE_SOFTNESS = 18;
 const CROP_PADDING = 16;
 
 function colorDist(r, g, b, bg) {
   return Math.hypot(r - bg[0], g - bg[1], b - bg[2]);
+}
+
+function luminance(r, g, b) {
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** Map legacy logo pixels to Signal Blue or Porcelain without changing geometry. */
+function brandRecolor(r, g, b, alpha) {
+  if (alpha < 20) {
+    return [r, g, b, 0];
+  }
+  const lum = luminance(r, g, b);
+  const target = lum > 210 ? PORCELAIN : SIGNAL_BLUE;
+  return [...target, alpha];
 }
 
 const { data, info } = await sharp(sourcePath)
@@ -112,6 +131,12 @@ for (let y = 0; y < height; y++) {
       if (alpha === 0) continue;
     }
 
+    const [nr, ng, nb, na] = brandRecolor(out[i], out[i + 1], out[i + 2], out[i + 3]);
+    out[i] = nr;
+    out[i + 1] = ng;
+    out[i + 2] = nb;
+    out[i + 3] = na;
+
     if (out[i + 3] > 8) {
       if (x < minX) minX = x;
       if (y < minY) minY = y;
@@ -149,3 +174,4 @@ console.log(
   `wrote ${outPath} (${meta.width}×${meta.height}, alpha=${meta.hasAlpha}, ${cleaned.length} bytes)`,
 );
 console.log(`source bg ~rgb(${bg.join(", ")}), crop ${cropWidth}×${cropHeight}`);
+console.log(`recolored to Signal Blue #0057FF + Porcelain #F8F7F4`);

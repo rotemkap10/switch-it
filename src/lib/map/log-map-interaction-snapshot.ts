@@ -1,6 +1,11 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
 
-import { MAP_INTERACTION_OPTIONS } from "@/lib/map/maplibre-interaction";
+import {
+  MAP_INTERACTION_OPTIONS,
+  isNativeAndroidCapacitor,
+  resolveMapLibreReduceMotion,
+  resolveMapReduceMotion,
+} from "@/lib/map/maplibre-interaction";
 
 type MapWithOptionalEasing = MapLibreMap & {
   isEasing?: () => boolean;
@@ -46,6 +51,9 @@ export function logMapInteractionSnapshot(
     }
 
     console.info(`[map-interaction:${label}]`, {
+      nativeAndroidCapacitor: isNativeAndroidCapacitor(),
+      prefersReducedMotionMedia: resolveMapReduceMotion(),
+      mapLibreReduceMotion: resolveMapLibreReduceMotion(),
       constructorInteraction: MAP_INTERACTION_OPTIONS,
       dragPanEnabled: dragPan.isEnabled?.() ?? null,
       dragPanInertiaOptions: dragPan._inertiaOptions ?? null,

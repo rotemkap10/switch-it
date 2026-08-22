@@ -30,13 +30,12 @@ type VehicleIllustrationProps = {
 };
 
 const SIZE_CLASSES = {
-  default: "max-w-full bg-accent-soft/70 p-2 [&_svg]:h-auto [&_svg]:w-[11rem]",
+  default: "max-w-full bg-accent-soft p-2 [&_svg]:h-auto [&_svg]:w-[11rem]",
   compact:
-    "max-w-full bg-accent-soft/70 p-1.5 [&_svg]:h-auto [&_svg]:w-[6.25rem]",
+    "max-w-full bg-accent-soft p-1.5 [&_svg]:h-auto [&_svg]:w-[6.25rem]",
   handoff: [
     "w-[12.5rem] max-w-full bg-transparent p-0 sm:w-[14.5rem]",
     "[&_svg]:h-auto [&_svg]:w-full",
-    "[&_svg]:drop-shadow-[0_10px_16px_rgb(18_50_74_/_14%)]",
   ].join(" "),
   hero: [
     "w-full bg-accent-soft",

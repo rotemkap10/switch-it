@@ -11,8 +11,8 @@ import {
 
 describe("PWA / first-paint color continuity", () => {
   it("keeps manifest, theme, and body brand colors aligned", () => {
-    expect(PWA_BACKGROUND_COLOR).toBe("#dff4ff");
-    expect(PWA_THEME_COLOR).toBe("#55bff3");
+    expect(PWA_BACKGROUND_COLOR).toBe("#F8F7F4");
+    expect(PWA_THEME_COLOR).toBe("#0057FF");
 
     const layout = readFileSync(
       resolve(process.cwd(), "src/app/layout.tsx"),

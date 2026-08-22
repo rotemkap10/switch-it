@@ -50,16 +50,16 @@ describe("seekerMarkerImages", () => {
     const cx = Math.round((size - 1) / 2);
     const cy = Math.round((size - 1) / 2);
     const center = (cy * size + cx) * 4;
-    expect(unselected.data[center]).toBe(255);
-    expect(unselected.data[center + 1]).toBe(255);
-    expect(unselected.data[center + 2]).toBe(255);
+    expect(unselected.data[center]).toBe(248);
+    expect(unselected.data[center + 1]).toBe(247);
+    expect(unselected.data[center + 2]).toBe(244);
 
     const stemX = Math.round(size * 0.4);
     const stemY = Math.round(size * 0.5);
     const stem = (stemY * size + stemX) * 4;
-    expect(unselected.data[stem]).toBe(37);
-    expect(unselected.data[stem + 1]).toBe(168);
-    expect(unselected.data[stem + 2]).toBe(230);
+    expect(unselected.data[stem]).toBe(0);
+    expect(unselected.data[stem + 1]).toBe(87);
+    expect(unselected.data[stem + 2]).toBe(255);
   });
 
   it("keeps the live seeker marker as a sedan, not a parking P", () => {
@@ -67,24 +67,27 @@ describe("seekerMarkerImages", () => {
     const parking = createSeekerMarkerImageData("spot-destination");
 
     const windshield = pixelAt(live, 56, 44);
-    expect(windshield[0]).toBeGreaterThan(200);
-    expect(windshield[1]).toBeGreaterThan(220);
-    expect(windshield[2]).toBeGreaterThan(240);
+    expect(windshield[0]).toBe(248);
+    expect(windshield[1]).toBe(247);
+    expect(windshield[2]).toBe(244);
 
     const wheel = pixelAt(live, 36, 52);
-    expect(wheel[0]).toBeLessThan(50);
-    expect(wheel[1]).toBeLessThan(60);
-    expect(wheel[2]).toBeLessThan(80);
+    expect(wheel[0]).toBe(0);
+    expect(wheel[1]).toBe(87);
+    expect(wheel[2]).toBe(255);
     expect(wheel[3]).toBeGreaterThan(200);
 
     const body = pixelAt(live, 56, 24);
-    expect(body[2]).toBeGreaterThan(body[1]);
-    expect(body[0]).toBeLessThan(120);
+    const bodyIsBlue = body[0] === 0 && body[1] === 87 && body[2] === 255;
+    const bodyIsPorcelain =
+      body[0] === 248 && body[1] === 247 && body[2] === 244;
+    expect(bodyIsBlue || bodyIsPorcelain).toBe(true);
 
     const pinFill = pixelAt(parking, 24, 52);
-    expect(pinFill[2]).toBeGreaterThan(pinFill[1]);
-    expect(pinFill[0]).toBeLessThan(80);
-    expect(windshield[0]).not.toBe(pinFill[0]);
+    expect(pinFill[2]).toBe(255);
+    expect(pinFill[0]).toBe(0);
+    expect(pinFill[1]).toBe(87);
+    expect(live.width).not.toBe(parking.width);
   });
 
   it("draws the destination as a blue parking pin, not a circular disc", () => {

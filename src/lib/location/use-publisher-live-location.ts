@@ -9,7 +9,8 @@ import {
 } from "@/lib/location/constants";
 import { fetchLatestClaimLiveLocation } from "@/lib/location/fetch-claim-live-location";
 import { isNewerSeekerLocation } from "@/lib/location/location-ordering";
-import { logHandoffLive } from "@/lib/location/log-handoff-live";
+import { logHandoffLiveReceiver } from "@/lib/location/log-handoff-live-receiver";
+import { isNativeHandoffPlatform } from "@/lib/location/is-native-handoff-platform";
 import {
   parseSeekerLocationPayload,
   parseSeekerLocationStatusPayload,
@@ -193,13 +194,22 @@ export function usePublisherLiveLocation({
 
     const topic = getClaimLocationTopic(claimId);
     if (!topic) {
-      logHandoffLive("publisher topic invalid", { claimId });
+      logHandoffLiveReceiver("topic invalid", { claimId });
       return;
     }
+
+    const validatedTopic = topic;
+    logHandoffLiveReceiver("publisher claim active", {
+      claimId,
+      topic: validatedTopic,
+      nativeCapacitor: isNativeHandoffPlatform(),
+    });
 
     const activeClaimId = claimId;
 
     let cancelled = false;
+    let reconnectTimer: number | null = null;
+    let channelJoined = false;
     const client = createClient();
     clientRef.current = client;
 
@@ -209,7 +219,7 @@ export function usePublisherLiveLocation({
     ) {
       if (!isNewerSeekerLocation(parsed, lastKnownRef.current)) {
         if (source === "snapshot") {
-          logHandoffLive("snapshot ignored stale", {
+          logHandoffLiveReceiver("snapshot ignored stale", {
             claimId,
             topic,
             sequence: parsed.sequence,
@@ -226,19 +236,20 @@ export function usePublisherLiveLocation({
       writeCachedLiveLocation(activeClaimId, parsed, receivedAt);
 
       if (source === "broadcast") {
-        logHandoffLive("publisher location received", {
+        logHandoffLiveReceiver("event received", {
           claimId,
           topic,
-          source: "broadcast",
-          lat: parsed.latitude,
-          lng: parsed.longitude,
+          sequence: parsed.sequence,
+        });
+        logHandoffLiveReceiver("payload accepted", {
+          claimId,
+          topic,
           accuracy: parsed.accuracyMeters,
-          timestamp: parsed.sentAt,
-          age: receivedAt - parsed.sentAt,
+          ageMs: receivedAt - parsed.sentAt,
           sequence: parsed.sequence,
         });
       } else {
-        logHandoffLive("snapshot accepted", {
+        logHandoffLiveReceiver("snapshot accepted", {
           claimId,
           topic,
           sequence: parsed.sequence,
@@ -246,7 +257,7 @@ export function usePublisherLiveLocation({
         });
       }
 
-      logHandoffLive("publisher marker updated", {
+      logHandoffLiveReceiver("marker state updated", {
         claimId,
         topic,
         source,
@@ -268,16 +279,16 @@ export function usePublisherLiveLocation({
       if (cancelled || terminalRef.current) {
         return;
       }
-      logHandoffLive("latest snapshot fetch started", { claimId, topic, reason });
+      logHandoffLiveReceiver("snapshot fetch started", { claimId, topic, reason });
       const parsed = await fetchLatestClaimLiveLocation(client, activeClaimId);
       if (cancelled || terminalRef.current) {
         return;
       }
       if (!parsed) {
-        logHandoffLive("latest snapshot empty", { claimId, topic, reason });
+        logHandoffLiveReceiver("snapshot empty", { claimId, topic, reason });
         return;
       }
-      logHandoffLive("latest snapshot found", {
+      logHandoffLiveReceiver("snapshot found", {
         claimId,
         topic,
         reason,
@@ -287,27 +298,72 @@ export function usePublisherLiveLocation({
       applyLocation(parsed, "snapshot");
     }
 
-    void (async () => {
+    function scheduleReconnect(reason: string) {
+      if (reconnectTimer !== null || cancelled || terminalRef.current) {
+        return;
+      }
+      logHandoffLiveReceiver("channel reconnect scheduled", {
+        claimId,
+        topic,
+        reason,
+      });
+      reconnectTimer = window.setTimeout(() => {
+        reconnectTimer = null;
+        if (!cancelled && !terminalRef.current) {
+          void establishSubscription(reason);
+        }
+      }, 1_500);
+    }
+
+    async function establishSubscription(reason: string) {
+      if (cancelled || terminalRef.current) {
+        return;
+      }
+
       const { data } = await client.auth.getSession();
       const token = data.session?.access_token;
-      if (!token || cancelled) {
-        logHandoffLive("publisher session missing", { claimId, topic });
+      if (!token) {
+        logHandoffLiveReceiver("session missing", { claimId, topic, reason });
         return;
       }
+
       await client.realtime.setAuth(token);
-      if (cancelled) {
+      if (cancelled || terminalRef.current) {
         return;
       }
 
-      setSnapshot({
-        location: lastKnownRef.current,
-        lastReceivedAtMs: lastReceivedAtRef.current,
-        explicitPaused: false,
-        connectionFailed: false,
-        generation,
-      });
+      setSnapshot((prev) =>
+        prev.generation === generation
+          ? {
+              location: lastKnownRef.current,
+              lastReceivedAtMs: lastReceivedAtRef.current,
+              explicitPaused: prev.explicitPaused,
+              connectionFailed: false,
+              generation,
+            }
+          : prev,
+      );
 
-      void reconcileLatestSnapshot("mount");
+      if (reason === "mount" || reason === "auth ready") {
+        void reconcileLatestSnapshot(reason);
+      }
+
+      const existing = channelRef.current;
+      if (existing && channelJoined) {
+        if (reason.includes("visibility") || reason.includes("focus")) {
+          void reconcileLatestSnapshot(reason);
+        }
+        return;
+      }
+
+      if (existing) {
+        channelJoined = false;
+        channelRef.current = null;
+        await client.removeChannel(existing);
+        if (cancelled || terminalRef.current) {
+          return;
+        }
+      }
 
       const existingChannels =
         typeof client.getChannels === "function" ? client.getChannels() : [];
@@ -315,15 +371,19 @@ export function usePublisherLiveLocation({
         existingChannels
           .filter((channel) => {
             const name = channel.topic ?? "";
-            return name === topic || name.endsWith(`:${topic}`) || name.includes(topic);
+            return (
+              name === validatedTopic ||
+              name.endsWith(`:${validatedTopic}`) ||
+              name.includes(validatedTopic)
+            );
           })
           .map((channel) => client.removeChannel(channel)),
       );
-      if (cancelled) {
+      if (cancelled || terminalRef.current) {
         return;
       }
 
-      const channel = client.channel(topic, {
+      const channel = client.channel(validatedTopic, {
         config: {
           private: true,
           broadcast: { self: false },
@@ -337,7 +397,7 @@ export function usePublisherLiveLocation({
         }
         const parsed = parseSeekerLocationPayload(payload);
         if (!parsed) {
-          logHandoffLive("publisher payload rejected", {
+          logHandoffLiveReceiver("payload rejected", {
             claimId,
             topic,
             reason: "invalid_payload",
@@ -372,30 +432,27 @@ export function usePublisherLiveLocation({
         },
       );
 
-      logHandoffLive("publisher channel subscribing", {
-        claimId,
-        topic,
-        role: "publisher",
-      });
+      logHandoffLiveReceiver("subscribe", { claimId, topic, reason });
 
       channel.subscribe((status) => {
         if (cancelled || terminalRef.current) {
           return;
         }
+        logHandoffLiveReceiver("channel status", {
+          claimId,
+          topic,
+          status,
+        });
         if (status === "SUBSCRIBED") {
-          logHandoffLive("publisher channel subscribed", {
-            claimId,
-            topic,
-            role: "publisher",
-          });
+          channelJoined = true;
+          const snapshotReason = hadSubscribedRef.current ? "reconnect" : "initial";
+          hadSubscribedRef.current = true;
           setSnapshot((prev) =>
             prev.generation === generation
               ? { ...prev, connectionFailed: false }
               : prev,
           );
-          const reason = hadSubscribedRef.current ? "reconnect" : "initial";
-          hadSubscribedRef.current = true;
-          void reconcileLatestSnapshot(reason);
+          void reconcileLatestSnapshot(snapshotReason);
           return;
         }
         if (
@@ -403,35 +460,62 @@ export function usePublisherLiveLocation({
           status === "TIMED_OUT" ||
           status === "CLOSED"
         ) {
-          logHandoffLive(`CHANNEL ${status}`, {
-            claimId,
-            topic,
-            role: "publisher",
-          });
+          channelJoined = false;
           setSnapshot((prev) =>
             prev.generation === generation
               ? { ...prev, connectionFailed: true }
               : prev,
           );
+          scheduleReconnect(status.toLowerCase());
         }
       });
-    })();
+    }
+
+    void establishSubscription("mount");
+
+    const {
+      data: { subscription: authSubscription },
+    } = client.auth.onAuthStateChange((_event, session) => {
+      if (cancelled || terminalRef.current) {
+        return;
+      }
+      if (session?.access_token && !channelJoined) {
+        void establishSubscription("auth ready");
+      }
+    });
 
     function onVisibilityRestore() {
-      if (document.visibilityState === "visible") {
-        void reconcileLatestSnapshot("visibility restore");
+      if (document.visibilityState !== "visible") {
+        return;
       }
+      if (!channelJoined) {
+        void establishSubscription("visibility reconnect");
+        return;
+      }
+      void reconcileLatestSnapshot("visibility restore");
     }
 
     function onOnline() {
+      if (!channelJoined) {
+        void establishSubscription("network online");
+        return;
+      }
       void reconcileLatestSnapshot("network online");
     }
 
     function onPageShow() {
+      if (!channelJoined) {
+        void establishSubscription("pageshow reconnect");
+        return;
+      }
       void reconcileLatestSnapshot("pageshow");
     }
 
     function onWindowFocus() {
+      if (!channelJoined) {
+        void establishSubscription("window focus reconnect");
+        return;
+      }
       void reconcileLatestSnapshot("window focus");
     }
 
@@ -443,6 +527,10 @@ export function usePublisherLiveLocation({
     return () => {
       cancelled = true;
       terminalRef.current = true;
+      if (reconnectTimer !== null) {
+        window.clearTimeout(reconnectTimer);
+      }
+      authSubscription.unsubscribe();
       document.removeEventListener("visibilitychange", onVisibilityRestore);
       window.removeEventListener("online", onOnline);
       window.removeEventListener("pageshow", onPageShow);

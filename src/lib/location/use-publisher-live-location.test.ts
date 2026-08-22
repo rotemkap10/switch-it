@@ -48,6 +48,9 @@ const getChannels = vi.fn(() => []);
 const getSession = vi.fn(async () => ({
   data: { session: { access_token: "token" } },
 }));
+const onAuthStateChange = vi.fn(() => ({
+  data: { subscription: { unsubscribe: vi.fn() } },
+}));
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
@@ -56,7 +59,7 @@ vi.mock("@/lib/supabase/client", () => ({
     getChannels,
     from,
     realtime: { setAuth },
-    auth: { getSession },
+    auth: { getSession, onAuthStateChange },
   }),
 }));
 
@@ -567,5 +570,33 @@ describe("usePublisherLiveLocation", () => {
 
     expect(remounted.result.current.location?.latitude).toBe(32.15);
     expect(remounted.result.current.location?.sequence).toBe(4);
+  });
+
+  it("schedules reconnect after channel closed", async () => {
+    vi.useFakeTimers();
+    try {
+      renderHook(() =>
+        usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(subscribeStatus).toBeTypeOf("function");
+
+      const callsBefore = channel.mock.calls.length;
+      act(() => {
+        subscribeStatus?.("CLOSED");
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_600);
+        await Promise.resolve();
+      });
+
+      expect(channel.mock.calls.length).toBeGreaterThan(callsBefore);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

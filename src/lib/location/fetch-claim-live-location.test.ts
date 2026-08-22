@@ -26,6 +26,16 @@ describe("claimLiveLocationRowToPayload", () => {
 });
 
 describe("fetchLatestClaimLiveLocation", () => {
+  const claimId = "11111111-1111-4111-8111-111111111111";
+
+  it("returns null for malformed claim ids without querying", async () => {
+    const client = { from: vi.fn() };
+    await expect(
+      fetchLatestClaimLiveLocation(client as never, "claim-1"),
+    ).resolves.toBeNull();
+    expect(client.from).not.toHaveBeenCalled();
+  });
+
   it("returns null when no row exists", async () => {
     const client = {
       from: vi.fn(() => ({
@@ -38,8 +48,25 @@ describe("fetchLatestClaimLiveLocation", () => {
     };
 
     await expect(
-      fetchLatestClaimLiveLocation(client as never, "claim-1"),
+      fetchLatestClaimLiveLocation(client as never, claimId),
     ).resolves.toBeNull();
+  });
+
+  it("normalizes claim id before querying", async () => {
+    const eq = vi.fn(() => ({
+      maybeSingle: vi.fn(async () => ({ data: null, error: null })),
+    }));
+    const client = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({ eq })),
+      })),
+    };
+
+    await fetchLatestClaimLiveLocation(
+      client as never,
+      claimId.toUpperCase(),
+    );
+    expect(eq).toHaveBeenCalledWith("claim_id", claimId);
   });
 
   it("returns parsed payload for an existing row", async () => {
@@ -63,7 +90,7 @@ describe("fetchLatestClaimLiveLocation", () => {
       })),
     };
 
-    const payload = await fetchLatestClaimLiveLocation(client as never, "claim-1");
+    const payload = await fetchLatestClaimLiveLocation(client as never, claimId);
     expect(payload?.latitude).toBe(32.1);
     expect(payload?.sequence).toBe(1);
   });

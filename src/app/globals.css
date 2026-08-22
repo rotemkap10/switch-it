@@ -1,26 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --color-bg: #dff4ff;
-  --color-bg-strong: #cdeeff;
-  --color-surface: #ffffff;
-  --color-border: #b9e3f7;
-  --color-text: #12324a;
-  --color-text-muted: #4b687d;
-  --color-accent: #55bff3;
-  --color-accent-hover: #2fa9e6;
-  --color-accent-soft: #eaf8ff;
-  --color-success: #4fbf8f;
-  --color-success-bg: #e7f8f0;
-  --color-danger: #e26d6d;
-  --color-danger-bg: #fdeeee;
-  --color-warning: #e0a35c;
-  --color-warning-bg: #fff6ea;
-  --color-ready: #4fbf8f;
-  --shadow-card: 0 1px 2px rgb(47 169 230 / 10%), 0 12px 28px rgb(85 191 243 / 18%);
-  --shadow-card-hover: 0 2px 4px rgb(47 169 230 / 12%), 0 16px 32px rgb(85 191 243 / 22%);
+  --color-brand: #0057FF;
+  --color-bg: #F8F7F4;
+  --color-bg-strong: #F8F7F4;
+  --color-surface: #F8F7F4;
+  --color-border: #0057FF;
+  --color-text: #0057FF;
+  --color-text-muted: #0057FF;
+  --color-accent: #0057FF;
+  --color-accent-hover: #0057FF;
+  --color-accent-soft: #F8F7F4;
+  --color-success: #0057FF;
+  --color-success-bg: #F8F7F4;
+  --color-danger: #0057FF;
+  --color-danger-bg: #F8F7F4;
+  --color-warning: #0057FF;
+  --color-warning-bg: #F8F7F4;
+  --color-ready: #0057FF;
+  --shadow-card: none;
+  --shadow-card-hover: none;
   --radius: 14px;
-  --focus-ring: 0 0 0 3px #9fd9f5;
+  --focus-ring: 0 0 0 3px #0057FF;
   --motion-fast: 160ms;
   --motion-standard: 240ms;
   --motion-panel: 280ms;
@@ -105,21 +106,15 @@
 }
 
 html {
-  background: #dff4ff;
-  background-color: #dff4ff;
+  background: var(--color-bg);
+  background-color: var(--color-bg);
   color-scheme: only light;
   overflow-x: hidden;
 }
 
 body {
-  background-color: #dff4ff;
-  background:
-    radial-gradient(
-      ellipse 120% 70% at 50% -10%,
-      var(--color-bg-strong),
-      transparent 60%
-    ),
-    #dff4ff;
+  background-color: var(--color-bg);
+  background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   min-height: 100%;
@@ -129,8 +124,8 @@ body {
 
 #app-root,
 #app-boot-splash {
-  background: #dff4ff;
-  background-color: #dff4ff;
+  background: var(--color-bg);
+  background-color: var(--color-bg);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -139,8 +134,8 @@ body {
   #app-root,
   #app-boot-splash,
   .app-launch-splash {
-    background: #dff4ff !important;
-    background-color: #dff4ff !important;
+    background: var(--color-bg) !important;
+    background-color: var(--color-bg) !important;
     color-scheme: only light !important;
   }
 }
@@ -173,7 +168,7 @@ body {
      (native layout already clears the status bar). PWA/Safari keep env(). */
   padding-top: constant(safe-area-inset-top);
   padding-top: var(--app-safe-top, env(safe-area-inset-top, 0px));
-  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  background: var(--color-surface);
 }
 
 html[data-native-status-bar="inset"] .app-shell-header {
@@ -332,7 +327,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
   z-index: 30;
 }
 
-.map-bottom-sheet {
+  .map-bottom-sheet {
   pointer-events: auto;
   display: flex;
   width: 100%;
@@ -342,10 +337,9 @@ html[data-native-status-bar="inset"] .app-shell-header {
   gap: 0.75rem;
   border-radius: var(--radius-card);
   border: 1px solid var(--color-border);
-  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  background: var(--color-surface);
   padding: 0.75rem;
   box-shadow: var(--shadow-card);
-  backdrop-filter: blur(8px);
   transition:
     transform var(--motion-panel) var(--motion-ease),
     opacity var(--motion-panel) var(--motion-ease);
@@ -409,7 +403,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
 
 .map-sheet-handle:active {
   transform: scaleX(1.15);
-  background: color-mix(in srgb, var(--color-text-muted) 45%, var(--color-border));
+  background: var(--color-accent);
 }
 
 .map-empty-notice {
@@ -564,13 +558,9 @@ html[data-native-status-bar="inset"] .app-shell-header {
   gap: 0.625rem;
   padding: 0.75rem 0.875rem 0.875rem;
   border-radius: 1.125rem;
-  border: 1px solid rgb(185 227 247 / 55%);
-  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
-  box-shadow:
-    0 1px 2px rgb(18 50 74 / 5%),
-    0 8px 24px rgb(47 169 230 / 14%);
-  -webkit-backdrop-filter: blur(16px) saturate(1.12);
-  backdrop-filter: blur(16px) saturate(1.12);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  box-shadow: none;
 }
 
 .publisher-compose--map-first .map-bottom-sheet-actions {
@@ -596,22 +586,18 @@ html[data-native-status-bar="inset"] .app-shell-header {
   flex-direction: column;
   gap: 0.375rem;
   border-radius: 1.125rem;
-  border: 1px solid rgb(185 227 247 / 55%);
-  background: color-mix(in srgb, var(--color-surface) 82%, transparent);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   padding: 0.5rem 0.625rem;
-  box-shadow:
-    0 1px 2px rgb(18 50 74 / 5%),
-    0 8px 24px rgb(47 169 230 / 14%);
-  -webkit-backdrop-filter: blur(16px) saturate(1.12);
-  backdrop-filter: blur(16px) saturate(1.12);
+  box-shadow: none;
 }
 
 .publisher-compose-search__input {
   min-height: var(--app-tap-min);
   width: 100%;
   border-radius: 0.875rem;
-  border: 1px solid rgb(185 227 247 / 70%);
-  background: color-mix(in srgb, var(--color-surface) 94%, transparent);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   padding: 0.5rem 0.75rem;
   color: var(--color-text);
   font-size: 0.9375rem;
@@ -619,22 +605,22 @@ html[data-native-status-bar="inset"] .app-shell-header {
 }
 
 .publisher-compose-search__input::placeholder {
-  color: color-mix(in srgb, var(--color-text-muted) 70%, transparent);
+  color: var(--color-text-muted);
+  font-weight: 400;
 }
 
 .publisher-compose-search__input:disabled {
-  opacity: 0.6;
+  border-style: dashed;
+  font-weight: 400;
 }
 
 .publisher-compose-search__suggestions {
   max-height: 11rem;
   overflow: auto;
   border-radius: 0.875rem;
-  border: 1px solid rgb(185 227 247 / 70%);
-  background: color-mix(in srgb, var(--color-surface) 96%, transparent);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
   padding: 0.25rem;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
 }
 
 .publisher-compose-top-host {
@@ -742,10 +728,11 @@ html[data-native-status-bar="inset"] .app-shell-header {
     to right,
     var(--color-accent) 0%,
     var(--color-accent) var(--leave-fill, 0%),
-    var(--color-border) var(--leave-fill, 0%),
-    var(--color-border) 100%
+    var(--color-surface) var(--leave-fill, 0%),
+    var(--color-surface) 100%
   );
-  background-color: var(--color-border);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
   outline: none;
   cursor: pointer;
 }
@@ -777,7 +764,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
 }
 
 .leave-time-range:disabled {
-  opacity: 0.6;
+  border-style: dashed;
   cursor: not-allowed;
 }
 
@@ -1058,7 +1045,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
 }
 
 .ui-combobox__chevron:disabled {
-  opacity: 0.6;
+  border-style: dashed;
 }
 
 .ui-combobox__chevron-icon {
@@ -1336,7 +1323,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
 
 .vehicle-photo-frame__image--model {
   object-fit: contain;
-  background: #fff;
+  background: var(--color-surface);
 }
 
 .vehicle-model-image__pending {
@@ -1401,7 +1388,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
 }
 
 .vehicle-photo-frame--handoff .vehicle-photo-frame__image--model {
-  filter: drop-shadow(0 10px 16px rgb(18 50 74 / 14%));
+  filter: none;
 }
 
 @media (min-width: 640px) {
@@ -1473,7 +1460,6 @@ html[data-native-status-bar="inset"] .app-shell-header {
   /* Anchor pin tip at the visual center (pin tip is near bottom of SVG). */
   transform: translateY(-42%);
   transition: transform var(--motion-fast) var(--motion-ease);
-  filter: drop-shadow(0 2px 4px rgb(15 23 42 / 0.22));
   will-change: transform;
 }
 
@@ -1716,13 +1702,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
   pointer-events: none;
   padding-top: var(--app-safe-top);
   padding-bottom: var(--app-safe-bottom);
-  background:
-    radial-gradient(
-      ellipse 120% 80% at 50% 0%,
-      var(--color-bg-strong),
-      transparent 62%
-    ),
-    color-mix(in srgb, var(--color-bg) 92%, transparent);
+  background: var(--color-bg);
 }
 
 .route-transition-overlay__inner {
@@ -1745,8 +1725,8 @@ html[data-native-status-bar="inset"] .app-shell-header {
   min-height: 100%;
   min-height: 100dvh;
   /* Exact match to apple-touch-startup-image fill — no gradient flash. */
-  background: #dff4ff;
-  background-color: #dff4ff;
+  background: var(--color-bg);
+  background-color: var(--color-bg);
   padding-top: var(--app-safe-top);
   padding-bottom: var(--app-safe-bottom);
   padding-inline: var(--app-phone-gutter);
@@ -1893,7 +1873,8 @@ html.app-boot-splash-exiting #app-boot-splash {
 
 .status-band-ready {
   background: var(--color-success-bg);
-  border-color: rgb(79 191 143 / 30%);
+  border-color: var(--color-border);
+  border-width: 2px;
 }
 
 .motion-spinner {
@@ -2483,7 +2464,7 @@ html.app-boot-splash-exiting #app-boot-splash {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgb(18 50 74 / 28%);
+  background: transparent;
   padding-inline: var(--app-phone-gutter);
   padding-top: max(1.25rem, calc(var(--app-safe-top) + 0.75rem));
   padding-bottom: max(1rem, var(--app-safe-bottom));
@@ -2503,7 +2484,7 @@ html.app-boot-splash-exiting #app-boot-splash {
   align-items: center;
   justify-content: center;
   box-sizing: border-box;
-  background: rgb(18 50 74 / 28%);
+  background: transparent;
   padding-top: max(1rem, var(--app-safe-top));
   padding-right: max(1rem, var(--app-safe-right), var(--app-phone-gutter));
   padding-bottom: max(1rem, var(--app-safe-bottom));

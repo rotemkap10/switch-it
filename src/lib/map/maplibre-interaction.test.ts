@@ -3,9 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   MAP_DRAG_PAN_INERTIA_OPTIONS,
   MAP_INTERACTION_OPTIONS,
+  applyMapDragPanInertia,
   isMapCameraBusy,
+  isNativeAndroidCapacitor,
+  resolveMapLibreReduceMotion,
   resolveMapReduceMotion,
 } from "@/lib/map/maplibre-interaction";
+
+vi.mock("@/lib/location/is-native-handoff-platform", () => ({
+  isNativeHandoffPlatform: vi.fn(() => false),
+}));
+
+import { isNativeHandoffPlatform } from "@/lib/location/is-native-handoff-platform";
 
 describe("maplibre interaction config", () => {
   beforeEach(() => {
@@ -48,7 +57,7 @@ describe("maplibre interaction config", () => {
     ).toBe(false);
   });
 
-  it("reads prefers-reduced-motion for MapLibre reduceMotion", () => {
+  it("reads prefers-reduced-motion for UI reduceMotion", () => {
     vi.stubGlobal("matchMedia", (query: string) => ({
       matches: query.includes("prefers-reduced-motion"),
       media: query,
@@ -71,6 +80,29 @@ describe("maplibre interaction config", () => {
       onchange: null,
     }));
     expect(resolveMapReduceMotion()).toBe(false);
+  });
+
+  it("disables MapLibre reduceMotion on native Android Capacitor", () => {
+    vi.mocked(isNativeHandoffPlatform).mockReturnValue(true);
+    vi.stubGlobal("Capacitor", { getPlatform: () => "android" });
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query.includes("prefers-reduced-motion"),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      onchange: null,
+    }));
+    expect(isNativeAndroidCapacitor()).toBe(true);
+    expect(resolveMapLibreReduceMotion()).toBe(false);
+  });
+
+  it("applyMapDragPanInertia re-enables shared inertia options", () => {
+    const enable = vi.fn();
+    applyMapDragPanInertia({ dragPan: { enable } } as never);
+    expect(enable).toHaveBeenCalledWith({ ...MAP_DRAG_PAN_INERTIA_OPTIONS });
   });
 
   it("does not expose a picker-specific dragPan.enable helper", async () => {

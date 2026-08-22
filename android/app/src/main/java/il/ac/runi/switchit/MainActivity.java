@@ -69,6 +69,8 @@ public class MainActivity extends BridgeActivity {
             WebView webView = getBridge().getWebView();
             // Android WebView glow/fling can absorb pan end velocity before MapLibre inertia.
             webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+            // Let MapLibre receive full touch velocity instead of nested scroll chaining.
+            webView.setNestedScrollingEnabled(false);
         } catch (Exception error) {
             Log.w(TAG, "configureWebViewForMaps failed", error);
         }

@@ -28,20 +28,7 @@ export const VEHICLE_COLOR_LABELS: Record<VehicleColor, string> = {
   other: "Other",
 };
 
-/** Fill hex for local SVG illustrations (controlled palette only). */
-export const VEHICLE_COLOR_FILL: Record<VehicleColor, string> = {
-  white: "#f7fbff",
-  black: "#1f2933",
-  gray: "#8b9aab",
-  silver: "#c5d0db",
-  blue: "#3b82c4",
-  red: "#d45b5b",
-  green: "#4f9b6e",
-  yellow: "#e2c04c",
-  brown: "#8b5e3c",
-  beige: "#d8c3a5",
-  other: "#55bff3",
-};
+/** Stored vehicle color labels — illustrations always use the strict brand palette. */
 
 export function isVehicleColor(value: string): value is VehicleColor {
   return (VEHICLE_COLORS as readonly string[]).includes(value);

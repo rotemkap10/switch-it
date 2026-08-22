@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { parseSeekerLocationPayload } from "@/lib/location/payload";
+import { normalizeClaimIdForTopic } from "@/lib/location/topic";
 
 export type ClaimLiveLocationRow = {
   latitude: number;
@@ -38,13 +39,17 @@ export async function fetchLatestClaimLiveLocation(
   client: SupabaseClient,
   claimId: string,
 ): Promise<ReturnType<typeof claimLiveLocationRowToPayload>> {
+  const normalizedClaimId = normalizeClaimIdForTopic(claimId);
+  if (!normalizedClaimId) {
+    return null;
+  }
   try {
     const { data, error } = await client
       .from("claim_live_locations")
       .select(
         "latitude, longitude, accuracy_meters, heading_degrees, sequence, location_timestamp",
       )
-      .eq("claim_id", claimId)
+      .eq("claim_id", normalizedClaimId)
       .maybeSingle();
 
     if (error || !data) {

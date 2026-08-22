@@ -3,7 +3,7 @@
  * Run: node scripts/generate-ios-startup-images.mjs
  *
  * Lockup must stay aligned with AppLaunchShell (centered official logo PNG,
- * ~72% of the shorter viewport side, light brand fill #dff4ff).
+ * ~72% of the shorter viewport side, Porcelain brand fill #F8F7F4).
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -13,7 +13,7 @@ import { ImageResponse } from "next/og.js";
 import { createElement } from "react";
 import sharp from "sharp";
 
-const BACKGROUND = "#dff4ff";
+const BACKGROUND = "#F8F7F4";
 const LOGO_RATIO = 0.72;
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");

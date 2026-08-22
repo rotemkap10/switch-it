@@ -1,5 +1,6 @@
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 
+import { PORCELAIN, SIGNAL_BLUE } from "@/lib/branding/colors";
 import { MAP_LAYERS, MAP_SOURCES } from "@/lib/map/seekerMapConfig";
 
 /** Fixed on-screen size of the current-location puck (pixels). Never scales with GPS accuracy. */
@@ -58,8 +59,8 @@ function ensureUserLocationLayers(
       source: ids.dotSource,
       paint: {
         "circle-radius": USER_LOCATION_DOT_RADIUS_PX,
-        "circle-color": "#55bff3",
-        "circle-stroke-color": "#ffffff",
+        "circle-color": SIGNAL_BLUE,
+        "circle-stroke-color": PORCELAIN,
         "circle-stroke-width": 2,
       },
     });

@@ -15,6 +15,7 @@ type FakeMap = {
   getSource: ReturnType<typeof vi.fn>;
   addSource: ReturnType<typeof vi.fn>;
   addLayer: ReturnType<typeof vi.fn>;
+  getLayer: ReturnType<typeof vi.fn>;
   hasImage: ReturnType<typeof vi.fn>;
   on: ReturnType<typeof vi.fn>;
   dragPan: { enable: ReturnType<typeof vi.fn>; isEnabled: ReturnType<typeof vi.fn> };
@@ -71,6 +72,7 @@ const seekerLocation = {
 
 function createFakeMap(): FakeMap {
   const sources = new Map<string, { setData: ReturnType<typeof vi.fn> }>();
+  const layers = new Set<string>();
   return {
     resize: vi.fn(),
     fitBounds: vi.fn(),
@@ -83,7 +85,10 @@ function createFakeMap(): FakeMap {
     addSource: vi.fn((id: string) => {
       sources.set(id, { setData: vi.fn() });
     }),
-    addLayer: vi.fn(),
+    addLayer: vi.fn((layer: { id: string }) => {
+      layers.add(layer.id);
+    }),
+    getLayer: vi.fn((id: string) => (layers.has(id) ? { id } : undefined)),
     hasImage: vi.fn(() => true),
     on: vi.fn(),
     dragPan: { enable: vi.fn(), isEnabled: vi.fn(() => true) },

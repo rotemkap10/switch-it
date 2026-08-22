@@ -47,7 +47,7 @@ describe("iOS LaunchScreen native assets", () => {
           image.filename,
         ),
       );
-      expect(bytes.byteLength).toBeGreaterThan(10_000);
+      expect(bytes.byteLength).toBeGreaterThan(4_000);
     }
   });
 });

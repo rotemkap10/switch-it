@@ -20,7 +20,7 @@ export function AppNav({ compact = false, displayName = null }: AppNavProps) {
   return (
     <header
       className={[
-        "app-shell-header z-40 border-b border-border/80 bg-surface/95 shadow-[var(--shadow-card)] backdrop-blur-sm",
+        "app-shell-header z-40 border-b border-border bg-surface",
         compact ? "shrink-0" : "",
       ].join(" ")}
       data-testid="app-nav"
@@ -33,7 +33,7 @@ export function AppNav({ compact = false, displayName = null }: AppNavProps) {
           <div className="flex min-w-0 items-center gap-3">
             <ModeHomeLink
               aria-label="Switch It"
-              className="inline-flex shrink-0 items-center transition-opacity duration-[var(--motion-fast)] hover:opacity-90"
+              className="inline-flex shrink-0 items-center hover:underline"
             >
               <Logo variant="nav" decorative />
             </ModeHomeLink>

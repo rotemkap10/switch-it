@@ -184,7 +184,7 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain("--motion-splash-fade:");
     expect(css).toContain("--motion-route:");
     expect(css).toContain(".app-launch-splash");
-    expect(css).toContain("background: #dff4ff");
+    expect(css).toContain("background: var(--color-bg)");
     expect(css).toContain(".switch-it-logo--splash");
     expect(css).toContain("min(80vw, 22rem)");
     expect(css).toContain(".app-content-shell");
@@ -206,7 +206,7 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".branded-loading-car");
     expect(css).not.toContain(".map-loading-pin");
     expect(css).toContain("color-scheme: only light");
-    expect(css).toContain("background-color: #dff4ff");
+    expect(css).toContain("background-color: var(--color-bg)");
     expect(css).not.toMatch(
       /\.app-launch-splash\s*\{\s*display:\s*none\s*!important/,
     );

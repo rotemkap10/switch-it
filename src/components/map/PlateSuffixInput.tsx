@@ -54,7 +54,7 @@ export function PlateSuffixInput({
         disabled={disabled}
         aria-invalid={Boolean(error)}
         aria-describedby={describedBy}
-        className="plate-suffix-input app-form-control rounded-[var(--radius-card)] border border-border bg-surface text-foreground disabled:opacity-60"
+        className="plate-suffix-input app-form-control rounded-[var(--radius-card)] border border-border bg-surface text-foreground disabled:border-dashed"
         data-testid="plate-suffix-input"
         value={value}
         onPaste={handlePaste}

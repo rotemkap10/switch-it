@@ -148,7 +148,7 @@ export function VehicleMakeModelFields({
         {makeMode === "catalog" ? (
           <button
             type="button"
-            className="self-start text-sm text-muted underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
+            className="self-start text-sm text-muted underline-offset-2 hover:text-foreground hover:underline disabled:no-underline disabled:border-b disabled:border-dashed disabled:border-border"
             onClick={() => {
               setMakeMode("other");
               setModelMode("other");
@@ -162,7 +162,7 @@ export function VehicleMakeModelFields({
         ) : (
           <button
             type="button"
-            className="self-start text-sm text-muted underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
+            className="self-start text-sm text-muted underline-offset-2 hover:text-foreground hover:underline disabled:no-underline disabled:border-b disabled:border-dashed disabled:border-border"
             onClick={() => selectCatalogMake(matchMake(make)?.name ?? "")}
             disabled={disabled}
             data-testid="vehicle-make-use-catalog"
@@ -207,7 +207,7 @@ export function VehicleMakeModelFields({
         {makeMode === "catalog" && catalogMake && modelMode === "catalog" ? (
           <button
             type="button"
-            className="self-start text-sm text-muted underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
+            className="self-start text-sm text-muted underline-offset-2 hover:text-foreground hover:underline disabled:no-underline disabled:border-b disabled:border-dashed disabled:border-border"
             onClick={() => setModelMode("other")}
             disabled={!modelEnabled}
             data-testid="vehicle-model-not-listed"
@@ -218,7 +218,7 @@ export function VehicleMakeModelFields({
         {makeMode === "catalog" && catalogMake && modelMode === "other" ? (
           <button
             type="button"
-            className="self-start text-sm text-muted underline-offset-2 hover:text-foreground hover:underline disabled:opacity-60"
+            className="self-start text-sm text-muted underline-offset-2 hover:text-foreground hover:underline disabled:no-underline disabled:border-b disabled:border-dashed disabled:border-border"
             onClick={() => {
               setModelMode("catalog");
               onChange({

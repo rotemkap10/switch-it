@@ -1,5 +1,7 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
 
+import { isNativeHandoffPlatform } from "@/lib/location/is-native-handoff-platform";
+
 /**
  * Shared MapLibre constructor interaction flags for Switch It maps.
  * Initialized ONCE in BaseMap — Find Parking and Share a Spot must not
@@ -53,4 +55,50 @@ export function resolveMapReduceMotion(): boolean {
   } catch {
     return false;
   }
+}
+
+function getCapacitorPlatform(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  const capacitor = (
+    window as unknown as {
+      Capacitor?: { getPlatform?: () => string };
+    }
+  ).Capacitor;
+  try {
+    return typeof capacitor?.getPlatform === "function"
+      ? capacitor.getPlatform()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Capacitor Android shell — distinct from Safari / Chrome for gesture tuning. */
+export function isNativeAndroidCapacitor(): boolean {
+  return isNativeHandoffPlatform() && getCapacitorPlatform() === "android";
+}
+
+/**
+ * MapLibre constructor reduceMotion flag.
+ *
+ * Android Capacitor WebView often reports `prefers-reduced-motion: reduce` when
+ * the system animator duration scale is 0, which disables MapLibre pan fling
+ * entirely. iPhone WebView does not share this false positive — keep inertia
+ * enabled on native Android while still honoring real reduced-motion elsewhere.
+ */
+export function resolveMapLibreReduceMotion(): boolean {
+  if (isNativeAndroidCapacitor()) {
+    return false;
+  }
+  return resolveMapReduceMotion();
+}
+
+/** Re-assert shared pan inertia after construct or handler re-enable. */
+export function applyMapDragPanInertia(map: MapLibreMap): void {
+  if (resolveMapLibreReduceMotion()) {
+    return;
+  }
+  map.dragPan.enable({ ...MAP_DRAG_PAN_INERTIA_OPTIONS });
 }

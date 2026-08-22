@@ -32,7 +32,7 @@ function waitFrames(): Promise<void> {
 /**
  * Resolves only after the SSR `#app-boot-splash` logo is decoded/painted
  * (or a short timeout). Call before native SplashScreen.hide() so the next
- * visible frame already contains the Switch It logo on `#dff4ff`.
+ * visible frame already contains the Switch It logo on Porcelain.
  */
 export async function waitForWebBootSplashPainted(): Promise<void> {
   if (typeof document === "undefined") {

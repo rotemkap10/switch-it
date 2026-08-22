@@ -27,7 +27,7 @@ describe("CancelSpotButton", () => {
 
     const trigger = screen.getByTestId("cancel-spot-trigger");
     expect(trigger).toHaveTextContent("Cancel spot");
-    expect(trigger.className).toContain("border-danger");
+    expect(trigger.className).toContain("border-accent");
     expect(trigger.className).toContain("w-full");
     expect(trigger.className).toContain("min-h-[var(--app-tap-min)]");
   });

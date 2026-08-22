@@ -3,7 +3,7 @@
  * Run: npm run generate:native-splash
  *
  * Visual target matches #app-boot-splash / AppLaunchShell:
- * - full-screen #dff4ff background
+ * - full-screen Porcelain (#F8F7F4) background
  * - centered official Switch It logo (~72% of the shorter canvas side)
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -14,7 +14,7 @@ import { ImageResponse } from "next/og.js";
 import { createElement } from "react";
 import sharp from "sharp";
 
-const BACKGROUND = "#dff4ff";
+const BACKGROUND = "#F8F7F4";
 const LOGO_RATIO = 0.72;
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -155,10 +155,10 @@ writeFileSync(
   resolve(rootDir, "android/app/src/main/res/values/colors.xml"),
   `<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#55bff3</color>
-    <color name="colorPrimaryDark">#2fa9e6</color>
-    <color name="colorAccent">#55bff3</color>
-    <color name="splash_background">#dff4ff</color>
+    <color name="colorPrimary">#0057FF</color>
+    <color name="colorPrimaryDark">#0057FF</color>
+    <color name="colorAccent">#0057FF</color>
+    <color name="splash_background">#F8F7F4</color>
 </resources>
 `,
 );

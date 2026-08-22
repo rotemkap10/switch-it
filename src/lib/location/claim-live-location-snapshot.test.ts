@@ -24,13 +24,15 @@ describe("claim live location snapshot pipeline contracts", () => {
       resolve(root, "src/lib/location/use-publisher-live-location.ts"),
       "utf8",
     );
-    const subscribeIndex = publisher.indexOf("publisher channel subscribing");
+    const subscribeIndex = publisher.indexOf('logHandoffLiveReceiver("subscribe"');
     const fetchIndex = publisher.indexOf("reconcileLatestSnapshot");
-    const subscribedIndex = publisher.indexOf("publisher channel subscribed");
+    const subscribedIndex = publisher.indexOf('status === "SUBSCRIBED"');
     expect(subscribeIndex).toBeGreaterThan(-1);
     expect(subscribedIndex).toBeGreaterThan(subscribeIndex);
     expect(fetchIndex).toBeGreaterThan(-1);
-    expect(publisher).toContain('reason = hadSubscribedRef.current ? "reconnect" : "initial"');
+    expect(publisher).toContain(
+      'const snapshotReason = hadSubscribedRef.current ? "reconnect" : "initial"',
+    );
     expect(publisher).toContain("fetchLatestClaimLiveLocation");
   });
 

@@ -21,6 +21,7 @@ describe("Android MainActivity hardening", () => {
 
   it("disables WebView overscroll so map fling is not stolen", () => {
     expect(source).toContain("OVER_SCROLL_NEVER");
+    expect(source).toContain("setNestedScrollingEnabled(false)");
     expect(source).toContain("configureWebViewForMaps");
   });
 });
