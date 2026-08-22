@@ -1,6 +1,7 @@
 /** Switch It conservative PWA service worker — offline fallback only. */
 
-const CACHE_VERSION = "switch-it-pwa-v6";
+/** Bump when branding PNGs change — same URLs were reused during the rejected two-color experiment. */
+const CACHE_VERSION = "switch-it-pwa-v7";
 
 /** Narrow allowlist — no authenticated or third-party resources. */
 const PRECACHE_URLS = [

@@ -53,7 +53,8 @@ export function Logo({
       width={SWITCH_IT_LOGO_WIDTH}
       height={SWITCH_IT_LOGO_HEIGHT}
       priority={eager}
-      unoptimized={variant === "splash"}
+      /* Brand PNGs must load directly — never via /_next/image (stale optimizer/CDN cache). */
+      unoptimized
       sizes={VARIANT_SIZES[variant]}
       className={[VARIANT_CLASS[variant], className].filter(Boolean).join(" ")}
     />

@@ -28,10 +28,15 @@ describe("Logo", () => {
     expect(image).toHaveClass("switch-it-logo--nav");
   });
 
-  it("serves the splash variant unoptimized so the public PNG paints immediately", () => {
-    const { container } = render(<Logo variant="splash" decorative />);
-    const image = container.querySelector("img");
-    expect(image).toHaveClass("switch-it-logo--splash");
-    expect(image).toHaveAttribute("src", SWITCH_IT_LOGO_SRC);
+  it("serves all variants unoptimized so branding PNGs never pass through /_next/image", () => {
+    const { container: navContainer } = render(<Logo variant="nav" decorative />);
+    expect(navContainer.querySelector("img")).toHaveAttribute("src", SWITCH_IT_LOGO_SRC);
+
+    const { container: splashContainer } = render(
+      <Logo variant="splash" decorative />,
+    );
+    const splash = splashContainer.querySelector("img");
+    expect(splash).toHaveClass("switch-it-logo--splash");
+    expect(splash).toHaveAttribute("src", SWITCH_IT_LOGO_SRC);
   });
 });
