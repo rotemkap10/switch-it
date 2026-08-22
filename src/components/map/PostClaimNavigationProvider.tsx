@@ -9,7 +9,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { createPortal } from "react-dom";
 
 import { NavigationProviderSheet } from "@/components/map/NavigationProviderSheet";
 import { getHandoffLocationDisclosure } from "@/lib/location/handoff-disclosures";
@@ -140,27 +139,24 @@ export function PostClaimNavigationProvider({
   return (
     <PostClaimNavigationContext.Provider value={value}>
       {children}
-      {typeof document !== "undefined" && session?.open && links
-        ? createPortal(
-            <NavigationProviderSheet
-              open
-              onClose={closeChooser}
-              links={links}
-              title="Open in"
-              description={getHandoffLocationDisclosure()}
-              dismissLabel="Dismiss"
-              onChoose={(url, providerId) => {
-                // Start / reinforce native tracking WHILE Switch It is still
-                // foreground. Android 12+ blocks startForegroundService once
-                // the Activity is backgrounded by Waze / Google Maps.
-                requestSeekerLiveLocationStart();
-                openExternalNavigationUrl(url);
-                selectProvider(providerId);
-              }}
-            />,
-            document.body,
-          )
-        : null}
+      {session?.open && links ? (
+        <NavigationProviderSheet
+          open
+          onClose={closeChooser}
+          links={links}
+          title="Open in"
+          description={getHandoffLocationDisclosure()}
+          dismissLabel="Dismiss"
+          onChoose={(url, providerId) => {
+            // Start / reinforce native tracking WHILE Switch It is still
+            // foreground. Android 12+ blocks startForegroundService once
+            // the Activity is backgrounded by Waze / Google Maps.
+            requestSeekerLiveLocationStart();
+            openExternalNavigationUrl(url);
+            selectProvider(providerId);
+          }}
+        />
+      ) : null}
     </PostClaimNavigationContext.Provider>
   );
 }

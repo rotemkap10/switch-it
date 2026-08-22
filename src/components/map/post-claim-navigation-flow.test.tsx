@@ -6,6 +6,7 @@ import { FeedbackShell } from "@/components/feedback/FeedbackShell";
 import { ActiveClaimPanel } from "@/components/map/ActiveClaimPanel";
 import { ClaimSpotButton } from "@/components/map/ClaimSpotButton";
 import { PostClaimNavigationProvider } from "@/components/map/PostClaimNavigationProvider";
+import { usePostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
 import {
   offerPostClaimNavigation,
   resetPostClaimNavigationForTests,
@@ -236,5 +237,34 @@ describe("post-claim navigation flow", () => {
     const reopened = screen.getByTestId("navigation-provider-sheet");
     expect(within(reopened).getByText("Open in")).toBeInTheDocument();
     expect(within(reopened).getByRole("button", { name: "Waze" })).toBeInTheDocument();
+  });
+
+  it("clearSession closes the navigation chooser during terminal cleanup", async () => {
+    const user = userEvent.setup();
+
+    function TerminalCleanupProbe() {
+      const navigation = usePostClaimNavigation();
+      return (
+        <button type="button" onClick={() => navigation.clearSession()}>
+          Simulate terminal cleanup
+        </button>
+      );
+    }
+
+    render(
+      <PostClaimNavigationProvider>
+        <ActiveClaimPanel claim={claim} destination={destination} />
+        <TerminalCleanupProbe />
+      </PostClaimNavigationProvider>,
+    );
+
+    offerPostClaimNavigation({ claimId, ...destination });
+    expect(await screen.findByTestId("navigation-provider-sheet")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Simulate terminal cleanup" }),
+    );
+
+    expect(screen.queryByTestId("navigation-provider-sheet")).not.toBeInTheDocument();
   });
 });

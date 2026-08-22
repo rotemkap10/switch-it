@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import { WEB_HANDOFF_LOCATION_DISCLOSURE } from "@/lib/location/handoff-disclosures";
 import { logPostClaimNavigationDev } from "@/lib/map/post-claim-navigation";
@@ -30,6 +31,11 @@ const PROVIDERS: Array<{
   { id: "appleMaps", label: "Apple Maps" },
 ];
 
+/**
+ * Full-viewport centered navigation chooser.
+ * Portaled to document.body with the same shell as CancellationReasonSheet so
+ * map/handoff layout transforms cannot scope fixed positioning.
+ */
 export function NavigationProviderSheet({
   open,
   onClose,
@@ -41,6 +47,7 @@ export function NavigationProviderSheet({
   dismissLabel = "Dismiss",
 }: NavigationProviderSheetProps) {
   const titleId = useId();
+  const descId = useId();
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const wasOpenRef = useRef(false);
 
@@ -51,36 +58,22 @@ export function NavigationProviderSheet({
     logPostClaimNavigationDev("NavigationProviderSheet mounted");
     logPostClaimNavigationDev("sheet visible");
 
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         onClose();
       }
     };
 
-    const onPointerDown = (event: MouseEvent | TouchEvent) => {
-      const target = event.target as Node | null;
-      if (!target) {
-        return;
-      }
-      if (sheetRef.current?.contains(target)) {
-        return;
-      }
-      if (returnFocusRef?.current?.contains(target)) {
-        return;
-      }
-      onClose();
-    };
-
     document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("touchstart", onPointerDown);
-
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("touchstart", onPointerDown);
+      document.body.style.overflow = previousOverflow;
     };
-  }, [open, onClose, returnFocusRef]);
+  }, [open, onClose]);
 
   useEffect(() => {
     if (wasOpenRef.current && !open) {
@@ -89,33 +82,37 @@ export function NavigationProviderSheet({
     wasOpenRef.current = open;
   }, [open, returnFocusRef]);
 
-  if (!open) {
+  if (!open || typeof document === "undefined") {
     return null;
   }
 
-  return (
-    <>
-      <div
-        className="fixed inset-0 z-[60] bg-foreground/20 motion-fade-in"
-        aria-hidden="true"
-      />
+  return createPortal(
+    <div
+      className="cancellation-sheet-backdrop motion-fade-in"
+      role="presentation"
+      data-testid="navigation-provider-sheet-backdrop"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div
         ref={sheetRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={description ? descId : undefined}
         data-testid="navigation-provider-sheet"
-        className={[
-          "fixed inset-x-0 bottom-0 z-[61] rounded-t-[var(--radius-card)] border border-border",
-          "bg-surface p-4 shadow-[var(--shadow-card)] motion-fade-slide-up app-overlay-pad-bottom",
-          "md:inset-x-auto md:left-1/2 md:w-[min(100%-2rem,24rem)] md:-translate-x-1/2 md:rounded-[var(--radius-card)]",
-        ].join(" ")}
+        className="install-sheet motion-soft-scale-in"
       >
-        <p id={titleId} className="text-sm font-semibold text-foreground">
+        <p id={titleId} className="install-sheet__title">
           {title}
         </p>
         {description ? (
-          <p className="mt-1 text-xs leading-5 text-muted">{description}</p>
+          <p id={descId} className="mt-1 text-xs leading-5 text-muted">
+            {description}
+          </p>
         ) : null}
         <ul className="mt-3 flex flex-col gap-2">
           {PROVIDERS.map((provider) => (
@@ -143,6 +140,7 @@ export function NavigationProviderSheet({
           {dismissLabel}
         </button>
       </div>
-    </>
+    </div>,
+    document.body,
   );
 }
