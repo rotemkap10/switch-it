@@ -2,33 +2,36 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CSSProperties, ReactElement } from "react";
 
-import { launchIconCssPx } from "@/lib/branding/logo-asset";
+import {
+  launchMarkContainSize,
+  SWITCH_IT_LAUNCH_MARK_HEIGHT,
+  SWITCH_IT_LAUNCH_MARK_WIDTH,
+} from "@/lib/branding/logo-asset";
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 
 type StartupSplashMarkupProps = {
-  /** Device pixel ratio used to scale the icon to match in-app CSS sizes. */
+  /** Device pixel ratio used to scale the mark to match in-app CSS sizes. */
   scale: number;
   cssWidth?: number;
   cssHeight?: number;
 };
 
-function launchIconDataUri(): string {
+function launchMarkDataUri(): string {
   const bytes = readFileSync(
-    join(process.cwd(), "public/branding/switch-it-launch-icon.png"),
+    join(process.cwd(), "public/branding/switch-it-launch-mark.png"),
   );
   return `data:image/png;base64,${bytes.toString("base64")}`;
 }
 
 /**
- * ImageResponse-safe iOS launch splash: light brand fill + square app icon only.
+ * ImageResponse-safe iOS launch splash: light brand fill + transparent symbol only.
  */
 export function StartupSplashMarkup({
   scale,
   cssWidth = 390,
   cssHeight = 844,
 }: StartupSplashMarkupProps): ReactElement {
-  const iconCss = launchIconCssPx(cssWidth, cssHeight);
-  const iconPx = Math.round(iconCss * scale);
+  const { width, height } = launchMarkContainSize(cssWidth, cssHeight);
 
   const root: CSSProperties = {
     width: "100%",
@@ -41,9 +44,16 @@ export function StartupSplashMarkup({
 
   return (
     <div style={root}>
-      {/* ImageResponse requires img; square app-icon tile, no wordmark. */}
+      {/* ImageResponse requires img; transparent symbol, no app-icon tile. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={launchIconDataUri()} width={iconPx} height={iconPx} alt="" />
+      <img
+        src={launchMarkDataUri()}
+        width={Math.round(width * scale)}
+        height={Math.round(height * scale)}
+        alt=""
+      />
     </div>
   );
 }
+
+export { SWITCH_IT_LAUNCH_MARK_WIDTH, SWITCH_IT_LAUNCH_MARK_HEIGHT };

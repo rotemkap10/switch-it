@@ -1,9 +1,9 @@
 import Image from "next/image";
 
 import {
-  SWITCH_IT_LAUNCH_ICON_HEIGHT,
-  SWITCH_IT_LAUNCH_ICON_SRC,
-  SWITCH_IT_LAUNCH_ICON_WIDTH,
+  SWITCH_IT_LAUNCH_MARK_HEIGHT,
+  SWITCH_IT_LAUNCH_MARK_SRC,
+  SWITCH_IT_LAUNCH_MARK_WIDTH,
   SWITCH_IT_LOGO_HEIGHT,
   SWITCH_IT_LOGO_SRC,
   SWITCH_IT_LOGO_WIDTH,
@@ -28,7 +28,7 @@ const VARIANT_SIZES: Record<LogoVariant, string> = {
   hero: "(min-width: 1024px) 28rem, (min-width: 640px) 22rem, 16.5rem",
   auth: "(min-width: 640px) 16rem, 13.5rem",
   nav: "8rem",
-  splash: "30vw",
+  splash: "28vw",
 };
 
 type LogoProps = {
@@ -49,11 +49,11 @@ export function Logo({
     priority ??
     (variant === "hero" || variant === "auth" || variant === "splash");
 
-  const src = variant === "splash" ? SWITCH_IT_LAUNCH_ICON_SRC : SWITCH_IT_LOGO_SRC;
+  const src = variant === "splash" ? SWITCH_IT_LAUNCH_MARK_SRC : SWITCH_IT_LOGO_SRC;
   const width =
-    variant === "splash" ? SWITCH_IT_LAUNCH_ICON_WIDTH : SWITCH_IT_LOGO_WIDTH;
+    variant === "splash" ? SWITCH_IT_LAUNCH_MARK_WIDTH : SWITCH_IT_LOGO_WIDTH;
   const height =
-    variant === "splash" ? SWITCH_IT_LAUNCH_ICON_HEIGHT : SWITCH_IT_LOGO_HEIGHT;
+    variant === "splash" ? SWITCH_IT_LAUNCH_MARK_HEIGHT : SWITCH_IT_LOGO_HEIGHT;
 
   return (
     <Image

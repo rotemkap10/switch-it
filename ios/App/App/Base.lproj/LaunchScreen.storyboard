@@ -25,8 +25,8 @@
                         <constraints>
                             <constraint firstItem="launch-mark-image" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="launch-mark-center-x"/>
                             <constraint firstItem="launch-mark-image" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" id="launch-mark-center-y"/>
-                            <constraint firstItem="launch-mark-image" firstAttribute="width" secondItem="snD-IY-ifK" secondAttribute="width" multiplier="0.3" id="launch-mark-width"/>
-                            <constraint firstItem="launch-mark-image" firstAttribute="height" secondItem="launch-mark-image" secondAttribute="width" id="launch-mark-square"/>
+                            <constraint firstItem="launch-mark-image" firstAttribute="width" secondItem="snD-IY-ifK" secondAttribute="width" multiplier="0.28" id="launch-mark-width"/>
+                            <constraint firstItem="launch-mark-image" firstAttribute="height" secondItem="launch-mark-image" secondAttribute="width" multiplier="1.134" id="launch-mark-aspect"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -36,6 +36,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="LaunchMark" width="1024" height="1024"/>
+        <image name="LaunchMark" width="201" height="228"/>
     </resources>
 </document>

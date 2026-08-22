@@ -2,19 +2,20 @@
  * Generates static iOS apple-touch-startup-image PNGs into public/pwa/startup/.
  * Run: node scripts/generate-ios-startup-images.mjs
  *
- * Centered square app icon only (~30% of the shorter viewport side),
+ * Centered transparent Switch It symbol (~28% of the shorter viewport side),
  * light brand fill #dff4ff — aligned with native splash + BootSplash.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import sharp from "sharp";
-
-import { renderAppIconTile } from "./lib/extract-app-mark.mjs";
+import {
+  loadStandaloneLaunchMark,
+  renderLaunchMarkSplash,
+} from "./lib/extract-app-mark.mjs";
 
 const BACKGROUND = "#dff4ff";
-const ICON_RATIO = 0.3;
+const MARK_RATIO = 0.28;
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const logoPath = resolve(rootDir, "public/branding/switch-it-logo.png");
@@ -41,20 +42,13 @@ async function writeSplash(fileName, cssWidth, cssHeight, scale, landscape) {
   const canvasCssH = landscape ? cssWidth : cssHeight;
   const width = canvasCssW * scale;
   const height = canvasCssH * scale;
-  const iconSize = Math.round(Math.min(cssWidth, cssHeight) * ICON_RATIO * scale);
-  const iconTile = await renderAppIconTile(logoPath, iconSize);
-
-  const buffer = await sharp({
-    create: {
-      width,
-      height,
-      channels: 4,
-      background: BACKGROUND,
-    },
-  })
-    .composite([{ input: iconTile, gravity: "centre" }])
-    .png({ compressionLevel: 9 })
-    .toBuffer();
+  const buffer = await renderLaunchMarkSplash(
+    logoPath,
+    width,
+    height,
+    MARK_RATIO,
+    BACKGROUND,
+  );
 
   writeFileSync(resolve(outDir, fileName), buffer);
   console.log(`wrote ${fileName} (${width}×${height}, ${buffer.length} bytes)`);
@@ -84,7 +78,9 @@ for (const image of IMAGES) {
 
 await writeSplash("iphone-portrait-fallback.png", 430, 932, 3, false);
 
-const launchIconPath = resolve(rootDir, "public/branding/switch-it-launch-icon.png");
-const launchIconBuffer = await renderAppIconTile(logoPath, 512);
-writeFileSync(launchIconPath, launchIconBuffer);
-console.log("wrote switch-it-launch-icon.png (512×512 app icon tile)");
+const launchMark = await loadStandaloneLaunchMark(logoPath, 1024);
+const launchMarkPath = resolve(rootDir, "public/branding/switch-it-launch-mark.png");
+writeFileSync(launchMarkPath, launchMark.buffer);
+console.log(
+  `wrote switch-it-launch-mark.png (${launchMark.width}×${launchMark.height}, transparent symbol)`,
+);

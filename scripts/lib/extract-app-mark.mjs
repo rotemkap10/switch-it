@@ -1,6 +1,6 @@
 /**
  * Shared extraction of the square Switch It app mark from the horizontal lockup.
- * Used by app-icon generation and native/web launch splash pipelines.
+ * App-icon generation uses the full tile; launch/splash uses a transparent symbol only.
  */
 import sharp from "sharp";
 
@@ -94,8 +94,94 @@ export async function extractAppMark(logoPath) {
   return { markBuffer, crop, fillHex, fillRgba };
 }
 
+/** True for white / near-white symbol artwork pixels. */
+function isSymbolPixel(r, g, b) {
+  return r > 200 && g > 200 && b > 200;
+}
+
+/** True for the rounded-square icon fill and its anti-aliased edge. */
+function isTileBackgroundPixel(r, g, b, a) {
+  if (a < 20) {
+    return false;
+  }
+  if (isSymbolPixel(r, g, b)) {
+    return false;
+  }
+  return b > 130 && g > 100 && r < 200 && b >= g - 5;
+}
+
+/**
+ * Remove the app-icon tile background from the cropped mark, leaving only the
+ * Switch It symbol on transparency. Geometry is unchanged — only pixels are keyed out.
+ *
+ * @param {Buffer} markBuffer
+ */
+export async function stripIconTileBackground(markBuffer) {
+  const { data, info } = await sharp(markBuffer)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+  const out = Buffer.from(data);
+  for (let y = 0; y < info.height; y += 1) {
+    for (let x = 0; x < info.width; x += 1) {
+      const i = (y * info.width + x) * 4;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const a = data[i + 3];
+      if (isTileBackgroundPixel(r, g, b, a)) {
+        out[i] = 0;
+        out[i + 1] = 0;
+        out[i + 2] = 0;
+        out[i + 3] = 0;
+      }
+    }
+  }
+
+  return sharp(out, {
+    raw: { width: info.width, height: info.height, channels: 4 },
+  })
+    .trim()
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Transparent standalone launch mark (symbol only, no tile, no wordmark).
+ *
+ * @param {string} logoPath
+ * @param {number} [maxDimension=1024]
+ */
+export async function loadStandaloneLaunchMark(logoPath, maxDimension = 1024) {
+  const { markBuffer } = await extractAppMark(logoPath);
+  let buffer = await stripIconTileBackground(markBuffer);
+  const meta = await sharp(buffer).metadata();
+  const longest = Math.max(meta.width ?? 1, meta.height ?? 1);
+
+  if (longest > maxDimension) {
+    buffer = await sharp(buffer)
+      .resize({
+        width: meta.width >= meta.height ? maxDimension : undefined,
+        height: meta.height > meta.width ? maxDimension : undefined,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .png()
+      .toBuffer();
+  }
+
+  const sized = await sharp(buffer).metadata();
+  return {
+    buffer,
+    width: sized.width ?? 1,
+    height: sized.height ?? 1,
+  };
+}
+
 /**
  * Square app-icon tile: mark centered on the extracted cyan fill.
+ * Used for Home Screen / launcher icons only — not launch splash.
  *
  * @param {string} logoPath
  * @param {number} size
@@ -119,5 +205,44 @@ export async function renderAppIconTile(logoPath, size, { safeZone = 1 } = {}) {
   })
     .composite([{ input: resized, gravity: "centre" }])
     .png()
+    .toBuffer();
+}
+
+/**
+ * Full-screen splash composite: #dff4ff + centered transparent launch mark.
+ *
+ * @param {string} logoPath
+ * @param {number} canvasWidth
+ * @param {number} canvasHeight
+ * @param {number} markRatio fraction of shorter side for mark max dimension
+ * @param {string} background
+ */
+export async function renderLaunchMarkSplash(
+  logoPath,
+  canvasWidth,
+  canvasHeight,
+  markRatio,
+  background = "#dff4ff",
+) {
+  const markMax = Math.round(Math.min(canvasWidth, canvasHeight) * markRatio);
+  const { buffer, width, height } = await loadStandaloneLaunchMark(logoPath);
+  const scale = markMax / Math.max(width, height);
+  const resized = await sharp(buffer)
+    .resize(Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale)), {
+      fit: "inside",
+    })
+    .png()
+    .toBuffer();
+
+  return sharp({
+    create: {
+      width: canvasWidth,
+      height: canvasHeight,
+      channels: 4,
+      background,
+    },
+  })
+    .composite([{ input: resized, gravity: "centre" }])
+    .png({ compressionLevel: 9 })
     .toBuffer();
 }

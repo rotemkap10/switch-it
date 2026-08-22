@@ -4,21 +4,22 @@
  *
  * Single visual pipeline for both platforms:
  * - full-screen #dff4ff background
- * - centered square Switch It app icon (~30% of the shorter canvas side)
+ * - centered transparent Switch It symbol (~28% of the shorter canvas side)
  *
- * Source mark: public/branding/switch-it-logo.png (same as generate:app-icons).
+ * Launcher / Home Screen icons are unchanged (see generate:app-icons).
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import sharp from "sharp";
-
-import { renderAppIconTile } from "./lib/extract-app-mark.mjs";
+import {
+  loadStandaloneLaunchMark,
+  renderLaunchMarkSplash,
+} from "./lib/extract-app-mark.mjs";
 
 const BACKGROUND = "#dff4ff";
-/** ~28–32% of the shorter side — balanced app-icon scale on launch. */
-const ICON_RATIO = 0.3;
+/** ~25–30% of the shorter side — balanced floating mark on launch. */
+export const LAUNCH_MARK_RATIO = 0.28;
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const logoPath = resolve(rootDir, "public/branding/switch-it-logo.png");
@@ -26,11 +27,11 @@ const logoPath = resolve(rootDir, "public/branding/switch-it-logo.png");
 /** Capacitor iOS Splash.imageset uses one logical size at 1x/2x/3x. */
 const IOS_SPLASH_CANVAS = 2732;
 
-/** Web boot splash icon — square app-icon tile for preload/first paint. */
-const WEB_LAUNCH_ICON_SIZE = 512;
+/** Web boot splash mark — transparent symbol for preload/first paint. */
+const WEB_LAUNCH_MARK_MAX = 1024;
 
 /** iOS LaunchScreen LaunchMark.imageset reference size. */
-const IOS_LAUNCH_MARK_SIZE = 1024;
+const IOS_LAUNCH_MARK_MAX = 1024;
 
 /** Android drawable buckets (portrait-first full-screen splash PNGs). */
 const ANDROID_SPLASH_SIZES = [
@@ -47,28 +48,24 @@ const ANDROID_SPLASH_SIZES = [
   { dir: "drawable-land-xxxhdpi", width: 2560, height: 1440 },
 ];
 
-async function renderSplashPng(width, height) {
-  const iconSize = Math.round(Math.min(width, height) * ICON_RATIO);
-  const iconTile = await renderAppIconTile(logoPath, iconSize);
-
-  return sharp({
-    create: {
-      width,
-      height,
-      channels: 4,
-      background: BACKGROUND,
-    },
-  })
-    .composite([{ input: iconTile, gravity: "centre" }])
-    .png({ compressionLevel: 9 })
-    .toBuffer();
-}
-
 async function writePng(targetPath, width, height) {
-  const buffer = await renderSplashPng(width, height);
+  const buffer = await renderLaunchMarkSplash(
+    logoPath,
+    width,
+    height,
+    LAUNCH_MARK_RATIO,
+    BACKGROUND,
+  );
   writeFileSync(targetPath, buffer);
   console.log(`wrote ${targetPath} (${width}×${height}, ${buffer.length} bytes)`);
 }
+
+const launchMarkAsset = await loadStandaloneLaunchMark(logoPath, WEB_LAUNCH_MARK_MAX);
+const launchMarkPath = resolve(rootDir, "public/branding/switch-it-launch-mark.png");
+writeFileSync(launchMarkPath, launchMarkAsset.buffer);
+console.log(
+  `wrote public/branding/switch-it-launch-mark.png (${launchMarkAsset.width}×${launchMarkAsset.height}, transparent symbol)`,
+);
 
 const iosSplashDir = resolve(
   rootDir,
@@ -76,7 +73,13 @@ const iosSplashDir = resolve(
 );
 mkdirSync(iosSplashDir, { recursive: true });
 
-const iosSplashBuffer = await renderSplashPng(IOS_SPLASH_CANVAS, IOS_SPLASH_CANVAS);
+const iosSplashBuffer = await renderLaunchMarkSplash(
+  logoPath,
+  IOS_SPLASH_CANVAS,
+  IOS_SPLASH_CANVAS,
+  LAUNCH_MARK_RATIO,
+  BACKGROUND,
+);
 for (const fileName of [
   "splash-2732x2732.png",
   "splash-2732x2732-1.png",
@@ -122,14 +125,14 @@ const iosLaunchMarkDir = resolve(
 );
 mkdirSync(iosLaunchMarkDir, { recursive: true });
 
-const launchMarkBuffer = await renderAppIconTile(logoPath, IOS_LAUNCH_MARK_SIZE);
+const nativeLaunchMark = await loadStandaloneLaunchMark(logoPath, IOS_LAUNCH_MARK_MAX);
 for (const fileName of [
   "launch-mark-1x.png",
   "launch-mark-2x.png",
   "launch-mark-3x.png",
 ]) {
   const target = resolve(iosLaunchMarkDir, fileName);
-  writeFileSync(target, launchMarkBuffer);
+  writeFileSync(target, nativeLaunchMark.buffer);
   console.log(`wrote ${target}`);
 }
 
@@ -161,13 +164,6 @@ writeFileSync(
   )}\n`,
 );
 console.log("wrote LaunchMark.imageset/Contents.json");
-
-const launchIconPath = resolve(rootDir, "public/branding/switch-it-launch-icon.png");
-const launchIconBuffer = await renderAppIconTile(logoPath, WEB_LAUNCH_ICON_SIZE);
-writeFileSync(launchIconPath, launchIconBuffer);
-console.log(
-  `wrote public/branding/switch-it-launch-icon.png (${WEB_LAUNCH_ICON_SIZE}×${WEB_LAUNCH_ICON_SIZE})`,
-);
 
 for (const { dir, width, height } of ANDROID_SPLASH_SIZES) {
   const outDir = resolve(rootDir, "android/app/src/main/res", dir);

@@ -18,8 +18,8 @@
 
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 
-/** Square app icon as a fraction of the shorter viewport side (~30%). */
-export const IOS_STARTUP_LOGO_RATIO = 0.3;
+/** Square app icon as a fraction of the shorter viewport side (~28%). */
+export const IOS_STARTUP_LOGO_RATIO = 0.28;
 
 export type IosStartupOrientation = "portrait" | "landscape";
 

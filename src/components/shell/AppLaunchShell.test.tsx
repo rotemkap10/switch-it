@@ -192,7 +192,7 @@ describe("AppLaunchShell", () => {
     );
     expect(
       screen.getByTestId("app-launch-splash").querySelector("img"),
-    ).toHaveAttribute("src", "/branding/switch-it-logo.png");
+    ).toHaveAttribute("src", "/branding/switch-it-launch-mark.png");
     expect(
       screen.getByTestId("app-launch-splash").querySelector(".motion-launch-logo"),
     ).toBeNull();
