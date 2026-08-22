@@ -38,6 +38,12 @@ describe("claim_live_locations snapshot migration", () => {
     expect(migrationSql).toContain("to service_role");
   });
 
+  it("relies on a follow-up migration for authenticated SELECT grant", () => {
+    expect(migrationSql).not.toContain(
+      "grant select on table public.claim_live_locations to authenticated",
+    );
+  });
+
   it("deletes snapshots on terminal claim status via trigger", () => {
     expect(migrationSql).toContain("delete_claim_live_location_on_terminal");
     expect(migrationSql).toContain("'completed', 'cancelled', 'expired'");

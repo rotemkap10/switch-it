@@ -51,6 +51,7 @@ const getSession = vi.fn(async () => ({
 const onAuthStateChange = vi.fn(() => ({
   data: { subscription: { unsubscribe: vi.fn() } },
 }));
+const rpc = vi.fn(async () => ({ data: true, error: null }));
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
@@ -58,6 +59,7 @@ vi.mock("@/lib/supabase/client", () => ({
     removeChannel,
     getChannels,
     from,
+    rpc,
     realtime: { setAuth },
     auth: { getSession, onAuthStateChange },
   }),
@@ -83,6 +85,7 @@ describe("usePublisherLiveLocation", () => {
     locationHandler = null;
     statusHandler = null;
     maybeSingle.mockResolvedValue({ data: null, error: null });
+    rpc.mockResolvedValue({ data: true, error: null });
     getSession.mockImplementation(async () => ({
       data: { session: { access_token: "token" } },
     }));
@@ -106,6 +109,18 @@ describe("usePublisherLiveLocation", () => {
       );
     });
     expect(subscribe).toHaveBeenCalled();
+  });
+
+  it("checks can_receive_claim_location before subscribing", async () => {
+    renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(rpc).toHaveBeenCalledWith("can_receive_claim_location", {
+        p_topic: TOPIC,
+      });
+    });
   });
 
   it("stays on Waiting for driver location until the first payload", async () => {

@@ -332,6 +332,26 @@ export function usePublisherLiveLocation({
         return;
       }
 
+      try {
+        const { data: canReceive, error: receiveAuthError } = await client.rpc(
+          "can_receive_claim_location",
+          { p_topic: validatedTopic },
+        );
+        logHandoffLiveReceiver("receive authorized", {
+          claimId,
+          topic: validatedTopic,
+          allowed: canReceive === true,
+          rpcError: receiveAuthError?.message ?? null,
+        });
+      } catch (error) {
+        logHandoffLiveReceiver("receive authorized", {
+          claimId,
+          topic: validatedTopic,
+          allowed: null,
+          rpcError: error instanceof Error ? error.message : String(error),
+        });
+      }
+
       setSnapshot((prev) =>
         prev.generation === generation
           ? {

@@ -69,6 +69,37 @@ describe("fetchLatestClaimLiveLocation", () => {
     expect(eq).toHaveBeenCalledWith("claim_id", claimId);
   });
 
+  it("returns null when PostgREST returns permission denied", async () => {
+    const consoleSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+    const client = {
+      from: vi.fn(() => ({
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: vi.fn(async () => ({
+              data: null,
+              error: {
+                code: "42501",
+                message: "permission denied for table claim_live_locations",
+              },
+            })),
+          })),
+        })),
+      })),
+    };
+
+    await expect(
+      fetchLatestClaimLiveLocation(client as never, claimId),
+    ).resolves.toBeNull();
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "[switch-it:handoff-live-receiver] snapshot fetch failed",
+      expect.objectContaining({
+        claimId,
+        code: "42501",
+      }),
+    );
+    consoleSpy.mockRestore();
+  });
+
   it("returns parsed payload for an existing row", async () => {
     const client = {
       from: vi.fn(() => ({

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { logHandoffLiveReceiver } from "@/lib/location/log-handoff-live-receiver";
 import { parseSeekerLocationPayload } from "@/lib/location/payload";
 import { normalizeClaimIdForTopic } from "@/lib/location/topic";
 
@@ -52,7 +53,16 @@ export async function fetchLatestClaimLiveLocation(
       .eq("claim_id", normalizedClaimId)
       .maybeSingle();
 
-    if (error || !data) {
+    if (error) {
+      logHandoffLiveReceiver("snapshot fetch failed", {
+        claimId: normalizedClaimId,
+        code: error.code ?? null,
+        message: error.message,
+      });
+      return null;
+    }
+
+    if (!data) {
       return null;
     }
 
