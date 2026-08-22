@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("iOS LaunchScreen native assets", () => {
-  it("references LaunchLogo from asset catalog without a storyboard-local placeholder", () => {
+  it("uses the same Splash composite as Android and Capacitor", () => {
     const storyboard = readFileSync(
       resolve(
         process.cwd(),
@@ -13,19 +13,18 @@ describe("iOS LaunchScreen native assets", () => {
       "utf8",
     );
 
-    expect(storyboard).toContain('image="LaunchLogo"');
-    expect(storyboard).toContain('contentMode="scaleAspectFit"');
-    expect(storyboard).toContain('multiplier="0.72"');
-    expect(storyboard).toContain('multiplier="0.30909090909090909"');
+    expect(storyboard).toContain('image="Splash"');
+    expect(storyboard).toContain('contentMode="scaleAspectFill"');
+    expect(storyboard).toContain('name="LaunchBackground"');
+    expect(storyboard).not.toContain('image="LaunchLogo"');
     expect(storyboard).not.toContain("<resources>");
-    expect(storyboard).not.toContain('<image name="LaunchLogo"');
   });
 
-  it("bundles scaled LaunchLogo PNGs in the asset catalog", () => {
+  it("bundles Splash PNGs generated from the shared native splash pipeline", () => {
     const contents = readFileSync(
       resolve(
         process.cwd(),
-        "ios/App/App/Assets.xcassets/LaunchLogo.imageset/Contents.json",
+        "ios/App/App/Assets.xcassets/Splash.imageset/Contents.json",
       ),
       "utf8",
     );
@@ -34,20 +33,28 @@ describe("iOS LaunchScreen native assets", () => {
     };
 
     expect(parsed.images.map((image) => image.filename)).toEqual([
-      "launch-logo-1x.png",
-      "launch-logo-2x.png",
-      "launch-logo-3x.png",
+      "splash-2732x2732-2.png",
+      "splash-2732x2732-1.png",
+      "splash-2732x2732.png",
     ]);
+
+    const reference = readFileSync(
+      resolve(
+        process.cwd(),
+        "ios/App/App/Assets.xcassets/Splash.imageset/splash-2732x2732.png",
+      ),
+    );
 
     for (const image of parsed.images) {
       const bytes = readFileSync(
         resolve(
           process.cwd(),
-          "ios/App/App/Assets.xcassets/LaunchLogo.imageset",
+          "ios/App/App/Assets.xcassets/Splash.imageset",
           image.filename,
         ),
       );
-      expect(bytes.byteLength).toBeGreaterThan(10_000);
+      expect(bytes.byteLength).toBeGreaterThan(100_000);
+      expect(bytes.equals(reference)).toBe(true);
     }
   });
 });

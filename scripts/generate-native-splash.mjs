@@ -2,9 +2,12 @@
  * Generates branded native splash assets for Capacitor iOS/Android shells.
  * Run: npm run generate:native-splash
  *
- * Visual target matches #app-boot-splash / AppLaunchShell:
+ * Single visual pipeline for both platforms:
  * - full-screen #dff4ff background
  * - centered official Switch It logo (~72% of the shorter canvas side)
+ *
+ * iOS LaunchScreen.storyboard, Capacitor Splash.imageset, and Android
+ * @drawable/splash all use the same composite PNG output from this script.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -26,6 +29,9 @@ const LOGO_ASPECT = logoMeta.width / logoMeta.height;
 
 /** Capacitor iOS Splash.imageset uses one logical size at 1x/2x/3x. */
 const IOS_SPLASH_CANVAS = 2732;
+
+/** Web boot splash lockup width — matches logo scale in native composites. */
+const WEB_LAUNCH_LOGO_WIDTH = 880;
 
 /** Android drawable buckets (portrait-first full-screen splash PNGs). */
 const ANDROID_SPLASH_SIZES = [
@@ -100,50 +106,40 @@ for (const fileName of [
   console.log(`wrote ${target}`);
 }
 
-const launchLogoDir = resolve(
-  rootDir,
-  "ios/App/App/Assets.xcassets/LaunchLogo.imageset",
-);
-mkdirSync(launchLogoDir, { recursive: true });
-
-/** Logical 1x width — ~72% of a 390pt phone, matching web boot splash. */
-const LAUNCH_LOGO_1X_WIDTH = 880;
-const launchLogoScales = [
-  { scale: "1x", suffix: "1x", multiplier: 1 },
-  { scale: "2x", suffix: "2x", multiplier: 2 },
-  { scale: "3x", suffix: "3x", multiplier: 3 },
-];
-
-for (const { suffix, multiplier } of launchLogoScales) {
-  const pixelWidth = LAUNCH_LOGO_1X_WIDTH * multiplier;
-  const fileName = `launch-logo-${suffix}.png`;
-  await sharp(logoPath)
-    .resize({ width: pixelWidth, withoutEnlargement: true })
-    .flatten({ background: BACKGROUND })
-    .png({ compressionLevel: 9 })
-    .toFile(resolve(launchLogoDir, fileName));
-  console.log(`wrote LaunchLogo ${fileName} (${pixelWidth}px wide)`);
-}
-
 writeFileSync(
-  resolve(launchLogoDir, "Contents.json"),
-  JSON.stringify(
+  resolve(iosSplashDir, "Contents.json"),
+  `${JSON.stringify(
     {
-      images: launchLogoScales.map(({ scale, suffix }) => ({
-        idiom: "universal",
-        filename: `launch-logo-${suffix}.png`,
-        scale,
-      })),
+      images: [
+        {
+          idiom: "universal",
+          filename: "splash-2732x2732-2.png",
+          scale: "1x",
+        },
+        {
+          idiom: "universal",
+          filename: "splash-2732x2732-1.png",
+          scale: "2x",
+        },
+        {
+          idiom: "universal",
+          filename: "splash-2732x2732.png",
+          scale: "3x",
+        },
+      ],
       info: { version: 1, author: "xcode" },
-      properties: {
-        "preserves-vector-representation": false,
-      },
     },
     null,
     2,
-  ) + "\n",
+  )}\n`,
 );
-console.log("wrote LaunchLogo.imageset");
+console.log("wrote Splash.imageset/Contents.json");
+
+await sharp(logoPath)
+  .resize({ width: WEB_LAUNCH_LOGO_WIDTH, withoutEnlargement: true })
+  .png({ compressionLevel: 9 })
+  .toFile(resolve(rootDir, "public/branding/switch-it-logo-launch.png"));
+console.log(`wrote public/branding/switch-it-logo-launch.png (${WEB_LAUNCH_LOGO_WIDTH}px wide)`);
 
 for (const { dir, width, height } of ANDROID_SPLASH_SIZES) {
   const outDir = resolve(rootDir, "android/app/src/main/res", dir);

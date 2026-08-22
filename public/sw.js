@@ -1,7 +1,7 @@
 /** Switch It conservative PWA service worker — offline fallback only. */
 
-/** Bump when branding PNGs change — same URLs were reused during the rejected two-color experiment. */
-const CACHE_VERSION = "switch-it-pwa-v7";
+/** Bump when branding PNGs change — launch splash parity uses shared native composites. */
+const CACHE_VERSION = "switch-it-pwa-v8";
 
 /** Narrow allowlist — no authenticated or third-party resources. */
 const PRECACHE_URLS = [

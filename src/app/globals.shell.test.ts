@@ -186,7 +186,7 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".app-launch-splash");
     expect(css).toContain("background: #dff4ff");
     expect(css).toContain(".switch-it-logo--splash");
-    expect(css).toContain("min(80vw, 22rem)");
+    expect(css).toContain("72vw");
     expect(css).toContain(".app-content-shell");
     expect(css).toContain("#app-boot-splash");
     expect(css).toContain("#app-root");

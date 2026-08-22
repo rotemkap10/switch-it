@@ -46,7 +46,8 @@ export function BootSplash() {
         data-testid="app-boot-splash-logo"
         style={{
           display: "block",
-          width: "min(80vw, 22rem)",
+          width: "72vw",
+          maxWidth: "22rem",
           height: "auto",
           maxHeight: "28dvh",
           objectFit: "contain",

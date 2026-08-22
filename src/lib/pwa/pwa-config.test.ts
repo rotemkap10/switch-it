@@ -88,7 +88,7 @@ describe("service worker policy", () => {
     expect(sw).toContain('"/offline"');
     expect(sw).toContain('"/pwa/icon-192.png"');
     expect(sw).toContain('"/apple-touch-icon.png"');
-    expect(sw).toContain("switch-it-pwa-v7");
+    expect(sw).toContain("switch-it-pwa-v8");
     expect(sw).toContain("/branding/switch-it-logo.png");
     expect(sw).toContain("/branding/switch-it-logo-launch.png");
     expect(sw).not.toContain("iphone-portrait-fallback");

@@ -25,7 +25,7 @@ const VARIANT_SIZES: Record<LogoVariant, string> = {
   hero: "(min-width: 1024px) 28rem, (min-width: 640px) 22rem, 16.5rem",
   auth: "(min-width: 640px) 16rem, 13.5rem",
   nav: "8rem",
-  splash: "80vw",
+  splash: "72vw",
 };
 
 type LogoProps = {
