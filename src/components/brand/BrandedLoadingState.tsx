@@ -2,8 +2,6 @@
 
 import { useEffect, useId, useState, type ReactNode } from "react";
 
-import { PORCELAIN, SIGNAL_BLUE } from "@/lib/branding/colors";
-
 /** Delay before showing the slow-connection hint on map loads. */
 export const MAP_SLOW_NETWORK_HINT_MS = 3000;
 
@@ -58,13 +56,14 @@ function Wheel({ cx, cy }: { cx: number; cy: number }) {
   return (
     <g transform={`translate(${cx} ${cy})`}>
       <g className="branded-loading-wheel">
-        <circle r="6.4" fill={SIGNAL_BLUE} />
-        <circle r="2.6" fill={PORCELAIN} />
+        <circle r="6.4" fill="#12324a" />
+        <circle r="2.6" fill="#eaf8ff" />
         <path
           d="M0-4.2v8.4M-4.2 0h8.4"
-          stroke={PORCELAIN}
+          stroke="#9fd9f5"
           strokeWidth="1.15"
           strokeLinecap="round"
+          opacity="0.9"
         />
       </g>
     </g>
@@ -98,7 +97,15 @@ export function BrandedLoadingCar({ animate }: { animate: boolean }) {
           </clipPath>
         </defs>
 
-        <rect x="10" y="44" width="116" height="8" rx="4" fill={SIGNAL_BLUE} />
+        <rect
+          x="10"
+          y="44"
+          width="116"
+          height="8"
+          rx="4"
+          fill="#12324a"
+          opacity="0.18"
+        />
         <g clipPath={`url(#${clipId})`}>
           <g className="branded-loading-dashes">
             {[-30, -10, 10, 30, 50, 70, 90, 110, 130, 150].map((x) => (
@@ -109,28 +116,31 @@ export function BrandedLoadingCar({ animate }: { animate: boolean }) {
                 width="10"
                 height="2.2"
                 rx="1.1"
-                fill={PORCELAIN}
+                fill="#ffffff"
+                opacity="0.85"
               />
             ))}
           </g>
         </g>
 
         <g className="branded-loading-car-body">
+          <ellipse cx="68" cy="41.5" rx="30" ry="2.6" fill="#12324a" opacity="0.12" />
           <path
             d="M40 33.5c2-6.2 9.5-10 18-10h16c9.5 0 16 3.4 21 8.2l7.5 2.3c1.6.4 2.7 1.8 2.7 3.4v3.1H38.2v-3.6c0-1.4 1-2.6 2.4-3.1l-.6-.3Z"
-            fill={SIGNAL_BLUE}
+            fill="#55bff3"
           />
           <path
             d="M55 23.8h17.5c6.4 0 11.2 2.8 14.6 6.6H53.6c.2-2.6 1-5 1.4-6.6Z"
-            fill={PORCELAIN}
+            fill="#eaf8ff"
           />
           <path
             d="M71.5 23.8v6.6"
-            stroke={SIGNAL_BLUE}
+            stroke="#9fd9f5"
             strokeWidth="1.2"
+            opacity="0.9"
           />
-          <rect x="37.5" y="35.5" width="5" height="4" rx="1" fill={PORCELAIN} />
-          <rect x="98" y="35.2" width="7.5" height="3.6" rx="1.2" fill={PORCELAIN} />
+          <rect x="37.5" y="35.5" width="5" height="4" rx="1" fill="#12324a" opacity="0.22" />
+          <rect x="98" y="35.2" width="7.5" height="3.6" rx="1.2" fill="#2fa9e6" />
           <Wheel cx={54} cy={40.2} />
           <Wheel cx={92} cy={40.2} />
         </g>
@@ -160,7 +170,7 @@ export function BrandedLoadingState({
     <div
       className={[
         "flex h-full w-full flex-col items-center justify-center gap-3",
-        "bg-surface px-4 text-center",
+        "bg-gradient-to-b from-accent-soft to-surface px-4 text-center",
         variant === "page" ? "branded-loading-page min-h-[12rem]" : "",
         className,
       ].join(" ")}

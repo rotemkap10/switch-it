@@ -145,7 +145,7 @@ describe("root layout iOS launch metadata", () => {
     expect(layout).toContain('media: "(prefers-color-scheme: light)"');
     expect(layout).toContain('media: "(prefers-color-scheme: dark)"');
     expect(layout).toContain("color: PWA_BACKGROUND_COLOR");
-    expect(PWA_BACKGROUND_COLOR).toBe("#F8F7F4");
+    expect(PWA_BACKGROUND_COLOR).toBe("#dff4ff");
     expect(IOS_STARTUP_FALLBACK.href).toContain("pwa/startup");
   });
 });

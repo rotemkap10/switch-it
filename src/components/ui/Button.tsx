@@ -10,13 +10,13 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "border border-solid border-accent bg-accent text-surface hover:bg-surface hover:text-accent disabled:border-accent disabled:bg-surface disabled:text-accent disabled:border-dashed",
+    "border border-transparent bg-accent text-foreground hover:bg-accent-hover disabled:bg-accent/60",
   secondary:
-    "border border-solid border-border bg-surface text-foreground hover:bg-accent hover:text-surface hover:border-accent disabled:border-dashed",
+    "border border-solid border-border bg-surface text-foreground hover:bg-accent-soft disabled:opacity-60",
   ghost:
-    "border border-transparent bg-transparent text-foreground hover:border-border hover:bg-surface disabled:border-dashed",
+    "border border-transparent bg-transparent text-foreground hover:bg-accent-soft disabled:opacity-60",
   dangerOutline:
-    "border-2 border-solid border-accent bg-surface text-accent hover:bg-accent hover:text-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:border-dashed",
+    "border border-solid border-danger/40 bg-surface text-danger hover:bg-danger/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-danger/40 disabled:opacity-60",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
@@ -52,7 +52,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       {loading ? (
         <span className="motion-spinner shrink-0" aria-hidden="true" />
       ) : null}
-      <span className={loading ? "font-semibold" : undefined}>{children}</span>
+      <span className={loading ? "opacity-90" : undefined}>{children}</span>
     </button>
   );
 });

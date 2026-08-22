@@ -6,7 +6,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BaseMap } from "@/components/map/BaseMap";
 import { CurrentLocationControl } from "@/components/map/CurrentLocationControl";
 import { MapUnavailable } from "@/components/map/MapUnavailable";
-import { PORCELAIN, SIGNAL_BLUE } from "@/lib/branding/colors";
 import { logHandoffLive } from "@/lib/location/log-handoff-live";
 import type { SeekerLocationPayload } from "@/lib/location/payload";
 import {
@@ -56,9 +55,9 @@ function addSeekerDisplayLayer(map: MapLibreMap) {
     source: SEEKER_SOURCE,
     paint: {
       "circle-radius": 9,
-      "circle-color": SIGNAL_BLUE,
+      "circle-color": "#55bff3",
       "circle-stroke-width": 2,
-      "circle-stroke-color": PORCELAIN,
+      "circle-stroke-color": "#ffffff",
     },
   });
   logHandoffLive("publisher marker fallback layer", {
@@ -567,9 +566,9 @@ export function PublisherLiveProgressMap({
               source: ACCURACY_SOURCE,
               paint: {
                 "circle-radius": ["get", "radiusPx"],
-                "circle-color": PORCELAIN,
-                "circle-stroke-color": SIGNAL_BLUE,
-                "circle-stroke-width": 2,
+                "circle-color": "rgba(85,191,243,0.18)",
+                "circle-stroke-color": "rgba(85,191,243,0.5)",
+                "circle-stroke-width": 1,
               },
             });
 

@@ -274,7 +274,7 @@ export function Combobox({
           aria-activedescendant={
             open && activeOption ? `${listId}-opt-${highlightedIndex}` : undefined
           }
-          className="ui-combobox__input app-form-control min-h-[var(--app-tap-min)] w-full rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-foreground placeholder:text-muted disabled:border-dashed"
+          className="ui-combobox__input app-form-control min-h-[var(--app-tap-min)] w-full rounded-[var(--radius-card)] border border-border bg-surface px-3 py-2 text-foreground placeholder:text-muted/70 disabled:opacity-60"
         />
         <button
           type="button"

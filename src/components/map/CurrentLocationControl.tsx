@@ -73,16 +73,16 @@ export function CurrentLocationControl({
       onClick={onClick}
       className={[
         "flex h-11 w-11 items-center justify-center rounded-full",
-        "border border-border bg-surface text-foreground",
-        "hover:bg-accent hover:text-surface hover:border-accent",
+        "border border-border bg-surface text-foreground shadow-[var(--shadow-card)]",
+        "transition-opacity hover:bg-surface/95",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
-        "disabled:cursor-not-allowed disabled:border-dashed",
+        "disabled:cursor-not-allowed disabled:opacity-60",
         className,
       ].join(" ")}
     >
       {pending ? (
         <span
-          className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-accent border-t-transparent"
+          className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-muted border-t-foreground"
           aria-hidden="true"
         />
       ) : (
@@ -123,7 +123,7 @@ export function CurrentLocationUnavailableNotice({
     >
       <div
         data-testid="current-location-unavailable-notice"
-        className="pointer-events-auto max-w-[12.5rem] rounded-full border border-border bg-surface px-3 py-1.5 text-left motion-fade-in"
+        className="pointer-events-auto max-w-[12.5rem] rounded-full border border-border bg-surface/95 px-3 py-1.5 text-left shadow-[var(--shadow-card)] motion-fade-in"
       >
         <p className="text-xs font-medium text-foreground">
           Current location is unavailable.

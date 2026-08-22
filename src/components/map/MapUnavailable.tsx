@@ -37,7 +37,7 @@ export function MapUnavailable({
         {onRetry && !isConfig ? (
           <button
             type="button"
-            className="motion-interactive-press min-h-[var(--app-tap-min)] w-full rounded-xl bg-accent px-3 text-sm font-semibold text-surface sm:w-auto sm:self-start"
+            className="motion-interactive-press min-h-[var(--app-tap-min)] w-full rounded-xl bg-accent px-3 text-sm font-semibold text-white sm:w-auto sm:self-start"
             onClick={onRetry}
             data-testid="map-unavailable-retry"
           >

@@ -50,8 +50,8 @@ describe("syncUserLocationDot", () => {
         id: PICKER_USER_LOCATION_IDS.dotLayer,
         paint: expect.objectContaining({
           "circle-radius": USER_LOCATION_DOT_RADIUS_PX,
-          "circle-color": "#0057FF",
-          "circle-stroke-color": "#F8F7F4",
+          "circle-color": "#55bff3",
+          "circle-stroke-color": "#ffffff",
         }),
       }),
     );

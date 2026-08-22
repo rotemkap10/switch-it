@@ -62,7 +62,7 @@ export function CarImagesDevGrid() {
           data-ci-model="3 Series"
           data-ci-year="2022"
           alt="BMW 3 Series"
-          className="max-h-48 w-auto bg-surface"
+          className="max-h-48 w-auto bg-white"
         />
       </section>
 

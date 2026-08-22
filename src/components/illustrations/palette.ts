@@ -1,15 +1,13 @@
-import { PORCELAIN, SIGNAL_BLUE } from "@/lib/branding/colors";
-
-/** Shared friendly illustration palette — strict two-color brand. */
+/** Shared friendly illustration palette (matches VehicleIllustration). */
 export const ILLUSTRATION = {
-  navy: SIGNAL_BLUE,
-  muted: SIGNAL_BLUE,
-  sky: SIGNAL_BLUE,
-  skySoft: PORCELAIN,
-  skyMid: SIGNAL_BLUE,
-  success: SIGNAL_BLUE,
-  successSoft: PORCELAIN,
-  coin: SIGNAL_BLUE,
-  coinSoft: PORCELAIN,
-  surface: PORCELAIN,
+  navy: "#12324a",
+  muted: "#4b687d",
+  sky: "#55bff3",
+  skySoft: "#eaf8ff",
+  skyMid: "#9fd9f5",
+  success: "#4fbf8f",
+  successSoft: "#e7f8f0",
+  coin: "#e0a35c",
+  coinSoft: "#fff6ea",
+  surface: "#ffffff",
 } as const;

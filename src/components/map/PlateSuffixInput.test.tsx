@@ -33,7 +33,7 @@ describe("PlateSuffixInput", () => {
       "bg-surface",
       "text-foreground",
     );
-    expect(input).toHaveClass("disabled:border-dashed");
+    expect(input).toHaveClass("disabled:opacity-60");
   });
 
   it("keeps visible chrome when focused, invalid, or disabled", () => {
@@ -55,7 +55,7 @@ describe("PlateSuffixInput", () => {
     const disabled = screen.getByTestId("plate-suffix-input");
     expect(disabled).toBeDisabled();
     expect(disabled).toHaveClass(...chrome);
-    expect(disabled).toHaveClass("disabled:border-dashed");
+    expect(disabled).toHaveClass("disabled:opacity-60");
   });
 
   it("focuses only after the user taps the field", async () => {

@@ -1,8 +1,8 @@
-import { SIGNAL_BLUE } from "@/lib/branding/colors";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { VehicleIllustration } from "@/components/vehicle/VehicleIllustration";
+import { VEHICLE_COLOR_FILL } from "@/lib/vehicle/colors";
 import { outlineForVehicleFill } from "@/lib/vehicle/illustration-silhouettes";
 import { VEHICLE_TYPES } from "@/lib/vehicle/types";
 
@@ -50,7 +50,7 @@ describe("VehicleIllustration", () => {
     expect(miniBody?.getAttribute("d")).not.toBe(vanBody?.getAttribute("d"));
   });
 
-  it("uses the strict brand palette regardless of stored vehicle color", () => {
+  it("uses the controlled color fill from the palette", () => {
     const { container } = render(
       <VehicleIllustration
         vehicleType="sedan"
@@ -62,12 +62,11 @@ describe("VehicleIllustration", () => {
     const illustration = screen.getByTestId("vehicle-illustration");
     expect(illustration).toHaveAttribute("data-vehicle-color", "red");
 
-    const filledPath = container.querySelector(`path[fill="${SIGNAL_BLUE}"]`);
+    const filledPath = container.querySelector(`path[fill="${VEHICLE_COLOR_FILL.red}"]`);
     expect(filledPath).not.toBeNull();
-    expect(container.querySelector(`path[fill="#d45b5b"]`)).toBeNull();
   });
 
-  it("preserves a visible outline for all vehicle colors", () => {
+  it("preserves a visible outline for light vehicle colors", () => {
     const { container } = render(
       <VehicleIllustration
         vehicleType="sedan"
@@ -76,14 +75,13 @@ describe("VehicleIllustration", () => {
       />,
     );
 
-    const stroke = outlineForVehicleFill("");
-    expect(stroke).toBe(SIGNAL_BLUE);
+    const stroke = outlineForVehicleFill(VEHICLE_COLOR_FILL.white);
     expect(
       container.querySelector(`path[stroke="${stroke}"]`),
     ).not.toBeNull();
   });
 
-  it("keeps illustrations readable with brand blue outlines", () => {
+  it("keeps black vehicles readable with a lighter outline", () => {
     const { container } = render(
       <VehicleIllustration
         vehicleType="sedan"
@@ -92,8 +90,8 @@ describe("VehicleIllustration", () => {
       />,
     );
 
-    const stroke = outlineForVehicleFill("");
-    expect(stroke).toBe(SIGNAL_BLUE);
+    const stroke = outlineForVehicleFill(VEHICLE_COLOR_FILL.black);
+    expect(stroke).toBe("#9eb4c8");
     expect(
       container.querySelector(`path[stroke="${stroke}"]`),
     ).not.toBeNull();

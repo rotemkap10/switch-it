@@ -14,7 +14,7 @@ import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 describe("boot splash first-paint helpers", () => {
   it("inlines the light brand fill on html, body, root, and splash", () => {
     const css = bootSplashCriticalCss();
-    expect(PWA_BACKGROUND_COLOR).toBe("#F8F7F4");
+    expect(PWA_BACKGROUND_COLOR).toBe("#dff4ff");
     expect(css).toContain(`#${BOOT_SPLASH_ID}`);
     expect(css).toContain(`#${APP_ROOT_ID}`);
     expect(css).toContain(`${PWA_BACKGROUND_COLOR}!important`);

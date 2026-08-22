@@ -1,9 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
-import { PORCELAIN } from "./src/lib/branding/colors";
-
 /** Keep aligned with src/lib/pwa/brand-colors.ts PWA_BACKGROUND_COLOR */
-const NATIVE_SPLASH_BACKGROUND = PORCELAIN;
+const NATIVE_SPLASH_BACKGROUND = "#dff4ff";
 
 /**
  * Native pilot shell. Production web remains the Vercel Next.js app.
@@ -61,7 +59,7 @@ const config: CapacitorConfig = {
     SplashScreen: {
       /**
        * MUST be > 0. Capacitor iOS `showOnLaunch()` returns early when this is 0
-       * and never attaches the LaunchScreen overlay — causing a blank Porcelain
+       * and never attaches the LaunchScreen overlay — causing a blank #dff4ff
        * WebView gap between the system LaunchScreen and the HTML boot splash.
        * With launchAutoHide:false the overlay stays until SplashScreen.hide().
        */

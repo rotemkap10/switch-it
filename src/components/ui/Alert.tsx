@@ -9,10 +9,10 @@ type AlertProps = {
 };
 
 const toneClasses: Record<AlertTone, string> = {
-  info: "border border-border bg-accent-soft text-foreground",
-  success: "border border-border bg-success-bg text-success",
-  error: "border-2 border-accent bg-danger-bg text-danger font-medium",
-  warning: "border-2 border-dashed border-accent bg-warning-bg text-warning font-medium",
+  info: "border-border bg-accent-soft text-foreground",
+  success: "border-success/20 bg-success-bg text-success",
+  error: "border-danger/20 bg-danger-bg text-danger",
+  warning: "border-warning/20 bg-warning-bg text-warning",
 };
 
 export function Alert({ children, tone = "info", title }: AlertProps) {

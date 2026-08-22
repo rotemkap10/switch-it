@@ -1058,14 +1058,14 @@ export function ParkingMapMapLibre({
             >
               <path
                 d="M20 46c0 0 14-14.2 14-26a14 14 0 1 0-28 0c0 11.8 14 26 14 26Z"
-                fill="#0057FF"
-                stroke="#F8F7F4"
+                fill="#55bff3"
+                stroke="#ffffff"
                 strokeWidth="2.5"
               />
-              <circle cx="20" cy="18" r="8" fill="#F8F7F4" />
+              <circle cx="20" cy="18" r="8" fill="#ffffff" />
               <path
                 d="M16.1 12.6h5.1c2.5 0 4.2 1.55 4.2 3.85 0 2.2-1.7 3.75-4.2 3.75h-2.55V23.4h-2.55V12.6Zm2.55 2.05v3.4h2.35c1.15 0 1.85-.7 1.85-1.7 0-1-.7-1.7-1.85-1.7h-2.35Z"
-                fill="#0057FF"
+                fill="#2fa9e6"
               />
             </svg>
           </div>

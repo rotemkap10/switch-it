@@ -20,44 +20,41 @@ export const SEEKER_MARKER_IMAGE_ID_LIST: readonly SeekerMarkerImageId[] = [
 
 type Rgba = readonly [number, number, number, number];
 
-const BLUE: Rgba = [0, 87, 255, 255];
-const PORCELAIN_RGBA: Rgba = [248, 247, 244, 255];
-const TRANSPARENT: Rgba = [0, 0, 0, 0];
-
 const MARKER_COLORS: Record<
   "spot-unselected" | "spot-selected",
   { ring: Rgba; fill: Rgba; glyph: Rgba; size: number; ringWidth: number }
 > = {
+  // Slightly stronger saturation so markers stay prominent on pastel basemaps.
   "spot-unselected": {
-    ring: BLUE,
-    fill: PORCELAIN_RGBA,
-    glyph: BLUE,
+    ring: [37, 168, 230, 255],
+    fill: [255, 255, 255, 255],
+    glyph: [37, 168, 230, 255],
     size: 52,
     ringWidth: 5,
   },
   "spot-selected": {
-    ring: BLUE,
-    fill: PORCELAIN_RGBA,
-    glyph: BLUE,
+    ring: [14, 132, 204, 255],
+    fill: [255, 255, 255, 255],
+    glyph: [14, 132, 204, 255],
     size: 62,
     ringWidth: 6,
   },
 };
 
-const PIN_SHADOW: Rgba = TRANSPARENT;
-const PIN_OUTLINE: Rgba = BLUE;
-const PIN_FILL: Rgba = BLUE;
-const PIN_GLYPH: Rgba = PORCELAIN_RGBA;
+const PIN_SHADOW: Rgba = [18, 42, 72, 72];
+const PIN_OUTLINE: Rgba = [14, 78, 128, 255];
+const PIN_FILL: Rgba = [37, 168, 230, 255];
+const PIN_GLYPH: Rgba = [255, 255, 255, 255];
 
-const CAR_SHADOW: Rgba = TRANSPARENT;
-const CAR_OUTLINE: Rgba = BLUE;
-const CAR_BODY: Rgba = BLUE;
-const CAR_BODY_DARK: Rgba = BLUE;
-const CAR_HOOD: Rgba = PORCELAIN_RGBA;
-const CAR_WINDOW: Rgba = PORCELAIN_RGBA;
-const CAR_WHEEL: Rgba = BLUE;
-const CAR_LIGHT: Rgba = PORCELAIN_RGBA;
-const CAR_MIRROR: Rgba = BLUE;
+const CAR_SHADOW: Rgba = [18, 42, 72, 70];
+const CAR_OUTLINE: Rgba = [16, 64, 104, 255];
+const CAR_BODY: Rgba = [37, 168, 230, 255];
+const CAR_BODY_DARK: Rgba = [22, 124, 188, 255];
+const CAR_HOOD: Rgba = [72, 186, 236, 255];
+const CAR_WINDOW: Rgba = [232, 245, 255, 255];
+const CAR_WHEEL: Rgba = [32, 42, 56, 255];
+const CAR_LIGHT: Rgba = [255, 240, 190, 255];
+const CAR_MIRROR: Rgba = [20, 112, 176, 255];
 
 function setPixel(data: Uint8ClampedArray, i: number, rgba: Rgba) {
   data[i] = rgba[0];

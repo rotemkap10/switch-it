@@ -105,7 +105,7 @@ function vehicleFallback({
           size={size}
           animate={false}
           label={label ?? "Vehicle preview"}
-          className={className}
+          className={["opacity-80", className].filter(Boolean).join(" ")}
         />
       </div>
     );

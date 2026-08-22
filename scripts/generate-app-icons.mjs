@@ -75,8 +75,20 @@ const crop = {
   height: maxY - minY + 1,
 };
 
-const fillRgba = { r: 248, g: 247, b: 244, alpha: 1 };
-const fillHex = "#F8F7F4";
+const fill = cyanSamples
+  .reduce(
+    (acc, [r, g, b]) => {
+      acc[0] += r;
+      acc[1] += g;
+      acc[2] += b;
+      return acc;
+    },
+    [0, 0, 0],
+  )
+  .map((channel) => Math.round(channel / Math.max(1, cyanSamples.length)));
+
+const fillRgba = { r: fill[0], g: fill[1], b: fill[2], alpha: 1 };
+const fillHex = `#${fill.map((c) => c.toString(16).padStart(2, "0")).join("")}`;
 const mark = await sharp(logoPath).extract(crop).png().toBuffer();
 
 async function writeIcon(outPath, size, { safeZone = 1 } = {}) {

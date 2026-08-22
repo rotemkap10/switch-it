@@ -58,7 +58,7 @@ export default function HomePage() {
 
   if (state === "checking") {
     // Keep the branded cold-launch splash covering. Do NOT report shell ready
-    // here — that used to release the logo into a blank Porcelain screen before
+    // here — that used to release the logo into a blank #dff4ff screen before
     // /map could request await-initial-map, then the car loader appeared.
     return (
       <div
@@ -72,6 +72,10 @@ export default function HomePage() {
   return (
     <main className="landing-page" data-testid="landing-page">
       <InitialShellReadyMarker />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[radial-gradient(ellipse_at_top,_#cdeeff,_transparent_70%)]"
+      />
 
       <div className="landing-page__brand motion-page-enter">
         <h1 className="sr-only">Switch It</h1>

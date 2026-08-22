@@ -71,7 +71,7 @@ function applyBootSplashPhase(phase: SplashPhase) {
  * mount, hydration, or auth-routing placeholders.
  *
  * Invariant: while COVERING or RELEASING, car/map loaders stay suppressed and
- * the logo + Porcelain background remain together.
+ * the logo + #dff4ff background remain together.
  */
 export function AppLaunchShell({ children }: AppLaunchShellProps) {
   const [phase, setPhase] = useState<SplashPhase>("visible");
@@ -122,7 +122,7 @@ export function AppLaunchShell({ children }: AppLaunchShellProps) {
     exitStartedRef.current = true;
     // Reveal the identical HTML boot splash under the native overlay, then fade.
     // Native hide waits until the web logo is painted so there is never a
-    // blank Porcelain frame between LaunchScreen / Cap splash and HTML splash.
+    // blank #dff4ff frame between LaunchScreen / Cap splash and HTML splash.
     void (async () => {
       logStartup("app launch released", {
         force: Boolean(options?.force),
