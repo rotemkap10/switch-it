@@ -16,8 +16,8 @@ export const HANDOFF_PUSH_COPY: Record<
   { title: string; body: string }
 > = {
   spot_cancelled: {
-    title: "Parking handoff cancelled",
-    body: "The driver cancelled the parking handoff. Stop navigating to this spot.",
+    title: "Parking spot unavailable",
+    body: "This parking spot is no longer available.",
   },
   driver_claimed: {
     title: "Driver on the way",

@@ -29,8 +29,13 @@ vi.mock("@/components/push/HandoffPushController", () => ({
   HandoffPushController: () => null,
 }));
 
+vi.mock("@/components/handoff/SeekerHandoffTerminalController", () => ({
+  SeekerHandoffTerminalController: () => null,
+}));
+
 vi.mock("next/navigation", () => ({
   usePathname: () => "/map",
+  useRouter: () => ({ replace: vi.fn() }),
 }));
 
 import { AuthenticatedFrame } from "@/components/auth/AuthenticatedFrame";

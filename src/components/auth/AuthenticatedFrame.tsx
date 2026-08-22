@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { HandoffPushController } from "@/components/push/HandoffPushController";
+import { SeekerHandoffTerminalController } from "@/components/handoff/SeekerHandoffTerminalController";
 import { AppNav } from "@/components/layout/AppNav";
 import { MapLibreWarmup } from "@/components/map/MapLibreWarmup";
 import { ModeGate } from "@/components/mode/ModeGate";
@@ -79,6 +80,7 @@ export function AuthenticatedFrame({
             userId={userId}
             hasActiveHandoff={hasActiveHandoff}
           />
+          <SeekerHandoffTerminalController />
         </div>
       </ModeGate>
     </ModeProvider>

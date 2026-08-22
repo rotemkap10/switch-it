@@ -62,6 +62,14 @@ vi.mock("@/components/map/OwnSpotNotice", () => ({
 
 const stopHandoffTrackingBestEffortMock = vi.hoisted(() => vi.fn());
 const startSharingMock = vi.hoisted(() => vi.fn());
+const forceStopMock = vi.hoisted(() => vi.fn());
+const clearSessionMock = vi.hoisted(() => vi.fn());
+
+vi.mock("@/components/map/PostClaimNavigationProvider", () => ({
+  useOptionalPostClaimNavigation: () => ({
+    clearSession: clearSessionMock,
+  }),
+}));
 
 vi.mock("@/lib/location/handoff-location-service", () => ({
   stopHandoffTrackingBestEffort: (...args: unknown[]) =>
@@ -84,7 +92,7 @@ vi.mock("@/lib/location/use-seeker-live-location-share", () => ({
     resumedOnce: false,
     startSharing: startSharingMock,
     stopSharing: vi.fn(),
-    forceStop: vi.fn(),
+    forceStop: forceStopMock,
   }),
 }));
 
@@ -124,12 +132,15 @@ function renderExperience(
 describe("SeekerMapExperience overlay hierarchy", () => {
   it("stops handoff tracking when the active claim disappears", () => {
     stopHandoffTrackingBestEffortMock.mockClear();
+    forceStopMock.mockClear();
+    clearSessionMock.mockClear();
     const { rerender } = renderExperience({
       activeClaim: claim,
       destination: { latitude: 32.08, longitude: 34.78 },
     });
 
     expect(stopHandoffTrackingBestEffortMock).not.toHaveBeenCalled();
+    expect(forceStopMock).not.toHaveBeenCalled();
 
     rerender(
       <SeekerMapExperience
@@ -144,6 +155,8 @@ describe("SeekerMapExperience overlay hierarchy", () => {
       />,
     );
 
+    expect(forceStopMock).toHaveBeenCalled();
+    expect(clearSessionMock).toHaveBeenCalled();
     expect(stopHandoffTrackingBestEffortMock).toHaveBeenCalledWith("claim_ended");
   });
 
@@ -163,7 +176,7 @@ describe("SeekerMapExperience overlay hierarchy", () => {
     stopHandoffTrackingBestEffortMock.mockClear();
     const { rerender } = renderExperience({ activeClaim: null });
 
-    expect(stopHandoffTrackingBestEffortMock).toHaveBeenCalledWith("claim_ended");
+    expect(stopHandoffTrackingBestEffortMock).not.toHaveBeenCalled();
     startSharingMock.mockClear();
 
     rerender(

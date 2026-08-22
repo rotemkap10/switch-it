@@ -20,6 +20,14 @@ import {
 import { parseHandoffPushPayload } from "@/lib/push/payload";
 import { registerHandoffPushPrepromptHandler } from "@/lib/push/preprompt-bus";
 import {
+  notifySeekerHandoffTerminal,
+} from "@/lib/handoff/seeker-handoff-terminal";
+import {
+  isRealtimeFeedbackSuppressed,
+  realtimeFeedbackKey,
+  suppressRealtimeFeedback,
+} from "@/lib/realtime/feedback-suppression";
+import {
   hasShownHandoffPushPreprompt,
   markHandoffPushPrepromptShown,
 } from "@/lib/push/preprompt-storage";
@@ -127,6 +135,19 @@ export function HandoffPushController({
         logPush("push received foreground", {
           type: parsed?.type ?? "unknown",
         });
+        if (
+          parsed?.type === "spot_cancelled" &&
+          parsed.recipientRole === "seeker"
+        ) {
+          const key = realtimeFeedbackKey("claim", parsed.claimId, "cancelled");
+          if (!isRealtimeFeedbackSuppressed(key)) {
+            suppressRealtimeFeedback(key);
+            notifySeekerHandoffTerminal({
+              claimId: parsed.claimId,
+              reason: "publisher_cancel",
+            });
+          }
+        }
         router.refresh();
       },
       onAction: (notification) => {

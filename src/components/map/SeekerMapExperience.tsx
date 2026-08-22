@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ActiveClaimPanel,
   type ActiveClaimDestination,
   type ActiveClaimSummary,
 } from "@/components/map/ActiveClaimPanel";
+import { useOptionalPostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
 import { OwnSpotNotice } from "@/components/map/OwnSpotNotice";
 import { ParkingMapLoader } from "@/components/map/ParkingMapLoader";
 import { Alert } from "@/components/ui/Alert";
 import { useReportInitialMapReady } from "@/components/shell/AppLaunchReadyContext";
+import { registerSeekerHandoffForceStop } from "@/lib/handoff/seeker-handoff-terminal";
 import { stopHandoffTrackingBestEffort } from "@/lib/location/handoff-location-service";
 import { registerSeekerLiveLocationStarter } from "@/lib/location/seeker-live-location-intent";
 import { useSeekerLiveLocationShare } from "@/lib/location/use-seeker-live-location-share";
@@ -81,6 +83,18 @@ export function SeekerMapExperience({
     enabled: Boolean(activeClaim),
   });
   const startSharing = liveShare.startSharing;
+  const forceStop = liveShare.forceStop;
+  const navigation = useOptionalPostClaimNavigation();
+  const previousClaimIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!activeClaim) {
+      return;
+    }
+    return registerSeekerHandoffForceStop(() => {
+      forceStop();
+    });
+  }, [activeClaim, forceStop]);
 
   useEffect(() => {
     if (!activeClaim) {
@@ -98,14 +112,19 @@ export function SeekerMapExperience({
     });
   }, [activeClaim, startSharing]);
 
-  // When the active claim ends remotely (publisher cancel / expiry / refresh),
-  // ensure native background sharing stops even if the panel didn't call forceStop.
+  // When the active claim ends (remote cancel, expiry, refresh), stop sharing,
+  // close navigation UI, and clear native tracking.
   useEffect(() => {
-    if (activeClaim) {
-      return;
+    const previousClaimId = previousClaimIdRef.current;
+    const nextClaimId = activeClaim?.claimId ?? null;
+    previousClaimIdRef.current = nextClaimId;
+
+    if (previousClaimId && !nextClaimId) {
+      forceStop();
+      navigation?.clearSession();
+      void stopHandoffTrackingBestEffort("claim_ended");
     }
-    void stopHandoffTrackingBestEffort("claim_ended");
-  }, [activeClaim]);
+  }, [activeClaim, forceStop, navigation]);
 
   const activeClaimId = activeClaim?.claimId ?? null;
   if (activeClaimId !== expandedForClaimId) {

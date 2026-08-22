@@ -40,6 +40,7 @@ type PostClaimNavigationContextValue = {
   offerPostClaimNavigation: (offer: PostClaimNavigationOffer) => void;
   openManual: (offer: PostClaimNavigationOffer) => void;
   closeChooser: () => void;
+  clearSession: () => void;
 };
 
 const PostClaimNavigationContext =
@@ -100,6 +101,11 @@ export function PostClaimNavigationProvider({
     );
   }, []);
 
+  const clearSession = useCallback(() => {
+    logPostClaimNavigationDev("navigation session cleared");
+    setSession(null);
+  }, []);
+
   const selectProvider = useCallback((providerId: NavigationProviderId) => {
     logPostClaimNavigationDev("provider selected");
     setSession((current) =>
@@ -121,8 +127,9 @@ export function PostClaimNavigationProvider({
       offerPostClaimNavigation: offerFromUi,
       openManual,
       closeChooser,
+      clearSession,
     }),
-    [session, offerFromUi, openManual, closeChooser],
+    [session, offerFromUi, openManual, closeChooser, clearSession],
   );
 
   const links =

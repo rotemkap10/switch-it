@@ -5,6 +5,10 @@ import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
 import {
+  SEEKER_PARKING_SPOT_NO_LONGER_AVAILABLE,
+  notifySeekerHandoffTerminal,
+} from "@/lib/handoff/seeker-handoff-terminal";
+import {
   isRealtimeFeedbackSuppressed,
   realtimeFeedbackKey,
   suppressRealtimeFeedback,
@@ -14,8 +18,9 @@ import { useActiveHandoffReconciliation } from "@/lib/realtime/use-active-handof
 import { useDebouncedRouterRefresh } from "@/lib/realtime/use-debounced-router-refresh";
 import { useRealtimeInvalidation } from "@/lib/realtime/use-realtime-invalidation";
 
+/** @deprecated Use SEEKER_PARKING_SPOT_NO_LONGER_AVAILABLE */
 export const SEEKER_CLAIM_CANCELLED_BY_PUBLISHER =
-  "The driver cancelled this handoff.";
+  SEEKER_PARKING_SPOT_NO_LONGER_AVAILABLE;
 
 type MapRealtimeSyncProps = {
   userId: string;
@@ -75,23 +80,28 @@ export function MapRealtimeSync({
       if (claimId && next === "cancelled") {
         const key = realtimeFeedbackKey("claim", claimId, "cancelled");
         if (!isRealtimeFeedbackSuppressed(key)) {
-          info(SEEKER_CLAIM_CANCELLED_BY_PUBLISHER);
           suppressRealtimeFeedback(key);
+          notifySeekerHandoffTerminal({
+            claimId,
+            reason: "publisher_cancel",
+          });
         }
       } else if (claimId && next === "expired") {
         const key = realtimeFeedbackKey("claim", claimId, "expired");
         if (!isRealtimeFeedbackSuppressed(key)) {
+          suppressRealtimeFeedback(key);
+          notifySeekerHandoffTerminal({ claimId, reason: "expired" });
           info(
             "Handoff expired\nThe handoff window ended. No credits were changed.",
           );
-          suppressRealtimeFeedback(key);
         }
       } else if (claimId && next === "completed") {
         const key = realtimeFeedbackKey("claim", claimId, "completed");
         if (!isRealtimeFeedbackSuppressed(key)) {
+          suppressRealtimeFeedback(key);
+          notifySeekerHandoffTerminal({ claimId, reason: "completed" });
           info(FEEDBACK_SUCCESS_KEYS["handoff-completed"]);
           sensoryHandoffCompleted(claimId);
-          suppressRealtimeFeedback(key);
         }
       }
 
