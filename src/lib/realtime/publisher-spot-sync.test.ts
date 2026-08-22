@@ -102,6 +102,34 @@ describe("publisherClaimHintFromPayload", () => {
     });
   });
 
+  it("detects parking_spots UPDATE back to available after a post-start release", () => {
+    const handoffStartedAt = "2026-08-17T09:01:00.000Z";
+    const expiresAt = "2026-08-17T09:04:00.000Z";
+    const hint = publisherClaimHintFromPayload(
+      {
+        table: "parking_spots",
+        eventType: "UPDATE",
+        new: {
+          id: spot.id,
+          status: "available",
+          expires_at: expiresAt,
+          handoff_started_at: handoffStartedAt,
+        },
+        old: { id: spot.id, status: "claimed" },
+      } as never,
+      spot.id,
+    );
+    expect(hint).toEqual({
+      spotId: spot.id,
+      claimId: null,
+      source: "spot-update",
+      promoteToClaimed: false,
+      handoffStartedAt,
+      expiresAt,
+      extensionUsedAt: null,
+    });
+  });
+
   it("detects claim cancelled as a demote hint", () => {
     const claimId = "7c611153-191e-430b-940e-ba25e5399571";
     const hint = publisherClaimHintFromPayload(
@@ -213,6 +241,29 @@ describe("mergePublisherSpotFromServer", () => {
     expect(merged.spot.status).toBe("available");
     expect(merged.spot.expires_at).toBe(spot.available_at);
     expect(merged.spot.handoff_started_at).toBeNull();
+    expect(merged.activeClaimId).toBeNull();
+  });
+
+  it("returns to waiting with preserved handoff timing after a post-start release", () => {
+    const handoffStartedAt = "2026-08-17T09:01:00.000Z";
+    const expiresAt = "2026-08-17T09:04:00.000Z";
+    const claimedSpot = {
+      ...spot,
+      status: "claimed" as const,
+      handoff_started_at: handoffStartedAt,
+      expires_at: expiresAt,
+    };
+    const merged = mergePublisherSpotFromServer(claimedSpot, claimId, {
+      spotId: spot.id,
+      claimId: null,
+      source: "spot-update",
+      promoteToClaimed: false,
+      handoffStartedAt,
+      expiresAt,
+    });
+    expect(merged.spot.status).toBe("available");
+    expect(merged.spot.handoff_started_at).toBe(handoffStartedAt);
+    expect(merged.spot.expires_at).toBe(expiresAt);
     expect(merged.activeClaimId).toBeNull();
   });
 

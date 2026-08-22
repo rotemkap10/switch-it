@@ -1,6 +1,4 @@
-"use client";
-
-import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
+import type { Map as MapLibreMap } from "maplibre-gl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { BaseMap } from "@/components/map/BaseMap";
@@ -16,64 +14,16 @@ import { isMapUsable } from "@/lib/map/map-instance-guards";
 import { publisherPreviewShellClass } from "@/lib/map/leaverMapShell";
 import { applyMapDragPanInertia, isMapCameraBusy } from "@/lib/map/maplibre-interaction";
 import {
+  PUBLISHER_LIVE_DEST_SOURCE,
+  applyPublisherSeekerLocation,
+  ensurePublisherLiveMapSources,
+  logPublisherLiveMapUpdateFailure,
+  publisherLiveMapLifecycle,
+} from "@/lib/map/publisher-live-map-sources";
+import {
   MAP_SELECTED_SPOT_ZOOM,
   assertMapTilerStyleUrlOrNull,
 } from "@/lib/map/seekerMapConfig";
-import {
-  SEEKER_MARKER_IMAGE_IDS,
-  registerSeekerMarkerImages,
-} from "@/lib/map/seekerMarkerImages";
-
-const DEST_SOURCE = "publisher-live-dest-src";
-const DEST_LAYER = "publisher-live-dest-layer";
-const SEEKER_SOURCE = "publisher-live-seeker-src";
-const SEEKER_LAYER = "publisher-live-seeker-layer";
-const SEEKER_LAYER_FALLBACK = "publisher-live-seeker-fallback-layer";
-const ACCURACY_SOURCE = "publisher-live-accuracy-src";
-const ACCURACY_LAYER = "publisher-live-accuracy-layer";
-
-function addSeekerDisplayLayer(map: MapLibreMap) {
-  if (!isMapUsable(map)) {
-    return;
-  }
-  if (map.getLayer(SEEKER_LAYER) || map.getLayer(SEEKER_LAYER_FALLBACK)) {
-    return;
-  }
-  try {
-    if (map.hasImage(SEEKER_MARKER_IMAGE_IDS.seekerLive)) {
-      map.addLayer({
-        id: SEEKER_LAYER,
-        type: "symbol",
-        source: SEEKER_SOURCE,
-        layout: {
-          "icon-image": SEEKER_MARKER_IMAGE_IDS.seekerLive,
-          "icon-size": 0.78,
-          "icon-anchor": "center",
-          "icon-allow-overlap": true,
-        },
-      });
-      return;
-    }
-    map.addLayer({
-      id: SEEKER_LAYER_FALLBACK,
-      type: "circle",
-      source: SEEKER_SOURCE,
-      paint: {
-        "circle-radius": 9,
-        "circle-color": "#55bff3",
-        "circle-stroke-width": 2,
-        "circle-stroke-color": "#ffffff",
-      },
-    });
-    logHandoffLive("publisher marker fallback layer", {
-      reason: "seekerLive_image_unavailable",
-    });
-  } catch (error) {
-    logHandoffLive("publisher seeker layer ensure failed", {
-      message: error instanceof Error ? error.message : String(error),
-    });
-  }
-}
 
 export type PublisherLiveProgressMapProps = {
   parkingLatitude: number;
@@ -87,6 +37,8 @@ export type PublisherLiveProgressMapProps = {
   onExpandedChange?: (expanded: boolean) => void;
   /** Slimmer labels — status lives in the parent card. */
   compactChrome?: boolean;
+  /** Optional diagnostics only — never auth secrets. */
+  claimId?: string | null;
 };
 
 function prefersReducedMotion(): boolean {
@@ -94,42 +46,6 @@ function prefersReducedMotion(): boolean {
     return false;
   }
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
-function emptyCollection(): GeoJSON.FeatureCollection {
-  return { type: "FeatureCollection", features: [] };
-}
-
-function pointCollection(
-  longitude: number,
-  latitude: number,
-  properties: GeoJSON.GeoJsonProperties = {},
-): GeoJSON.FeatureCollection {
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties,
-        geometry: { type: "Point", coordinates: [longitude, latitude] },
-      },
-    ],
-  };
-}
-
-function collectionsForSeeker(location: SeekerLocationPayload | null): {
-  seeker: GeoJSON.FeatureCollection;
-  accuracy: GeoJSON.FeatureCollection;
-} {
-  if (!location) {
-    return { seeker: emptyCollection(), accuracy: emptyCollection() };
-  }
-  return {
-    seeker: pointCollection(location.longitude, location.latitude),
-    accuracy: pointCollection(location.longitude, location.latitude, {
-      radiusPx: Math.min(48, Math.max(12, location.accuracyMeters / 2)),
-    }),
-  };
 }
 
 /**
@@ -147,6 +63,7 @@ export function PublisherLiveProgressMap({
   expanded = false,
   onExpandedChange,
   compactChrome = false,
+  claimId = null,
 }: PublisherLiveProgressMapProps) {
   const styleUrl = useMemo(() => assertMapTilerStyleUrlOrNull(), []);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -162,9 +79,13 @@ export function PublisherLiveProgressMap({
     longitude: parkingLongitude,
   });
   const seekerRef = useRef(seekerLocation);
+  const pendingSeekerRef = useRef<SeekerLocationPayload | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const [mapUnavailable, setMapUnavailable] = useState(false);
   const [mapInstanceKey, setMapInstanceKey] = useState(0);
+  const [applyRetryTick, setApplyRetryTick] = useState(0);
+  const applyRetryCountRef = useRef(0);
+  const MAX_APPLY_RETRIES = 8;
   const displaySeekerRef = useRef<{ lat: number; lng: number } | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const accuracyRef = useRef(20);
@@ -211,6 +132,37 @@ export function PublisherLiveProgressMap({
     seekerRef.current = seekerLocation;
   }, [seekerLocation]);
 
+  const scheduleSeekerApplyRetry = useCallback(() => {
+    if (applyRetryCountRef.current >= MAX_APPLY_RETRIES) {
+      return;
+    }
+    applyRetryCountRef.current += 1;
+    window.requestAnimationFrame(() => {
+      if (mountedRef.current && pendingSeekerRef.current) {
+        setApplyRetryTick((tick) => tick + 1);
+      }
+    });
+  }, []);
+
+  const flushPendingSeeker = useCallback(
+    (map: MapLibreMap, location: SeekerLocationPayload) => {
+      const result = applyPublisherSeekerLocation(
+        map,
+        parkingRef.current.longitude,
+        parkingRef.current.latitude,
+        location,
+      );
+      if (result.ok) {
+        pendingSeekerRef.current = null;
+        applyRetryCountRef.current = 0;
+        return true;
+      }
+      pendingSeekerRef.current = location;
+      return false;
+    },
+    [],
+  );
+
   useEffect(() => {
     mountedRef.current = true;
     logHandoffLive("publisher map mount");
@@ -222,6 +174,7 @@ export function PublisherLiveProgressMap({
       }
       initializedRef.current = false;
       mapRef.current = null;
+      pendingSeekerRef.current = null;
       logHandoffLive("publisher map unmount");
     };
   }, []);
@@ -254,9 +207,9 @@ export function PublisherLiveProgressMap({
         { reducedMotion: prefersReducedMotion() },
       );
     } catch (error) {
-      logHandoffLive("publisher handoff focus failed", {
-        message: error instanceof Error ? error.message : String(error),
-      });
+      logHandoffLive(
+        `publisher handoff focus failed errorMessage=${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }, []);
 
@@ -281,85 +234,80 @@ export function PublisherLiveProgressMap({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!isMapUsable(map) || !initializedRef.current) {
+    if (!mapReady || !initializedRef.current) {
+      if (seekerLocation) {
+        pendingSeekerRef.current = seekerLocation;
+      }
       return;
     }
 
-    try {
-      const destSource = map.getSource(DEST_SOURCE) as GeoJSONSource | undefined;
-      destSource?.setData({
-        type: "FeatureCollection",
-        features: [
-          {
-            type: "Feature",
-            properties: {},
-            geometry: {
-              type: "Point",
-              coordinates: [parkingLongitude, parkingLatitude],
-            },
-          },
-        ],
-      });
+    if (!isMapUsable(map)) {
+      if (seekerLocation) {
+        pendingSeekerRef.current = seekerLocation;
+      }
+      return;
+    }
 
-      const seekerSource = map.getSource(SEEKER_SOURCE) as GeoJSONSource | undefined;
-      const accuracySource = map.getSource(
-        ACCURACY_SOURCE,
-      ) as GeoJSONSource | undefined;
+    if (!seekerLocation) {
+      // Keep the last known marker during brief update gaps.
+      return;
+    }
 
-      if (!seekerLocation) {
-        // Keep the last known marker during brief update gaps.
+    pendingSeekerRef.current = seekerLocation;
+    accuracyRef.current = seekerLocation.accuracyMeters;
+    const target = {
+      lat: seekerLocation.latitude,
+      lng: seekerLocation.longitude,
+    };
+
+    const applyPoint = (lat: number, lng: number) => {
+      const liveMap = mapRef.current;
+      if (!liveMap || !isMapUsable(liveMap)) {
+        pendingSeekerRef.current = seekerLocation;
         return;
       }
 
-      if (
-        !map.getLayer(SEEKER_LAYER) &&
-        !map.getLayer(SEEKER_LAYER_FALLBACK)
-      ) {
-        addSeekerDisplayLayer(map);
+      const result = applyPublisherSeekerLocation(
+        liveMap,
+        parkingRef.current.longitude,
+        parkingRef.current.latitude,
+        {
+          ...seekerLocation,
+          latitude: lat,
+          longitude: lng,
+        },
+      );
+
+      if (!result.ok) {
+        pendingSeekerRef.current = seekerLocation;
+        logPublisherLiveMapUpdateFailure(
+          new Error(result.reason),
+          {
+            ...publisherLiveMapLifecycle(liveMap),
+            claimId,
+          },
+        );
+        scheduleSeekerApplyRetry();
+        return;
       }
 
-      accuracyRef.current = seekerLocation.accuracyMeters;
-      const target = {
-        lat: seekerLocation.latitude,
-        lng: seekerLocation.longitude,
-      };
+      pendingSeekerRef.current = null;
+      displaySeekerRef.current = { lat, lng };
+      applyRetryCountRef.current = 0;
+    };
 
-      const applyPoint = (lat: number, lng: number) => {
-        if (!isMapUsable(mapRef.current)) {
-          return;
-        }
-        displaySeekerRef.current = { lat, lng };
-        seekerSource?.setData({
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              properties: {},
-              geometry: { type: "Point", coordinates: [lng, lat] },
-            },
-          ],
-        });
-        accuracySource?.setData({
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              properties: {
-                radiusPx: Math.min(48, Math.max(12, accuracyRef.current / 2)),
-              },
-              geometry: { type: "Point", coordinates: [lng, lat] },
-            },
-          ],
-        });
-      };
+    const from = displaySeekerRef.current;
+    logHandoffLive(
+      [
+        "publisher marker updated",
+        `lat=${target.lat}`,
+        `lng=${target.lng}`,
+        `sequence=${seekerLocation.sequence}`,
+        `timestamp=${seekerLocation.sentAt}`,
+      ].join(" "),
+    );
 
-      const from = displaySeekerRef.current;
-      logHandoffLive("publisher marker updated", {
-        lat: target.lat,
-        lng: target.lng,
-        sequence: seekerLocation.sequence,
-        timestamp: seekerLocation.sentAt,
-      });
+    try {
       if (!from || prefersReducedMotion()) {
         applyPoint(target.lat, target.lng);
       } else {
@@ -373,6 +321,7 @@ export function PublisherLiveProgressMap({
         const tick = (now: number) => {
           if (!mountedRef.current || !isMapUsable(mapRef.current)) {
             animFrameRef.current = null;
+            pendingSeekerRef.current = seekerLocation;
             return;
           }
           const t = Math.min(1, (now - start) / duration);
@@ -389,13 +338,22 @@ export function PublisherLiveProgressMap({
         };
         animFrameRef.current = requestAnimationFrame(tick);
       }
+    } catch (error) {
+      pendingSeekerRef.current = seekerLocation;
+      logPublisherLiveMapUpdateFailure(error, {
+        ...publisherLiveMapLifecycle(mapRef.current),
+        claimId,
+      });
+      return;
+    }
 
-      // Marker moves even while the publisher pans; only camera automation pauses.
-      if (
-        autoCameraRef.current &&
-        didAutoFocusSeekerRef.current &&
-        !isMapCameraBusy(map)
-      ) {
+    // Marker moves even while the publisher pans; only camera automation pauses.
+    if (
+      autoCameraRef.current &&
+      didAutoFocusSeekerRef.current &&
+      !isMapCameraBusy(map)
+    ) {
+      try {
         keepPublisherHandoffInView(
           map,
           {
@@ -405,13 +363,16 @@ export function PublisherLiveProgressMap({
           { longitude: target.lng, latitude: target.lat },
           { reducedMotion: prefersReducedMotion() },
         );
+      } catch (error) {
+        logHandoffLive(
+          [
+            "publisher handoff keep-in-view failed",
+            `errorMessage=${error instanceof Error ? error.message : String(error)}`,
+          ].join(" "),
+        );
       }
-    } catch (error) {
-      logHandoffLive("publisher live map update failed", {
-        message: error instanceof Error ? error.message : String(error),
-      });
     }
-  }, [mapReady, parkingLatitude, parkingLongitude, seekerLocation]);
+  }, [mapReady, parkingLatitude, parkingLongitude, seekerLocation, claimId, applyRetryTick, scheduleSeekerApplyRetry]);
 
   if (styleUrl === null) {
     return (
@@ -440,6 +401,7 @@ export function PublisherLiveProgressMap({
             displaySeekerRef.current = null;
             mapRef.current = null;
             pendingFocusRef.current = false;
+            pendingSeekerRef.current = seekerRef.current;
             setMapReady(false);
             setMapUnavailable(false);
             setMapInstanceKey((key) => key + 1);
@@ -551,138 +513,86 @@ export function PublisherLiveProgressMap({
           onMapUnavailable={() => setMapUnavailable(true)}
           onMapReady={(map) => {
             mapRef.current = map;
-            logHandoffLive("publisher map create start", {
-              reentry: initializedRef.current && Boolean(map.getSource(DEST_SOURCE)),
-            });
-            if (initializedRef.current && map.getSource(DEST_SOURCE)) {
-              setMapReady(true);
-              logHandoffLive("publisher map load", { phase: "reentry" });
-              return;
-            }
+            logHandoffLive(
+              [
+                "publisher map create start",
+                `reentry=${initializedRef.current && Boolean(map.getSource(PUBLISHER_LIVE_DEST_SOURCE))}`,
+              ].join(" "),
+            );
 
             try {
-              initializedRef.current = true;
+              if (!initializedRef.current || !map.getSource(PUBLISHER_LIVE_DEST_SOURCE)) {
+                initializedRef.current = true;
 
-              applyMapDragPanInertia(map);
-              map.touchZoomRotate.enable();
-              map.scrollZoom.enable();
-              map.keyboard.enable();
-              map.doubleClickZoom.enable();
+                applyMapDragPanInertia(map);
+                map.touchZoomRotate.enable();
+                map.scrollZoom.enable();
+                map.keyboard.enable();
+                map.doubleClickZoom.enable();
 
-              const onUserGesture = (event: { originalEvent?: unknown }) => {
-                if (!event?.originalEvent) {
-                  return;
-                }
-                pauseAutoCamera();
-              };
-              map.on("dragstart", onUserGesture);
-              map.on("zoomstart", onUserGesture);
-              map.on("rotatestart", onUserGesture);
-              map.on("pitchstart", onUserGesture);
-              map.getCanvas().addEventListener(
-                "wheel",
-                () => {
+                const onUserGesture = (event: { originalEvent?: unknown }) => {
+                  if (!event?.originalEvent) {
+                    return;
+                  }
                   pauseAutoCamera();
-                },
-                { passive: true },
-              );
-
-              registerSeekerMarkerImages(map);
-
-              const knownSeeker = seekerRef.current;
-              const live = collectionsForSeeker(knownSeeker);
-              if (knownSeeker) {
-                accuracyRef.current = knownSeeker.accuracyMeters;
-              }
-
-              if (!map.getSource(DEST_SOURCE)) {
-                map.addSource(DEST_SOURCE, {
-                  type: "geojson",
-                  data: pointCollection(parkingLongitude, parkingLatitude),
-                });
-              }
-              if (!map.getSource(SEEKER_SOURCE)) {
-                map.addSource(SEEKER_SOURCE, {
-                  type: "geojson",
-                  data: live.seeker,
-                });
-              }
-              if (!map.getSource(ACCURACY_SOURCE)) {
-                map.addSource(ACCURACY_SOURCE, {
-                  type: "geojson",
-                  data: live.accuracy,
-                });
-              }
-
-              if (!map.getLayer(ACCURACY_LAYER)) {
-                map.addLayer({
-                  id: ACCURACY_LAYER,
-                  type: "circle",
-                  source: ACCURACY_SOURCE,
-                  paint: {
-                    "circle-radius": ["get", "radiusPx"],
-                    "circle-color": "rgba(85,191,243,0.18)",
-                    "circle-stroke-color": "rgba(85,191,243,0.5)",
-                    "circle-stroke-width": 1,
+                };
+                map.on("dragstart", onUserGesture);
+                map.on("zoomstart", onUserGesture);
+                map.on("rotatestart", onUserGesture);
+                map.on("pitchstart", onUserGesture);
+                map.getCanvas().addEventListener(
+                  "wheel",
+                  () => {
+                    pauseAutoCamera();
                   },
-                });
-              }
+                  { passive: true },
+                );
 
-              if (
-                !map.getLayer(DEST_LAYER) &&
-                map.hasImage(SEEKER_MARKER_IMAGE_IDS.destination)
-              ) {
-                map.addLayer({
-                  id: DEST_LAYER,
-                  type: "symbol",
-                  source: DEST_SOURCE,
-                  layout: {
-                    "icon-image": SEEKER_MARKER_IMAGE_IDS.destination,
-                    "icon-size": 0.85,
-                    "icon-anchor": "bottom",
-                    "icon-allow-overlap": true,
-                  },
-                });
-              }
-
-              if (
-                !map.getLayer(SEEKER_LAYER) &&
-                !map.getLayer(SEEKER_LAYER_FALLBACK)
-              ) {
-                if (map.hasImage(SEEKER_MARKER_IMAGE_IDS.seekerLive)) {
-                  map.addLayer({
-                    id: SEEKER_LAYER,
-                    type: "symbol",
-                    source: SEEKER_SOURCE,
-                    layout: {
-                      "icon-image": SEEKER_MARKER_IMAGE_IDS.seekerLive,
-                      "icon-size": 0.78,
-                      "icon-anchor": "center",
-                      "icon-allow-overlap": true,
-                    },
-                  });
-                } else {
-                  addSeekerDisplayLayer(map);
-                }
+                ensurePublisherLiveMapSources(
+                  map,
+                  parkingLongitude,
+                  parkingLatitude,
+                  seekerRef.current,
+                );
               }
 
               map.resize();
               pendingFocusRef.current = true;
+
+              const pending = pendingSeekerRef.current ?? seekerRef.current;
+              if (pending) {
+                const applied = flushPendingSeeker(map, pending);
+                if (applied) {
+                  displaySeekerRef.current = {
+                    lat: pending.latitude,
+                    lng: pending.longitude,
+                  };
+                  accuracyRef.current = pending.accuracyMeters;
+                }
+              }
+
               if (mountedRef.current) {
                 setMapReady(true);
               }
-              logHandoffLive("publisher map load", {
-                seekerLayer: Boolean(
-                  map.getLayer(SEEKER_LAYER) || map.getLayer(SEEKER_LAYER_FALLBACK),
-                ),
-              });
+              logHandoffLive(
+                [
+                  "publisher map load",
+                  `seekerLayer=${Boolean(
+                    map.getLayer("publisher-live-seeker-layer") ||
+                      map.getLayer("publisher-live-seeker-fallback-layer"),
+                  )}`,
+                ].join(" "),
+              );
               logHandoffLive("publisher seeker layer ensure success");
             } catch (error) {
               initializedRef.current = false;
               mapRef.current = null;
-              logHandoffLive("publisher map init failed", {
-                message: error instanceof Error ? error.message : String(error),
-              });
+              logHandoffLive(
+                [
+                  "publisher map init failed",
+                  `errorMessage=${error instanceof Error ? error.message : String(error)}`,
+                ].join(" "),
+              );
               if (mountedRef.current) {
                 setMapUnavailable(true);
               }

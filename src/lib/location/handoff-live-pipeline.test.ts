@@ -246,9 +246,13 @@ describe("handoff live-location pipeline contracts", () => {
       resolve(root, "src/components/spots/PublisherLiveProgressMap.tsx"),
       "utf8",
     );
+    const sources = readFileSync(
+      resolve(root, "src/lib/map/publisher-live-map-sources.ts"),
+      "utf8",
+    );
     expect(map).toContain("Recenter");
     expect(map).toContain("CurrentLocationControl");
     expect(map).not.toContain(">Follow<");
-    expect(map).toContain("SEEKER_MARKER_IMAGE_IDS.seekerLive");
+    expect(sources).toContain("SEEKER_MARKER_IMAGE_IDS.seekerLive");
   });
 });

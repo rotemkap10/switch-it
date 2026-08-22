@@ -23,5 +23,10 @@ export function logHandoffLive(
     }
     safe[key] = value;
   }
-  console.info(`[switch-it:handoff-live] ${stage}`, safe);
+  const message = `[switch-it:handoff-live] ${stage}`;
+  if (Object.keys(safe).length === 0) {
+    console.info(message);
+    return;
+  }
+  console.info(message, safe);
 }

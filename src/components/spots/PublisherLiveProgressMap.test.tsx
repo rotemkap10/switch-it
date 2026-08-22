@@ -87,7 +87,7 @@ function createFakeMap(): FakeMap {
     getZoom: vi.fn(() => MAP_SELECTED_SPOT_ZOOM),
     getSource: vi.fn((id: string) => sources.get(id)),
     addSource: vi.fn((id: string) => {
-      sources.set(id, { setData: vi.fn() });
+      sources.set(id, { type: "geojson", setData: vi.fn() });
     }),
     addLayer: vi.fn((layer: { id: string }) => {
       layers.add(layer.id);
@@ -345,6 +345,123 @@ describe("PublisherLiveProgressMap", () => {
     expect(screen.queryByTestId("publisher-handoff-focus")).not.toBeInTheDocument();
   });
 
+  it("applies seeker setData when location arrives after map load", async () => {
+    const { rerender } = render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={null}
+        statusLabel="Waiting for driver location"
+        updatedLabel="Waiting"
+      />,
+    );
+    const map = readyMap();
+    const seekerSource = map.getSource("publisher-live-seeker-src") as {
+      setData: ReturnType<typeof vi.fn>;
+    };
+    expect(seekerSource.setData).not.toHaveBeenCalled();
+
+    rerender(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(seekerSource.setData).toHaveBeenCalled();
+    });
+    const lastData = seekerSource.setData.mock.calls.at(-1)?.[0] as {
+      features: Array<{ geometry: { coordinates: [number, number] } }>;
+    };
+    expect(lastData.features[0]?.geometry.coordinates).toEqual([
+      seekerLocation.longitude,
+      seekerLocation.latitude,
+    ]);
+  });
+
+  it("retains and applies location after a temporary source miss", async () => {
+    const { rerender } = render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+    const map = readyMap();
+    const seekerSource = map.getSource("publisher-live-seeker-src") as {
+      type: string;
+      setData: ReturnType<typeof vi.fn>;
+    };
+    const accuracySource = map.getSource("publisher-live-accuracy-src") as {
+      type: string;
+      setData: ReturnType<typeof vi.fn>;
+    };
+    seekerSource.setData.mockClear();
+    accuracySource.setData.mockClear();
+
+    map.getSource.mockImplementation((id: string) => {
+      if (id === "publisher-live-seeker-src") {
+        return undefined;
+      }
+      if (id === "publisher-live-accuracy-src") {
+        return accuracySource;
+      }
+      return undefined;
+    });
+
+    rerender(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={{
+          ...seekerLocation,
+          latitude: 32.087,
+          longitude: 34.783,
+          sequence: 2,
+        }}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+
+    expect(seekerSource.setData).not.toHaveBeenCalled();
+
+    map.getSource.mockImplementation((id: string) => {
+      if (id === "publisher-live-seeker-src") {
+        return seekerSource;
+      }
+      if (id === "publisher-live-accuracy-src") {
+        return accuracySource;
+      }
+      return undefined;
+    });
+
+    rerender(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={{
+          ...seekerLocation,
+          latitude: 32.087,
+          longitude: 34.783,
+          sequence: 3,
+        }}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(seekerSource.setData).toHaveBeenCalled();
+    });
+  });
+
   it("shows MapUnavailable instead of throwing when map init fails", () => {
     render(
       <PublisherLiveProgressMap
@@ -546,7 +663,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
           ...seekerLocation,
           latitude: 32.087,
           longitude: 34.783,
-          sequence: 2,
+          sequence: 3,
         }}
         statusLabel="Live location"
         updatedLabel="Updated just now"
@@ -580,7 +697,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
           ...seekerLocation,
           latitude: 32.087,
           longitude: 34.783,
-          sequence: 2,
+          sequence: 3,
         }}
         statusLabel="Live location"
         updatedLabel="Updated just now"
@@ -662,7 +779,7 @@ describe("PublisherLiveProgressMap handoff focus", () => {
           ...seekerLocation,
           latitude: 32.087,
           longitude: 34.783,
-          sequence: 2,
+          sequence: 3,
         }}
         statusLabel="Live location"
         updatedLabel="Updated just now"
