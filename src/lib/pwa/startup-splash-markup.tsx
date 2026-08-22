@@ -2,38 +2,33 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CSSProperties, ReactElement } from "react";
 
-import { containedLogoSize } from "@/lib/branding/logo-asset";
+import { launchIconCssPx } from "@/lib/branding/logo-asset";
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
-import { iosStartupLogoCssPx } from "@/lib/pwa/ios-startup";
 
 type StartupSplashMarkupProps = {
-  /** Device pixel ratio used to scale the lockup to match in-app CSS sizes. */
+  /** Device pixel ratio used to scale the icon to match in-app CSS sizes. */
   scale: number;
   cssWidth?: number;
   cssHeight?: number;
 };
 
-function officialLogoDataUri(): string {
+function launchIconDataUri(): string {
   const bytes = readFileSync(
-    join(process.cwd(), "public/branding/switch-it-logo.png"),
+    join(process.cwd(), "public/branding/switch-it-launch-icon.png"),
   );
   return `data:image/png;base64,${bytes.toString("base64")}`;
 }
 
 /**
- * ImageResponse-safe iOS launch splash: light brand fill + official logo.
- * Matches AppLaunchShell (centered logo, no extra wordmark).
+ * ImageResponse-safe iOS launch splash: light brand fill + square app icon only.
  */
 export function StartupSplashMarkup({
   scale,
   cssWidth = 390,
   cssHeight = 844,
 }: StartupSplashMarkupProps): ReactElement {
-  const cssLogoWidth = iosStartupLogoCssPx(cssWidth, cssHeight);
-  const { width, height } = containedLogoSize(
-    Math.round(cssLogoWidth * scale),
-    Math.round(cssHeight * scale * 0.45),
-  );
+  const iconCss = launchIconCssPx(cssWidth, cssHeight);
+  const iconPx = Math.round(iconCss * scale);
 
   const root: CSSProperties = {
     width: "100%",
@@ -46,9 +41,9 @@ export function StartupSplashMarkup({
 
   return (
     <div style={root}>
-      {/* ImageResponse requires img; official PNG is not redesigned. */}
+      {/* ImageResponse requires img; square app-icon tile, no wordmark. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={officialLogoDataUri()} width={width} height={height} alt="" />
+      <img src={launchIconDataUri()} width={iconPx} height={iconPx} alt="" />
     </div>
   );
 }

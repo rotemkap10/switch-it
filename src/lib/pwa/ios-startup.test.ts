@@ -38,9 +38,9 @@ describe("iOS startup images", () => {
     }
   });
 
-  it("sizes the logo at ~72% of the shorter viewport side", () => {
-    expect(iosStartupLogoCssPx(390, 844)).toBe(281);
-    expect(iosStartupLogoCssPx(852, 393)).toBe(283);
+  it("sizes the icon at ~30% of the shorter viewport side", () => {
+    expect(iosStartupLogoCssPx(390, 844)).toBe(117);
+    expect(iosStartupLogoCssPx(852, 393)).toBe(118);
   });
 
   it("covers current common iPhone CSS sizes in portrait and landscape", () => {
@@ -112,9 +112,9 @@ describe("iOS startup images", () => {
       resolve(process.cwd(), "src/lib/pwa/startup-splash-markup.tsx"),
       "utf8",
     );
-    expect(markup).toContain("public/branding/switch-it-logo.png");
+    expect(markup).toContain("public/branding/switch-it-launch-icon.png");
     expect(markup).toContain("PWA_BACKGROUND_COLOR");
-    expect(markup).toContain("containedLogoSize");
+    expect(markup).toContain("launchIconCssPx");
     expect(markup).not.toMatch(/https?:\/\//);
   });
 });

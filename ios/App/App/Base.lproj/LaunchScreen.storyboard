@@ -16,17 +16,17 @@
                         <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
-                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Splash" translatesAutoresizingMaskIntoConstraints="NO" id="splash-image-view">
-                                <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                            <imageView userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="LaunchMark" translatesAutoresizingMaskIntoConstraints="NO" id="launch-mark-image">
+                                <rect key="frame" x="137.66666666666666" y="376" width="117.66666666666666" height="117.66666666666666"/>
                             </imageView>
                         </subviews>
                         <viewLayoutGuide key="safeArea" id="safe-area-guide"/>
                         <color key="backgroundColor" name="LaunchBackground"/>
                         <constraints>
-                            <constraint firstItem="splash-image-view" firstAttribute="top" secondItem="snD-IY-ifK" secondAttribute="top" id="splash-top"/>
-                            <constraint firstItem="splash-image-view" firstAttribute="leading" secondItem="snD-IY-ifK" secondAttribute="leading" id="splash-leading"/>
-                            <constraint firstItem="splash-image-view" firstAttribute="trailing" secondItem="snD-IY-ifK" secondAttribute="trailing" id="splash-trailing"/>
-                            <constraint firstItem="splash-image-view" firstAttribute="bottom" secondItem="snD-IY-ifK" secondAttribute="bottom" id="splash-bottom"/>
+                            <constraint firstItem="launch-mark-image" firstAttribute="centerX" secondItem="snD-IY-ifK" secondAttribute="centerX" id="launch-mark-center-x"/>
+                            <constraint firstItem="launch-mark-image" firstAttribute="centerY" secondItem="snD-IY-ifK" secondAttribute="centerY" id="launch-mark-center-y"/>
+                            <constraint firstItem="launch-mark-image" firstAttribute="width" secondItem="snD-IY-ifK" secondAttribute="width" multiplier="0.3" id="launch-mark-width"/>
+                            <constraint firstItem="launch-mark-image" firstAttribute="height" secondItem="launch-mark-image" secondAttribute="width" id="launch-mark-square"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -35,4 +35,7 @@
             <point key="canvasLocation" x="53" y="375"/>
         </scene>
     </scenes>
+    <resources>
+        <image name="LaunchMark" width="1024" height="1024"/>
+    </resources>
 </document>

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { Logo, SWITCH_IT_LOGO_SRC } from "@/components/branding/Logo";
 import {
+  SWITCH_IT_LAUNCH_ICON_SRC,
   SWITCH_IT_LOGO_HEIGHT,
   SWITCH_IT_LOGO_WIDTH,
 } from "@/lib/branding/logo-asset";
@@ -37,6 +38,6 @@ describe("Logo", () => {
     );
     const splash = splashContainer.querySelector("img");
     expect(splash).toHaveClass("switch-it-logo--splash");
-    expect(splash).toHaveAttribute("src", SWITCH_IT_LOGO_SRC);
+    expect(splash).toHaveAttribute("src", SWITCH_IT_LAUNCH_ICON_SRC);
   });
 });

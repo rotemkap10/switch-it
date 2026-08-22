@@ -1,13 +1,13 @@
 /** Switch It conservative PWA service worker — offline fallback only. */
 
-/** Bump when branding PNGs change — launch splash parity uses shared native composites. */
-const CACHE_VERSION = "switch-it-pwa-v8";
+/** Bump when branding PNGs change — launch splash uses square app-icon tile. */
+const CACHE_VERSION = "switch-it-pwa-v9";
 
 /** Narrow allowlist — no authenticated or third-party resources. */
 const PRECACHE_URLS = [
   "/offline",
   "/branding/switch-it-logo.png",
-  "/branding/switch-it-logo-launch.png",
+  "/branding/switch-it-launch-icon.png",
   "/apple-touch-icon.png",
   "/pwa/icon-192.png",
   "/pwa/icon-512.png",
@@ -43,7 +43,7 @@ function isPrecacheCandidate(pathname) {
   return (
     pathname === "/offline" ||
     pathname === "/branding/switch-it-logo.png" ||
-    pathname === "/branding/switch-it-logo-launch.png" ||
+    pathname === "/branding/switch-it-launch-icon.png" ||
     pathname === "/apple-touch-icon.png" ||
     pathname === "/pwa/icon-192.png" ||
     pathname === "/pwa/icon-512.png" ||

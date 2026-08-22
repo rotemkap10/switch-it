@@ -6,7 +6,7 @@ import { AppFeedbackRoot } from "@/components/feedback/AppFeedbackRoot";
 import { CarImagesDocumentHints } from "@/components/vehicle/CarImagesDocumentHints";
 import { BootSplash } from "@/components/pwa/BootSplash";
 import { ServiceWorkerRegistration } from "@/components/pwa/ServiceWorkerRegistration";
-import { SWITCH_IT_LAUNCH_LOGO_SRC } from "@/lib/branding/logo-asset";
+import { SWITCH_IT_LAUNCH_ICON_SRC } from "@/lib/branding/logo-asset";
 import { safeAreaBootstrapScript } from "@/lib/native/safe-area";
 import {
   APP_ROOT_ID,
@@ -100,7 +100,7 @@ export default function RootLayout({
         <link
           rel="preload"
           as="image"
-          href={SWITCH_IT_LAUNCH_LOGO_SRC}
+          href={SWITCH_IT_LAUNCH_ICON_SRC}
           fetchPriority="high"
         />
         <CarImagesDocumentHints />

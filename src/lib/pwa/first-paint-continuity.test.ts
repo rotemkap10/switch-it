@@ -32,7 +32,7 @@ describe("PWA / first-paint color continuity", () => {
     expect(layout).toContain("bootSplashCriticalCss");
     expect(layout).toContain("bootSplashSkipScript");
     expect(layout).toContain("beforeInteractive");
-    expect(layout).toContain("SWITCH_IT_LAUNCH_LOGO_SRC");
+    expect(layout).toContain("SWITCH_IT_LAUNCH_ICON_SRC");
     expect(layout).toContain('rel="preload"');
 
     const bootSplash = readFileSync(

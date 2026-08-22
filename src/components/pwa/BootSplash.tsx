@@ -1,7 +1,8 @@
 import {
-  SWITCH_IT_LAUNCH_LOGO_HEIGHT,
-  SWITCH_IT_LAUNCH_LOGO_SRC,
-  SWITCH_IT_LAUNCH_LOGO_WIDTH,
+  SWITCH_IT_LAUNCH_ICON_HEIGHT,
+  SWITCH_IT_LAUNCH_ICON_RATIO,
+  SWITCH_IT_LAUNCH_ICON_SRC,
+  SWITCH_IT_LAUNCH_ICON_WIDTH,
 } from "@/lib/branding/logo-asset";
 import { BOOT_SPLASH_ID } from "@/lib/pwa/boot-splash";
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
@@ -11,6 +12,8 @@ import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
  * hydrates. AppLaunchShell only hides it when the real UI is ready.
  */
 export function BootSplash() {
+  const iconWidth = `${Math.round(SWITCH_IT_LAUNCH_ICON_RATIO * 100)}vw`;
+
   return (
     <div
       id={BOOT_SPLASH_ID}
@@ -36,20 +39,19 @@ export function BootSplash() {
       {/* Native img: no Next/Image optimizer delay on first paint. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={SWITCH_IT_LAUNCH_LOGO_SRC}
+        src={SWITCH_IT_LAUNCH_ICON_SRC}
         alt=""
-        width={SWITCH_IT_LAUNCH_LOGO_WIDTH}
-        height={SWITCH_IT_LAUNCH_LOGO_HEIGHT}
+        width={SWITCH_IT_LAUNCH_ICON_WIDTH}
+        height={SWITCH_IT_LAUNCH_ICON_HEIGHT}
         decoding="sync"
         loading="eager"
         fetchPriority="high"
         data-testid="app-boot-splash-logo"
         style={{
           display: "block",
-          width: "72vw",
-          maxWidth: "22rem",
+          width: iconWidth,
           height: "auto",
-          maxHeight: "28dvh",
+          aspectRatio: "1 / 1",
           objectFit: "contain",
           background: "transparent",
           backgroundColor: "transparent",

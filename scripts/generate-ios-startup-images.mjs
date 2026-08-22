@@ -2,26 +2,22 @@
  * Generates static iOS apple-touch-startup-image PNGs into public/pwa/startup/.
  * Run: node scripts/generate-ios-startup-images.mjs
  *
- * Lockup must stay aligned with AppLaunchShell (centered official logo PNG,
- * ~72% of the shorter viewport side, light brand fill #dff4ff).
+ * Centered square app icon only (~30% of the shorter viewport side),
+ * light brand fill #dff4ff — aligned with native splash + BootSplash.
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { ImageResponse } from "next/og.js";
-import { createElement } from "react";
 import sharp from "sharp";
 
+import { renderAppIconTile } from "./lib/extract-app-mark.mjs";
+
 const BACKGROUND = "#dff4ff";
-const LOGO_RATIO = 0.72;
+const ICON_RATIO = 0.3;
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const logoPath = resolve(rootDir, "public/branding/switch-it-logo.png");
-const logoPng = readFileSync(logoPath);
-const logoSrc = `data:image/png;base64,${logoPng.toString("base64")}`;
-const logoMeta = await sharp(logoPath).metadata();
-const LOGO_ASPECT = logoMeta.width / logoMeta.height;
 
 /** Portrait launch sizes — keep in sync with src/lib/pwa/ios-startup.ts */
 const IMAGES = [
@@ -40,46 +36,26 @@ const IMAGES = [
   { cssWidth: 420, cssHeight: 912, scale: 3 },
 ];
 
-function splashMarkup(cssWidth, cssHeight, scale, landscape) {
+async function writeSplash(fileName, cssWidth, cssHeight, scale, landscape) {
   const canvasCssW = landscape ? cssHeight : cssWidth;
   const canvasCssH = landscape ? cssWidth : cssHeight;
-  const logoCss = Math.round(Math.min(cssWidth, cssHeight) * LOGO_RATIO);
-  const logoWidth = logoCss * scale;
-  const logoHeight = Math.round(logoWidth / LOGO_ASPECT);
+  const width = canvasCssW * scale;
+  const height = canvasCssH * scale;
+  const iconSize = Math.round(Math.min(cssWidth, cssHeight) * ICON_RATIO * scale);
+  const iconTile = await renderAppIconTile(logoPath, iconSize);
 
-  return {
-    element: createElement(
-      "div",
-      {
-        style: {
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: BACKGROUND,
-        },
-      },
-      createElement("img", {
-        src: logoSrc,
-        width: logoWidth,
-        height: logoHeight,
-      }),
-    ),
-    width: canvasCssW * scale,
-    height: canvasCssH * scale,
-  };
-}
+  const buffer = await sharp({
+    create: {
+      width,
+      height,
+      channels: 4,
+      background: BACKGROUND,
+    },
+  })
+    .composite([{ input: iconTile, gravity: "centre" }])
+    .png({ compressionLevel: 9 })
+    .toBuffer();
 
-async function writeSplash(fileName, cssWidth, cssHeight, scale, landscape) {
-  const { element, width, height } = splashMarkup(
-    cssWidth,
-    cssHeight,
-    scale,
-    landscape,
-  );
-  const response = new ImageResponse(element, { width, height });
-  const buffer = Buffer.from(await response.arrayBuffer());
   writeFileSync(resolve(outDir, fileName), buffer);
   console.log(`wrote ${fileName} (${width}×${height}, ${buffer.length} bytes)`);
 }
@@ -106,12 +82,9 @@ for (const image of IMAGES) {
   );
 }
 
-const fallbackFileName = "iphone-portrait-fallback.png";
-await writeSplash(fallbackFileName, 430, 932, 3, false);
+await writeSplash("iphone-portrait-fallback.png", 430, 932, 3, false);
 
-const launchLogoPath = resolve(rootDir, "public/branding/switch-it-logo-launch.png");
-await sharp(logoPath)
-  .resize({ width: 880, withoutEnlargement: true })
-  .png({ compressionLevel: 9 })
-  .toFile(launchLogoPath);
-console.log("wrote switch-it-logo-launch.png (880px lockup copy)");
+const launchIconPath = resolve(rootDir, "public/branding/switch-it-launch-icon.png");
+const launchIconBuffer = await renderAppIconTile(logoPath, 512);
+writeFileSync(launchIconPath, launchIconBuffer);
+console.log("wrote switch-it-launch-icon.png (512×512 app icon tile)");

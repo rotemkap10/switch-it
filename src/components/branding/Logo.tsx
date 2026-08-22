@@ -1,6 +1,9 @@
 import Image from "next/image";
 
 import {
+  SWITCH_IT_LAUNCH_ICON_HEIGHT,
+  SWITCH_IT_LAUNCH_ICON_SRC,
+  SWITCH_IT_LAUNCH_ICON_WIDTH,
   SWITCH_IT_LOGO_HEIGHT,
   SWITCH_IT_LOGO_SRC,
   SWITCH_IT_LOGO_WIDTH,
@@ -25,7 +28,7 @@ const VARIANT_SIZES: Record<LogoVariant, string> = {
   hero: "(min-width: 1024px) 28rem, (min-width: 640px) 22rem, 16.5rem",
   auth: "(min-width: 640px) 16rem, 13.5rem",
   nav: "8rem",
-  splash: "72vw",
+  splash: "30vw",
 };
 
 type LogoProps = {
@@ -46,12 +49,18 @@ export function Logo({
     priority ??
     (variant === "hero" || variant === "auth" || variant === "splash");
 
+  const src = variant === "splash" ? SWITCH_IT_LAUNCH_ICON_SRC : SWITCH_IT_LOGO_SRC;
+  const width =
+    variant === "splash" ? SWITCH_IT_LAUNCH_ICON_WIDTH : SWITCH_IT_LOGO_WIDTH;
+  const height =
+    variant === "splash" ? SWITCH_IT_LAUNCH_ICON_HEIGHT : SWITCH_IT_LOGO_HEIGHT;
+
   return (
     <Image
-      src={SWITCH_IT_LOGO_SRC}
+      src={src}
       alt={decorative ? "" : "Switch It"}
-      width={SWITCH_IT_LOGO_WIDTH}
-      height={SWITCH_IT_LOGO_HEIGHT}
+      width={width}
+      height={height}
       priority={eager}
       /* Brand PNGs must load directly — never via /_next/image (stale optimizer/CDN cache). */
       unoptimized
