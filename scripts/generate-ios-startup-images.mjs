@@ -2,7 +2,7 @@
  * Generates static iOS apple-touch-startup-image PNGs into public/pwa/startup/.
  * Run: node scripts/generate-ios-startup-images.mjs
  *
- * Centered transparent Switch It symbol (~28% of the shorter viewport side),
+ * Centered rounded Switch It app icon (~28% of the shorter viewport side),
  * light brand fill #dff4ff — aligned with native splash + BootSplash.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -10,7 +10,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
-  loadStandaloneLaunchMark,
+  loadRoundedLaunchIcon,
   renderLaunchMarkSplash,
 } from "./lib/extract-app-mark.mjs";
 
@@ -78,9 +78,9 @@ for (const image of IMAGES) {
 
 await writeSplash("iphone-portrait-fallback.png", 430, 932, 3, false);
 
-const launchMark = await loadStandaloneLaunchMark(logoPath, 1024);
+const launchMark = await loadRoundedLaunchIcon(logoPath, 512);
 const launchMarkPath = resolve(rootDir, "public/branding/switch-it-launch-mark.png");
 writeFileSync(launchMarkPath, launchMark.buffer);
 console.log(
-  `wrote switch-it-launch-mark.png (${launchMark.width}×${launchMark.height}, transparent symbol)`,
+  `wrote switch-it-launch-mark.png (${launchMark.width}×${launchMark.height}, rounded icon)`,
 );

@@ -1,8 +1,11 @@
 /**
  * Shared extraction of the square Switch It app mark from the horizontal lockup.
- * App-icon generation uses the full tile; launch/splash uses a transparent symbol only.
+ * App-icon generation uses the full tile; launch/splash uses a rounded icon mask.
  */
 import sharp from "sharp";
+
+/** iOS home-screen icon corner radius (~22.37% of side length). */
+export const LAUNCH_ICON_CORNER_RADIUS_RATIO = 0.2237;
 
 /**
  * @param {string} logoPath
@@ -209,30 +212,55 @@ export async function renderAppIconTile(logoPath, size, { safeZone = 1 } = {}) {
 }
 
 /**
- * Full-screen splash composite: #dff4ff + centered transparent launch mark.
+ * Rounded launch icon: full Switch It app-icon tile with transparent outer corners.
+ * Splash-only — launcher icons use renderAppIconTile without this mask.
+ *
+ * @param {string} logoPath
+ * @param {number} size
+ */
+export async function renderRoundedLaunchIcon(logoPath, size) {
+  const tile = await renderAppIconTile(logoPath, size);
+  const radius = Math.max(1, Math.round(size * LAUNCH_ICON_CORNER_RADIUS_RATIO));
+  const maskSvg = Buffer.from(
+    `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg"><rect width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="#ffffff"/></svg>`,
+  );
+
+  return sharp(tile)
+    .ensureAlpha()
+    .composite([{ input: maskSvg, blend: "dest-in" }])
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Square rounded launch icon PNG for preload / native LaunchMark.imageset.
+ *
+ * @param {string} logoPath
+ * @param {number} [size=512]
+ */
+export async function loadRoundedLaunchIcon(logoPath, size = 512) {
+  const buffer = await renderRoundedLaunchIcon(logoPath, size);
+  return { buffer, width: size, height: size };
+}
+
+/**
+ * Full-screen splash composite: #dff4ff + centered rounded launch icon.
  *
  * @param {string} logoPath
  * @param {number} canvasWidth
  * @param {number} canvasHeight
- * @param {number} markRatio fraction of shorter side for mark max dimension
+ * @param {number} iconRatio fraction of shorter side for icon size
  * @param {string} background
  */
 export async function renderLaunchMarkSplash(
   logoPath,
   canvasWidth,
   canvasHeight,
-  markRatio,
+  iconRatio,
   background = "#dff4ff",
 ) {
-  const markMax = Math.round(Math.min(canvasWidth, canvasHeight) * markRatio);
-  const { buffer, width, height } = await loadStandaloneLaunchMark(logoPath);
-  const scale = markMax / Math.max(width, height);
-  const resized = await sharp(buffer)
-    .resize(Math.max(1, Math.round(width * scale)), Math.max(1, Math.round(height * scale)), {
-      fit: "inside",
-    })
-    .png()
-    .toBuffer();
+  const iconSize = Math.round(Math.min(canvasWidth, canvasHeight) * iconRatio);
+  const iconBuffer = await renderRoundedLaunchIcon(logoPath, iconSize);
 
   return sharp({
     create: {
@@ -242,7 +270,7 @@ export async function renderLaunchMarkSplash(
       background,
     },
   })
-    .composite([{ input: resized, gravity: "centre" }])
+    .composite([{ input: iconBuffer, gravity: "centre" }])
     .png({ compressionLevel: 9 })
     .toBuffer();
 }

@@ -10,7 +10,7 @@ import {
 import { PWA_BACKGROUND_COLOR } from "@/lib/pwa/brand-colors";
 
 type StartupSplashMarkupProps = {
-  /** Device pixel ratio used to scale the mark to match in-app CSS sizes. */
+  /** Device pixel ratio used to scale the icon to match in-app CSS sizes. */
   scale: number;
   cssWidth?: number;
   cssHeight?: number;
@@ -24,7 +24,7 @@ function launchMarkDataUri(): string {
 }
 
 /**
- * ImageResponse-safe iOS launch splash: light brand fill + transparent symbol only.
+ * ImageResponse-safe iOS launch splash: light brand fill + rounded app icon.
  */
 export function StartupSplashMarkup({
   scale,
@@ -44,7 +44,7 @@ export function StartupSplashMarkup({
 
   return (
     <div style={root}>
-      {/* ImageResponse requires img; transparent symbol, no app-icon tile. */}
+      {/* ImageResponse requires img; rounded icon with transparent outer corners. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={launchMarkDataUri()}

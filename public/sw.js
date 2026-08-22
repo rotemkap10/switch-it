@@ -1,7 +1,7 @@
 /** Switch It conservative PWA service worker — offline fallback only. */
 
-/** Bump when branding PNGs change — launch splash uses transparent symbol mark. */
-const CACHE_VERSION = "switch-it-pwa-v10";
+/** Bump when branding PNGs change — launch splash uses rounded app icon. */
+const CACHE_VERSION = "switch-it-pwa-v11";
 
 /** Narrow allowlist — no authenticated or third-party resources. */
 const PRECACHE_URLS = [

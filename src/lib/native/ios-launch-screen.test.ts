@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("iOS LaunchScreen native assets", () => {
-  it("centers the transparent LaunchMark with aspect fit at ~28% width", () => {
+  it("centers the rounded LaunchMark with aspect fit at ~28% width", () => {
     const storyboard = readFileSync(
       resolve(
         process.cwd(),
@@ -17,13 +17,13 @@ describe("iOS LaunchScreen native assets", () => {
     expect(storyboard).toContain('contentMode="scaleAspectFit"');
     expect(storyboard).toContain('name="LaunchBackground"');
     expect(storyboard).toContain('multiplier="0.28"');
+    expect(storyboard).toContain('id="launch-mark-square"');
     expect(storyboard).not.toContain('image="Splash"');
     expect(storyboard).not.toContain('image="LaunchLogo"');
     expect(storyboard).not.toContain("scaleAspectFill");
-    expect(storyboard).not.toContain('id="launch-mark-square"');
   });
 
-  it("bundles transparent LaunchMark PNGs generated from the standalone symbol", async () => {
+  it("bundles rounded LaunchMark PNGs with transparent outer corners", async () => {
     const contents = readFileSync(
       resolve(
         process.cwd(),
@@ -56,28 +56,51 @@ describe("iOS LaunchScreen native assets", () => {
           image.filename,
         ),
       );
-      expect(bytes.byteLength).toBeGreaterThan(5000);
+      expect(bytes.byteLength).toBeGreaterThan(10_000);
       expect(bytes.equals(reference)).toBe(true);
     }
 
     const sharp = (await import("sharp")).default;
-    const { data } = await sharp(reference)
+    const { data, info } = await sharp(reference)
       .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
-    let tileCyan = 0;
-    for (let i = 0; i < data.length; i += 4) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const a = data[i + 3];
-      if (a < 20) continue;
-      if (b > 130 && g > 100 && r < 200 && b >= g - 5) tileCyan += 1;
+
+    expect(info.width).toBe(1024);
+    expect(info.height).toBe(1024);
+
+    const cornerSize = 55;
+    let cornerTransparent = 0;
+    let cornerCyan = 0;
+    for (let y = 0; y < info.height; y += 1) {
+      for (let x = 0; x < info.width; x += 1) {
+        const inCorner =
+          (x < cornerSize && y < cornerSize) ||
+          (x >= info.width - cornerSize && y < cornerSize) ||
+          (x < cornerSize && y >= info.height - cornerSize) ||
+          (x >= info.width - cornerSize && y >= info.height - cornerSize);
+        if (!inCorner) continue;
+
+        const i = (y * info.width + x) * 4;
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const a = data[i + 3];
+        if (a < 20) {
+          cornerTransparent += 1;
+          continue;
+        }
+        if (b > 130 && g > 100 && r < 200 && b >= g - 5) {
+          cornerCyan += 1;
+        }
+      }
     }
-    expect(tileCyan).toBe(0);
+
+    expect(cornerTransparent).toBeGreaterThan(cornerSize * cornerSize * 2.5);
+    expect(cornerCyan).toBe(0);
   });
 
-  it("bundles Splash PNGs with centered transparent mark from the shared native pipeline", () => {
+  it("bundles Splash PNGs with centered rounded icon from the shared native pipeline", () => {
     const contents = readFileSync(
       resolve(
         process.cwd(),
@@ -110,7 +133,7 @@ describe("iOS LaunchScreen native assets", () => {
           image.filename,
         ),
       );
-      expect(bytes.byteLength).toBeGreaterThan(5000);
+      expect(bytes.byteLength).toBeGreaterThan(10_000);
       expect(bytes.equals(reference)).toBe(true);
     }
   });

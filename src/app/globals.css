@@ -939,6 +939,7 @@ html[data-native-status-bar="inset"] .app-shell-header {
 .switch-it-logo--splash {
   width: 28vw;
   height: auto;
+  aspect-ratio: 1 / 1;
   max-height: 32dvh;
   object-fit: contain;
 }

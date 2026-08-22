@@ -51,6 +51,7 @@ export function BootSplash() {
           display: "block",
           width: markWidth,
           height: "auto",
+          aspectRatio: "1 / 1",
           maxHeight: "32dvh",
           objectFit: "contain",
           background: "transparent",
