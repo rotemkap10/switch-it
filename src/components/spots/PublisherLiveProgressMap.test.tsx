@@ -25,6 +25,7 @@ type FakeMap = {
   doubleClickZoom: { enable: ReturnType<typeof vi.fn> };
   getCanvas: ReturnType<typeof vi.fn>;
   isMoving: ReturnType<typeof vi.fn>;
+  isStyleLoaded: ReturnType<typeof vi.fn>;
 };
 
 let lastOnMapReady: ((map: FakeMap) => void) | null = null;
@@ -73,6 +74,9 @@ const seekerLocation = {
 function createFakeMap(): FakeMap {
   const sources = new Map<string, { setData: ReturnType<typeof vi.fn> }>();
   const layers = new Set<string>();
+  const host = document.createElement("div");
+  const canvas = document.createElement("canvas");
+  host.appendChild(canvas);
   return {
     resize: vi.fn(),
     fitBounds: vi.fn(),
@@ -96,10 +100,9 @@ function createFakeMap(): FakeMap {
     scrollZoom: { enable: vi.fn() },
     keyboard: { enable: vi.fn() },
     doubleClickZoom: { enable: vi.fn() },
-    getCanvas: vi.fn(() => ({
-      addEventListener: vi.fn(),
-    })),
+    getCanvas: vi.fn(() => canvas),
     isMoving: vi.fn(() => false),
+    isStyleLoaded: vi.fn(() => true),
   };
 }
 
@@ -340,6 +343,27 @@ describe("PublisherLiveProgressMap", () => {
       "true",
     );
     expect(screen.queryByTestId("publisher-handoff-focus")).not.toBeInTheDocument();
+  });
+
+  it("shows MapUnavailable instead of throwing when map init fails", () => {
+    render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={null}
+        statusLabel="Waiting for driver location"
+        updatedLabel="Waiting"
+      />,
+    );
+
+    const map = createFakeMap();
+    map.addSource.mockImplementation(() => {
+      throw new Error("WebGL addSource failed");
+    });
+
+    expect(() => readyMap(map)).not.toThrow();
+    expect(screen.getByTestId("map-unavailable")).toBeInTheDocument();
+    expect(screen.queryByTestId("publisher-live-progress-map")).not.toBeInTheDocument();
   });
 });
 

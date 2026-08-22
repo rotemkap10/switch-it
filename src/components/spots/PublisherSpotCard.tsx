@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { CancelSpotButton } from "@/components/spots/CancelSpotButton";
@@ -13,6 +13,7 @@ import { HandoffVehicleSection } from "@/components/vehicle/HandoffVehicleSectio
 import { HandoffWindowCountdown } from "@/components/ui/HandoffWindowCountdown";
 import { publisherSpotAddressLabel } from "@/lib/geocoding/location-display";
 import { usePublisherLiveLocation } from "@/lib/location/use-publisher-live-location";
+import { logHandoffLive } from "@/lib/location/log-handoff-live";
 import {
   formatPublisherDriverProgress,
   haversineDistanceMeters,
@@ -85,12 +86,16 @@ export function PublisherSpotCard({
     handoffStartedAtIso: spot.handoff_started_at,
   });
   const destinationLabel = publisherSpotTitleLabel(spot.address);
-  const parkingLatLng = isValidLatLng({
-    latitude: spot.latitude,
-    longitude: spot.longitude,
-  })
-    ? { latitude: spot.latitude, longitude: spot.longitude }
-    : null;
+  const parkingLatLng = useMemo(
+    () =>
+      isValidLatLng({
+        latitude: spot.latitude,
+        longitude: spot.longitude,
+      })
+        ? { latitude: spot.latitude, longitude: spot.longitude }
+        : null,
+    [spot.latitude, spot.longitude],
+  );
   const waitingPin = useOneShotAnimation(
     !claimed ? `publisher-waiting-pin:${spot.id}` : null,
   );
@@ -164,6 +169,15 @@ export function PublisherSpotCard({
     }
     return undefined;
   }, [spot.status, spot.id, activeClaimId]);
+
+  useEffect(() => {
+    if (claimed && activeClaimId && parkingLatLng) {
+      logHandoffLive("publisher transition active handoff render", {
+        spotId: spot.id,
+        claimId: activeClaimId,
+      });
+    }
+  }, [claimed, activeClaimId, parkingLatLng, spot.id]);
 
   // Clear ephemeral live state when claim ends (spot becomes available again).
   useEffect(() => {

@@ -69,6 +69,20 @@ export function focusPublisherHandoffCamera(
     return;
   }
 
+  const epsilon = 1e-7;
+  const samePoint =
+    Math.abs(parking.longitude - seeker.longitude) < epsilon &&
+    Math.abs(parking.latitude - seeker.latitude) < epsilon;
+  if (samePoint) {
+    map.easeTo({
+      center: [parking.longitude, parking.latitude],
+      zoom: options.zoom ?? MAP_SELECTED_SPOT_ZOOM,
+      duration,
+      essential: true,
+    });
+    return;
+  }
+
   map.fitBounds(publisherHandoffFitBounds(parking, seeker), {
     padding: 48,
     maxZoom: options.zoom ?? MAP_SELECTED_SPOT_ZOOM,

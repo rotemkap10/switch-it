@@ -685,14 +685,23 @@ export function registerSeekerMarkerImages(map: MapLibreMap): void {
     if (map.hasImage(id)) {
       continue;
     }
-    map.addImage(id, createSeekerMarkerImageData(id), {
-      pixelRatio:
-        id === SEEKER_MARKER_IMAGE_IDS.seekerLive ||
-        id === SEEKER_MARKER_IMAGE_IDS.destination
-          ? 3
-          : 2,
-      sdf: false,
-    });
+    try {
+      map.addImage(id, createSeekerMarkerImageData(id), {
+        pixelRatio:
+          id === SEEKER_MARKER_IMAGE_IDS.seekerLive ||
+          id === SEEKER_MARKER_IMAGE_IDS.destination
+            ? 3
+            : 2,
+        sdf: false,
+      });
+    } catch (error) {
+      console.error("[switch-it] map recovered", {
+        operation: "registerSeekerMarkerImages",
+        phase: "addImage",
+        missingImageId: id,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 
   for (const id of SEEKER_MARKER_IMAGE_ID_LIST) {

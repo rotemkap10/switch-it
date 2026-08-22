@@ -151,4 +151,23 @@ describe("seekerMarkerImages", () => {
       expect(map.hasImage(id)).toBe(true);
     }
   });
+
+  it("continues registering other images when one addImage throws", () => {
+    const images = new Set<string>();
+    const addImage = vi.fn((id: string) => {
+      if (id === SEEKER_MARKER_IMAGE_IDS.destination) {
+        throw new Error("WebGL texture limit");
+      }
+      images.add(id);
+    });
+    const map = {
+      hasImage: (id: string) => images.has(id),
+      addImage,
+    };
+
+    expect(() => registerSeekerMarkerImages(map as never)).not.toThrow();
+    expect(addImage).toHaveBeenCalledTimes(4);
+    expect(map.hasImage(SEEKER_MARKER_IMAGE_IDS.seekerLive)).toBe(true);
+    expect(map.hasImage(SEEKER_MARKER_IMAGE_IDS.destination)).toBe(false);
+  });
 });

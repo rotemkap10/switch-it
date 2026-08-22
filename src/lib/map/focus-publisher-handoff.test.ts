@@ -43,6 +43,21 @@ describe("focusPublisherHandoffCamera", () => {
     expect(map.fitBounds).not.toHaveBeenCalled();
   });
 
+  it("uses easeTo instead of fitBounds when parking and seeker are the same point", () => {
+    const map = { resize: vi.fn(), fitBounds: vi.fn(), easeTo: vi.fn() };
+    const same = { longitude: 34.7818, latitude: 32.0853 };
+
+    focusPublisherHandoffCamera(map, parking, same);
+
+    expect(map.easeTo).toHaveBeenCalledWith({
+      center: [34.7818, 32.0853],
+      zoom: MAP_SELECTED_SPOT_ZOOM,
+      duration: 400,
+      essential: true,
+    });
+    expect(map.fitBounds).not.toHaveBeenCalled();
+  });
+
   it("fits parking spot and seeker together", () => {
     const map = { resize: vi.fn(), fitBounds: vi.fn(), easeTo: vi.fn() };
 
