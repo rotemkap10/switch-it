@@ -79,11 +79,16 @@ function validPayload(overrides: Record<string, unknown> = {}) {
 
 describe("usePublisherLiveLocation", () => {
   beforeEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
     resetPublisherLiveLocationCacheForTests();
     subscribeStatus = null;
     locationHandler = null;
     statusHandler = null;
+    subscribe.mockImplementation((cb?: (status: string) => void) => {
+      subscribeStatus = cb ?? null;
+      return { unsubscribe: vi.fn() };
+    });
     maybeSingle.mockResolvedValue({ data: null, error: null });
     rpc.mockResolvedValue({ data: true, error: null });
     getSession.mockImplementation(async () => ({
@@ -540,7 +545,7 @@ describe("usePublisherLiveLocation", () => {
     }
   });
 
-  it("fetches the latest snapshot on mount without waiting for SUBSCRIBED", async () => {
+  it("does not fetch snapshot before SUBSCRIBED", async () => {
     maybeSingle.mockResolvedValue({
       data: {
         latitude: 32.099,
@@ -553,14 +558,14 @@ describe("usePublisherLiveLocation", () => {
       error: null,
     });
 
-    const { result } = renderHook(() =>
+    renderHook(() =>
       usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
     );
 
     await waitFor(() => {
-      expect(result.current.location?.latitude).toBe(32.099);
+      expect(subscribe).toHaveBeenCalled();
     });
-    expect(from).toHaveBeenCalledWith("claim_live_locations");
+    expect(from).not.toHaveBeenCalled();
   });
 
   it("restores the last known live location immediately after remount", async () => {
@@ -587,29 +592,233 @@ describe("usePublisherLiveLocation", () => {
     expect(remounted.result.current.location?.sequence).toBe(4);
   });
 
-  it("schedules reconnect after channel closed", async () => {
-    vi.useFakeTimers();
+  it("schedules reconnect after unexpected channel closed while subscribed", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       renderHook(() =>
         usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
       );
 
-      await act(async () => {
-        await Promise.resolve();
+      await waitFor(() => {
+        expect(subscribeStatus).toBeTypeOf("function");
       });
-      expect(subscribeStatus).toBeTypeOf("function");
+
+      await act(async () => {
+        subscribeStatus?.("SUBSCRIBED");
+      });
 
       const callsBefore = channel.mock.calls.length;
-      act(() => {
-        subscribeStatus?.("CLOSED");
-      });
-
       await act(async () => {
+        subscribeStatus?.("CLOSED");
         await vi.advanceTimersByTimeAsync(1_600);
-        await Promise.resolve();
       });
 
       expect(channel.mock.calls.length).toBeGreaterThan(callsBefore);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("recovers missed pre-SUBSCRIBED broadcast from post-subscribe snapshot", async () => {
+    maybeSingle.mockResolvedValue({
+      data: {
+        latitude: 32.099,
+        longitude: 34.7818,
+        accuracy_meters: 12,
+        heading_degrees: null,
+        sequence: 1,
+        location_timestamp: new Date().toISOString(),
+      },
+      error: null,
+    });
+
+    const { result } = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(subscribe).toHaveBeenCalled();
+    });
+    expect(result.current.location).toBeNull();
+    expect(from).not.toHaveBeenCalled();
+
+    await act(async () => {
+      subscribeStatus?.("SUBSCRIBED");
+    });
+
+    await waitFor(() => {
+      expect(result.current.location?.latitude).toBe(32.099);
+    });
+    expect(from).toHaveBeenCalledWith("claim_live_locations");
+  });
+
+  it("does not duplicate subscribe when auth fires during mount", async () => {
+    onAuthStateChange.mockImplementation((callback) => {
+      queueMicrotask(() => {
+        callback("INITIAL_SESSION", { access_token: "token" });
+      });
+      return { data: { subscription: { unsubscribe: vi.fn() } } };
+    });
+
+    renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(subscribe).toHaveBeenCalledTimes(1);
+    });
+    expect(rpc).toHaveBeenCalledTimes(1);
+  });
+
+  it("focus and online during subscribing do not duplicate channel", async () => {
+    renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(subscribe).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new Event("online"));
+    });
+
+    expect(channel).toHaveBeenCalledTimes(1);
+    expect(subscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores stale CLOSED callback from replaced channel", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const statusCallbacks: Array<(status: string) => void> = [];
+    subscribe.mockImplementation((cb?: (status: string) => void) => {
+      if (cb) {
+        statusCallbacks.push(cb);
+        subscribeStatus = cb;
+      }
+      return { unsubscribe: vi.fn() };
+    });
+
+    try {
+      const { rerender } = renderHook(
+        ({ claimId }: { claimId: string }) =>
+          usePublisherLiveLocation({ claimId, enabled: true }),
+        { initialProps: { claimId: CLAIM_ID } },
+      );
+
+      await waitFor(() => {
+        expect(statusCallbacks.length).toBe(1);
+      });
+
+      rerender({ claimId: "22222222-2222-4222-8222-222222222222" });
+
+      await waitFor(() => {
+        expect(statusCallbacks.length).toBe(2);
+      });
+
+      await act(async () => {
+        statusCallbacks[1]?.("SUBSCRIBED");
+      });
+
+      const channelsBefore = channel.mock.calls.length;
+      await act(async () => {
+        statusCallbacks[0]?.("CLOSED");
+        await vi.advanceTimersByTimeAsync(2_000);
+      });
+
+      expect(channel.mock.calls.length).toBe(channelsBefore);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reconnects once on genuine CHANNEL_ERROR and fetches snapshot", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    maybeSingle.mockImplementation(async () => ({
+      data:
+        maybeSingle.mock.calls.length >= 2
+          ? {
+              latitude: 32.2,
+              longitude: 34.7818,
+              accuracy_meters: 12,
+              heading_degrees: null,
+              sequence: 3,
+              location_timestamp: new Date().toISOString(),
+            }
+          : null,
+      error: null,
+    }));
+
+    const { result } = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(subscribeStatus).toBeTypeOf("function");
+    });
+
+    await act(async () => {
+      subscribeStatus?.("SUBSCRIBED");
+    });
+
+    const subscribeCallsBefore = subscribe.mock.calls.length;
+    await act(async () => {
+      subscribeStatus?.("CHANNEL_ERROR");
+      await vi.advanceTimersByTimeAsync(1_600);
+    });
+
+    expect(subscribe.mock.calls.length).toBe(subscribeCallsBefore + 1);
+
+    await act(async () => {
+      subscribeStatus?.("SUBSCRIBED");
+      await Promise.resolve();
+    });
+
+    expect(result.current.location?.latitude).toBe(32.2);
+  });
+
+  it("claimId change creates exactly one new channel", async () => {
+    const { rerender } = renderHook(
+      ({ claimId }: { claimId: string }) =>
+        usePublisherLiveLocation({ claimId, enabled: true }),
+      { initialProps: { claimId: CLAIM_ID } },
+    );
+
+    await waitFor(() => {
+      expect(channel).toHaveBeenCalledTimes(1);
+    });
+
+    rerender({ claimId: "22222222-2222-4222-8222-222222222222" });
+
+    await waitFor(() => {
+      expect(channel).toHaveBeenCalledTimes(2);
+    });
+    expect(removeChannel).toHaveBeenCalled();
+  });
+
+  it("disabled hook prevents stale reconnect after terminal cleanup", async () => {
+    vi.useFakeTimers();
+    try {
+      const { rerender } = renderHook(
+        ({ enabled }: { enabled: boolean }) =>
+          usePublisherLiveLocation({ claimId: CLAIM_ID, enabled }),
+        { initialProps: { enabled: true } },
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+        subscribeStatus?.("SUBSCRIBED");
+        subscribeStatus?.("CHANNEL_ERROR");
+      });
+
+      rerender({ enabled: false });
+
+      const channelsBefore = channel.mock.calls.length;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2_000);
+      });
+
+      expect(channel.mock.calls.length).toBe(channelsBefore);
     } finally {
       vi.useRealTimers();
     }

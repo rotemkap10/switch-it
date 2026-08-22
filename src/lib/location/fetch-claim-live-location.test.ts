@@ -91,11 +91,7 @@ describe("fetchLatestClaimLiveLocation", () => {
       fetchLatestClaimLiveLocation(client as never, claimId),
     ).resolves.toBeNull();
     expect(consoleSpy).toHaveBeenCalledWith(
-      "[switch-it:handoff-live-receiver] snapshot fetch failed",
-      expect.objectContaining({
-        claimId,
-        code: "42501",
-      }),
+      `[switch-it:handoff-live-receiver] snapshot fetch failed claimId=${claimId} code=42501 message=permission denied for table claim_live_locations`,
     );
     consoleSpy.mockRestore();
   });

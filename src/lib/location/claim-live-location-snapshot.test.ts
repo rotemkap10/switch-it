@@ -31,7 +31,7 @@ describe("claim live location snapshot pipeline contracts", () => {
     expect(subscribedIndex).toBeGreaterThan(subscribeIndex);
     expect(fetchIndex).toBeGreaterThan(-1);
     expect(publisher).toContain(
-      'const snapshotReason = hadSubscribedRef.current ? "reconnect" : "initial"',
+      'const snapshotReason = hadSubscribedRef.current ? "reconnect" : "post-subscribe"',
     );
     expect(publisher).toContain("fetchLatestClaimLiveLocation");
   });
