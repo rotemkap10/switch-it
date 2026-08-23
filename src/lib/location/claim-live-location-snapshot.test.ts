@@ -16,7 +16,8 @@ describe("claim live location snapshot pipeline contracts", () => {
     expect(upsertIndex).toBeGreaterThan(-1);
     expect(broadcastIndex).toBeGreaterThan(upsertIndex);
     expect(edge).toContain("upsert_claim_live_location");
-    expect(edge).toContain("snapshot upsert succeeded");
+    expect(edge).toContain("snapshot upsert accepted");
+    expect(edge).toContain("shouldBroadcast = true");
   });
 
   it("publisher subscribes then fetches latest snapshot on SUBSCRIBED", () => {

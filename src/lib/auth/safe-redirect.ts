@@ -20,5 +20,9 @@ export function getSafeRedirectPath(next: string | null | undefined): string {
     return DEFAULT_REDIRECT;
   }
 
+  if (next.includes("\\") || /[\u0000-\u001F\u007F]/.test(next)) {
+    return DEFAULT_REDIRECT;
+  }
+
   return next;
 }

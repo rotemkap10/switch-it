@@ -251,19 +251,21 @@ Deno.serve(async (req) => {
     latitude: unknown;
     longitude: unknown;
   } | null = null;
+  let shouldBroadcast = false;
+
+  const serviceClient = createClient(supabaseUrl, serviceKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 
   if (event === SEEKER_LOCATION_EVENT) {
     const locationPayload = payload as JsonRecord;
-    const serviceClient = createClient(supabaseUrl, serviceKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
 
     console.log("[switch-it:handoff-live] snapshot upsert attempted", {
       claimId,
       sequence: locationPayload.sequence ?? null,
     });
 
-    const { error: upsertError } = await serviceClient.rpc(
+    const { data: upsertStatus, error: upsertError } = await serviceClient.rpc(
       "upsert_claim_live_location",
       {
         p_claim_id: claimId,
@@ -283,71 +285,121 @@ Deno.serve(async (req) => {
         claimId,
         detail: upsertError.message,
       });
-      return json({ error: "snapshot_failed", detail: upsertError.message }, 502);
+      return json({ error: "snapshot_failed" }, 502);
     }
 
-    console.log("[switch-it:handoff-live] snapshot upsert succeeded", {
+    if (upsertStatus === "rate_limited") {
+      console.warn("[switch-it:handoff-live] location rate limited", {
+        claimId,
+        sequence: locationPayload.sequence ?? null,
+      });
+      return json({ error: "rate_limited" }, 429);
+    }
+
+    if (upsertStatus === "stale_sequence") {
+      console.log("[switch-it:handoff-live] snapshot upsert skipped stale", {
+        claimId,
+        sequence: locationPayload.sequence ?? null,
+      });
+      return json({ ok: true, accepted: false, reason: "stale_sequence" });
+    }
+
+    if (upsertStatus !== "accepted") {
+      console.warn("[switch-it:handoff-live] snapshot upsert unexpected status", {
+        claimId,
+        status: upsertStatus,
+      });
+      return json({ error: "snapshot_failed" }, 502);
+    }
+
+    console.log("[switch-it:handoff-live] snapshot upsert accepted", {
       claimId,
       sequence: locationPayload.sequence ?? null,
     });
 
+    shouldBroadcast = true;
     nearbyEnqueue = {
       serviceClient,
       claimId,
       latitude: locationPayload.latitude,
       longitude: locationPayload.longitude,
     };
+  } else {
+    const { data: statusAccept, error: statusError } = await serviceClient.rpc(
+      "try_accept_claim_location_status",
+      { p_claim_id: claimId },
+    );
+
+    if (statusError) {
+      console.warn("[switch-it:handoff-live] status rate-limit rpc failed", {
+        claimId,
+        detail: statusError.message,
+      });
+      return json({ error: "snapshot_failed" }, 502);
+    }
+
+    if (statusAccept === "rate_limited") {
+      console.warn("[switch-it:handoff-live] status rate limited", { claimId });
+      return json({ error: "rate_limited" }, 429);
+    }
+
+    if (statusAccept !== "accepted") {
+      console.warn("[switch-it:handoff-live] status accept unexpected status", {
+        claimId,
+        status: statusAccept,
+      });
+      return json({ error: "snapshot_failed" }, 502);
+    }
+
+    shouldBroadcast = true;
   }
 
-  console.log("[switch-it:handoff-live] broadcast attempted", {
-    claimId,
-    topic,
-    event,
-    via: "realtime.send",
-    rpc: "public.broadcast_claim_location",
-  });
-  const broadcastResult = await broadcastPrivateClaimLocation({
-    supabaseUrl,
-    serviceKey,
-    topic,
-    event,
-    payload,
-  });
-
-  if (!broadcastResult.ok) {
-    console.warn("[switch-it:handoff-live] broadcast failed", {
+  if (shouldBroadcast) {
+    console.log("[switch-it:handoff-live] broadcast attempted", {
       claimId,
       topic,
       event,
-      status: broadcastResult.status,
-      detail: broadcastResult.detail,
       via: "realtime.send",
       rpc: "public.broadcast_claim_location",
     });
-    return json(
-      {
-        error: "broadcast_failed",
+    const broadcastResult = await broadcastPrivateClaimLocation({
+      supabaseUrl,
+      serviceKey,
+      topic,
+      event,
+      payload,
+    });
+
+    if (!broadcastResult.ok) {
+      console.warn("[switch-it:handoff-live] broadcast failed", {
+        claimId,
+        topic,
+        event,
         status: broadcastResult.status,
         detail: broadcastResult.detail,
-      },
-      502,
-    );
+        via: "realtime.send",
+        rpc: "public.broadcast_claim_location",
+      });
+      return json({ error: "broadcast_failed" }, 502);
+    }
+
+    console.log("[switch-it:handoff-live] broadcast succeeded", {
+      claimId,
+      topic,
+      event,
+      via: "realtime.send",
+      rpc: "public.broadcast_claim_location",
+      httpStatus: broadcastResult.status,
+    });
+
+    if (nearbyEnqueue) {
+      await enqueueDriverNearbyIfClose(nearbyEnqueue);
+    }
+
+    return json({ ok: true, broadcastStatus: broadcastResult.status });
   }
 
-  console.log("[switch-it:handoff-live] broadcast succeeded", {
-    claimId,
-    topic,
-    event,
-    via: "realtime.send",
-    rpc: "public.broadcast_claim_location",
-    httpStatus: broadcastResult.status,
-  });
-
-  if (nearbyEnqueue) {
-    await enqueueDriverNearbyIfClose(nearbyEnqueue);
-  }
-
-  return json({ ok: true, broadcastStatus: broadcastResult.status });
+  return json({ error: "internal" }, 500);
 });
 
 async function enqueueDriverNearbyIfClose(input: {

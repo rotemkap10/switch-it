@@ -30,4 +30,10 @@ describe("getSafeRedirectPath", () => {
     expect(getSafeRedirectPath("map")).toBe("/map");
     expect(getSafeRedirectPath("spots/new")).toBe("/map");
   });
+
+  it("rejects backslash and control-character open redirect tricks", () => {
+    expect(getSafeRedirectPath("/\\evil.com")).toBe("/map");
+    expect(getSafeRedirectPath("/map\n/evil")).toBe("/map");
+    expect(getSafeRedirectPath("/map%00/evil")).toBe("/map%00/evil");
+  });
 });
