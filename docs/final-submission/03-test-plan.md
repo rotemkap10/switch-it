@@ -10,8 +10,8 @@ Re-verified during this documentation pass:
 
 ```text
 npm run test:run
-→ 235 test files passed
-→ 1414 tests passed
+→ 250 test files passed
+→ 1520 tests passed
 ```
 
 Coverage labels:
@@ -158,6 +158,12 @@ Current product path: **publisher verifies seeker last-2 plate digits**. Spoken 
 | Cannot complete another user’s claim as non-owner | RPC; Automated mocks + Manual |
 | Masked plate to counterpart | Counterpart vehicle RPC/UI; Automated + Manual |
 | Anon cannot call privileged RPCs | Grants in migrations; Manual / SQL |
+| `get_handoff_code` revoked from authenticated | Migration contract (`20260823100000`); Manual SQL |
+| Live-location atomic rate limit (GPS + status) | Migration contract + algorithm regression tests; Edge Function contract tests |
+| Broadcast only after DB accept | Edge Function contract tests |
+| Auth redirect rejects open redirects | `safe-redirect.test.ts` |
+| Baseline security headers | `security-hardening.test.ts` (reads `next.config.ts`) |
+| Native/JS diagnostics do not log JWTs | Code review + logging key filters |
 
 ---
 

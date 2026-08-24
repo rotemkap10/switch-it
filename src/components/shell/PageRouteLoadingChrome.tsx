@@ -23,7 +23,7 @@ export function PageRouteLoadingChrome({
       data-layout={mapLayout ? "map" : "page"}
     >
       <div className="app-shell-header border-b border-border bg-surface">
-        <AppShellHeaderLoadingPlaceholder />
+        <AppShellHeaderLoadingPlaceholder mode="none" />
       </div>
       <main
         className={[

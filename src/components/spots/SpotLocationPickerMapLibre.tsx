@@ -55,6 +55,8 @@ export {
  * Parking. No independent MapLibre init or gesture physics.
  */
 export function SpotLocationPickerMapLibre({
+  latitude,
+  longitude,
   onLocationChange,
   onMapInteractionStart,
   onMapInteractionSettled,
@@ -89,6 +91,7 @@ export function SpotLocationPickerMapLibre({
         mode="picker"
         spots={[]}
         destination={null}
+        seedCenter={{ latitude, longitude }}
         showDiscoveryCarousel={false}
         pickerDisabled={disabled}
         pickerLayout={fill ? "fullscreen" : "card"}

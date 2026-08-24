@@ -396,7 +396,7 @@ describe("PublishSpotForm", () => {
     );
   });
 
-  it("renders the map at the fallback center immediately while GPS is pending", async () => {
+  it("keeps the map in a loading state while GPS is pending, then centers on the fix", async () => {
     let success: PositionCallback | null = null;
     vi.stubGlobal("navigator", {
       ...navigator,
@@ -412,9 +412,8 @@ describe("PublishSpotForm", () => {
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
-    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
-      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
-    );
+    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
+    expect(screen.queryByTestId("leaver-map-picker")).not.toBeInTheDocument();
     expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
       "Finding your location…",
     );
@@ -442,9 +441,7 @@ describe("PublishSpotForm", () => {
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
-    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
-      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
-    );
+    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
     });
@@ -466,16 +463,12 @@ describe("PublishSpotForm", () => {
     });
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
-    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
-      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
-    );
+    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
 
     success?.(
       position(32.08, 34.78, 8, Date.now() - 60_000),
     );
-    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
-      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
-    );
+    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
 
     success?.(position(32.26, 34.89, 18));
     await waitFor(() => {
@@ -537,43 +530,46 @@ describe("PublishSpotForm", () => {
     });
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
 
-    expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    success?.(position(32.085312, 34.781812, 8));
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    });
 
     await user.click(screen.getByRole("button", { name: "Simulate map move" }));
     expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
       "Map at 32.111111, 34.222222",
     );
 
-    success?.(position(32.085312, 34.781812, 8));
+    success?.(position(32.09, 34.80, 8));
     expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
       "Map at 32.111111, 34.222222",
     );
   });
 
-  it("does not lock the Tel Aviv fallback from a touch that does not move the pin", async () => {
+  it("does not confirm choose-on-map fallback from a touch that does not move the pin", async () => {
     const user = userEvent.setup();
-    let success: PositionCallback | null = null;
-    const watchPosition = vi.fn((nextSuccess: PositionCallback) => {
-      success = nextSuccess;
-      return 1;
-    });
-    const clearWatch = vi.fn();
-    vi.stubGlobal("navigator", {
-      ...navigator,
-      geolocation: {
-        getCurrentPosition: vi.fn(),
-        watchPosition,
-        clearWatch,
-      },
+    stubGeolocation((_success, error) => {
+      error?.({
+        code: 3,
+        message: "Timeout",
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
     });
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+    expect(
+      await screen.findByRole("button", { name: "Choose on map" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Choose on map" }));
+
     expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
       `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
     );
     expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
-    expect(watchPosition).toHaveBeenCalledTimes(1);
 
     await user.click(
       screen.getByRole("button", { name: "Simulate touch without move" }),
@@ -583,13 +579,8 @@ describe("PublishSpotForm", () => {
     expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
       `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
     );
-    // Shared session stays acquired; a later trusted fix can still publish.
-    success?.(position(32.085312, 34.781812, 10));
-    await waitFor(() => {
-      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
-        "Map at 32.085312, 34.781812",
-      );
-    });
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
     expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
   });
 
@@ -631,6 +622,11 @@ describe("PublishSpotForm", () => {
     ]);
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    success?.(position(32.08, 34.78, 10));
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText("Search an address")).toBeInTheDocument();
+    });
 
     await user.type(screen.getByPlaceholderText("Search an address"), "Roth");
     await waitFor(() => {
@@ -701,9 +697,7 @@ describe("PublishSpotForm", () => {
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
-    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
-      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
-    );
+    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
     expect(
       await screen.findByText(
         "Location permission denied. Place the pin on the map yourself.",
@@ -714,7 +708,9 @@ describe("PublishSpotForm", () => {
     await user.click(screen.getByRole("button", { name: "Choose on map" }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+        `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+      );
       expect(
         screen.getByRole("img", {
           name: "Map to adjust your parking spot location",

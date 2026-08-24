@@ -14,6 +14,7 @@ import { useRouteTransition } from "@/components/shell/RouteTransitionProvider";
 import {
   MODE_OPTIONS,
   modeFromPathname,
+  modeSwitchSelection,
   type AppMode,
 } from "@/lib/mode/constants";
 import { markNavigationStart } from "@/lib/map/map-perf";
@@ -35,10 +36,10 @@ export function ModeSwitch({ fullWidth = false }: ModeSwitchProps) {
   // Optimistic selection while the route catches up.
   const optimisticMode =
     pendingMode && routeMode !== pendingMode ? pendingMode : null;
-  const selected: AppMode = optimisticMode ?? routeMode ?? mode ?? "seeker";
-  const activeIndex = MODE_OPTIONS.findIndex(
-    (option) => option.mode === selected,
-  );
+  const selected = modeSwitchSelection(pathname, optimisticMode);
+  const activeIndex = selected
+    ? MODE_OPTIONS.findIndex((option) => option.mode === selected)
+    : -1;
   const navigating = isPending || optimisticMode !== null;
 
   // Keep localStorage aligned as a secondary convenience; route wins.
@@ -84,14 +85,18 @@ export function ModeSwitch({ fullWidth = false }: ModeSwitchProps) {
       aria-busy={navigating || undefined}
       data-testid="mode-switch"
       data-pending={navigating ? "true" : "false"}
+      data-active-mode={selected ?? "none"}
     >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-[calc(var(--radius-card)-2px)] bg-accent shadow-sm motion-mode-pill"
-        style={{
-          transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
-        }}
-      />
+      {selected ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0.5 left-0.5 w-[calc(50%-2px)] rounded-[calc(var(--radius-card)-2px)] bg-accent shadow-sm motion-mode-pill"
+          data-testid="mode-switch-pill"
+          style={{
+            transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`,
+          }}
+        />
+      ) : null}
       {MODE_OPTIONS.map((option) => {
         const active = option.mode === selected;
         const isTarget = optimisticMode === option.mode;

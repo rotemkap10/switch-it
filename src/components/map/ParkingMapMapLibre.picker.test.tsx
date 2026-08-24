@@ -40,18 +40,18 @@ let mockMap: {
   isEasing: ReturnType<typeof vi.fn>;
 };
 
-let sharedListener:
-  | ((snap: {
-      trustedFix: {
-        latitude: number;
-        longitude: number;
-        accuracy: number | null;
-        timestamp: number;
-      } | null;
-      status: string;
-      error: string | null;
-    }) => void)
-  | null = null;
+const sharedListeners = new Set<
+  (snap: {
+    trustedFix: {
+      latitude: number;
+      longitude: number;
+      accuracy: number | null;
+      timestamp: number;
+    } | null;
+    status: string;
+    error: string | null;
+  }) => void
+>();
 let peekTrustedFix: {
   latitude: number;
   longitude: number;
@@ -89,36 +89,62 @@ vi.mock("@/lib/map/shared-foreground-location", () => ({
       error: string | null;
     }) => void,
   ) => {
-    sharedListener = listener;
+    sharedListeners.add(listener);
     listener({
       trustedFix: peekTrustedFix,
       status: peekTrustedFix ? "ready" : "acquiring",
       error: null,
     });
     return () => {
-      sharedListener = null;
+      sharedListeners.delete(listener);
     };
   },
   peekTrustedSharedForegroundFix: () => peekTrustedFix,
-  waitForTrustedSharedForegroundFix: vi.fn(async () => {
-    if (peekTrustedFix) {
-      return { ok: true as const, fix: peekTrustedFix };
-    }
-    return await new Promise<
-      | {
-          ok: true;
-          fix: {
-            latitude: number;
-            longitude: number;
-            accuracy: number | null;
-            timestamp: number;
-          };
+  waitForTrustedSharedForegroundFix: vi.fn(
+    async (
+      _consumerId: string,
+      options?: {
+        afterFix?: {
+          latitude: number;
+          longitude: number;
+          accuracy: number | null;
+          timestamp: number;
+        } | null;
+      },
+    ) => {
+      const after = options?.afterFix ?? null;
+      const isUsable = (fix: typeof peekTrustedFix) => {
+        if (!fix) {
+          return false;
         }
-      | { ok: false; reason: string }
-    >((resolve) => {
-      pendingTrustedWaiters.push(resolve);
-    });
-  }),
+        if (!after) {
+          return true;
+        }
+        return (
+          fix.timestamp > after.timestamp ||
+          Math.abs(fix.latitude - after.latitude) > 0.0001 ||
+          Math.abs(fix.longitude - after.longitude) > 0.0001
+        );
+      };
+      if (isUsable(peekTrustedFix)) {
+        return { ok: true as const, fix: peekTrustedFix };
+      }
+      return await new Promise<
+        | {
+            ok: true;
+            fix: {
+              latitude: number;
+              longitude: number;
+              accuracy: number | null;
+              timestamp: number;
+            };
+          }
+        | { ok: false; reason: string }
+      >((resolve) => {
+        pendingTrustedWaiters.push(resolve);
+      });
+    },
+  ),
 }));
 
 vi.mock("@/components/map/BaseMap", () => ({
@@ -193,11 +219,14 @@ function emitSharedTrusted(fix: {
   timestamp: number;
 }) {
   peekTrustedFix = fix;
-  sharedListener?.({
+  const snap = {
     trustedFix: fix,
     status: "ready",
     error: null,
-  });
+  };
+  for (const listener of sharedListeners) {
+    listener(snap);
+  }
   const waiters = pendingTrustedWaiters.splice(0);
   for (const resolve of waiters) {
     resolve({ ok: true, fix });
@@ -239,7 +268,7 @@ describe("ParkingMapMapLibre picker mode", () => {
       getBearing: vi.fn(() => 0),
       getPitch: vi.fn(() => 0),
       getCanvas: vi.fn(() => ({ style: {} })),
-      getCenter: vi.fn(() => ({ lng: 34.843, lat: 32.167 })),
+      getCenter: vi.fn(() => ({ lng: 34.7818, lat: 32.0853 })),
       project: vi.fn(() => ({ x: 0, y: 0 })),
       remove: vi.fn(),
       dragPan: { enable: vi.fn(), disable: vi.fn() },
@@ -248,8 +277,13 @@ describe("ParkingMapMapLibre picker mode", () => {
     };
     mockedStatus = "denied";
     applyFreshFixMock.mockReset();
-    sharedListener = null;
-    peekTrustedFix = null;
+    sharedListeners.clear();
+    peekTrustedFix = {
+      latitude: 32.0853,
+      longitude: 34.7818,
+      accuracy: 10,
+      timestamp: Date.now(),
+    };
     pendingTrustedWaiters.length = 0;
     mockBaseMapProps.center = undefined;
     mockBaseMapProps.zoom = undefined;
@@ -394,6 +428,7 @@ describe("ParkingMapMapLibre picker mode", () => {
     );
     await waitFor(() => expect(mockMap.on).toHaveBeenCalled());
 
+    mockMap.easeTo.mockClear();
     await user.click(
       await screen.findByRole("button", { name: "Use my current location" }),
     );

@@ -37,3 +37,18 @@ export function modeFromPathname(pathname: string): AppMode | null {
   }
   return null;
 }
+
+/**
+ * Visual selection for the Find parking / Share a spot switch.
+ * Secondary routes (Profile, History, Help, …) return null so neither tab is active.
+ * `pendingMode` is optimistic highlight while navigating to a primary mode.
+ */
+export function modeSwitchSelection(
+  pathname: string,
+  pendingMode: AppMode | null = null,
+): AppMode | null {
+  if (pendingMode) {
+    return pendingMode;
+  }
+  return modeFromPathname(pathname);
+}

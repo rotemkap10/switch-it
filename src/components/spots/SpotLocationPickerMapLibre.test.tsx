@@ -93,7 +93,13 @@ describe("SpotLocationPickerMapLibre", () => {
     );
   });
 
-  it("forwards address-search recenter without using latitude props as camera", () => {
+  it("forwards address-search recenter and seeds the picker from latitude/longitude", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/components/spots/SpotLocationPickerMapLibre.tsx"),
+      "utf8",
+    );
+    expect(source).toContain("seedCenter={{ latitude, longitude }}");
+
     render(
       <SpotLocationPickerMapLibre
         latitude={32.085312}

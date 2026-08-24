@@ -7,6 +7,7 @@ import {
   MODE_STORAGE_PREFIX,
   modeFromPathname,
   modeStorageKey,
+  modeSwitchSelection,
 } from "@/lib/mode/constants";
 
 describe("mode constants helpers", () => {
@@ -26,9 +27,25 @@ describe("mode constants helpers", () => {
 
   it("derives mode from the pathname", () => {
     expect(modeFromPathname("/map")).toBe("seeker");
+    expect(modeFromPathname("/map/preview")).toBe("seeker");
     expect(modeFromPathname("/spots/new")).toBe("leaver");
+    expect(modeFromPathname("/spots/new/preview")).toBe("leaver");
     expect(modeFromPathname("/profile")).toBeNull();
+    expect(modeFromPathname("/profile/vehicle")).toBeNull();
+    expect(modeFromPathname("/history")).toBeNull();
+    expect(modeFromPathname("/history/item")).toBeNull();
     expect(modeFromPathname("/help")).toBeNull();
+    expect(modeFromPathname("/help/safety")).toBeNull();
+  });
+
+  it("selects a mode-switch tab only on primary map routes", () => {
+    expect(modeSwitchSelection("/map")).toBe("seeker");
+    expect(modeSwitchSelection("/spots/new")).toBe("leaver");
+    expect(modeSwitchSelection("/profile")).toBeNull();
+    expect(modeSwitchSelection("/history")).toBeNull();
+    expect(modeSwitchSelection("/help")).toBeNull();
+    expect(modeSwitchSelection("/profile/vehicle")).toBeNull();
+    expect(modeSwitchSelection("/profile", "seeker")).toBe("seeker");
   });
 
   it("recognizes valid app modes only", () => {

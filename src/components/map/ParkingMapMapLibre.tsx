@@ -46,7 +46,6 @@ import { logMapInteractionSnapshot } from "@/lib/map/log-map-interaction-snapsho
 import type { MapSpot } from "@/types/map-spot";
 
 import {
-  MAP_DEFAULT_CENTER_TEL_AVIV,
   MAP_DEFAULT_ZOOM,
   MAP_MOVEMENT_DURATION_MS,
   MAP_SELECTED_SPOT_ZOOM,
@@ -55,6 +54,11 @@ import {
   assertMapTilerStyleUrlOrNull,
   isWithinSupportedMapBounds,
 } from "@/lib/map/seekerMapConfig";
+import {
+  INITIAL_MAP_LOCATION_WAIT_MS,
+  resolveInitialMapCenterLngLat,
+} from "@/lib/map/resolve-initial-map-camera";
+import { MapLoadingState } from "@/components/map/MapLoadingState";
 import {
   clearSessionMapCamera,
   writeSessionMapCamera,
@@ -124,6 +128,11 @@ type ParkingMapMapLibreProps = {
    * fills the map stage and clears floating controls for the compose sheet.
    */
   pickerLayout?: "card" | "fullscreen";
+  /**
+   * Known form coordinates for Share a Spot (GPS or choose-on-map seed).
+   * Does not draw a destination marker. Trusted GPS still wins when present.
+   */
+  seedCenter?: DestinationCoords | null;
 };
 
 function createGeoJsonSpots(
@@ -272,6 +281,7 @@ export function ParkingMapMapLibre({
   onPickerCurrentLocationResolved,
   pickerExternalRecenter = null,
   pickerLayout = "card",
+  seedCenter = null,
 }: ParkingMapMapLibreProps) {
   const isPicker = mode === "picker";
   const isFullscreenPicker = isPicker && pickerLayout === "fullscreen";
@@ -283,11 +293,23 @@ export function ParkingMapMapLibre({
   );
 
   const styleFallback = mapTilerStyleUrl === null;
-  const initialCenter: [number, number] = [
-    MAP_DEFAULT_CENTER_TEL_AVIV.lng,
-    MAP_DEFAULT_CENTER_TEL_AVIV.lat,
-  ];
+  const [initialCenter, setInitialCenter] = useState<[number, number] | null>(
+    () => {
+      if (isValidDestination(destination)) {
+        return resolveInitialMapCenterLngLat({ destination });
+      }
+      const existing = peekTrustedSharedForegroundFix();
+      if (existing) {
+        return resolveInitialMapCenterLngLat({ trustedFix: existing });
+      }
+      if (isValidDestination(seedCenter)) {
+        return resolveInitialMapCenterLngLat({ seedCenter });
+      }
+      return null;
+    },
+  );
   const initialZoom = MAP_DEFAULT_ZOOM;
+  const awaitingInitialCamera = initialCenter == null;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapUnavailable, setMapUnavailable] = useState(false);
@@ -307,6 +329,13 @@ export function ParkingMapMapLibre({
   // Reconcile selection when Realtime refresh removes the spot from props.
   if (selectedId && !spots.some((spot) => spot.id === selectedId)) {
     setSelectedId(null);
+  }
+
+  // Prefer known destination / seed without flashing a default city.
+  if (initialCenter == null && isValidDestination(destination)) {
+    setInitialCenter(resolveInitialMapCenterLngLat({ destination }));
+  } else if (initialCenter == null && isValidDestination(seedCenter)) {
+    setInitialCenter(resolveInitialMapCenterLngLat({ seedCenter }));
   }
 
   useEffect(() => {
@@ -639,6 +668,50 @@ export function ParkingMapMapLibre({
     };
   }, []);
 
+  // Gate BaseMap until we have a meaningful first center (GPS or timeout).
+  useEffect(() => {
+    if (initialCenter != null) {
+      return;
+    }
+
+    let settled = false;
+    const finish = (fix: DeviceLocationFix | null) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      setInitialCenter(
+        resolveInitialMapCenterLngLat({
+          destination,
+          trustedFix: fix,
+          seedCenter,
+        }),
+      );
+    };
+
+    const release = acquireSharedForegroundLocation("find-parking-boot");
+    const unsub = subscribeSharedForegroundLocation((snap) => {
+      if (snap.trustedFix) {
+        finish(snap.trustedFix);
+        return;
+      }
+      if (snap.status === "error") {
+        finish(null);
+      }
+    });
+
+    const timeoutId = window.setTimeout(() => {
+      finish(peekTrustedSharedForegroundFix());
+    }, INITIAL_MAP_LOCATION_WAIT_MS);
+
+    return () => {
+      settled = true;
+      window.clearTimeout(timeoutId);
+      unsub();
+      release();
+    };
+  }, [destination, initialCenter, seedCenter]);
+
   const locationFailure =
     userLocation.status === "denied" ||
     userLocation.status === "unavailable" ||
@@ -737,7 +810,7 @@ export function ParkingMapMapLibre({
       destination.latitude,
     );
 
-    // Unexpected out-of-area destination: keep default Tel Aviv view, no loop.
+    // Unexpected out-of-area destination: keep fallback map view, no loop.
     if (!destinationInBounds) {
       hasInitialDestinationViewRef.current = true;
       return;
@@ -890,13 +963,21 @@ export function ParkingMapMapLibre({
               Outside map area
             </p>
             <p className="text-[0.65rem] leading-4 text-muted">
-              Browsing Tel Aviv.
+              Browsing the map area.
             </p>
           </div>
         </div>
       ) : null}
 
       <div className="absolute inset-0 z-0 h-full w-full">
+        {awaitingInitialCamera || !initialCenter ? (
+          <div
+            className="absolute inset-0"
+            data-testid="map-initial-location-loading"
+          >
+            <MapLoadingState />
+          </div>
+        ) : (
           <BaseMap
             key={mapInstanceKey}
             styleUrl={mapTilerStyleUrl!}
@@ -1037,6 +1118,7 @@ export function ParkingMapMapLibre({
             }
           }}
         />
+        )}
       </div>
 
       {isPicker ? (

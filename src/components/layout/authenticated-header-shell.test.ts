@@ -23,7 +23,7 @@ describe("authenticated header shell contract", () => {
 
     expect(nav).toContain("<AppShellHeaderInner>");
     expect(nav).toContain('variant="nav"');
-    expect(pageLoading).toContain("<AppShellHeaderLoadingPlaceholder />");
+    expect(pageLoading).toContain('<AppShellHeaderLoadingPlaceholder mode="none" />');
     expect(mapLoading).toContain("<AppShellHeaderLoadingPlaceholder");
     expect(inner).toContain('className={APP_SHELL_HEADER_INNER_CLASS}');
     expect(inner).toContain('variant="nav"');

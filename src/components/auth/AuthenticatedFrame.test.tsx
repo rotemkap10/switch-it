@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/layout/AppNav", () => ({
   AppNav: ({ compact }: { compact?: boolean }) => (
@@ -33,14 +33,21 @@ vi.mock("@/components/handoff/SeekerHandoffTerminalController", () => ({
   SeekerHandoffTerminalController: () => null,
 }));
 
+const navigationState = vi.hoisted(() => ({
+  pathname: "/map",
+}));
+
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/map",
+  usePathname: () => navigationState.pathname,
   useRouter: () => ({ replace: vi.fn() }),
 }));
 
 import { AuthenticatedFrame } from "@/components/auth/AuthenticatedFrame";
 
 describe("AuthenticatedFrame map layout", () => {
+  beforeEach(() => {
+    navigationState.pathname = "/map";
+  });
   it("fills the dynamic viewport with flex shell and no page scroll", () => {
     render(
       <AuthenticatedFrame
@@ -136,5 +143,40 @@ describe("AuthenticatedFrame map layout", () => {
     expect(main.contains(nav)).toBe(false);
     expect(main.className).toContain("app-shell-main--page");
     expect(nav).toHaveAttribute("data-compact", "false");
+  });
+
+  it.each(["/profile", "/history", "/help", "/profile/vehicle"] as const)(
+    "wraps %s in the shared secondary page-enter transition",
+    (pathname) => {
+      navigationState.pathname = pathname;
+      render(
+        <AuthenticatedFrame userId="user-1" title="Profile" layout="default">
+          <div>Content</div>
+        </AuthenticatedFrame>,
+      );
+      const transition = screen.getByTestId("secondary-page-transition");
+      expect(transition).toHaveAttribute("data-pathname", pathname);
+      expect(transition.className).toContain("motion-page-enter");
+      expect(screen.queryByTestId("mode-page-transition")).toBeNull();
+    },
+  );
+
+  it("applies the secondary enter wrapper on first client navigation to Profile", () => {
+    const { rerender } = render(
+      <AuthenticatedFrame userId="user-1" title="Find parking" layout="map">
+        <div>Map</div>
+      </AuthenticatedFrame>,
+    );
+    expect(screen.getByTestId("mode-page-transition")).toBeInTheDocument();
+
+    navigationState.pathname = "/profile";
+    rerender(
+      <AuthenticatedFrame userId="user-1" title="Profile" layout="default">
+        <div>Profile</div>
+      </AuthenticatedFrame>,
+    );
+    expect(screen.getByTestId("secondary-page-transition").className).toContain(
+      "motion-page-enter",
+    );
   });
 });

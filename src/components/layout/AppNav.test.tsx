@@ -116,13 +116,34 @@ describe("AppNav", () => {
     expect(
       screen.getAllByRole("tab", { name: "Find parking" })[0],
     ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getAllByRole("tab", { name: "Share a spot" })[0],
+    ).toHaveAttribute("aria-selected", "false");
 
     navigationState.pathname = "/spots/new";
     rerender(<AppNav />);
     expect(
       screen.getAllByRole("tab", { name: "Share a spot" })[0],
     ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getAllByRole("tab", { name: "Find parking" })[0],
+    ).toHaveAttribute("aria-selected", "false");
   });
+
+  it.each(["/profile", "/history", "/help", "/profile/vehicle"] as const)(
+    "activates neither map tab on %s",
+    (pathname) => {
+      navigationState.pathname = pathname;
+      modeState.mode = "leaver";
+      render(<AppNav />);
+      expect(
+        screen.getAllByRole("tab", { name: "Find parking" })[0],
+      ).toHaveAttribute("aria-selected", "false");
+      expect(
+        screen.getAllByRole("tab", { name: "Share a spot" })[0],
+      ).toHaveAttribute("aria-selected", "false");
+    },
+  );
 
   it("opens a profile menu with Profile and Log out", async () => {
     const user = userEvent.setup();

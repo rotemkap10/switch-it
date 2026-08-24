@@ -30,7 +30,8 @@ import {
 import { classifyGpsAccuracy } from "@/lib/map/watch-best-device-location";
 import { offerHandoffPushPrepromptBeforeHandoff } from "@/lib/push/preprompt-bus";
 import { isNativePushEnabledForPlatform } from "@/lib/push/is-native-push-platform";
-import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
+import { MAP_FALLBACK_CENTER } from "@/lib/map/resolve-initial-map-camera";
+import { MapLoadingState } from "@/components/map/MapLoadingState";
 
 export const PUBLISHER_POOR_LOCATION_WARNING =
   "Your location may not be precise. Check that the pin is in the correct spot.";
@@ -44,7 +45,11 @@ function formatCoord(value: number): string {
 }
 
 function parseCoord(value: string): number | null {
-  const parsed = Number(value);
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return null;
+  }
+  const parsed = Number(trimmed);
   return Number.isFinite(parsed) ? parsed : null;
 }
 
@@ -233,12 +238,8 @@ export function PublishSpotForm() {
     toastErrors: true,
   });
 
-  const [latitude, setLatitude] = useState(() =>
-    formatCoord(MAP_DEFAULT_CENTER.lat),
-  );
-  const [longitude, setLongitude] = useState(() =>
-    formatCoord(MAP_DEFAULT_CENTER.lng),
-  );
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
   const [detectedLocation, setDetectedLocation] = useState<{
     latitude: number;
     longitude: number;
@@ -504,11 +505,11 @@ export function PublishSpotForm() {
     setAddressSuggestions([]);
     setAccuracyMeters(null);
     if (!hasLocation) {
-      setLocation(MAP_DEFAULT_CENTER.lat, MAP_DEFAULT_CENTER.lng);
+      setLocation(MAP_FALLBACK_CENTER.lat, MAP_FALLBACK_CENTER.lng);
     }
     setGeoStatus("manual");
     // Fallback is display-only until the user pans, picks an address, or
-    // uses Current Location — do not confirm Tel Aviv for publish.
+    // uses Current Location — do not confirm a default city for publish.
     setLocationConfirmed(false);
   }
 
@@ -642,7 +643,14 @@ export function PublishSpotForm() {
             onCurrentLocationResolved={handleCurrentLocationResolved}
             externalRecenter={pickerExternalRecenter}
           />
-        ) : null}
+        ) : (
+          <div
+            className="absolute inset-0"
+            data-testid="publish-spot-location-loading"
+          >
+            <MapLoadingState />
+          </div>
+        )}
       </div>
 
       <div className="publisher-compose-top-host">

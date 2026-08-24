@@ -1,6 +1,10 @@
+/**
+ * Fallback map center when current GPS is unavailable.
+ * Tel Aviv city center — not a development/test neighborhood.
+ */
 export const MAP_DEFAULT_CENTER_TEL_AVIV = {
-  lat: 32.167,
-  lng: 34.843,
+  lat: 32.0853,
+  lng: 34.7818,
 } as const;
 
 export const MAP_DEFAULT_ZOOM = 14;

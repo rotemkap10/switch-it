@@ -41,14 +41,17 @@ handoff”) before production.
 
 ### Supabase
 
-Deploy the Edge Function (no database migration):
+Apply live-location rate-limit migrations, then deploy the Edge Function:
 
 ```bash
+npx supabase db push
 supabase functions deploy handoff-seeker-location
 ```
 
+Migrations include `20260823110000_claim_live_location_atomic_rate_limit.sql` and `20260823120000_claim_live_location_rate_limit_hardening.sql` (atomic GPS/status throttling).
+
 `verify_jwt = true`. Service-role stays on the server. Function calls
-`can_send_claim_location` with the seeker’s JWT before broadcasting.
+`can_send_claim_location` with the seeker’s JWT, then service-role RPCs accept/reject updates before broadcasting.
 
 ### Device testing against hosted Next.js (dev only)
 

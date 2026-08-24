@@ -88,7 +88,13 @@ supabase/migrations/
 
 Important: product timing/reclaim behavior depends on **latest** migrations being applied on the remote database.
 
-Edge Functions under `supabase/functions/` are only needed for optional/pilot features (for example native live-location bridge / experimental push paths). They are **not** required for the core web publish/claim/complete demo.
+Edge Functions under `supabase/functions/` are required for the **native live-location bridge** (`handoff-seeker-location`). Deploy after migrations:
+
+```bash
+npx supabase functions deploy handoff-seeker-location
+```
+
+They are optional for the core **web-only** publish/claim/complete demo (web live location uses client Broadcast). Experimental push paths also live under `supabase/functions/`.
 
 ---
 
@@ -145,7 +151,8 @@ A Next.js app on Vercel does **not** require a `vercel.json` for this assignment
 After deploy, confirm:
 
 - the linked **production Supabase** project is the one the app uses
-- latest migrations are applied (`npx supabase db push`)
+- latest migrations are applied (`npx supabase db push`), including security hardening (`20260823100000` through `20260823120000`)
+- if using native live location: Edge Function `handoff-seeker-location` is deployed
 
 ---
 

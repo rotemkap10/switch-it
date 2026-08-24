@@ -54,20 +54,18 @@ let flushDeferredMapReady: (() => void) | null = null;
 
 const applyFreshFixMock = vi.fn();
 const applyErrorMock = vi.fn();
-let sharedListener:
-  | ((snap: {
-      trustedFix: {
-        latitude: number;
-        longitude: number;
-        accuracy: number | null;
-        timestamp: number;
-      } | null;
-      status: string;
-      error: string | null;
-    }) => void)
-  | null = null;
-const releaseSharedMock = vi.fn();
-const stopExplicitRefMock = vi.fn();
+const sharedListeners = new Set<
+  (snap: {
+    trustedFix: {
+      latitude: number;
+      longitude: number;
+      accuracy: number | null;
+      timestamp: number;
+    } | null;
+    status: string;
+    error: string | null;
+  }) => void
+>();
 let peekTrustedFix: {
   latitude: number;
   longitude: number;
@@ -89,6 +87,8 @@ const pendingTrustedWaiters: Array<
       | { ok: false; reason: string },
   ) => void
 > = [];
+const releaseSharedMock = vi.fn();
+const stopExplicitRefMock = vi.fn();
 
 vi.mock("@/lib/map/shared-foreground-location", () => ({
   acquireSharedForegroundLocation: () => releaseSharedMock,
@@ -104,14 +104,14 @@ vi.mock("@/lib/map/shared-foreground-location", () => ({
       error: string | null;
     }) => void,
   ) => {
-    sharedListener = listener;
+    sharedListeners.add(listener);
     listener({
       trustedFix: peekTrustedFix,
       status: peekTrustedFix ? "ready" : "acquiring",
       error: null,
     });
     return () => {
-      sharedListener = null;
+      sharedListeners.delete(listener);
     };
   },
   peekTrustedSharedForegroundFix: () => peekTrustedFix,
@@ -257,11 +257,14 @@ function emitSharedTrusted(fix: {
   timestamp: number;
 }) {
   peekTrustedFix = fix;
-  sharedListener?.({
+  const snap = {
     trustedFix: fix,
     status: "ready",
     error: null,
-  });
+  };
+  for (const listener of sharedListeners) {
+    listener(snap);
+  }
   const waiters = pendingTrustedWaiters.splice(0);
   for (const resolve of waiters) {
     resolve({ ok: true, fix });
@@ -269,11 +272,14 @@ function emitSharedTrusted(fix: {
 }
 
 function emitSharedError(reason: string) {
-  sharedListener?.({
+  const snap = {
     trustedFix: null,
     status: "error",
     error: reason,
-  });
+  };
+  for (const listener of sharedListeners) {
+    listener(snap);
+  }
   const waiters = pendingTrustedWaiters.splice(0);
   for (const resolve of waiters) {
     resolve({ ok: false, reason });
@@ -316,7 +322,7 @@ describe("ParkingMapMapLibre geolocation", () => {
       fitBounds: vi.fn(),
       getZoom: vi.fn(() => 14),
       getCanvas: vi.fn(() => ({ style: {} })),
-      getCenter: vi.fn(() => ({ lng: 34.843, lat: 32.167 })),
+      getCenter: vi.fn(() => ({ lng: 34.7818, lat: 32.0853 })),
       project: vi.fn(() => ({ x: 0, y: 0 })),
       remove: vi.fn(),
     };
@@ -324,7 +330,7 @@ describe("ParkingMapMapLibre geolocation", () => {
     mockedStatus = "denied";
     applyFreshFixMock.mockReset();
     applyErrorMock.mockReset();
-    sharedListener = null;
+    sharedListeners.clear();
     peekTrustedFix = null;
     pendingTrustedWaiters.length = 0;
     releaseSharedMock.mockReset();
@@ -414,6 +420,8 @@ describe("ParkingMapMapLibre geolocation", () => {
   it("does not add destination layer without valid destination coordinates", async () => {
     mockedStatus = "denied";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    expect(screen.getByTestId("map-initial-location-loading")).toBeInTheDocument();
+    emitSharedError("denied");
 
     await waitFor(() => {
       expect(mockMap.addLayer).toHaveBeenCalledWith(
@@ -442,6 +450,8 @@ describe("ParkingMapMapLibre geolocation", () => {
     const user = userEvent.setup();
 
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    expect(screen.getByTestId("map-initial-location-loading")).toBeInTheDocument();
+    emitSharedError("timeout");
 
     await waitFor(() => {
       expect(mockMap.addLayer).toHaveBeenCalled();
@@ -476,6 +486,11 @@ describe("ParkingMapMapLibre geolocation", () => {
     mockedStatus = "denied";
     const user = userEvent.setup();
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedError("denied");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("base-map")).toBeInTheDocument();
+    });
 
     await user.click(
       await screen.findByRole("button", { name: "Center on my location" }),
@@ -510,12 +525,13 @@ describe("ParkingMapMapLibre geolocation", () => {
   it("centers the map on a successful device geolocation fix", async () => {
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    expect(screen.getByTestId("map-initial-location-loading")).toBeInTheDocument();
+
+    emitSharedTrusted(deviceFix());
 
     await waitFor(() => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
-
-    emitSharedTrusted(deviceFix());
 
     expect(applyFreshFixMock).toHaveBeenCalledWith(
       expect.objectContaining({ latitude: 32.085312, longitude: 34.781812 }),
@@ -525,18 +541,18 @@ describe("ParkingMapMapLibre geolocation", () => {
         center: [34.781812, 32.085312],
       }),
     );
+    expect(mockBaseMapProps.center).toEqual([34.781812, 32.085312]);
     expect(screen.getByTestId("base-map")).toBeInTheDocument();
   });
 
   it("shows the current-location dot on the initial GPS fix without clicking Current Location", async () => {
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedTrusted(deviceFix());
 
     await waitFor(() => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
-
-    emitSharedTrusted(deviceFix());
 
     await waitFor(() => {
       const layerIds = mockMap.addLayer.mock.calls.map((call) => {
@@ -571,6 +587,9 @@ describe("ParkingMapMapLibre geolocation", () => {
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
 
     emitSharedTrusted(deviceFix());
+    await waitFor(() => {
+      expect(screen.getByTestId("base-map")).toBeInTheDocument();
+    });
     expect(mockMap.addLayer).not.toHaveBeenCalled();
 
     flushDeferredMapReady?.();
@@ -592,6 +611,7 @@ describe("ParkingMapMapLibre geolocation", () => {
   it("keeps updating the current-location dot after a user pan without recentering", async () => {
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedTrusted(deviceFix());
 
     await waitFor(() => {
       expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
@@ -645,22 +665,27 @@ describe("ParkingMapMapLibre geolocation", () => {
   it("keeps the map usable when geolocation fails", async () => {
     mockedStatus = "denied";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    expect(screen.getByTestId("map-initial-location-loading")).toBeInTheDocument();
+    emitSharedError("denied");
 
     await waitFor(() => {
       expect(screen.getByTestId("base-map")).toBeInTheDocument();
     });
 
-    emitSharedError("denied");
-
     expect(applyErrorMock).toHaveBeenCalledWith("denied");
     expect(screen.getByTestId("base-map")).toBeInTheDocument();
     expect(screen.queryByText(/Map is unavailable/i)).not.toBeInTheDocument();
     expect(mockMap.easeTo).not.toHaveBeenCalled();
+    expect(mockBaseMapProps.center).toEqual([
+      MAP_DEFAULT_CENTER_TEL_AVIV.lng,
+      MAP_DEFAULT_CENTER_TEL_AVIV.lat,
+    ]);
   });
 
   it("does not let a later GPS update overwrite a user pan", async () => {
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedTrusted(deviceFix(32.08, 34.78));
 
     await waitFor(() => {
       expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
@@ -678,6 +703,7 @@ describe("ParkingMapMapLibre geolocation", () => {
   it("does not let a stale GPS result override a later user interaction", async () => {
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedTrusted(deviceFix(32.08, 34.78));
 
     await waitFor(() => {
       expect(mockMap.on).toHaveBeenCalledWith("zoomstart", expect.any(Function));
@@ -694,6 +720,7 @@ describe("ParkingMapMapLibre geolocation", () => {
   it("still auto-centers after a programmatic zoom that is not a user gesture", async () => {
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedError("timeout");
 
     await waitFor(() => {
       expect(mockMap.on).toHaveBeenCalledWith("zoomstart", expect.any(Function));
@@ -715,12 +742,12 @@ describe("ParkingMapMapLibre geolocation", () => {
     mockedStatus = "loading";
     const user = userEvent.setup();
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedTrusted(deviceFix(32.085312, 34.781812));
 
     await waitFor(() => {
       expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
     });
 
-    emitSharedTrusted(deviceFix(32.085312, 34.781812));
     latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
     mockMap.easeTo.mockClear();
     mockMap.stop.mockClear();
@@ -751,12 +778,12 @@ describe("ParkingMapMapLibre geolocation", () => {
     mockedStatus = "loading";
     const user = userEvent.setup();
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedTrusted(deviceFix(32.085, 34.782));
 
     await waitFor(() => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
 
-    emitSharedTrusted(deviceFix(32.085, 34.782));
     const button = await screen.findByRole("button", {
       name: "Center on my location",
     });
@@ -781,6 +808,11 @@ describe("ParkingMapMapLibre geolocation", () => {
     mockedStatus = "loading";
     const user = userEvent.setup();
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedError("timeout");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("base-map")).toBeInTheDocument();
+    });
 
     await user.click(
       await screen.findByRole("button", { name: "Center on my location" }),
@@ -806,12 +838,12 @@ describe("ParkingMapMapLibre geolocation", () => {
     mockedStatus = "loading";
     const user = userEvent.setup();
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedTrusted(deviceFix(32.085, 34.782));
 
     await waitFor(() => {
       expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
     });
 
-    emitSharedTrusted(deviceFix(32.085, 34.782));
     latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
     mockMap.easeTo.mockClear();
 
@@ -831,7 +863,7 @@ describe("ParkingMapMapLibre geolocation", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders at the fallback center even when a previous session camera exists", async () => {
+  it("waits in a loading state instead of flashing a default city, then uses the fallback", async () => {
     writeSessionMapCamera("seeker", {
       center: [34.78, 32.08],
       zoom: 16,
@@ -839,24 +871,33 @@ describe("ParkingMapMapLibre geolocation", () => {
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
 
+    expect(screen.getByTestId("map-initial-location-loading")).toBeInTheDocument();
+    expect(screen.queryByTestId("base-map")).not.toBeInTheDocument();
+
+    emitSharedError("timeout");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("base-map")).toBeInTheDocument();
+    });
     expect(mockBaseMapProps.center).toEqual([
       MAP_DEFAULT_CENTER_TEL_AVIV.lng,
       MAP_DEFAULT_CENTER_TEL_AVIV.lat,
     ]);
-    expect(screen.getByTestId("base-map")).toBeInTheDocument();
   });
 
-  it("lets a restored session camera be replaced by a fresh GPS fix", async () => {
+  it("lets a late GPS fix recenter before the user interacts", async () => {
     writeSessionMapCamera("seeker", {
       center: [34.78, 32.08],
       zoom: 16,
     });
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedError("timeout");
 
     await waitFor(() => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
+    mockMap.easeTo.mockClear();
 
     emitSharedTrusted(deviceFix(32.26, 34.89));
 
@@ -870,12 +911,12 @@ describe("ParkingMapMapLibre geolocation", () => {
   it("lets a later GPS sample replace the first auto-center during initialization", async () => {
     mockedStatus = "loading";
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedTrusted(deviceFix(32.08, 34.78));
 
     await waitFor(() => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
 
-    emitSharedTrusted(deviceFix(32.08, 34.78));
     expect(mockMap.easeTo).toHaveBeenCalledWith(
       expect.objectContaining({ center: [34.78, 32.08] }),
     );
@@ -887,30 +928,53 @@ describe("ParkingMapMapLibre geolocation", () => {
     );
   });
 
+  it("does not recenter after the user has dragged, even when a fresher GPS arrives", async () => {
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    emitSharedTrusted(deviceFix(32.08, 34.78));
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
+    });
+
+    latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
+    mockMap.easeTo.mockClear();
+    emitSharedTrusted(deviceFix(32.26, 34.89));
+    expect(mockMap.easeTo).not.toHaveBeenCalled();
+  });
+
   it("starts a new location watch when the screen is opened again", async () => {
     mockedStatus = "loading";
     const { unmount } = render(
       <ParkingMapMapLibre spots={[spot]} destination={null} />,
     );
+    emitSharedTrusted(deviceFix(32.08, 34.78));
 
     await waitFor(() => {
       expect(mockMap.addLayer).toHaveBeenCalled();
     });
-    emitSharedTrusted(deviceFix(32.08, 34.78));
 
     unmount();
     expect(releaseSharedMock).toHaveBeenCalled();
 
     mockMap.easeTo.mockClear();
     releaseSharedMock.mockClear();
+    peekTrustedFix = deviceFix(32.26, 34.89);
     render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
 
     await waitFor(() => {
-      expect(mockMap.addLayer).toHaveBeenCalled();
+      expect(screen.getByTestId("base-map")).toBeInTheDocument();
     });
-    emitSharedTrusted(deviceFix(32.26, 34.89));
-    expect(mockMap.easeTo).toHaveBeenCalledWith(
-      expect.objectContaining({ center: [34.89, 32.26] }),
-    );
+    expect(mockBaseMapProps.center).toEqual([34.89, 32.26]);
+  });
+
+  it("mounts immediately on a trusted peek without using Sokolov/Herzliya coords", async () => {
+    peekTrustedFix = deviceFix(32.26, 34.89);
+    mockedStatus = "loading";
+    render(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    expect(screen.getByTestId("base-map")).toBeInTheDocument();
+    expect(mockBaseMapProps.center).toEqual([34.89, 32.26]);
+    expect(mockBaseMapProps.center).not.toEqual([34.843, 32.167]);
   });
 });

@@ -128,11 +128,11 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 ## Live location
 
 - **WHAT:** Seeker position during an active claim.
-- **WHERE:** `use-seeker-live-location-share.ts`, `use-publisher-live-location.ts`, Edge `handoff-seeker-location`, table `claim_live_locations`.
-- **HOW:** Web = Broadcast; native/Edge may upsert ephemeral latest snapshot then broadcast. Publisher may read snapshot for recovery. UI treats sharing as mandatory for active claim.
-- **WHY:** Help publisher see approaching seeker.
-- **WRONG:** Claiming coordinates are never stored; claiming permanent tracking history.
-- **HANDLED:** Snapshot is latest-only, deleted on terminal claim; not a route trail.
+- **WHERE:** `use-seeker-live-location-share.ts`, `use-publisher-live-location.ts`, Edge `handoff-seeker-location`, table `claim_live_locations`, RPCs `upsert_claim_live_location` / `try_accept_claim_location_status`.
+- **HOW:** Web = Broadcast; native/Edge calls Edge Function → DB atomically accepts/rejects (2s rate limit, strict sequence) → Broadcast only if accepted. Publisher may read snapshot for recovery. UI treats sharing as mandatory for active claim.
+- **WHY:** Help publisher see approaching seeker; prevent Realtime flood abuse.
+- **WRONG:** Claiming coordinates are never stored; claiming permanent tracking history; claiming Edge pre-read rate limit is sufficient without DB atomicity.
+- **HANDLED:** Snapshot is latest-only, deleted on terminal claim; not a route trail; DB uses `clock_timestamp()` + `claims` row lock.
 
 ## Cancellation
 
@@ -150,7 +150,7 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 - **HOW:** Compare suffix; attempts; lock after 3 fails (~2 min).
 - **WHY:** Confirm correct car without spoken-code UX.
 - **WRONG:** Describing spoken 5-digit codes as current product.
-- **HANDLED:** Plate suffix path; dormant `get_handoff_code`.
+- **HANDLED:** Plate suffix path; `get_handoff_code` dormant and revoked from clients.
 
 ## History & pagination
 
@@ -260,11 +260,11 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 **Files:** `src/app/map/page.tsx`; `04-scale.md`.
 
 ### 11. What security vulnerability still exists?
-**Answer:** Colluding accounts can complete handoffs to move credits; GPS spoofing can fake claim distance; no proximity required to complete; multi-account farming is not strongly prevented at application level.  
-**Files:** `05-security.md`; `complete_claim`.
+**Answer:** Colluding accounts can complete handoffs to move credits; GPS spoofing can fake claim distance; no proximity required to complete; multi-account farming is not strongly prevented at application level. Live-location Realtime flood is mitigated by atomic DB rate limits; residual risks include collusion, spoofing, and lack of CSP / Server Action rate limits.  
+**Files:** `05-security.md`; `complete_claim`; `20260823120000_claim_live_location_rate_limit_hardening.sql`.
 
 ### 12. What would you redesign for 100,000 users?
-**Answer:** Spatial discovery (PostGIS), rate limits, maybe expiry workers, possibly cache discovery; keep claim atomicity in DB.  
+**Answer:** Spatial discovery (PostGIS), Server Action rate limits, maybe expiry workers, possibly cache discovery; keep claim atomicity in DB. Live-location broadcast throttling is already DB-side.  
 **Files:** `04-scale.md`.
 
 ### 13. Does claiming debit a credit?

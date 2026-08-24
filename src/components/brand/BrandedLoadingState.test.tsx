@@ -72,6 +72,8 @@ describe("PageRouteLoadingChrome", () => {
       "/branding/switch-it-logo.png",
     );
     expect(inner.querySelector("p")).toBeNull();
+    expect(screen.queryByTestId("header-loading-mode-pill")).toBeNull();
+    expect(inner.querySelector("[data-mode]")).toHaveAttribute("data-mode", "none");
   });
 });
 

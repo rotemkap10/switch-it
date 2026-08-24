@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { HandoffPushController } from "@/components/push/HandoffPushController";
@@ -10,8 +9,8 @@ import { MapLibreWarmup } from "@/components/map/MapLibreWarmup";
 import { ModeGate } from "@/components/mode/ModeGate";
 import { ModeProvider } from "@/components/mode/ModeProvider";
 import { CoreRoutePrefetch } from "@/components/navigation/CoreRoutePrefetch";
+import { SecondaryPageTransition } from "@/components/shell/SecondaryPageTransition";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { modeFromPathname } from "@/lib/mode/constants";
 
 type AuthenticatedFrameProps = {
   userId: string;
@@ -23,17 +22,6 @@ type AuthenticatedFrameProps = {
   hasActiveHandoff?: boolean;
   headerAlign?: "start" | "center";
 };
-
-function ModeContent({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
-  const modeKey = modeFromPathname(pathname) ?? "other";
-
-  return (
-    <div key={modeKey} className="flex min-h-0 flex-1 flex-col motion-mode-content">
-      {children}
-    </div>
-  );
-}
 
 export function AuthenticatedFrame({
   userId,
@@ -63,7 +51,7 @@ export function AuthenticatedFrame({
             ].join(" ")}
             data-testid="authenticated-main"
           >
-            <ModeContent>
+            <SecondaryPageTransition>
               {isMap ? null : (
                 <PageHeader
                   title={title}
@@ -72,7 +60,7 @@ export function AuthenticatedFrame({
                 />
               )}
               {children}
-            </ModeContent>
+            </SecondaryPageTransition>
           </main>
           <CoreRoutePrefetch />
           <MapLibreWarmup />

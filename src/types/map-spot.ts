@@ -12,8 +12,8 @@ export type MapSpot = {
 };
 
 export const MAP_DEFAULT_CENTER = {
-  lat: 32.167,
-  lng: 34.843,
+  lat: 32.0853,
+  lng: 34.7818,
 } as const;
 
 export const MAP_DEFAULT_ZOOM = 14;

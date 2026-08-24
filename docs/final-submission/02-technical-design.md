@@ -39,7 +39,7 @@ No Redux, Zustand, Prisma/ORM, Redis, or microservice layer is installed for app
 | Capacitor native pilot | Optional native shell + background location plugin | `capacitor.config.ts`, `native/` |
 | Push notifications | Infrastructure exists; production iOS/APNs delivery **not** fully verified | `HandoffPushController`, migration `20260817180000_*` |
 | Edge Functions | Used by native live-location / related pilots | `supabase/functions/` |
-| Spoken verification codes | Legacy/dormant (not product UX) | `get_handoff_code` dormant; plate suffix is current |
+| Spoken verification codes | Legacy/dormant (not product UX) | `get_handoff_code` revoked from clients; plate suffix is current |
 | `vehicle-photos` storage bucket | Legacy artifact after photo feature removal | `20260818200000_drop_vehicle_photos.sql` |
 
 ---
@@ -265,7 +265,7 @@ Keyset pagination of terminal claims for current user.
 ### `get_handoff_counterpart_vehicle`
 Masked plate + vehicle fields for the other party.
 
-`get_handoff_code` exists but is **legacy/dormant** (not the product path).
+`get_handoff_code` exists but is **legacy/dormant** (not the product path). EXECUTE is revoked from `authenticated` (`20260823100000_security_hardening.sql`).
 
 ---
 
@@ -354,9 +354,10 @@ DB remains authoritative if a message is missed (refresh / reconcile RPCs).
 | Path | Behavior |
 | --- | --- |
 | Web / PWA | Foreground `watchPosition` + **private Realtime Broadcast** to `claim-location:<claimId>` |
-| Native pilot | Background GPS → Edge Function → `upsert_claim_live_location` then Broadcast |
+| Native pilot | Background GPS → Edge Function `handoff-seeker-location` → atomic DB accept/reject → Broadcast **only if accepted** |
 | Publisher UI | Subscribes to Broadcast; may **read** `claim_live_locations` as a recovery snapshot if the first broadcast was missed |
 | Persistence | **Not** “never stored.” Native/Edge path writes an ephemeral **latest** row (one per claim, replaced on upsert). Deleted when the claim becomes terminal. **Not** a route-history trail |
+| Rate limiting | PostgreSQL RPCs (`upsert_claim_live_location`, `try_accept_claim_location_status`) enforce 2s minimum between accepted GPS/status updates; strict sequence monotonicity; `claims` row lock serializes concurrent writers |
 | Product UX | Sharing is **mandatory** for an active claim in the current UI (starts with the panel); still depends on permission/GPS |
 
 ---
@@ -415,4 +416,8 @@ DB remains authoritative if a message is missed (refresh / reconcile RPCs).
 - `supabase/migrations/20260819140000_unclaimed_early_start_live_window.sql`
 - `supabase/migrations/20260818210000_auto_start_handoff_at_departure.sql`
 - `supabase/migrations/20260817140000_claim_live_locations_snapshot.sql`
+- `supabase/migrations/20260823110000_claim_live_location_atomic_rate_limit.sql`
+- `supabase/migrations/20260823120000_claim_live_location_rate_limit_hardening.sql`
+- `supabase/functions/handoff-seeker-location/index.ts`
+- `next.config.ts`
 - `README.md`

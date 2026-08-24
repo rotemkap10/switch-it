@@ -52,6 +52,10 @@ describe("seekerMapConfig", () => {
         MAP_DEFAULT_CENTER_TEL_AVIV.lat,
       ),
     ).toBe(true);
+    // Tel Aviv city center — not the old Sokolov/Herzliya development pin.
+    expect(MAP_DEFAULT_CENTER_TEL_AVIV.lat).toBeCloseTo(32.0853, 3);
+    expect(MAP_DEFAULT_CENTER_TEL_AVIV.lng).toBeCloseTo(34.7818, 3);
+    expect(MAP_DEFAULT_CENTER_TEL_AVIV).not.toEqual({ lat: 32.167, lng: 34.843 });
     expect(isWithinSupportedMapBounds(0, 0)).toBe(false);
     expect(isWithinSupportedMapBounds(Number.NaN, 32)).toBe(false);
   });

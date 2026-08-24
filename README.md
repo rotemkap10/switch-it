@@ -322,7 +322,7 @@ Supabase Edge Function
 Private handoff Broadcast topic
 ```
 
-Live seeker location is temporary. Web/PWA uses private Broadcast; the native/Edge path may keep an ephemeral latest snapshot (not a route-history trail).
+Live seeker location is temporary. Web/PWA uses private Broadcast; the native/Edge path upserts an ephemeral latest snapshot via atomic DB rate limiting, then broadcasts only accepted updates (not a route-history trail). See `docs/final-submission/05-security.md` §11.
 
 ## Local setup
 
