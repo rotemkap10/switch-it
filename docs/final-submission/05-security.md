@@ -31,6 +31,8 @@ Out of scope for MVP claims: nation-state attackers, perfect GPS anti-spoofing, 
 - Browser session via `@supabase/ssr` cookies.
 - `src/proxy.ts` refreshes session and redirects unauthenticated users away from protected prefixes (`/map`, `/spots/new`, `/profile`, `/history`, `/help`, `/onboarding`, …).
 - `/auth/callback` exchanges email confirmation / code for a session.
+- New accounts require **email confirmation** (Supabase Auth Confirm email). Until confirmed, signup returns no session and the UI shows “Check your email”; login shows a friendly verify/resend state instead of a raw Auth error.
+- Profile + starter credits are created once by the `auth.users` insert trigger (`handle_new_user`); confirmation and resend do not re-run that bootstrap.
 
 **STUDY PRIORITY:** Authentication proves *who the account/session is*; it does **not** prove a unique real-world person.
 

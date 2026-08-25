@@ -69,6 +69,29 @@ Also used by the app (set in `.env.local` as needed):
 
 Do not commit `.env.local`.
 
+### Auth — Confirm email (required for new accounts)
+
+Switch It expects Supabase Auth **Confirm email** to be enabled so new registrations must verify before entering the app.
+
+**Local (`supabase/config.toml`):**
+
+```toml
+[auth.email]
+enable_confirmations = true
+```
+
+After changing this, restart local Supabase (`npx supabase stop && npx supabase start`) so Auth picks it up. In-app Mailpit / Inbucket (or your local SMTP) receives confirmation messages.
+
+**Production (Supabase Dashboard — manual):**
+
+1. Authentication → Providers → Email → enable **Confirm email**.
+2. Authentication → URL configuration:
+   - **Site URL** = your production app origin (e.g. `https://your-app.vercel.app`)
+   - **Redirect URLs** include `https://your-app.vercel.app/auth/callback` (and any preview origins you use)
+3. Optional: customize the Confirm signup email template; the confirmation link must keep `{{ .ConfirmationURL }}` (or equivalent) so users land on `/auth/callback`.
+
+No `npx supabase db push` is required for this Auth setting alone.
+
 ---
 
 # Supabase setup / migrations

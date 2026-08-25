@@ -2,20 +2,29 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { loginMock } = vi.hoisted(() => ({
+const { loginMock, resendMock } = vi.hoisted(() => ({
   loginMock: vi.fn(),
+  resendMock: vi.fn(),
 }));
 
 vi.mock("@/actions/auth", () => ({
   login: loginMock,
+  resendSignupVerification: resendMock,
 }));
 
 import { LoginForm } from "@/components/auth/LoginForm";
+import { EMAIL_VERIFICATION_REQUIRED_MESSAGE } from "@/lib/auth/email-verification";
 
 describe("LoginForm mobile layout", () => {
   beforeEach(() => {
     loginMock.mockReset();
+    resendMock.mockReset();
     loginMock.mockResolvedValue({ error: "Invalid email or password." });
+    resendMock.mockResolvedValue({
+      needsEmailVerification: true,
+      email: "a@example.com",
+      resendSuccess: true,
+    });
   });
 
   afterEach(() => {
@@ -49,6 +58,42 @@ describe("LoginForm mobile layout", () => {
 
     expect(
       await screen.findByText("Invalid email or password."),
+    ).toBeInTheDocument();
+  });
+
+  it("shows a friendly verification message and resend for unconfirmed accounts", async () => {
+    loginMock.mockResolvedValue({
+      needsEmailVerification: true,
+      email: "a@example.com",
+      error: EMAIL_VERIFICATION_REQUIRED_MESSAGE,
+    });
+    const user = userEvent.setup();
+    render(<LoginForm next="/map" />);
+
+    await user.type(screen.getByLabelText("Email"), "a@example.com");
+    await user.type(screen.getByLabelText("Password"), "password123");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(
+      await screen.findByTestId("login-email-verification-required"),
+    ).toHaveTextContent(EMAIL_VERIFICATION_REQUIRED_MESSAGE);
+    expect(
+      screen.getByRole("button", { name: "Resend verification email" }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Resend verification email" }),
+    );
+    expect(resendMock).toHaveBeenCalled();
+    expect(
+      await screen.findByTestId("resend-verification-success"),
+    ).toHaveTextContent("Verification email sent again.");
+  });
+
+  it("surfaces expired verification-link recovery copy", () => {
+    render(<LoginForm next="/map" verificationLinkError />);
+    expect(
+      screen.getByTestId("login-verification-link-error"),
     ).toBeInTheDocument();
   });
 

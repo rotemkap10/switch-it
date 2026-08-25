@@ -6,12 +6,13 @@ import { InitialShellReadyMarker } from "@/components/shell/InitialShellReadyMar
 import { getSafeRedirectPath } from "@/lib/auth/safe-redirect";
 
 type LoginPageProps = {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; error?: string }>;
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams;
   const next = getSafeRedirectPath(params.next);
+  const verificationLinkError = params.error === "verification";
 
   return (
     <main className="auth-page motion-page-enter" data-testid="login-page">
@@ -22,7 +23,10 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <p className="auth-page-helper">Sign in to continue.</p>
       </div>
       <div className="mobile-form-surface">
-        <LoginForm next={next} />
+        <LoginForm
+          next={next}
+          verificationLinkError={verificationLinkError}
+        />
       </div>
       <p className="auth-secondary-link">
         New to Switch It?{" "}
