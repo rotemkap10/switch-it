@@ -10,6 +10,10 @@ import {
   isEmailNotConfirmedError,
   mapResendVerificationError,
 } from "@/lib/auth/email-verification";
+import {
+  isWeakPasswordError,
+  mapWeakPasswordError,
+} from "@/lib/auth/password-policy";
 import { resolvePostAuthRedirect } from "@/lib/auth/post-auth-redirect";
 import { getAuthenticatedVehicleStatus } from "@/lib/auth/vehicle-status";
 import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
@@ -66,6 +70,13 @@ export async function register(
   });
 
   if (error) {
+    if (isWeakPasswordError(error)) {
+      return {
+        fieldErrors: {
+          password: [mapWeakPasswordError(error)],
+        },
+      };
+    }
     return { error: "Unable to create account. Try again." };
   }
 
@@ -107,6 +118,10 @@ export async function login(
         email,
         error: EMAIL_VERIFICATION_REQUIRED_MESSAGE,
       };
+    }
+    if (isWeakPasswordError(error)) {
+      // Rare on login; never show raw AuthWeakPasswordError text.
+      return { error: mapWeakPasswordError(error) };
     }
     return { error: "Invalid email or password." };
   }

@@ -61,6 +61,8 @@ function form(data: Record<string, string>) {
   return fd;
 }
 
+const VALID_PASSWORD = "Password1!";
+
 describe("auth actions — email verification", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -94,7 +96,7 @@ describe("auth actions — email verification", () => {
       form({
         display_name: "Alex",
         email: "alex@example.com",
-        password: "password123",
+        password: VALID_PASSWORD,
       }),
     );
 
@@ -125,12 +127,51 @@ describe("auth actions — email verification", () => {
         form({
           display_name: "Alex",
           email: "alex@example.com",
-          password: "password123",
+          password: VALID_PASSWORD,
         }),
       ),
     ).rejects.toThrow("NEXT_REDIRECT");
 
     expect(redirectMock).toHaveBeenCalledWith("/onboarding/vehicle");
+  });
+
+  it("maps Supabase weak-password signup errors to a field message", async () => {
+    signUpMock.mockResolvedValue({
+      data: { session: null, user: null },
+      error: {
+        name: "AuthWeakPasswordError",
+        code: "weak_password",
+        message: "Password is known to be weak",
+        reasons: ["characters"],
+      },
+    });
+
+    const state = await register(
+      {},
+      form({
+        display_name: "Alex",
+        email: "alex@example.com",
+        password: VALID_PASSWORD,
+      }),
+    );
+
+    expect(state.fieldErrors?.password?.[0]).toMatch(/security requirements/i);
+    expect(state.checkEmail).toBeUndefined();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects weak passwords in the Server Action before calling Auth", async () => {
+    const state = await register(
+      {},
+      form({
+        display_name: "Alex",
+        email: "alex@example.com",
+        password: "password1",
+      }),
+    );
+
+    expect(signUpMock).not.toHaveBeenCalled();
+    expect(state.fieldErrors?.password?.[0]).toBeTruthy();
   });
 
   it("maps unconfirmed login to a friendly verification state", async () => {
@@ -143,7 +184,7 @@ describe("auth actions — email verification", () => {
       {},
       form({
         email: "alex@example.com",
-        password: "password123",
+        password: VALID_PASSWORD,
         next: "/map",
       }),
     );
@@ -172,7 +213,7 @@ describe("auth actions — email verification", () => {
         {},
         form({
           email: "alex@example.com",
-          password: "password123",
+          password: VALID_PASSWORD,
           next: "/map",
         }),
       ),

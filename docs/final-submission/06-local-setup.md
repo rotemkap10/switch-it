@@ -92,6 +92,17 @@ After changing this, restart local Supabase (`npx supabase stop && npx supabase 
 
 No `npx supabase db push` is required for this Auth setting alone.
 
+### Auth — Password policy
+
+Production Dashboard password policy should require:
+
+- minimum **8** characters
+- uppercase + lowercase + digit + symbol (`lower_upper_letters_digits_symbols`)
+
+Local `supabase/config.toml` mirrors that (`minimum_password_length = 8`, `password_requirements = "lower_upper_letters_digits_symbols"`). The app validates the same rules for Create Account UX via `src/lib/auth/password-policy.ts`; **Supabase Auth remains the final enforcer**. Login does **not** apply this policy locally.
+
+Restart local Supabase after changing password settings in `config.toml`.
+
 ---
 
 # Supabase setup / migrations

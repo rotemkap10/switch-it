@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import { register, resendSignupVerification, type AuthActionState } from "@/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { EMAIL_VERIFICATION_SENT_MESSAGE } from "@/lib/auth/email-verification";
+import {
+  PASSWORD_POLICY_SUMMARY,
+  evaluatePasswordRequirements,
+} from "@/lib/auth/password-policy";
 
 const initialState: AuthActionState = {};
 
@@ -75,8 +79,36 @@ function ResendVerificationButton({
   );
 }
 
+function PasswordRequirementsHint({ password }: { password: string }) {
+  const requirements = evaluatePasswordRequirements(password);
+  const showChecklist = password.length > 0;
+
+  return (
+    <div className="flex flex-col gap-1.5" data-testid="password-requirements">
+      <p className="text-xs leading-5 text-muted">{PASSWORD_POLICY_SUMMARY}</p>
+      {showChecklist ? (
+        <ul
+          className="grid grid-cols-1 gap-0.5 text-xs leading-5 sm:grid-cols-2"
+          aria-live="polite"
+        >
+          {requirements.map((item) => (
+            <li
+              key={item.id}
+              data-met={item.met ? "true" : "false"}
+              className={item.met ? "font-medium text-foreground" : "text-muted"}
+            >
+              {item.label}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 export function RegisterForm() {
   const [state, formAction, pending] = useActionState(register, initialState);
+  const [passwordValue, setPasswordValue] = useState("");
 
   useEffect(() => {
     const firstKey = state.fieldErrors
@@ -183,11 +215,11 @@ export function RegisterForm() {
           spellCheck={false}
           required
           minLength={8}
+          value={passwordValue}
+          onChange={(event) => setPasswordValue(event.target.value)}
           error={state.fieldErrors?.password?.[0]}
         />
-        <p className="text-xs leading-5 text-muted">
-          At least 8 characters.
-        </p>
+        <PasswordRequirementsHint password={passwordValue} />
       </div>
 
       {state.error ? (
