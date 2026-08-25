@@ -90,6 +90,8 @@ After changing this, restart local Supabase (`npx supabase stop && npx supabase 
    - **Redirect URLs** include `https://your-app.vercel.app/auth/callback` (and any preview origins you use)
 3. Optional: customize the Confirm signup email template; the confirmation link must keep `{{ .ConfirmationURL }}` (or equivalent) so users land on `/auth/callback`.
 
+**Signup + existing emails:** With Confirm email on, production Auth often returns a successful-looking `signUp` response for an address that already has an account (anti-enumeration). Local GoTrue sometimes returns `User already registered` instead. The app only shows the hard “already exists” message when that explicit error appears; otherwise it uses the neutral Check your email + Sign in hint UX.
+
 No `npx supabase db push` is required for this Auth setting alone.
 
 ### Auth — Password policy

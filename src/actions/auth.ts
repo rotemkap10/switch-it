@@ -4,10 +4,12 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import {
+  ACCOUNT_ALREADY_EXISTS_MESSAGE,
   EMAIL_VERIFICATION_FAILED_MESSAGE,
   EMAIL_VERIFICATION_REQUIRED_MESSAGE,
   authCallbackEmailRedirectTo,
   isEmailNotConfirmedError,
+  isExplicitAccountExistsError,
   mapResendVerificationError,
 } from "@/lib/auth/email-verification";
 import {
@@ -23,12 +25,18 @@ import { loginSchema, registerSchema } from "@/lib/validations/auth";
 export type AuthActionState = {
   error?: string;
   fieldErrors?: Record<string, string[]>;
-  /** Signup succeeded; confirmation email required before the app is usable. */
+  /** Signup succeeded or obfuscated; confirmation / check-email UI. */
   checkEmail?: boolean;
+  /**
+   * Supabase returned an explicit “already registered” Auth error.
+   * Never set from heuristics such as empty `identities`.
+   */
+  accountExists?: boolean;
   /** Login blocked until the address is confirmed. */
   needsEmailVerification?: boolean;
   /** Address to show / use for resend (never treat as proof of existence alone). */
   email?: string;
+  /** Resend Auth call returned without error — delivery is not guaranteed. */
   resendSuccess?: boolean;
   resendError?: string;
 };
@@ -77,10 +85,19 @@ export async function register(
         },
       };
     }
+    if (isExplicitAccountExistsError(error)) {
+      return {
+        accountExists: true,
+        email,
+        error: ACCOUNT_ALREADY_EXISTS_MESSAGE,
+      };
+    }
     return { error: "Unable to create account. Try again." };
   }
 
   // Confirm Email enabled: no session until the link is opened.
+  // Existing confirmed emails may also return success with no session
+  // (anti-enumeration obfuscation) — use the same neutral Check your email UX.
   if (!data.session) {
     return { checkEmail: true, email };
   }

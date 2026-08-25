@@ -6,13 +6,42 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { register, resendSignupVerification, type AuthActionState } from "@/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { EMAIL_VERIFICATION_SENT_MESSAGE } from "@/lib/auth/email-verification";
+import {
+  ACCOUNT_ALREADY_EXISTS_MESSAGE,
+  EMAIL_VERIFICATION_RESEND_NEUTRAL_MESSAGE,
+} from "@/lib/auth/email-verification";
 import {
   PASSWORD_POLICY_SUMMARY,
   evaluatePasswordRequirements,
 } from "@/lib/auth/password-policy";
 
 const initialState: AuthActionState = {};
+
+function SignInHint({
+  testId,
+  leading,
+  trailing = ".",
+}: {
+  testId: string;
+  leading: string;
+  trailing?: string;
+}) {
+  return (
+    <p
+      className="text-sm leading-6 text-muted"
+      data-testid={testId}
+    >
+      {leading}{" "}
+      <Link
+        href="/login"
+        className="font-medium text-accent-hover underline-offset-2 hover:underline"
+      >
+        Sign in
+      </Link>
+      {trailing}
+    </p>
+  );
+}
 
 function ResendVerificationButton({
   email,
@@ -58,13 +87,15 @@ function ResendVerificationButton({
         {pending ? "Sending…" : "Resend email"}
       </Button>
       {state.resendSuccess ? (
-        <p
-          className="text-sm text-foreground"
-          role="status"
-          data-testid="resend-verification-success"
-        >
-          {EMAIL_VERIFICATION_SENT_MESSAGE}
-        </p>
+        <div className="flex flex-col gap-1.5" data-testid="resend-verification-success">
+          <p className="text-sm text-foreground" role="status">
+            {EMAIL_VERIFICATION_RESEND_NEUTRAL_MESSAGE}
+          </p>
+          <SignInHint
+            testId="resend-sign-in-hint"
+            leading="Already have an account?"
+          />
+        </div>
       ) : null}
       {state.resendError ? (
         <p
@@ -129,6 +160,28 @@ export function RegisterForm() {
     }
   }, [state.fieldErrors]);
 
+  if (state.accountExists) {
+    return (
+      <div
+        className="auth-check-email motion-fade-in"
+        data-testid="register-account-exists"
+        role="status"
+      >
+        <h2 className="auth-check-email-title">Account already exists</h2>
+        <p className="text-sm leading-6 text-muted">
+          {state.error ?? ACCOUNT_ALREADY_EXISTS_MESSAGE}
+        </p>
+        <Link
+          href="/login"
+          className="text-sm font-medium text-accent-hover underline-offset-2 hover:underline"
+          data-testid="register-account-exists-sign-in"
+        >
+          Sign in
+        </Link>
+      </div>
+    );
+  }
+
   if (state.checkEmail) {
     const email = state.email?.trim() ?? "";
     return (
@@ -139,7 +192,7 @@ export function RegisterForm() {
       >
         <h2 className="auth-check-email-title">Check your email</h2>
         <p className="text-sm leading-6 text-muted">
-          We sent a verification link
+          Check your inbox for a verification link
           {email ? (
             <>
               {" "}
@@ -153,12 +206,16 @@ export function RegisterForm() {
               </a>
             </>
           ) : null}
-          . Confirm your email to finish creating your account.
+          .
         </p>
         <p className="text-sm leading-6 text-muted">
-          Open the link from your inbox on this device or any other — once it
-          is confirmed, you can continue in Switch It.
+          Confirm your email to finish creating your account.
         </p>
+        <SignInHint
+          testId="register-already-registered-hint"
+          leading="Already registered with this email?"
+          trailing=" instead."
+        />
         {email ? (
           <ResendVerificationButton email={email} checkEmail />
         ) : null}

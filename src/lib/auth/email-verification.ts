@@ -1,13 +1,22 @@
 /**
  * Helpers for Supabase Auth email confirmation (signup verify / resend).
  * Supabase Auth remains the source of truth — no app-level verified flag.
+ *
+ * With Confirm email enabled, signUp for an existing confirmed address often
+ * returns a fake/obfuscated success (anti-enumeration). Empty `identities` is
+ * an unofficial heuristic — we do NOT treat it as a reliable “account exists”
+ * signal for user-facing errors. Only explicit Auth error codes/messages do.
  */
 
 export const EMAIL_VERIFICATION_REQUIRED_MESSAGE =
   "Please verify your email before signing in.";
 
+/** @deprecated Prefer EMAIL_VERIFICATION_RESEND_NEUTRAL_MESSAGE for resend UX. */
 export const EMAIL_VERIFICATION_SENT_MESSAGE =
-  "Verification email sent again.";
+  "If this email is awaiting verification, a new verification email has been sent.";
+
+export const EMAIL_VERIFICATION_RESEND_NEUTRAL_MESSAGE =
+  "If this email is awaiting verification, a new verification email has been sent.";
 
 export const EMAIL_VERIFICATION_RATE_LIMIT_MESSAGE =
   "Please wait a moment before requesting another email.";
@@ -17,6 +26,9 @@ export const EMAIL_VERIFICATION_FAILED_MESSAGE =
 
 export const EMAIL_VERIFICATION_LINK_INVALID_MESSAGE =
   "That verification link is invalid or has expired. Sign in to request a new one, or create an account again.";
+
+export const ACCOUNT_ALREADY_EXISTS_MESSAGE =
+  "An account with this email already exists. Sign in instead.";
 
 type AuthErrorLike = {
   code?: string | null;
@@ -51,6 +63,32 @@ export function isEmailNotConfirmedError(
     message.includes("email not confirmed") ||
     message.includes("email_not_confirmed") ||
     message.includes("confirm your email")
+  );
+}
+
+/**
+ * True only for explicit Auth errors that the account already exists.
+ * Does not use obfuscated signUp success / empty identities.
+ */
+export function isExplicitAccountExistsError(
+  error: AuthErrorLike | null | undefined,
+): boolean {
+  if (!error) {
+    return false;
+  }
+  const code = codeOf(error);
+  if (
+    code === "user_already_exists" ||
+    code === "email_exists" ||
+    code === "user_already_registered"
+  ) {
+    return true;
+  }
+  const message = messageOf(error);
+  return (
+    message.includes("user already registered") ||
+    message.includes("already been registered") ||
+    message === "email address already registered"
   );
 }
 

@@ -5,7 +5,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { login, resendSignupVerification, type AuthActionState } from "@/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import { EMAIL_VERIFICATION_SENT_MESSAGE } from "@/lib/auth/email-verification";
+import { EMAIL_VERIFICATION_RESEND_NEUTRAL_MESSAGE } from "@/lib/auth/email-verification";
 
 const initialState: AuthActionState = {};
 
@@ -61,7 +61,7 @@ function ResendVerificationButton({
           role="status"
           data-testid="resend-verification-success"
         >
-          {EMAIL_VERIFICATION_SENT_MESSAGE}
+          {EMAIL_VERIFICATION_RESEND_NEUTRAL_MESSAGE}
         </p>
       ) : null}
       {state.resendError ? (

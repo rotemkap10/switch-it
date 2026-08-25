@@ -13,7 +13,10 @@ vi.mock("@/actions/auth", () => ({
 }));
 
 import { LoginForm } from "@/components/auth/LoginForm";
-import { EMAIL_VERIFICATION_REQUIRED_MESSAGE } from "@/lib/auth/email-verification";
+import {
+  EMAIL_VERIFICATION_REQUIRED_MESSAGE,
+  EMAIL_VERIFICATION_RESEND_NEUTRAL_MESSAGE,
+} from "@/lib/auth/email-verification";
 
 describe("LoginForm mobile layout", () => {
   beforeEach(() => {
@@ -87,7 +90,7 @@ describe("LoginForm mobile layout", () => {
     expect(resendMock).toHaveBeenCalled();
     expect(
       await screen.findByTestId("resend-verification-success"),
-    ).toHaveTextContent("Verification email sent again.");
+    ).toHaveTextContent(EMAIL_VERIFICATION_RESEND_NEUTRAL_MESSAGE);
   });
 
   it("surfaces expired verification-link recovery copy", () => {

@@ -13,6 +13,10 @@ vi.mock("@/actions/auth", () => ({
 }));
 
 import { RegisterForm } from "@/components/auth/RegisterForm";
+import {
+  ACCOUNT_ALREADY_EXISTS_MESSAGE,
+  EMAIL_VERIFICATION_RESEND_NEUTRAL_MESSAGE,
+} from "@/lib/auth/email-verification";
 import { PASSWORD_POLICY_SUMMARY } from "@/lib/auth/password-policy";
 
 describe("RegisterForm mobile layout", () => {
@@ -70,7 +74,7 @@ describe("RegisterForm mobile layout", () => {
     ).toHaveLength(5);
   });
 
-  it("shows the check-your-email state with the registered address and resend", async () => {
+  it("shows the check-your-email state with Sign in hint for new/obfuscated signup", async () => {
     registerMock.mockResolvedValue({
       checkEmail: true,
       email: "alex@example.com",
@@ -85,10 +89,21 @@ describe("RegisterForm mobile layout", () => {
 
     expect(await screen.findByTestId("register-check-email")).toBeInTheDocument();
     expect(screen.getByText("Check your email")).toBeInTheDocument();
+    expect(screen.getByTestId("register-check-email")).toHaveTextContent(
+      "Check your inbox for a verification link to",
+    );
     expect(screen.getByTestId("register-check-email-address")).toHaveTextContent(
       "alex@example.com",
     );
     expect(screen.queryByTestId("register-form")).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId("register-already-registered-hint"),
+    ).toHaveTextContent("Already registered with this email?");
+    const hintLink = screen
+      .getByTestId("register-already-registered-hint")
+      .querySelector("a");
+    expect(hintLink).toHaveAttribute("href", "/login");
+    expect(hintLink).toHaveTextContent("Sign in");
     expect(
       screen.getByRole("button", { name: "Resend email" }),
     ).toBeInTheDocument();
@@ -100,6 +115,37 @@ describe("RegisterForm mobile layout", () => {
     expect(resendMock).toHaveBeenCalled();
     expect(
       await screen.findByTestId("resend-verification-success"),
-    ).toHaveTextContent("Verification email sent again.");
+    ).toHaveTextContent(EMAIL_VERIFICATION_RESEND_NEUTRAL_MESSAGE);
+    expect(screen.getByTestId("resend-sign-in-hint")).toHaveTextContent(
+      "Already have an account?",
+    );
+    expect(
+      screen.getByTestId("resend-sign-in-hint").querySelector("a"),
+    ).toHaveAttribute("href", "/login");
+  });
+
+  it("shows explicit account-exists messaging when Auth reports a reliable duplicate", async () => {
+    registerMock.mockResolvedValue({
+      accountExists: true,
+      email: "existing@example.com",
+      error: ACCOUNT_ALREADY_EXISTS_MESSAGE,
+    });
+    const user = userEvent.setup();
+    render(<RegisterForm />);
+
+    await user.type(screen.getByLabelText("Display name"), "Alex");
+    await user.type(screen.getByLabelText("Email"), "existing@example.com");
+    await user.type(screen.getByLabelText("Password"), "Password1!");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(
+      await screen.findByTestId("register-account-exists"),
+    ).toBeInTheDocument();
+    expect(screen.getByText(ACCOUNT_ALREADY_EXISTS_MESSAGE)).toBeInTheDocument();
+    expect(
+      screen.getByTestId("register-account-exists-sign-in"),
+    ).toHaveAttribute("href", "/login");
+    expect(screen.queryByTestId("register-check-email")).not.toBeInTheDocument();
+    expect(screen.queryByText(/new account/i)).not.toBeInTheDocument();
   });
 });

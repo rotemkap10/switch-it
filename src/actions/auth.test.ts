@@ -49,6 +49,7 @@ import {
   resendSignupVerification,
 } from "@/actions/auth";
 import {
+  ACCOUNT_ALREADY_EXISTS_MESSAGE,
   EMAIL_VERIFICATION_RATE_LIMIT_MESSAGE,
   EMAIL_VERIFICATION_REQUIRED_MESSAGE,
 } from "@/lib/auth/email-verification";
@@ -87,7 +88,7 @@ describe("auth actions — email verification", () => {
 
   it("returns checkEmail and does not redirect when signup has no session", async () => {
     signUpMock.mockResolvedValue({
-      data: { session: null, user: { id: "u1" } },
+      data: { session: null, user: { id: "u1", identities: [{ id: "i1" }] } },
       error: null,
     });
 
@@ -113,6 +114,66 @@ describe("auth actions — email verification", () => {
         }),
       }),
     );
+  });
+
+  it("uses neutral checkEmail for obfuscated existing-email signup success", async () => {
+    // Confirm email ON: existing confirmed emails often return fake success
+    // (empty identities) with no error — must not claim accountExists.
+    signUpMock.mockResolvedValue({
+      data: {
+        session: null,
+        user: {
+          id: "fake-id",
+          email: "existing@example.com",
+          identities: [],
+        },
+      },
+      error: null,
+    });
+
+    const state = await register(
+      {},
+      form({
+        display_name: "Alex",
+        email: "existing@example.com",
+        password: VALID_PASSWORD,
+      }),
+    );
+
+    expect(state).toEqual({
+      checkEmail: true,
+      email: "existing@example.com",
+    });
+    expect(state.accountExists).toBeUndefined();
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("maps explicit user_already_exists to accountExists messaging", async () => {
+    signUpMock.mockResolvedValue({
+      data: { session: null, user: null },
+      error: {
+        code: "user_already_exists",
+        message: "User already registered",
+        status: 422,
+      },
+    });
+
+    const state = await register(
+      {},
+      form({
+        display_name: "Alex",
+        email: "existing@example.com",
+        password: VALID_PASSWORD,
+      }),
+    );
+
+    expect(state).toEqual({
+      accountExists: true,
+      email: "existing@example.com",
+      error: ACCOUNT_ALREADY_EXISTS_MESSAGE,
+    });
+    expect(state.checkEmail).toBeUndefined();
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
   it("redirects to vehicle onboarding when signup returns a session", async () => {
@@ -258,5 +319,33 @@ describe("auth actions — email verification", () => {
 
     expect(state.resendSuccess).toBeUndefined();
     expect(state.resendError).toBe(EMAIL_VERIFICATION_RATE_LIMIT_MESSAGE);
+  });
+
+  it("handles existing emails only via signUp / resend — no Auth admin lookup", async () => {
+    signUpMock.mockResolvedValue({
+      data: { session: null, user: { id: "u1", identities: [] } },
+      error: null,
+    });
+    resendMock.mockResolvedValue({ data: {}, error: null });
+
+    await register(
+      {},
+      form({
+        display_name: "Alex",
+        email: "existing@example.com",
+        password: VALID_PASSWORD,
+      }),
+    );
+    await resendSignupVerification(
+      { checkEmail: true, email: "existing@example.com" },
+      form({ email: "existing@example.com" }),
+    );
+
+    const client = await createClientMock.mock.results[0]?.value;
+    expect(client.auth.signUp).toBe(signUpMock);
+    expect(client.auth.resend).toBe(resendMock);
+    expect(client.auth).not.toHaveProperty("admin");
+    expect(signUpMock).toHaveBeenCalledTimes(1);
+    expect(resendMock).toHaveBeenCalledTimes(1);
   });
 });
