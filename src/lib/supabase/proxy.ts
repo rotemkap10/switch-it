@@ -11,7 +11,7 @@ const PROTECTED_PREFIXES = [
   "/spots/new",
   "/onboarding",
 ] as const;
-const AUTH_PAGES = ["/login", "/register"] as const;
+const AUTH_PAGES = ["/login", "/register", "/forgot-password"] as const;
 
 function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(

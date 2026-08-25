@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useRef } from "react";
 
 import { login, resendSignupVerification, type AuthActionState } from "@/actions/auth";
@@ -133,18 +134,29 @@ export function LoginForm({
           error={state.fieldErrors?.email?.[0]}
         />
 
-        <Input
-          id="password"
-          name="password"
-          label="Password"
-          type="password"
-          autoComplete="current-password"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          required
-          error={state.fieldErrors?.password?.[0]}
-        />
+        <div className="flex flex-col gap-1.5">
+          <Input
+            id="password"
+            name="password"
+            label="Password"
+            type="password"
+            autoComplete="current-password"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            required
+            error={state.fieldErrors?.password?.[0]}
+          />
+          <p className="text-sm text-muted">
+            <Link
+              href="/forgot-password"
+              className="font-medium text-accent-hover underline-offset-2 hover:underline"
+              data-testid="forgot-password-link"
+            >
+              Forgot password?
+            </Link>
+          </p>
+        </div>
 
         {state.error ? (
           <p

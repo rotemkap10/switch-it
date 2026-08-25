@@ -92,6 +92,8 @@ After changing this, restart local Supabase (`npx supabase stop && npx supabase 
 
 **Signup + existing emails:** With Confirm email on, production Auth often returns a successful-looking `signUp` response for an address that already has an account (anti-enumeration). Local GoTrue sometimes returns `User already registered` instead. The app only shows the hard “already exists” message when that explicit error appears; otherwise it uses the neutral Check your email + Sign in hint UX.
 
+**Forgot password:** Login → `/forgot-password` → Supabase `resetPasswordForEmail` with `redirectTo` = `{origin}/auth/callback?next=/auth/reset-password`. After the user opens the email link, `/auth/callback` exchanges the PKCE code and sends them to `/auth/reset-password` to set a new password (shared password policy). The existing Redirect URL wildcard `https://switch-it-wine.vercel.app/**` covers this path. Default **Reset Password** email template (`{{ .ConfirmationURL }}`) is sufficient when Site URL / Redirect URLs are set correctly — no app-side Dashboard change.
+
 No `npx supabase db push` is required for this Auth setting alone.
 
 ### Auth — Password policy

@@ -51,6 +51,14 @@ describe("LoginForm mobile layout", () => {
     expect(submit.className).toContain("mobile-form-primary");
   });
 
+  it("shows a Forgot password link to the dedicated page", () => {
+    render(<LoginForm next="/map" />);
+
+    const link = screen.getByTestId("forgot-password-link");
+    expect(link).toHaveAttribute("href", "/forgot-password");
+    expect(link).toHaveTextContent("Forgot password?");
+  });
+
   it("shows inline credential errors without duplicate toast wiring", async () => {
     const user = userEvent.setup();
     render(<LoginForm next="/map" />);

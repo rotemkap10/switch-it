@@ -13,6 +13,13 @@ import {
   mapResendVerificationError,
 } from "@/lib/auth/email-verification";
 import {
+  PASSWORD_RESET_GENERIC_FAILURE_MESSAGE,
+  PASSWORD_RESET_LINK_INVALID_MESSAGE,
+  authPasswordRecoveryRedirectTo,
+  mapPasswordResetRequestError,
+  mapPasswordUpdateError,
+} from "@/lib/auth/password-recovery";
+import {
   isWeakPasswordError,
   mapWeakPasswordError,
 } from "@/lib/auth/password-policy";
@@ -20,7 +27,12 @@ import { resolvePostAuthRedirect } from "@/lib/auth/post-auth-redirect";
 import { getAuthenticatedVehicleStatus } from "@/lib/auth/vehicle-status";
 import { flattenFieldErrors } from "@/lib/feedback/flatten-field-errors";
 import { createClient } from "@/lib/supabase/server";
-import { loginSchema, registerSchema } from "@/lib/validations/auth";
+import {
+  forgotPasswordSchema,
+  loginSchema,
+  registerSchema,
+  resetPasswordSchema,
+} from "@/lib/validations/auth";
 
 export type AuthActionState = {
   error?: string;
@@ -39,6 +51,10 @@ export type AuthActionState = {
   /** Resend Auth call returned without error — delivery is not guaranteed. */
   resendSuccess?: boolean;
   resendError?: string;
+  /** Forgot-password request accepted (anti-enumeration — always neutral). */
+  resetEmailSent?: boolean;
+  /** Password updated after a valid recovery session. */
+  passwordUpdated?: boolean;
 };
 
 async function readRequestOrigin(): Promise<string | null> {
@@ -207,6 +223,95 @@ export async function resendSignupVerification(
     checkEmail: prevState.checkEmail || !prevState.needsEmailVerification,
     resendSuccess: true,
     resendError: undefined,
+  };
+}
+
+/**
+ * Request a password reset email. Always returns a neutral check-email state
+ * on Auth success (and for typical “no user” responses) to avoid enumeration.
+ */
+export async function requestPasswordReset(
+  _prevState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const parsed = forgotPasswordSchema.safeParse({
+    email: formData.get("email"),
+  });
+
+  if (!parsed.success) {
+    return { fieldErrors: flattenFieldErrors(parsed.error) };
+  }
+
+  const { email } = parsed.data;
+  const origin = await readRequestOrigin();
+
+  if (!origin) {
+    return { error: PASSWORD_RESET_GENERIC_FAILURE_MESSAGE };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: authPasswordRecoveryRedirectTo(origin),
+  });
+
+  if (error) {
+    // Never disclose whether the address exists.
+    return {
+      email,
+      error: mapPasswordResetRequestError(error),
+    };
+  }
+
+  return {
+    email,
+    resetEmailSent: true,
+  };
+}
+
+/**
+ * Set a new password after a valid recovery session from `/auth/callback`.
+ */
+export async function updatePasswordFromRecovery(
+  _prevState: AuthActionState,
+  formData: FormData,
+): Promise<AuthActionState> {
+  const parsed = resetPasswordSchema.safeParse({
+    password: formData.get("password"),
+    confirm_password: formData.get("confirm_password"),
+  });
+
+  if (!parsed.success) {
+    return { fieldErrors: flattenFieldErrors(parsed.error) };
+  }
+
+  const { password } = parsed.data;
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: PASSWORD_RESET_LINK_INVALID_MESSAGE };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) {
+    if (isWeakPasswordError(error)) {
+      return {
+        fieldErrors: {
+          password: [mapWeakPasswordError(error)],
+        },
+      };
+    }
+    return { error: mapPasswordUpdateError(error) };
+  }
+
+  // Predictable UX: end the recovery session and send the user to Sign in.
+  await supabase.auth.signOut();
+
+  return {
+    passwordUpdated: true,
   };
 }
 

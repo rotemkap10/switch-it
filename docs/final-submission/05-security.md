@@ -33,6 +33,7 @@ Out of scope for MVP claims: nation-state attackers, perfect GPS anti-spoofing, 
 - `/auth/callback` exchanges email confirmation / code for a session.
 - New accounts require **email confirmation** (Supabase Auth Confirm email). Until confirmed, signup returns no session and the UI shows “Check your email”; login shows a friendly verify/resend state instead of a raw Auth error.
 - With Confirm email enabled, `signUp` for an **already-registered** address often returns an obfuscated success (no error) so clients cannot enumerate emails. Switch It keeps the neutral Check your email UI plus a secondary “Already registered… Sign in” hint, and only shows “An account with this email already exists” when Auth returns an explicit duplicate error (`user_already_exists` / “User already registered”). The app does **not** query `auth.users` or treat empty `identities` as a hard “exists” signal.
+- **Forgot password** (Login → `/forgot-password`) uses `resetPasswordForEmail` → `/auth/callback?next=/auth/reset-password` → `updateUser({ password })`. Success copy never discloses whether the email exists. There is no Change Password surface in Profile.
 - Profile + starter credits are created once by the `auth.users` insert trigger (`handle_new_user`); confirmation and resend do not re-run that bootstrap.
 
 **STUDY PRIORITY:** Authentication proves *who the account/session is*; it does **not** prove a unique real-world person.

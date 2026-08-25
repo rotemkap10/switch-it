@@ -20,16 +20,12 @@ vi.mock("@/lib/auth/vehicle-status", () => ({
   getAuthenticatedVehicleStatus: getAuthenticatedVehicleStatusMock,
 }));
 
-vi.mock("@/lib/auth/post-auth-redirect", () => ({
-  resolvePostAuthRedirect: vi.fn(
-    (status: { vehicleComplete: boolean }, next?: string | null) => {
-      if (status.vehicleComplete) {
-        return next && next.startsWith("/") ? next : "/map";
-      }
-      return "/onboarding/vehicle";
-    },
-  ),
-}));
+vi.mock("@/lib/auth/post-auth-redirect", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/auth/post-auth-redirect")
+  >("@/lib/auth/post-auth-redirect");
+  return actual;
+});
 
 import { GET } from "@/app/auth/callback/route";
 
@@ -106,5 +102,39 @@ describe("auth callback route", () => {
     expect(response.headers.get("location")).toBe(
       "https://app.example/login?error=verification",
     );
+  });
+
+  it("sends password recovery exchanges to set-new-password", async () => {
+    exchangeCodeForSessionMock.mockResolvedValue({ error: null });
+    getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
+    getAuthenticatedVehicleStatusMock.mockResolvedValue({
+      vehicleComplete: false,
+      hasActiveSeekerClaim: false,
+      hasActivePublisherSpot: false,
+    });
+
+    const response = await GET(
+      new Request(
+        "https://app.example/auth/callback?code=abc&next=%2Fauth%2Freset-password",
+      ),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      "https://app.example/auth/reset-password",
+    );
+  });
+
+  it("routes invalid recovery links to forgot-password recovery, not signup verification", async () => {
+    const response = await GET(
+      new Request(
+        "https://app.example/auth/callback?error=access_denied&next=%2Fauth%2Freset-password",
+      ),
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "https://app.example/forgot-password?error=reset",
+    );
+    expect(exchangeCodeForSessionMock).not.toHaveBeenCalled();
   });
 });

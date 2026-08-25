@@ -10,6 +10,10 @@ export const PASSWORD_MAX_LENGTH = 72;
 export const PASSWORD_POLICY_SUMMARY =
   "Password must contain at least 8 characters, including uppercase, lowercase, a number, and a special character.";
 
+/** Concise hint for set-new-password (no live checklist). */
+export const PASSWORD_POLICY_HINT =
+  "8+ characters with uppercase, lowercase, a number, and a special character.";
+
 export const WEAK_PASSWORD_GENERIC_MESSAGE =
   "Your password does not meet the security requirements.";
 

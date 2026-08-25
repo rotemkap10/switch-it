@@ -25,8 +25,12 @@ export function resolveRouteLoadingKind(pathname: string): RouteLoadingKind {
   if (
     pathname === "/login" ||
     pathname === "/register" ||
+    pathname === "/forgot-password" ||
+    pathname === "/auth/reset-password" ||
     pathname.startsWith("/login/") ||
     pathname.startsWith("/register/") ||
+    pathname.startsWith("/forgot-password/") ||
+    pathname.startsWith("/auth/reset-password/") ||
     pathname.startsWith("/onboarding")
   ) {
     return "auth";

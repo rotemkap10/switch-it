@@ -5,6 +5,10 @@ const {
   signUpMock,
   signInWithPasswordMock,
   resendMock,
+  resetPasswordForEmailMock,
+  updateUserMock,
+  getUserMock,
+  signOutMock,
   getAuthenticatedVehicleStatusMock,
   redirectMock,
   headersMock,
@@ -13,6 +17,10 @@ const {
   signUpMock: vi.fn(),
   signInWithPasswordMock: vi.fn(),
   resendMock: vi.fn(),
+  resetPasswordForEmailMock: vi.fn(),
+  updateUserMock: vi.fn(),
+  getUserMock: vi.fn(),
+  signOutMock: vi.fn(),
   getAuthenticatedVehicleStatusMock: vi.fn(),
   redirectMock: vi.fn(() => {
     throw new Error("NEXT_REDIRECT");
@@ -46,13 +54,22 @@ vi.mock("@/lib/auth/post-auth-redirect", () => ({
 import {
   login,
   register,
+  requestPasswordReset,
   resendSignupVerification,
+  updatePasswordFromRecovery,
 } from "@/actions/auth";
 import {
   ACCOUNT_ALREADY_EXISTS_MESSAGE,
   EMAIL_VERIFICATION_RATE_LIMIT_MESSAGE,
   EMAIL_VERIFICATION_REQUIRED_MESSAGE,
 } from "@/lib/auth/email-verification";
+import {
+  PASSWORD_MISMATCH_MESSAGE,
+  PASSWORD_RESET_LINK_INVALID_MESSAGE,
+  PASSWORD_RESET_PATH,
+  PASSWORD_RESET_RATE_LIMIT_MESSAGE,
+  authPasswordRecoveryRedirectTo,
+} from "@/lib/auth/password-recovery";
 
 function form(data: Record<string, string>) {
   const fd = new FormData();
@@ -75,10 +92,14 @@ describe("auth actions — email verification", () => {
         signUp: signUpMock,
         signInWithPassword: signInWithPasswordMock,
         resend: resendMock,
-        getUser: vi.fn(),
-        signOut: vi.fn(),
+        resetPasswordForEmail: resetPasswordForEmailMock,
+        updateUser: updateUserMock,
+        getUser: getUserMock,
+        signOut: signOutMock,
       },
     });
+    getUserMock.mockResolvedValue({ data: { user: null } });
+    signOutMock.mockResolvedValue({ error: null });
     getAuthenticatedVehicleStatusMock.mockResolvedValue({
       vehicleComplete: false,
       hasActiveSeekerClaim: false,
@@ -347,5 +368,190 @@ describe("auth actions — email verification", () => {
     expect(client.auth).not.toHaveProperty("admin");
     expect(signUpMock).toHaveBeenCalledTimes(1);
     expect(resendMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("auth actions — forgot password", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    headersMock.mockResolvedValue({
+      get: (name: string) => (name === "origin" ? "https://app.example" : null),
+    });
+    createClientMock.mockResolvedValue({
+      auth: {
+        signUp: signUpMock,
+        signInWithPassword: signInWithPasswordMock,
+        resend: resendMock,
+        resetPasswordForEmail: resetPasswordForEmailMock,
+        updateUser: updateUserMock,
+        getUser: getUserMock,
+        signOut: signOutMock,
+      },
+    });
+    getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
+    signOutMock.mockResolvedValue({ error: null });
+  });
+
+  it("requests reset via resetPasswordForEmail with recovery redirect", async () => {
+    resetPasswordForEmailMock.mockResolvedValue({ data: {}, error: null });
+
+    const state = await requestPasswordReset(
+      {},
+      form({ email: "alex@example.com" }),
+    );
+
+    expect(resetPasswordForEmailMock).toHaveBeenCalledWith("alex@example.com", {
+      redirectTo: authPasswordRecoveryRedirectTo("https://app.example"),
+    });
+    expect(state).toEqual({
+      email: "alex@example.com",
+      resetEmailSent: true,
+    });
+    expect(state.error).toBeUndefined();
+  });
+
+  it("does not disclose whether an email exists on successful reset request", async () => {
+    resetPasswordForEmailMock.mockResolvedValue({ data: {}, error: null });
+
+    const missing = await requestPasswordReset(
+      {},
+      form({ email: "nobody@example.com" }),
+    );
+    const existing = await requestPasswordReset(
+      {},
+      form({ email: "alex@example.com" }),
+    );
+
+    expect(missing.resetEmailSent).toBe(true);
+    expect(existing.resetEmailSent).toBe(true);
+    expect(missing).toEqual(expect.objectContaining({ resetEmailSent: true }));
+    expect(existing).toEqual(expect.objectContaining({ resetEmailSent: true }));
+  });
+
+  it("validates forgot-password email", async () => {
+    const state = await requestPasswordReset({}, form({ email: "nope" }));
+    expect(resetPasswordForEmailMock).not.toHaveBeenCalled();
+    expect(state.fieldErrors?.email?.[0]).toBe("Enter a valid email address.");
+  });
+
+  it("maps reset rate limits to a friendly message", async () => {
+    resetPasswordForEmailMock.mockResolvedValue({
+      data: {},
+      error: {
+        code: "over_email_send_rate_limit",
+        message: "For security purposes, you can only request this after 60 seconds.",
+      },
+    });
+
+    const state = await requestPasswordReset(
+      {},
+      form({ email: "alex@example.com" }),
+    );
+
+    expect(state.resetEmailSent).toBeUndefined();
+    expect(state.error).toBe(PASSWORD_RESET_RATE_LIMIT_MESSAGE);
+  });
+
+  it("updates password after recovery and signs out", async () => {
+    updateUserMock.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+
+    const state = await updatePasswordFromRecovery(
+      {},
+      form({
+        password: VALID_PASSWORD,
+        confirm_password: VALID_PASSWORD,
+      }),
+    );
+
+    expect(updateUserMock).toHaveBeenCalledWith({ password: VALID_PASSWORD });
+    expect(signOutMock).toHaveBeenCalled();
+    expect(state).toEqual({ passwordUpdated: true });
+  });
+
+  it("rejects weak and mismatched passwords before/through Auth", async () => {
+    const under8 = await updatePasswordFromRecovery(
+      {},
+      form({ password: "Ab1!", confirm_password: "Ab1!" }),
+    );
+    expect(under8.fieldErrors?.password?.[0]).toMatch(/8\+/i);
+    expect(updateUserMock).not.toHaveBeenCalled();
+
+    const noUpper = await updatePasswordFromRecovery(
+      {},
+      form({ password: "password1!", confirm_password: "password1!" }),
+    );
+    expect(noUpper.fieldErrors?.password?.[0]).toMatch(/uppercase/i);
+
+    const noLower = await updatePasswordFromRecovery(
+      {},
+      form({ password: "PASSWORD1!", confirm_password: "PASSWORD1!" }),
+    );
+    expect(noLower.fieldErrors?.password?.[0]).toMatch(/lowercase/i);
+
+    const noDigit = await updatePasswordFromRecovery(
+      {},
+      form({ password: "Password!", confirm_password: "Password!" }),
+    );
+    expect(noDigit.fieldErrors?.password?.[0]).toMatch(/number/i);
+
+    const noSpecial = await updatePasswordFromRecovery(
+      {},
+      form({ password: "Password1", confirm_password: "Password1" }),
+    );
+    expect(noSpecial.fieldErrors?.password?.[0]).toMatch(/special/i);
+
+    const mismatch = await updatePasswordFromRecovery(
+      {},
+      form({
+        password: VALID_PASSWORD,
+        confirm_password: "Password2!",
+      }),
+    );
+    expect(mismatch.fieldErrors?.confirm_password?.[0]).toBe(
+      PASSWORD_MISMATCH_MESSAGE,
+    );
+  });
+
+  it("rejects password update without a recovery session", async () => {
+    getUserMock.mockResolvedValue({ data: { user: null } });
+
+    const state = await updatePasswordFromRecovery(
+      {},
+      form({
+        password: VALID_PASSWORD,
+        confirm_password: VALID_PASSWORD,
+      }),
+    );
+
+    expect(updateUserMock).not.toHaveBeenCalled();
+    expect(state.error).toBe(PASSWORD_RESET_LINK_INVALID_MESSAGE);
+  });
+
+  it("keeps signup verification redirect unchanged", async () => {
+    signUpMock.mockResolvedValue({
+      data: { session: null, user: { id: "u1" } },
+      error: null,
+    });
+
+    const state = await register(
+      {},
+      form({
+        display_name: "Alex",
+        email: "alex@example.com",
+        password: VALID_PASSWORD,
+      }),
+    );
+
+    expect(state.checkEmail).toBe(true);
+    expect(signUpMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          emailRedirectTo: "https://app.example/auth/callback",
+        }),
+      }),
+    );
+    expect(signUpMock.mock.calls[0]?.[0]?.options?.emailRedirectTo).not.toContain(
+      PASSWORD_RESET_PATH,
+    );
   });
 });
