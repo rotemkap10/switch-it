@@ -109,9 +109,12 @@ docs/final-submission/ # This submission pack
 | Route | Purpose | Auth | Important components | Main server/DB interaction |
 | --- | --- | --- | --- | --- |
 | `/` | Landing; may redirect if session | Public | Landing UI | Session check |
-| `/login` | Sign in | Public (redirect if authed) | Login form | `login` action → Auth |
-| `/register` | Sign up | Public | Register form | `register` action → Auth + profile trigger |
-| `/auth/callback` | Email confirmation / code exchange | Special | Route handler | `exchangeCodeForSession` |
+| `/login` | Sign in (+ Forgot password link) | Public (redirect if authed) | Login form | `login` action → Auth |
+| `/register` | Sign up | Public (redirect if authed) | Register form | `register` action → Auth + profile trigger; may show Check your email |
+| `/forgot-password` | Request password reset email | Public (redirect if authed) | Forgot password form | `requestPasswordReset` → `resetPasswordForEmail` |
+| `/auth/callback` | Email confirmation or recovery (when markers present) | Special | Route handler | `exchangeCodeForSession` |
+| `/auth/callback/recovery` | Password-recovery PKCE exchange | Special | Route handler | Always → `/auth/reset-password` |
+| `/auth/reset-password` | Set new password after recovery link | Recovery session required | Reset password form | `updatePasswordFromRecovery` → `updateUser({ password })` |
 | `/onboarding/vehicle` | Required vehicle setup | Authenticated | Vehicle form | Profile update |
 | `/map` | Find parking (seeker) | Complete vehicle (seeker handoff exception) | Seeker map experience, claim UI | Load available spots; claim RPCs |
 | `/spots/new` | Share a spot / publisher active spot | Complete vehicle (publisher exception) | Publish form / publisher experience | Insert spot; start/cancel/extend/complete |
@@ -122,6 +125,22 @@ docs/final-submission/ # This submission pack
 | `/dev/car-images` | Dev imagery harness | Dev | CarImages grid | Client CarImages |
 
 Only one App Router API-style handler found: `/auth/callback`. Business mutations use **Server Actions**, not a large REST API.
+
+---
+
+# Authentication flows (CORE)
+
+**STUDY PRIORITY**
+
+| Flow | Path | Notes |
+| --- | --- | --- |
+| Sign up | `/register` → `signUp` | Confirm email ON → no session; Check your email (neutral inbox copy). Profile/credits via `handle_new_user` trigger on Auth insert. |
+| Confirm email | Email → `/auth/callback` | `exchangeCodeForSession` → onboarding-aware redirect |
+| Sign in | `/login` | Unconfirmed → verify/resend UX; success → `resolvePostAuthRedirect` |
+| Forgot password | `/forgot-password` → email → `/auth/callback/recovery` → `/auth/reset-password` | `resetPasswordForEmail` + `updateUser`; no Profile change-password; anti-enumeration copy |
+| Shared password policy | `src/lib/auth/password-policy.ts` | Signup + set-new-password; login does not re-check policy |
+
+Helpers: `email-verification.ts`, `password-recovery.ts`, `post-auth-redirect.ts`, `safe-redirect.ts`.
 
 ---
 
@@ -145,7 +164,10 @@ Only one App Router API-style handler found: `/auth/callback`. Business mutation
 
 | Action | File | DB / RPC |
 | --- | --- | --- |
-| `register` / `login` / `logout` | `src/actions/auth.ts` | Supabase Auth; profile created by trigger |
+| `register` / `login` / `logout` | `src/actions/auth.ts` | Supabase Auth; profile created by signup trigger |
+| `resendSignupVerification` | `src/actions/auth.ts` | `auth.resend({ type: "signup" })` |
+| `requestPasswordReset` | `src/actions/auth.ts` | `auth.resetPasswordForEmail` (neutral UX; anti-enumeration) |
+| `updatePasswordFromRecovery` | `src/actions/auth.ts` | `auth.updateUser({ password })` then `signOut` |
 | `completeVehicleOnboarding` | `src/actions/onboarding.ts` | Update `profiles` vehicle fields |
 | `updateDisplayName` / `updateVehicle` | `src/actions/profile.ts` | Update `profiles` |
 | `publishSpot` | `src/actions/spots.ts` | Insert `parking_spots` |
@@ -375,9 +397,9 @@ DB remains authoritative if a message is missed (refresh / reconcile RPCs).
 
 | Layer | Examples |
 | --- | --- |
-| Client UX | Disable buttons, distance notice, digit length |
-| Server Actions | Zod schemas |
-| Database | CHECK constraints (including license_plate format), RPC raises, unique indexes |
+| Client UX | Disable buttons, distance notice, digit length; password policy hint on signup/reset |
+| Server Actions | Zod schemas (`register`, `login`, `forgotPassword`, `resetPassword`); shared `password-policy.ts` |
+| Database / Auth | CHECK constraints (including license_plate format), RPC raises, unique indexes; Supabase Auth password requirements |
 
 ---
 
@@ -407,7 +429,8 @@ DB remains authoritative if a message is missed (refresh / reconcile RPCs).
 
 - `package.json`
 - `src/proxy.ts`, `src/lib/supabase/*`
-- `src/actions/*.ts`
+- `src/actions/*.ts` (including `auth.ts` — register/login/reset)
+- `src/lib/auth/{email-verification,password-recovery,password-policy,post-auth-redirect}.ts`
 - `src/app/**/page.tsx`
 - `src/lib/spots/constants.ts`, `src/lib/map/distance.ts`, `src/lib/feedback/error-map.ts`
 - `src/lib/location/use-seeker-live-location-share.ts`, `use-publisher-live-location.ts`, `fetch-claim-live-location.ts`

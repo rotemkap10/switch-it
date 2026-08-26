@@ -86,13 +86,14 @@ After changing this, restart local Supabase (`npx supabase stop && npx supabase 
 
 1. Authentication → Providers → Email → enable **Confirm email**.
 2. Authentication → URL configuration:
-   - **Site URL** = your production app origin (e.g. `https://your-app.vercel.app`)
-   - **Redirect URLs** include `https://your-app.vercel.app/auth/callback` (and any preview origins you use)
-3. Optional: customize the Confirm signup email template; the confirmation link must keep `{{ .ConfirmationURL }}` (or equivalent) so users land on `/auth/callback`.
+   - **Site URL** = your production app origin (e.g. `https://switch-it-wine.vercel.app`)
+   - **Redirect URLs** include the app origin wildcard if used (e.g. `https://switch-it-wine.vercel.app/**`) — that already covers `/auth/callback` and `/auth/reset-password`. Explicit `/auth/callback` entries are fine too for preview origins.
+3. Optional: customize the **Confirm signup** email template; keep `{{ .ConfirmationURL }}` so users land on `/auth/callback`.
+4. Optional: customize the **Reset password** email template the same way (`{{ .ConfirmationURL }}`). No extra redirect URL is required when the wildcard already covers the app.
 
-**Signup + existing emails:** With Confirm email on, production Auth often returns a successful-looking `signUp` response for an address that already has an account (anti-enumeration). Local GoTrue sometimes returns `User already registered` instead. The app only shows the hard “already exists” message when that explicit error appears; otherwise it uses the neutral Check your email + Sign in hint UX.
+**Signup + existing emails:** With Confirm email on, production Auth often returns a successful-looking `signUp` response for an address that already has an account (anti-enumeration). Local GoTrue sometimes returns `User already registered` instead. The app only shows the hard “already exists” message when that explicit error appears; otherwise it uses the neutral Check your email UI (*“Check your inbox for a verification link…”* + *“Already registered… Sign in instead.”*).
 
-**Forgot password:** Login → `/forgot-password` → Supabase `resetPasswordForEmail` with `redirectTo` = `{origin}/auth/callback?next=/auth/reset-password`. After the user opens the email link, `/auth/callback` exchanges the PKCE code and sends them to `/auth/reset-password` to set a new password (shared password policy). The existing Redirect URL wildcard `https://switch-it-wine.vercel.app/**` covers this path. Default **Reset Password** email template (`{{ .ConfirmationURL }}`) is sufficient when Site URL / Redirect URLs are set correctly — no app-side Dashboard change.
+**Forgot password:** Login → `/forgot-password` → Supabase `resetPasswordForEmail` with `redirectTo` = `{origin}/auth/callback/recovery`. Supabase PKCE often drops extra query params from `redirectTo`, so recovery uses a dedicated callback route instead of relying on `?next=`. After the email link, the recovery callback exchanges the PKCE code and always sends the user to `/auth/reset-password`. Neutral success copy never discloses whether the email exists.
 
 No `npx supabase db push` is required for this Auth setting alone.
 
@@ -103,7 +104,7 @@ Production Dashboard password policy should require:
 - minimum **8** characters
 - uppercase + lowercase + digit + symbol (`lower_upper_letters_digits_symbols`)
 
-Local `supabase/config.toml` mirrors that (`minimum_password_length = 8`, `password_requirements = "lower_upper_letters_digits_symbols"`). The app validates the same rules for Create Account UX via `src/lib/auth/password-policy.ts`; **Supabase Auth remains the final enforcer**. Login does **not** apply this policy locally.
+Local `supabase/config.toml` mirrors that (`minimum_password_length = 8`, `password_requirements = "lower_upper_letters_digits_symbols"`). The app validates the same rules for **Create Account** and **Set new password** (Forgot Password) via `src/lib/auth/password-policy.ts`; **Supabase Auth remains the final enforcer**. Login does **not** apply this policy locally.
 
 Restart local Supabase after changing password settings in `config.toml`.
 

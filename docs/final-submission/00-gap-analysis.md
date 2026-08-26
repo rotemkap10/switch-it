@@ -16,13 +16,13 @@ Legend:
 | 4. Detailed technical design | COMPLETE (this pack) | `02-technical-design.md` | Study RPCs before presentation | HIGH (study) |
 | 5. Implement with Next.js + TypeScript + Supabase (+ Vercel deploy) | COMPLETE (code) / PARTIAL (deploy proof) | `package.json` (`next@16.2.12`, TS, `@supabase/*`); GitHub remote present | Attach **live Vercel URL** on the submission cover sheet; confirm production Supabase has latest migrations | HIGH |
 | 6. Test specification document | COMPLETE (this pack) | `03-test-plan.md` | Do not submit stale older `docs/TEST_PLAN.md` sections | HIGH |
-| 7. Implement tests for main flows | COMPLETE | Vitest + Testing Library; **235 files / 1414 tests** (`npm run test:run`, re-verified) | Re-run once more before submit | MEDIUM |
+| 7. Implement tests for main flows | COMPLETE | Vitest + Testing Library; **260 files / 1624 tests** (`npm run test:run`, re-verified after auth/forgot-password work) | Re-run once more before submit | MEDIUM |
 | 8. Basic scalability document | COMPLETE (this pack) | `04-scale.md`; older `docs/SCALABILITY.md` is empty | Submit this pack | MEDIUM |
-| 9. Basic security document | COMPLETE (this pack) | `05-security.md`; older `docs/SECURITY.md` is empty | Prepare honest fraud/Sybil answers | HIGH (study) |
+| 9. Basic security document | COMPLETE (this pack) | `05-security.md`; older `docs/SECURITY.md` is empty | Prepare honest fraud/Sybil + anti-enumeration answers | HIGH (study) |
 | 10. Deploy to Vercel + Supabase; live URL, GitHub URL, local run, env explanation | PARTIAL | Local instructions: `06-local-setup.md` + `README.md`; GitHub remote present | Confirm live Vercel URL, production Supabase project, and `npx supabase db push` applied. A `vercel.json` is **not** required for a standard Next.js Vercel deploy | HIGH |
 | 11. Optional coding agents; student must understand everything | COMPLETE (process) | Study guide: `08-system-study-guide.md` | Fill `docs/AI_USAGE.md` if the course asks for AI disclosure | MEDIUM |
 | 12. 10–15 minute presentation | PARTIAL — presentation outline is complete; final slide deck still needs to be created | `07-presentation-outline.md` | Build PPT/PDF from the outline; rehearse 12–13 minutes with two devices | HIGH |
-| Authentication | COMPLETE | Supabase email/password; `/login`, `/register`, `/auth/callback`; `src/proxy.ts` | Be ready to explain cookie session refresh | MEDIUM |
+| Authentication | COMPLETE | Email/password; Confirm email; Forgot password (`/forgot-password` → `/auth/reset-password`); `/login`, `/register`, `/auth/callback`; `src/proxy.ts` | Be ready to explain cookie session refresh + anti-enumeration UX | MEDIUM |
 | Database with meaningful entities | COMPLETE | `profiles`, `parking_spots`, `claims`, `credit_transactions` (+ support tables) | Know status enums and unique indexes | HIGH |
 | Server Actions / backend mutations | COMPLETE | `src/actions/*` + Postgres RPCs | Explain why claim/complete live in SQL | HIGH |
 | Authorization / permissions | COMPLETE | RLS + RPC `auth.uid()` checks | Give a concrete “cannot steal another claim” example | HIGH |

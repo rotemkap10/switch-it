@@ -12,6 +12,7 @@ const PROTECTED_PREFIXES = [
   "/onboarding",
 ] as const;
 const AUTH_PAGES = ["/login", "/register", "/forgot-password"] as const;
+// `/auth/reset-password` is intentionally NOT listed — recovery sessions stay there.
 
 function isProtectedPath(pathname: string): boolean {
   return PROTECTED_PREFIXES.some(

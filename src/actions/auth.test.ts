@@ -65,6 +65,7 @@ import {
 } from "@/lib/auth/email-verification";
 import {
   PASSWORD_MISMATCH_MESSAGE,
+  PASSWORD_RECOVERY_CALLBACK_PATH,
   PASSWORD_RESET_LINK_INVALID_MESSAGE,
   PASSWORD_RESET_PATH,
   PASSWORD_RESET_RATE_LIMIT_MESSAGE,
@@ -403,6 +404,9 @@ describe("auth actions — forgot password", () => {
     expect(resetPasswordForEmailMock).toHaveBeenCalledWith("alex@example.com", {
       redirectTo: authPasswordRecoveryRedirectTo("https://app.example"),
     });
+    expect(authPasswordRecoveryRedirectTo("https://app.example")).toBe(
+      `https://app.example${PASSWORD_RECOVERY_CALLBACK_PATH}`,
+    );
     expect(state).toEqual({
       email: "alex@example.com",
       resetEmailSent: true,

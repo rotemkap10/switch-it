@@ -37,12 +37,12 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 
 ## Supabase authentication
 
-- **WHAT:** Email/password sessions.
-- **WHERE:** `src/actions/auth.ts`, `src/app/auth/callback/route.ts`, `src/lib/supabase/*`, `src/proxy.ts`.
-- **HOW:** Cookies via `@supabase/ssr`; proxy refreshes session.
-- **WHY:** Managed auth + RLS integration.
-- **WRONG:** Expired session mid-handoff; confusing Auth with unique-human identity.
-- **HANDLED:** Refresh + login redirect with `next`. Auth proves account/session, not one-person-one-account.
+- **WHAT:** Email/password sessions; Confirm email for new accounts; Forgot password recovery (Login only).
+- **WHERE:** `src/actions/auth.ts`, `src/app/auth/callback/route.ts`, `src/app/(auth)/{login,register,forgot-password}`, `src/app/auth/reset-password`, `src/lib/auth/{email-verification,password-recovery,password-policy}.ts`, `src/lib/supabase/*`, `src/proxy.ts`.
+- **HOW:** Cookies via `@supabase/ssr`; proxy refreshes session. Signup/resend use `signUp` / `resend`; recovery uses `resetPasswordForEmail` → callback `exchangeCodeForSession` → `updateUser({ password })`.
+- **WHY:** Managed auth + RLS integration; email confirmation reduces throwaway accounts slightly; reset without a Profile change-password surface.
+- **WRONG:** Expired session mid-handoff; confusing Auth with unique-human identity; claiming “we emailed you” when Confirm-email obfuscation may not send; disclosing whether an email exists on forgot-password.
+- **HANDLED:** Refresh + login redirect with `next`. Neutral Check-your-email / reset copy preserves anti-enumeration. Auth proves account/session, not one-person-one-account.
 
 ## RLS — STUDY PRIORITY
 
@@ -210,7 +210,7 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 
 - **WHAT:** Large Vitest suite; migration string contracts.
 - **WHERE:** `**/*.test.ts(x)`, `*.migration.test.ts`.
-- **HOW:** `npm run test:run` → **235 files / 1414 tests** (re-verified).
+- **HOW:** `npm run test:run` → **260 files / 1624 tests** (re-verified after auth/forgot-password work).
 - **WHY:** Guard regressions on timing/UI/actions.
 - **WRONG:** Believing SQL-text contract tests equal live concurrent DB tests; claiming Playwright exists.
 - **HANDLED:** Supplement with manual two-user tests.
@@ -232,8 +232,12 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 **Files:** `20260802111257_auth_profile_and_rls.sql` (+ later policy updates).
 
 ### 4. Difference between authentication and authorization?
-**Answer:** AuthN = prove identity (Supabase login). AuthZ = permission checks (RLS, RPC owner/seeker checks, vehicle gates). AuthN does not prove unique human identity.  
-**Files:** `src/proxy.ts`, RPCs, `vehicle-access.ts`.
+**Answer:** AuthN = prove identity (Supabase login / email confirmation / password recovery). AuthZ = permission checks (RLS, RPC owner/seeker checks, vehicle gates). AuthN does not prove unique human identity.  
+**Files:** `src/proxy.ts`, `src/actions/auth.ts`, RPCs, `vehicle-access.ts`.
+
+### 4b. How does Forgot password work, and does it leak whether an email exists?
+**Answer:** Login → `/forgot-password` → `resetPasswordForEmail` with redirect to `/auth/callback?next=/auth/reset-password`. After the email link, callback exchanges the PKCE code and the user sets a new password on `/auth/reset-password` (shared password policy). Success UI always says *if an account exists…* — it does not reveal existence. There is no Change Password in Profile.  
+**Files:** `src/lib/auth/password-recovery.ts`, `src/actions/auth.ts`, `src/app/auth/callback/route.ts`, `05-security.md`.
 
 ### 5. Why use an RPC?
 **Answer:** Multi-table atomic operations with shared rules that RLS single-row updates can’t express safely.  
@@ -316,7 +320,7 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 **Files:** initial schema.
 
 ### 25. What tests did you write?
-**Answer:** Vitest unit/component/action tests and migration contract tests (~1414). No Playwright project. Manual two-user E2E. SQL-text contracts ≠ live concurrency suite.  
+**Answer:** Vitest unit/component/action tests and migration contract tests (~1624). No Playwright project. Manual two-user E2E. SQL-text contracts ≠ live concurrency suite.
 **Files:** `package.json`, `03-test-plan.md`.
 
 ### 26. How do cancellation reasons work?
@@ -345,7 +349,9 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 
 - `docs/final-submission/02-technical-design.md`
 - `docs/final-submission/05-security.md`
-- `src/actions/claims.ts`, `src/actions/spots.ts`
+- `docs/final-submission/06-local-setup.md`
+- `src/actions/auth.ts`, `src/actions/claims.ts`, `src/actions/spots.ts`
+- `src/lib/auth/password-recovery.ts`, `src/lib/auth/password-policy.ts`, `src/lib/auth/email-verification.ts`
 - `src/lib/spots/constants.ts`
 - `src/lib/location/*`
 - `src/proxy.ts`

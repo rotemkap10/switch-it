@@ -117,6 +117,9 @@ Verified in the repository:
 | Capability | Status |
 | --- | --- |
 | Email/password authentication (Supabase Auth) | Implemented |
+| Email confirmation before first login (Confirm email) | Implemented |
+| Forgot password / reset via email (Login only; no Profile change-password) | Implemented |
+| Shared password policy (8+, upper/lower/digit/special; max 72) | Implemented (signup + reset; Auth enforces) |
 | Profile (display name, credits display) | Implemented |
 | Vehicle setup / onboarding | Implemented |
 | Publish parking spot (location + departure 0–10 min) | Implemented |
@@ -142,7 +145,7 @@ Verified in the repository:
 
 ## A. Publisher — happy path
 
-1. Register / login.
+1. Register (verify email) / login (Forgot password available).
 2. Complete vehicle onboarding if incomplete.
 3. **Share a spot** → pick/confirm location → choose departure → publish.
 4. Wait for seeker claim (Realtime / refresh updates UI).
@@ -156,7 +159,7 @@ Verified in the repository:
 
 ## B. Seeker — happy path
 
-1. Register / login + vehicle.
+1. Register (verify email) / login + vehicle.
 2. **Find parking** → select pin → **I’m on my way**.
 3. Fresh location required at claim; must be within 1500 m.
 4. Navigate; live location sharing starts for the active claim (if permission/GPS allow).

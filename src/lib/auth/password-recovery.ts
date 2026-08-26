@@ -5,6 +5,8 @@
 
 export const FORGOT_PASSWORD_PATH = "/forgot-password";
 export const PASSWORD_RESET_PATH = "/auth/reset-password";
+/** PKCE recovery callback — no query params required on the emailed link. */
+export const PASSWORD_RECOVERY_CALLBACK_PATH = "/auth/callback/recovery";
 
 export const PASSWORD_RESET_CHECK_EMAIL_MESSAGE =
   "If an account exists for this email, you'll receive a password reset link.";
@@ -102,11 +104,26 @@ export function isPasswordRecoveryPath(
   return path === PASSWORD_RESET_PATH;
 }
 
+/** True when a callback request is part of the forgot-password flow. */
+export function isPasswordRecoveryCallback(params: {
+  next?: string | null;
+  type?: string | null;
+  forceRecovery?: boolean;
+}): boolean {
+  if (params.forceRecovery) {
+    return true;
+  }
+  if (params.type === "recovery") {
+    return true;
+  }
+  return isPasswordRecoveryPath(params.next);
+}
+
 /**
- * PKCE recovery lands on `/auth/callback`, then redirects to set-new-password.
- * Origin must come from the request — never hardcode localhost.
+ * PKCE recovery callback path. Supabase PKCE redirects append `?code=` but often
+ * drop extra query params from `redirectTo`, so we use a dedicated route.
  */
 export function authPasswordRecoveryRedirectTo(origin: string): string {
   const base = origin.replace(/\/$/, "");
-  return `${base}/auth/callback?next=${encodeURIComponent(PASSWORD_RESET_PATH)}`;
+  return `${base}${PASSWORD_RECOVERY_CALLBACK_PATH}`;
 }

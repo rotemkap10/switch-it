@@ -10,8 +10,8 @@ Re-verified during this documentation pass:
 
 ```text
 npm run test:run
-→ 250 test files passed
-→ 1520 tests passed
+→ 260 test files passed
+→ 1624 tests passed
 ```
 
 Coverage labels:
@@ -40,8 +40,19 @@ Coverage labels:
 | Case | Expected | Coverage |
 | --- | --- | --- |
 | Register / login validation | Invalid input rejected | Automated |
+| Password policy on register | Under 8 / missing upper/lower/digit/special rejected | Automated |
+| Signup with Confirm email | No session → Check your email (neutral inbox copy + Sign in hint) | Automated |
+| Obfuscated existing-email signup | Neutral Check your email; no false “account created” certainty | Automated |
+| Explicit duplicate Auth error | “An account with this email already exists…” | Automated |
+| Resend verification | Neutral delivery wording; unconfirmed users can still resend | Automated |
+| Unconfirmed login | Friendly verify/resend state | Automated |
+| Forgot password link on login | Navigates to `/forgot-password` | Automated |
+| Forgot-password request | `resetPasswordForEmail` + neutral Check your email; no email enumeration | Automated |
+| Reset rate limit | Friendly “Too many attempts…” | Automated |
+| Recovery callback | `next=/auth/reset-password` → set-new-password; invalid → `/forgot-password?error=reset` | Automated |
+| Set new password | Shared policy + mismatch checks; `updateUser` then sign-out success | Automated |
 | Protected routes redirect | Unauthenticated → `/login?next=` | Automated |
-| Callback exchange | Session established | Partial automated; Manual recommended |
+| Callback exchange (confirm) | Session established; onboarding-aware redirect | Partial automated; Manual recommended |
 | Logout | Session cleared | Automated / Manual |
 
 ---
@@ -204,6 +215,8 @@ They do **not** replace a real-device GPS demo.
 - Seeker with 0 credits.
 - Second device Realtime lag then refresh.
 - Live location permission denied (claim still exists; sharing degraded).
+- Signup with an already-registered email (neutral Check your email; may receive no mail).
+- Expired password-reset link → request a new one from `/forgot-password`.
 
 ---
 
@@ -227,6 +240,7 @@ Use two real accounts (A publisher, B seeker). Prefer physical devices with GPS.
 - [ ] Credits: B −1, A +1; both History updated.
 
 ### Negative / alternative
+- [ ] Forgot password → reset email → set new password → sign in works (optional demo).
 - [ ] Second seeker C cannot claim A’s already-claimed spot.
 - [ ] B with 0 credits cannot claim.
 - [ ] B too far cannot claim.
@@ -243,8 +257,8 @@ Use two real accounts (A publisher, B seeker). Prefer physical devices with GPS.
 | --- | --- |
 | Command | `npm run test:run` |
 | Framework | Vitest 4.x + Testing Library + jsdom |
-| Test files | **235** |
-| Tests | **1414** |
+| Test files | **260** |
+| Tests | **1624** |
 | Playwright / Cypress project | **Not currently implemented** |
 
 ---

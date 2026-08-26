@@ -123,6 +123,21 @@ describe("auth callback route", () => {
     expect(response.headers.get("location")).toBe(
       "https://app.example/auth/reset-password",
     );
+    expect(getAuthenticatedVehicleStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("detects stripped next via type=recovery on the generic callback", async () => {
+    exchangeCodeForSessionMock.mockResolvedValue({ error: null });
+    getUserMock.mockResolvedValue({ data: { user: { id: "u1" } } });
+
+    const response = await GET(
+      new Request("https://app.example/auth/callback?code=abc&type=recovery"),
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "https://app.example/auth/reset-password",
+    );
+    expect(getAuthenticatedVehicleStatusMock).not.toHaveBeenCalled();
   });
 
   it("routes invalid recovery links to forgot-password recovery, not signup verification", async () => {

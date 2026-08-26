@@ -148,9 +148,9 @@ MapLibre → MapTiler
 **Visual:** Three columns — one strong fact each.
 
 **Bullets:**
-- **Testing:** ~1414 automated Vitest tests + manual real-device QA (no Playwright project)
+- **Testing:** ~1624 automated Vitest tests + manual real-device QA (no Playwright project)
 - **Scale:** indexes + keyset History pagination; geo discovery still MVP-limited (no PostGIS)
-- **Security:** Supabase Auth + RLS + authenticated RPCs; fraud/collusion remains a residual risk
+- **Security:** Supabase Auth (Confirm email, Forgot password, anti-enumeration UX) + RLS + authenticated RPCs; fraud/collusion remains a residual risk
 
 **Say:**  
 “We automated a lot of UI and contract tests. True simultaneous claim races we still demo manually. Security is basic but real—and multi-account farming isn’t fully prevented.”

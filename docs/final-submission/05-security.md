@@ -29,12 +29,42 @@ Out of scope for MVP claims: nation-state attackers, perfect GPS anti-spoofing, 
 
 - Supabase Auth with **email + password** (primary product path).
 - Browser session via `@supabase/ssr` cookies.
-- `src/proxy.ts` refreshes session and redirects unauthenticated users away from protected prefixes (`/map`, `/spots/new`, `/profile`, `/history`, `/help`, `/onboarding`, …).
-- `/auth/callback` exchanges email confirmation / code for a session.
-- New accounts require **email confirmation** (Supabase Auth Confirm email). Until confirmed, signup returns no session and the UI shows “Check your email”; login shows a friendly verify/resend state instead of a raw Auth error.
-- With Confirm email enabled, `signUp` for an **already-registered** address often returns an obfuscated success (no error) so clients cannot enumerate emails. Switch It keeps the neutral Check your email UI plus a secondary “Already registered… Sign in” hint, and only shows “An account with this email already exists” when Auth returns an explicit duplicate error (`user_already_exists` / “User already registered”). The app does **not** query `auth.users` or treat empty `identities` as a hard “exists” signal.
-- **Forgot password** (Login → `/forgot-password`) uses `resetPasswordForEmail` → `/auth/callback?next=/auth/reset-password` → `updateUser({ password })`. Success copy never discloses whether the email exists. There is no Change Password surface in Profile.
-- Profile + starter credits are created once by the `auth.users` insert trigger (`handle_new_user`); confirmation and resend do not re-run that bootstrap.
+- `src/proxy.ts` refreshes session and redirects unauthenticated users away from protected prefixes (`/map`, `/spots/new`, `/profile`, `/history`, `/help`, `/onboarding`, …). Authenticated users hitting `/login`, `/register`, or `/forgot-password` are redirected into the app. `/auth/reset-password` is **not** bounced away (recovery session must stay).
+- `/auth/callback` exchanges PKCE `code` for a session (email confirmation **and** password recovery).
+- Profile + starter credits are created once by the `auth.users` insert trigger (`handle_new_user`); confirmation, resend, and password reset do **not** re-run that bootstrap.
+
+### Email confirmation (signup)
+
+- New accounts require **Confirm email** (Supabase Auth). Until confirmed, `signUp` returns no session.
+- UI: **Check your email** with neutral copy — *“Check your inbox for a verification link to [email].”* — plus *“Already registered with this email? Sign in instead.”*
+- Unconfirmed login shows a friendly verify/resend state (not a raw Auth error). Resend uses neutral wording: *“If this email is awaiting verification, a new verification email has been sent.”*
+
+### Anti-enumeration (signup + reset)
+
+- With Confirm email enabled, `signUp` for an **already-registered** address often returns an obfuscated success (no error) so clients cannot probe whether an email exists. Switch It does **not** invent an “account exists” error from heuristics (including empty `identities`) and does **not** query `auth.users` from the app.
+- Explicit Auth errors only (`user_already_exists` / “User already registered”, etc.) may show: *“An account with this email already exists. Sign in instead.”*
+- Forgot-password success always uses neutral copy: *“If an account exists for this email, you'll receive a password reset link.”*
+
+### Password policy
+
+- Shared rules in `src/lib/auth/password-policy.ts`: 8+ chars, uppercase, lowercase, digit, special character, max 72.
+- Applied on **Create Account** and **Set new password** (Forgot Password). Login does **not** re-apply signup policy locally.
+- Supabase Auth remains the authoritative enforcer (Dashboard / local `config.toml` mirrored).
+
+### Forgot password (Login only)
+
+There is **no** Change Password option in Profile.
+
+Flow:
+
+1. Login → **Forgot password?** → `/forgot-password`
+2. `resetPasswordForEmail` with `redirectTo = {origin}/auth/callback/recovery`
+3. User opens email → recovery callback exchanges code → `/auth/reset-password` (never onboarding/map)
+4. `updateUser({ password })` under shared policy → sign out → **Password updated** → **Sign in**
+
+The generic `/auth/callback` also treats `type=recovery` or `next=/auth/reset-password` as recovery when those params survive the Auth redirect.
+
+Invalid/expired recovery links redirect to `/forgot-password?error=reset` (not the signup verification banner).
 
 **STUDY PRIORITY:** Authentication proves *who the account/session is*; it does **not** prove a unique real-world person.
 
@@ -234,7 +264,8 @@ Android/iOS native POST paths log `accessTokenPresent=true/false` only — not J
 - Push infrastructure is optional/experimental and not part of the verified core web MVP.
 - Native/Edge paths add operational secret-handling requirements if enabled.
 - No Content-Security-Policy yet.
-- Server Actions do not have explicit rate limiting.
+- Server Actions do not have explicit rate limiting (Auth email send rate limits are Supabase-side).
+- Confirm-email anti-enumeration can show Check your email even when no mail is sent for an already-registered address — by design; UX is neutral, not a hard existence check.
 - Live-location 429 responses may briefly flicker “temporarily unavailable” UI without stopping native tracking.
 
 ---
@@ -255,7 +286,16 @@ Android/iOS native POST paths log `accessTokenPresent=true/false` only — not J
 # Repository references
 
 - `src/proxy.ts`, `src/lib/supabase/proxy.ts`
+- `src/actions/auth.ts`
+- `src/app/auth/callback/route.ts`
+- `src/app/(auth)/forgot-password/page.tsx`
+- `src/app/auth/reset-password/page.tsx`
+- `src/lib/auth/email-verification.ts`
+- `src/lib/auth/password-recovery.ts`
+- `src/lib/auth/password-policy.ts`
 - `src/lib/auth/vehicle-access.ts`
+- `src/lib/auth/safe-redirect.ts`
+- `src/lib/auth/post-auth-redirect.ts`
 - `src/lib/feedback/error-map.ts`
 - `src/lib/validations/*`
 - `src/lib/location/use-seeker-live-location-share.ts`, `fetch-claim-live-location.ts`
@@ -263,7 +303,6 @@ Android/iOS native POST paths log `accessTokenPresent=true/false` only — not J
 - `supabase/migrations/20260802111257_auth_profile_and_rls.sql`
 - `supabase/migrations/20260819130000_prevent_seeker_reclaim.sql`
 - `supabase/migrations/20260818170000_publisher_verifies_seeker_plate.sql`
-- `src/lib/auth/safe-redirect.ts`
 - `next.config.ts` (security headers)
 - `supabase/functions/handoff-seeker-location/index.ts`
 - `src/lib/security/security-hardening.test.ts`
