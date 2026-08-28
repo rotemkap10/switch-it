@@ -24,6 +24,8 @@ const CORS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
+  /** Required for browser POST preflight (Safari/Chrome). Native HTTP clients ignore CORS. */
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
 const SEEKER_LOCATION_EVENT = "seeker-location";

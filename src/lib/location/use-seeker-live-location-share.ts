@@ -1,6 +1,5 @@
 "use client";
 
-import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import {
@@ -11,12 +10,13 @@ import {
 import { getHandoffLocationService } from "@/lib/location/handoff-location-service";
 import { decideNativeTrackingReconcile } from "@/lib/location/handoff-native-reconcile";
 import { getNativeHandoffPlugin } from "@/lib/location/native-handoff-plugin";
+import { logHandoffLive } from "@/lib/location/log-handoff-live";
 import {
   isUsableAccuracy,
   type SeekerLocationPayload,
 } from "@/lib/location/payload";
+import { publishSeekerLiveLocationViaEdge } from "@/lib/location/publish-seeker-live-location";
 import { shouldBroadcastLocation } from "@/lib/location/throttle";
-import { logHandoffLive } from "@/lib/location/log-handoff-live";
 import { getClaimLocationTopic } from "@/lib/location/topic";
 import { geolocationErrorCodeToReason } from "@/lib/map/use-user-location";
 import { createClient } from "@/lib/supabase/client";
@@ -69,7 +69,7 @@ async function refreshSeekerAccessToken(): Promise<string | null> {
 
 /**
  * Seeker live-location share for one active claim.
- * Web/PWA: foreground-only watchPosition + private Broadcast.
+ * Web/PWA: foreground watchPosition + Edge Function transport (same as native).
  * Native app: single background GPS + HTTP bridge; does not pause when hidden.
  * Sharing is mandatory for the active handoff — stop only on terminal outcomes.
  */
@@ -84,8 +84,8 @@ export function useSeekerLiveLocationShare({
   const [resumedOnce, setResumedOnce] = useState(false);
 
   const watchIdRef = useRef<number | null>(null);
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  const clientRef = useRef<SupabaseClient | null>(null);
+  const accessTokenRef = useRef<string | null>(null);
+  const publishInFlightRef = useRef(false);
   const sequenceRef = useRef(0);
   const lastSentRef = useRef<{
     latitude: number;
@@ -104,7 +104,6 @@ export function useSeekerLiveLocationShare({
     headingDegrees: number | null;
     atMs: number;
   } | null>(null);
-  const subscribedRef = useRef(false);
   const claimIdRef = useRef(claimId);
   const spotIdRef = useRef(spotId);
   const expiresAtRef = useRef(spotExpiresAtIso);
@@ -118,6 +117,18 @@ export function useSeekerLiveLocationShare({
   const nativeStartSucceededRef = useRef<string | null>(null);
   const watchRetryTimerRef = useRef<number | null>(null);
   const startWatchRef = useRef<() => void>(() => {});
+  const publishSampleRef = useRef<
+    (
+      sample: {
+        latitude: number;
+        longitude: number;
+        accuracyMeters: number;
+        headingDegrees: number | null;
+        atMs: number;
+      },
+      options?: { force?: boolean },
+    ) => Promise<void>
+  >(async () => {});
 
   useLayoutEffect(() => {
     claimIdRef.current = claimId;
@@ -141,16 +152,6 @@ export function useSeekerLiveLocationShare({
     watchIdRef.current = null;
   }, []);
 
-  const leaveChannel = useCallback(async () => {
-    subscribedRef.current = false;
-    const channel = channelRef.current;
-    const client = clientRef.current;
-    channelRef.current = null;
-    if (channel && client) {
-      await client.removeChannel(channel);
-    }
-  }, []);
-
   const detachNativeListener = useCallback(async () => {
     const listener = nativeListenerRef.current;
     nativeListenerRef.current = null;
@@ -166,47 +167,59 @@ export function useSeekerLiveLocationShare({
       sharingEnabledRef.current = false;
       clearWatch();
       lastSentRef.current = null;
+      accessTokenRef.current = null;
       await detachNativeListener();
-      await leaveChannel();
       setUiState(next);
     },
-    [clearWatch, detachNativeListener, leaveChannel],
+    [clearWatch, detachNativeListener],
   );
 
-  const sendStatus = useCallback(async (status: "paused" | "stopped") => {
-    const channel = channelRef.current;
-    if (!channel || !subscribedRef.current) {
-      return;
-    }
-    sequenceRef.current += 1;
-    try {
-      await channel.send({
-        type: "broadcast",
+  const resolveWebAccessToken = useCallback(async (): Promise<string | null> => {
+    const token = await refreshSeekerAccessToken();
+    accessTokenRef.current = token;
+    return token;
+  }, []);
+
+  const sendStatus = useCallback(
+    async (status: "paused" | "stopped") => {
+      if (getHandoffLocationService().isNative) {
+        return;
+      }
+      const token =
+        accessTokenRef.current ?? (await resolveWebAccessToken());
+      if (!token) {
+        return;
+      }
+      sequenceRef.current += 1;
+      await publishSeekerLiveLocationViaEdge({
+        claimId: claimIdRef.current,
         event: SEEKER_LOCATION_STATUS_EVENT,
+        accessToken: token,
         payload: {
           status,
           sequence: sequenceRef.current,
           sentAt: Date.now(),
         },
       });
-    } catch {
-      // Best-effort; do not log payloads.
-    }
-  }, []);
+    },
+    [resolveWebAccessToken],
+  );
 
   const publishSample = useCallback(
-    async (sample: {
-      latitude: number;
-      longitude: number;
-      accuracyMeters: number;
-      headingDegrees: number | null;
-      atMs: number;
-    }) => {
+    async (
+      sample: {
+        latitude: number;
+        longitude: number;
+        accuracyMeters: number;
+        headingDegrees: number | null;
+        atMs: number;
+      },
+      options?: { force?: boolean },
+    ) => {
       if (!sharingEnabledRef.current || terminalRef.current) {
         return;
       }
-      if (!subscribedRef.current || !channelRef.current) {
-        pendingSampleRef.current = sample;
+      if (getHandoffLocationService().isNative) {
         return;
       }
       if (new Date(expiresAtRef.current).getTime() <= Date.now()) {
@@ -216,7 +229,21 @@ export function useSeekerLiveLocationShare({
       }
 
       const decision = shouldBroadcastLocation(lastSentRef.current, sample);
-      if (!decision.send) {
+      if (!options?.force && !decision.send) {
+        pendingSampleRef.current = sample;
+        return;
+      }
+
+      if (publishInFlightRef.current) {
+        pendingSampleRef.current = sample;
+        return;
+      }
+
+      const token =
+        accessTokenRef.current ?? (await resolveWebAccessToken());
+      if (!token) {
+        pendingSampleRef.current = sample;
+        setUiState("unavailable");
         return;
       }
 
@@ -230,31 +257,58 @@ export function useSeekerLiveLocationShare({
         sentAt: Date.now(),
       };
 
+      publishInFlightRef.current = true;
       try {
-        await channelRef.current.send({
-          type: "broadcast",
+        const result = await publishSeekerLiveLocationViaEdge({
+          claimId: claimIdRef.current,
           event: SEEKER_LOCATION_EVENT,
+          accessToken: token,
           payload,
         });
-        lastSentRef.current = sample;
-        pendingSampleRef.current = null;
-        hasDeliveredRef.current = true;
-        setUiState("sharing");
-        logHandoffLive("web broadcast succeeded", {
-          claimId: claimIdRef.current,
-          sequence: payload.sequence,
-        });
-      } catch {
-        // Do not queue history.
-        setUiState("unavailable");
-        logHandoffLive("web broadcast failed", {
-          claimId: claimIdRef.current,
-          sequence: payload.sequence,
-        });
+
+        if (
+          result.ok &&
+          (result.accepted === true || result.reason === "stale_sequence")
+        ) {
+          lastSentRef.current = sample;
+          pendingSampleRef.current = null;
+          hasDeliveredRef.current = true;
+          setUiState("sharing");
+          return;
+        }
+
+        if (!result.ok && result.reason === "rate_limited") {
+          // Server already has a recent snapshot; keep sharing UI live.
+          if (lastSentRef.current) {
+            setUiState("sharing");
+          }
+          return;
+        }
+
+        pendingSampleRef.current = sample;
+        if (!result.ok && result.reason === "unauthorized") {
+          accessTokenRef.current = null;
+        }
+        setUiState(hasDeliveredRef.current ? "sharing" : "unavailable");
+      } finally {
+        publishInFlightRef.current = false;
+        const pending = pendingSampleRef.current;
+        if (
+          pending &&
+          sharingEnabledRef.current &&
+          !terminalRef.current &&
+          pending !== sample
+        ) {
+          void publishSampleRef.current(pending);
+        }
       }
     },
-    [shutdown],
+    [resolveWebAccessToken, shutdown],
   );
+
+  useEffect(() => {
+    publishSampleRef.current = publishSample;
+  }, [publishSample]);
 
   const startWatch = useCallback(() => {
     clearWatch();
@@ -326,7 +380,6 @@ export function useSeekerLiveLocationShare({
           }
           sharingEnabledRef.current = false;
           setUiState("denied");
-          void leaveChannel();
           return;
         }
 
@@ -354,81 +407,53 @@ export function useSeekerLiveLocationShare({
         timeout: LIVE_LOCATION_GEO_OPTIONS.timeoutMs,
       },
     );
-  }, [clearWatch, leaveChannel, publishSample]);
+  }, [clearWatch, publishSample]);
 
   useEffect(() => {
     startWatchRef.current = startWatch;
   }, [startWatch]);
 
-  const ensureChannel = useCallback(async (): Promise<boolean> => {
+  const verifyWebSendAuthorization = useCallback(async (): Promise<boolean> => {
     const topic = getClaimLocationTopic(claimIdRef.current);
     if (!topic) {
-      return false;
-    }
-
-    await leaveChannel();
-
-    const client = createClient();
-    clientRef.current = client;
-
-    const { data } = await client.auth.getSession();
-    const token = data.session?.access_token;
-    if (!token) {
-      return false;
-    }
-    await client.realtime.setAuth(token);
-
-    return await new Promise<boolean>((resolve) => {
-      let settled = false;
-      const nextChannel = client.channel(topic, {
-        config: {
-          private: true,
-          broadcast: { self: false, ack: true },
-        },
+      logHandoffLive("send authorize skipped", {
+        claimId: claimIdRef.current,
+        reason: "invalid_topic",
       });
-      channelRef.current = nextChannel;
-
-      logHandoffLive("CHANNEL SUBSCRIBING", {
+      return false;
+    }
+    const client = createClient();
+    const token = await resolveWebAccessToken();
+    if (!token) {
+      logHandoffLive("send authorize skipped", {
+        claimId: claimIdRef.current,
+        reason: "missing_session",
+      });
+      return false;
+    }
+    try {
+      const { data, error } = await client.rpc("can_send_claim_location", {
+        p_topic: topic,
+      });
+      logHandoffLive("send authorized", {
         claimId: claimIdRef.current,
         topic,
-        role: "seeker",
+        allowed: data === true,
+        rpcError: error?.message ?? null,
+        provider: "geolocation",
       });
-      nextChannel.subscribe((status) => {
-        if (settled) {
-          return;
-        }
-        if (status === "SUBSCRIBED") {
-          settled = true;
-          subscribedRef.current = true;
-          logHandoffLive("CHANNEL SUBSCRIBED", {
-            claimId: claimIdRef.current,
-            topic,
-            role: "seeker",
-          });
-          const pending = pendingSampleRef.current;
-          if (pending) {
-            void publishSample(pending);
-          }
-          resolve(true);
-          return;
-        }
-        if (
-          status === "CHANNEL_ERROR" ||
-          status === "TIMED_OUT" ||
-          status === "CLOSED"
-        ) {
-          settled = true;
-          subscribedRef.current = false;
-          logHandoffLive(`CHANNEL ${status}`, {
-            claimId: claimIdRef.current,
-            topic,
-            role: "seeker",
-          });
-          resolve(false);
-        }
+      return data === true;
+    } catch (error) {
+      logHandoffLive("send authorized", {
+        claimId: claimIdRef.current,
+        topic,
+        allowed: null,
+        rpcError: error instanceof Error ? error.message : String(error),
+        provider: "geolocation",
       });
-    });
-  }, [leaveChannel, publishSample]);
+      return true;
+    }
+  }, [resolveWebAccessToken]);
 
   const attachNativeUiListener = useCallback(async () => {
     await detachNativeListener();
@@ -643,6 +668,7 @@ export function useSeekerLiveLocationShare({
     // Start watch in this turn so iOS can still treat it as a user gesture.
     sharingEnabledRef.current = true;
     hasUsableFixRef.current = false;
+    hasDeliveredRef.current = false;
     setUiState("acquiring");
     logHandoffLive("claim active", {
       claimId: claimIdRef.current,
@@ -650,16 +676,20 @@ export function useSeekerLiveLocationShare({
       topic,
       source: "web",
       provider: "geolocation",
+      transport: "edge-function",
     });
     startWatch();
 
-    const joined = await ensureChannel();
-    if (!joined) {
-      sharingEnabledRef.current = false;
-      clearWatch();
+    const authorized = await verifyWebSendAuthorization();
+    if (!authorized) {
       setUiState("unavailable");
     }
-  }, [clearWatch, enabled, ensureChannel, startNativeSharing, startWatch]);
+  }, [
+    enabled,
+    startNativeSharing,
+    startWatch,
+    verifyWebSendAuthorization,
+  ]);
 
   const stopSharing = useCallback(async () => {
     uiEpochRef.current += 1;
@@ -725,15 +755,21 @@ export function useSeekerLiveLocationShare({
       ) {
         setResumedOnce(true);
         setUiState(hasUsableFixRef.current ? "sharing" : "acquiring");
-        void (async () => {
-          const ok = await ensureChannel();
-          if (!ok) {
-            setUiState("unavailable");
-            sharingEnabledRef.current = false;
-            return;
-          }
-          startWatch();
-        })();
+        void resolveWebAccessToken();
+        startWatch();
+        const pending = pendingSampleRef.current ?? lastSentRef.current;
+        if (pending) {
+          void publishSample(
+            {
+              latitude: pending.latitude,
+              longitude: pending.longitude,
+              accuracyMeters: pending.accuracyMeters,
+              headingDegrees: pending.headingDegrees,
+              atMs: Date.now(),
+            },
+            { force: true },
+          );
+        }
       }
     };
 
@@ -741,7 +777,7 @@ export function useSeekerLiveLocationShare({
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [clearWatch, enabled, ensureChannel, sendStatus, startWatch]);
+  }, [clearWatch, enabled, publishSample, resolveWebAccessToken, sendStatus, startWatch]);
 
   useEffect(() => {
     // Reconcile native tracker with the current claim. Do NOT flip terminalRef in
@@ -755,7 +791,6 @@ export function useSeekerLiveLocationShare({
     nativeStartInFlightRef.current = null;
     nativeStartSucceededRef.current = null;
     clearWatch();
-    void leaveChannel();
     const epoch = ++uiEpochRef.current;
     let cancelled = false;
     let idleTimer: number | null = null;
@@ -810,10 +845,23 @@ export function useSeekerLiveLocationShare({
       // Leave terminalRef alone — only forceStop / expiry / explicit stop set it.
       sharingEnabledRef.current = false;
       clearWatch();
-      void leaveChannel();
-      // Native tracker outlives React remounts (revalidatePath / navigation).
     };
-  }, [claimId, enabled, manageNativeTracker, clearWatch, leaveChannel, attachNativeUiListener]);
+  }, [claimId, enabled, manageNativeTracker, clearWatch, attachNativeUiListener]);
+
+  useEffect(() => {
+    if (!enabled || getHandoffLocationService().isNative) {
+      return;
+    }
+    const client = createClient();
+    const {
+      data: { subscription },
+    } = client.auth.onAuthStateChange((_event, session) => {
+      accessTokenRef.current = session?.access_token ?? null;
+    });
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [enabled]);
 
   return {
     uiState,

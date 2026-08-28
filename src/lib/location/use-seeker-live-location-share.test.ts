@@ -3,25 +3,43 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { useSeekerLiveLocationShare } from "@/lib/location/use-seeker-live-location-share";
 import { renderHook, act } from "@testing-library/react";
 
-const removeChannel = vi.fn(async () => "ok");
-const send = vi.fn(async () => "ok");
-const subscribe = vi.fn((cb?: (status: string) => void) => {
-  cb?.("SUBSCRIBED");
-  return { unsubscribe: vi.fn() };
-});
-const on = vi.fn(() => ({ subscribe, on, send }));
-const channel = vi.fn(() => ({ on, subscribe, send }));
-const setAuth = vi.fn(async () => undefined);
+const publishSeekerLiveLocationViaEdge = vi.fn(async () => ({
+  ok: true as const,
+  accepted: true as const,
+}));
+const rpc = vi.fn(async () => ({ data: true, error: null }));
+const refreshSession = vi.fn(async () => ({
+  data: { session: { access_token: "token" } },
+}));
 const getSession = vi.fn(async () => ({
   data: { session: { access_token: "token" } },
+}));
+const onAuthStateChange = vi.fn(() => ({
+  data: { subscription: { unsubscribe: vi.fn() } },
+}));
+
+vi.mock("@/lib/location/publish-seeker-live-location", () => ({
+  publishSeekerLiveLocationViaEdge: (...args: unknown[]) =>
+    publishSeekerLiveLocationViaEdge(...args),
+}));
+
+vi.mock("@/lib/location/handoff-location-service", () => ({
+  getHandoffLocationService: () => ({
+    isNative: false,
+    startHandoffTracking: vi.fn(),
+    stopHandoffTracking: vi.fn(),
+    getTrackingState: vi.fn(async () => ({
+      active: false,
+      claimId: null,
+      source: null,
+    })),
+  }),
 }));
 
 vi.mock("@/lib/supabase/client", () => ({
   createClient: () => ({
-    channel,
-    removeChannel,
-    realtime: { setAuth },
-    auth: { getSession },
+    rpc,
+    auth: { getSession, refreshSession, onAuthStateChange },
   }),
 }));
 
@@ -32,9 +50,22 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     watchPosition.mockReturnValue(42);
+    publishSeekerLiveLocationViaEdge.mockResolvedValue({
+      ok: true,
+      accepted: true,
+    });
+    rpc.mockResolvedValue({ data: true, error: null });
     getSession.mockImplementation(async () => ({
       data: { session: { access_token: "token" } },
     }));
+    refreshSession.mockImplementation(async () => ({
+      data: { session: { access_token: "token" } },
+    }));
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv(
+      "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+      "publishable-key",
+    );
     vi.stubGlobal("isSecureContext", true);
     vi.stubGlobal("navigator", {
       geolocation: {
@@ -50,6 +81,7 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("does not start watchPosition before deliberate share", () => {
@@ -87,15 +119,15 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     expect(result.current.uiState).toBe("off");
   });
 
-  it("starts watchPosition before awaiting the realtime channel", async () => {
+  it("starts watchPosition before awaiting send authorization", async () => {
     const order: string[] = [];
     watchPosition.mockImplementation(() => {
       order.push("watch");
       return 42;
     });
-    getSession.mockImplementation(async () => {
-      order.push("session");
-      return { data: { session: { access_token: "token" } } };
+    rpc.mockImplementation(async () => {
+      order.push("authorize");
+      return { data: true, error: null };
     });
 
     const { result } = renderHook(() =>
@@ -111,7 +143,7 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     });
 
     expect(order[0]).toBe("watch");
-    expect(order).toContain("session");
+    expect(order).toContain("authorize");
   });
 
   it("marks denied without persisting coordinates", async () => {
@@ -194,7 +226,7 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     expect(clearWatch).toHaveBeenCalled();
   });
 
-  it("forceStop best-effort broadcasts stopped then leaves", async () => {
+  it("forceStop best-effort posts stopped status via edge transport", async () => {
     const { result } = renderHook(() =>
       useSeekerLiveLocationShare({
         claimId: "11111111-1111-4111-8111-111111111111",
@@ -215,14 +247,13 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
       await Promise.resolve();
     });
 
-    expect(send).toHaveBeenCalledWith(
+    expect(publishSeekerLiveLocationViaEdge).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "seeker-location-status",
         payload: expect.objectContaining({ status: "stopped" }),
       }),
     );
     expect(clearWatch).toHaveBeenCalled();
-    expect(removeChannel).toHaveBeenCalled();
   });
 
   it("stays acquiring until a usable GPS fix arrives", async () => {
@@ -270,12 +301,12 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     });
 
     expect(result.current.uiState).toBe("weak");
-    expect(send).not.toHaveBeenCalledWith(
+    expect(publishSeekerLiveLocationViaEdge).not.toHaveBeenCalledWith(
       expect.objectContaining({ event: "seeker-location" }),
     );
   });
 
-  it("switches to sharing only after GPS + successful broadcast", async () => {
+  it("switches to sharing only after GPS + successful edge publish", async () => {
     watchPosition.mockImplementation((success: PositionCallback) => {
       success({
         coords: {
@@ -308,18 +339,18 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
       await Promise.resolve();
     });
 
-    expect(send).toHaveBeenCalledWith(
+    expect(publishSeekerLiveLocationViaEdge).toHaveBeenCalledWith(
       expect.objectContaining({ event: "seeker-location" }),
     );
     expect(result.current.uiState).toBe("sharing");
   });
 
-  it("does not report sharing from GPS alone before broadcast", async () => {
-    send.mockImplementationOnce(async () => {
+  it("does not report sharing from GPS alone before edge publish", async () => {
+    publishSeekerLiveLocationViaEdge.mockImplementationOnce(async () => {
       await new Promise(() => {
         // Never resolves — transport still in flight.
       });
-      return "ok";
+      return { ok: true, accepted: true };
     });
     watchPosition.mockImplementation((success: PositionCallback) => {
       queueMicrotask(() => {
@@ -341,7 +372,7 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
 
     const { result } = renderHook(() =>
       useSeekerLiveLocationShare({
-        claimId: "11111111-1111-4111-8111-111111111111",
+        claimId: "11111111-1111-4111-8111-811111111111",
         spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
         enabled: true,
       }),
@@ -413,7 +444,6 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
       } as GeolocationPositionError);
     });
     expect(result.current.uiState).toBe("unavailable");
-    expect(removeChannel).not.toHaveBeenCalled();
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3_000);
@@ -441,7 +471,7 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     vi.useRealTimers();
   });
 
-  it("subscribes on a private claim-location channel only", async () => {
+  it("checks can_send_claim_location before sharing on web", async () => {
     const { result } = renderHook(() =>
       useSeekerLiveLocationShare({
         claimId: "11111111-1111-4111-8111-111111111111",
@@ -454,11 +484,24 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
       await result.current.startSharing();
     });
 
-    expect(channel).toHaveBeenCalledWith(
-      "claim-location:11111111-1111-4111-8111-111111111111",
-      expect.objectContaining({
-        config: expect.objectContaining({ private: true }),
+    expect(rpc).toHaveBeenCalledWith("can_send_claim_location", {
+      p_topic: "claim-location:11111111-1111-4111-8111-111111111111",
+    });
+  });
+
+  it("does not use realtime channel.send for web transport", async () => {
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
       }),
     );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(publishSeekerLiveLocationViaEdge).not.toHaveBeenCalled();
   });
 });

@@ -222,6 +222,7 @@ export function usePublisherLiveLocation({
 
     let cancelled = false;
     let reconnectTimer: number | null = null;
+    let waitingSnapshotTimer: number | null = null;
     let phase: ReceiverPhase = "idle";
     let subscribeInFlight = false;
     let disposingChannel = false;
@@ -300,6 +301,41 @@ export function usePublisherLiveLocation({
         connectionFailed: false,
         generation,
       });
+      clearWaitingSnapshotPoll();
+    }
+
+    function scheduleWaitingSnapshotPoll() {
+      if (
+        waitingSnapshotTimer !== null ||
+        cancelled ||
+        terminalRef.current ||
+        generation !== generationRef.current ||
+        lastKnownRef.current
+      ) {
+        return;
+      }
+      waitingSnapshotTimer = window.setTimeout(() => {
+        waitingSnapshotTimer = null;
+        if (
+          cancelled ||
+          terminalRef.current ||
+          generation !== generationRef.current ||
+          lastKnownRef.current ||
+          phase !== "subscribed"
+        ) {
+          return;
+        }
+        void reconcileLatestSnapshot("waiting poll").finally(() => {
+          scheduleWaitingSnapshotPoll();
+        });
+      }, 3_000);
+    }
+
+    function clearWaitingSnapshotPoll() {
+      if (waitingSnapshotTimer !== null) {
+        window.clearTimeout(waitingSnapshotTimer);
+        waitingSnapshotTimer = null;
+      }
     }
 
     async function reconcileLatestSnapshot(reason: string) {
@@ -337,6 +373,7 @@ export function usePublisherLiveLocation({
         generation,
       });
       applyLocation(parsed, "snapshot");
+      clearWaitingSnapshotPoll();
     }
 
     function scheduleReconnect(reason: string) {
@@ -590,6 +627,7 @@ export function usePublisherLiveLocation({
               : prev,
           );
           void reconcileLatestSnapshot(snapshotReason);
+          scheduleWaitingSnapshotPoll();
           return;
         }
 
@@ -700,6 +738,7 @@ export function usePublisherLiveLocation({
       if (reconnectTimer !== null) {
         window.clearTimeout(reconnectTimer);
       }
+      clearWaitingSnapshotPoll();
       authSubscription.unsubscribe();
       document.removeEventListener("visibilitychange", onVisibilityRestore);
       window.removeEventListener("online", onOnline);

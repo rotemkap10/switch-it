@@ -10,8 +10,8 @@ Re-verified during this documentation pass:
 
 ```text
 npm run test:run
-→ 260 test files passed
-→ 1624 tests passed
+→ 265 test files passed
+→ 1643 tests passed
 ```
 
 Coverage labels:
@@ -47,10 +47,11 @@ Coverage labels:
 | Resend verification | Neutral delivery wording; unconfirmed users can still resend | Automated |
 | Unconfirmed login | Friendly verify/resend state | Automated |
 | Forgot password link on login | Navigates to `/forgot-password` | Automated |
-| Forgot-password request | `resetPasswordForEmail` + neutral Check your email; no email enumeration | Automated |
+| Forgot-password request | `resetPasswordForEmail` with `redirectTo` → `/auth/callback/recovery`; neutral Check your email; no email enumeration | Automated |
 | Reset rate limit | Friendly “Too many attempts…” | Automated |
-| Recovery callback | `next=/auth/reset-password` → set-new-password; invalid → `/forgot-password?error=reset` | Automated |
+| Recovery callback | Reset email → `/auth/callback/recovery?code=…` → `exchangeCodeForSession` → `/auth/reset-password` (dedicated route; Supabase PKCE often drops `next` from `redirectTo`). Generic `/auth/callback` also treats `type=recovery` or preserved `next=/auth/reset-password` as recovery. Invalid/expired → `/forgot-password?error=reset` | Automated |
 | Set new password | Shared policy + mismatch checks; `updateUser` then sign-out success | Automated |
+| Recovery session on reset page | Authenticated recovery session stays on `/auth/reset-password` (not bounced to `/map` by proxy) | Automated |
 | Protected routes redirect | Unauthenticated → `/login?next=` | Automated |
 | Callback exchange (confirm) | Session established; onboarding-aware redirect | Partial automated; Manual recommended |
 | Logout | Session cleared | Automated / Manual |
@@ -86,6 +87,15 @@ Coverage labels:
 | Available spots appear | `status = available` and `expires_at > now` | Automated discovery merge tests |
 | Claimed pin removed / tombstone | Hidden for seekers | Automated |
 | Realtime upsert after unclaimed I’m leaving now | Pin stays; `expires_at` updates | Automated |
+| Initial map camera — trusted GPS over cache/default | Current trusted fix preferred over stale cache or Tel Aviv fallback (`resolve-initial-map-camera`) | Automated |
+| Initial map camera — no Herzliya/Sokolov boot pin | Map does not start on old hardcoded development coordinates | Automated |
+| Initial map camera — late GPS before interaction | If GPS arrives shortly after mount, map recenters only while the user has not panned/dragged | Automated (`ParkingMapMapLibre.geolocation.test.tsx`) |
+| Initial map camera — user interaction wins | After manual pan/drag, a later GPS fix does not unexpectedly recenter the map | Automated |
+| Initial map camera — lat/lng order | MapLibre `[lng, lat]` order preserved; swapped coordinates rejected as out of bounds | Automated |
+| Initial map camera — Tel Aviv fallback | Safe Tel Aviv fallback used only when no better in-bounds location is available | Automated |
+| Share a Spot — empty coordinate strings | Empty `latitude` / `longitude` strings must not be treated as `0,0`; publish blocked until a real location is set | Partial automated (UI `hasLocation` guard); Manual recommended |
+| Share a Spot — late GPS vs manual pin | Fresh GPS must not overwrite an address selection or manual pin move | Automated (`PublishSpotForm.test.tsx`) |
+| Map location providers | Android native and browser/PWA use different device location providers but share the same initial camera resolution logic | Automated helpers + Manual on real devices |
 | Map without MapTiler key | Degraded | Manual |
 | Primary map stack | MapLibre + MapTiler for seeker experience | Code inspection + Manual |
 
@@ -215,8 +225,11 @@ They do **not** replace a real-device GPS demo.
 - Seeker with 0 credits.
 - Second device Realtime lag then refresh.
 - Live location permission denied (claim still exists; sharing degraded).
+- Web live location: seeker (driver) posts via Edge Function; publisher receives via private Broadcast + DB snapshot poll.
+- Web foreground required for continuous GPS in browser tabs (see matrix below).
 - Signup with an already-registered email (neutral Check your email; may receive no mail).
-- Expired password-reset link → request a new one from `/forgot-password`.
+- Password-reset email must use `/auth/callback/recovery` (not rely on `next` surviving the Supabase PKCE redirect).
+- Expired password-reset link → request a new reset link from `/forgot-password`.
 
 ---
 
@@ -240,7 +253,7 @@ Use two real accounts (A publisher, B seeker). Prefer physical devices with GPS.
 - [ ] Credits: B −1, A +1; both History updated.
 
 ### Negative / alternative
-- [ ] Forgot password → reset email → set new password → sign in works (optional demo).
+- [ ] Forgot password → reset email → `/auth/callback/recovery` → set new password → sign out → sign in (optional demo).
 - [ ] Second seeker C cannot claim A’s already-claimed spot.
 - [ ] B with 0 credits cannot claim.
 - [ ] B too far cannot claim.
@@ -251,14 +264,36 @@ Use two real accounts (A publisher, B seeker). Prefer physical devices with GPS.
 
 ---
 
+# Web live-location compatibility matrix (manual — real devices)
+
+**Roles:** Seeker (driver) **sends** GPS; Publisher (spot owner) **receives** marker.  
+**Foreground target:** both users keep Switch It active in the browser tab.  
+**Diagnostics:** filter console for `[switch-it:handoff-live]` (seeker) and `[switch-it:handoff-live-receiver]` (publisher). Never log JWTs.
+
+| Case | Sender device/browser | Receiver device/browser | Publisher/seeker roles | GPS permission | Foreground result | Realtime result | Marker result | Background behavior | Resume behavior |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **A** | Android Chrome (website) | iPhone Safari (website) | B seeker → A publisher | Both allow precise location | Seeker: `edge publish succeeded`; Publisher: `event received` | `SUBSCRIBED` on publisher | Car marker updates | iOS/Android suspend GPS/WS when tab hidden — marker ages to delayed/stale | Foreground again → watch + edge publish resume; publisher snapshot poll / broadcast |
+| **B** | iPhone Safari (website) | Android Chrome (website) | B seeker → A publisher | Both allow | Same as A, roles reversed | Same | Same | Same | Same |
+| **C** | iPhone Safari | iPhone Safari | B seeker → A publisher | Both allow | Same | Same | Same | iOS suspends background tab | Return to Switch It → sharing resumes |
+| **D** | Android Chrome | Android Chrome | B seeker → A publisher | Both allow | Same | Same | Same | Chrome throttles background tab | Return to Switch It → sharing resumes |
+| **A′** | iPhone Safari | Android Chrome | **A publisher → B seeker** (receive-only on A) | Both allow | Publisher receive path only on A; B must still send when seeker | Publisher on A subscribes; seeker on B edge-publishes | Marker on A | N/A for publisher send | N/A |
+
+**Known browser limitations (not bugs):**
+- Ordinary website tabs cannot guarantee GPS while user is in Waze/another app or after screen lock — native Android FGS remains the guaranteed background path.
+- PWA installed vs browser tab: same web geolocation rules; installation is not required for foreground live location.
+
+**Automated coverage (Vitest):** web runtime selects `navigator.geolocation` + Edge Function transport; native path unchanged; payload parser platform-independent; publisher snapshot poll while waiting; seeker watcher lifecycle; permission denied degradation.
+
+---
+
 ## Current automated testing summary
 
 | Metric | Value |
 | --- | --- |
 | Command | `npm run test:run` |
 | Framework | Vitest 4.x + Testing Library + jsdom |
-| Test files | **260** |
-| Tests | **1624** |
+| Test files | **265** |
+| Tests | **1643** |
 | Playwright / Cypress project | **Not currently implemented** |
 
 ---
@@ -268,8 +303,13 @@ Use two real accounts (A publisher, B seeker). Prefer physical devices with GPS.
 - `package.json`
 - `src/**/*.test.ts(x)`
 - `supabase/migrations/*.migration.test.ts`
+- `src/actions/auth*.test.ts`, `src/lib/auth/auth-callback-handler.test.ts`
 - `src/actions/claims*.test.ts`, `spots.start.test.ts`
 - `src/lib/map/seeker-discovery-spots.test.ts`
+- `src/lib/map/resolve-initial-map-camera.test.ts`
+- `src/components/map/ParkingMapMapLibre.geolocation.test.tsx`
+- `src/components/spots/PublishSpotForm.test.tsx`
 - `src/lib/history/load-history.test.ts`
 - `src/lib/feedback/error-map.ts`
+- `src/lib/supabase/proxy.test.ts`
 - `supabase/migrations/20260818210000_auto_start_handoff_at_departure.sql` (`HANDOFF_NOT_STARTED`)

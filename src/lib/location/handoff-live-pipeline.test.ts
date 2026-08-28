@@ -77,6 +77,40 @@ describe("handoff live-location pipeline contracts", () => {
     expect(edge).not.toContain("insert into public.claim_live_location_history");
   });
 
+  it("web seeker posts via Edge Function instead of client Broadcast", () => {
+    const seeker = readFileSync(
+      resolve(root, "src/lib/location/use-seeker-live-location-share.ts"),
+      "utf8",
+    );
+    const publish = readFileSync(
+      resolve(root, "src/lib/location/publish-seeker-live-location.ts"),
+      "utf8",
+    );
+    expect(seeker).toContain("publishSeekerLiveLocationViaEdge");
+    expect(seeker).not.toContain('type: "broadcast"');
+    expect(publish).toContain("handoffSeekerLocationEdgeFunctionUrl");
+  });
+
+  it("web client sends the same headers as native Android POST", () => {
+    const publish = readFileSync(
+      resolve(root, "src/lib/location/publish-seeker-live-location.ts"),
+      "utf8",
+    );
+    const android = readFileSync(
+      resolve(
+        root,
+        "native/handoff-background-location/android/src/main/java/il/ac/runi/switchit/handoff/HandoffLocationForegroundService.java",
+      ),
+      "utf8",
+    );
+    expect(publish).toContain('Authorization: `Bearer ${input.accessToken}`');
+    expect(publish).toContain("apikey: config.publishableKey");
+    expect(publish).toContain('"Content-Type": "application/json"');
+    expect(android).toContain('"Authorization", "Bearer " + token');
+    expect(android).toContain('"apikey", key');
+    expect(android).toContain('"Content-Type", "application/json"');
+  });
+
   it("native tracker stop is owned by one coordinator", () => {
     const share = readFileSync(
       resolve(root, "src/lib/location/use-seeker-live-location-share.ts"),
