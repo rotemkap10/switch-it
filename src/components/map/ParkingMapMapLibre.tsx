@@ -78,6 +78,8 @@ export type PickerExternalRecenter = {
   requestId: number;
   latitude: number;
   longitude: number;
+  /** One-shot camera zoom for address search. Omitted = preserve/fallback. */
+  zoom?: number;
 };
 
 /** Exact BaseMap className for Find Parking and Share a Spot. */
@@ -610,6 +612,9 @@ export function ParkingMapMapLibre({
       }
       centerMapOnLocation(map, command.longitude, command.latitude, {
         reducedMotion: prefersReducedMotionRef.current,
+        ...(command.zoom != null && Number.isFinite(command.zoom)
+          ? { zoom: command.zoom }
+          : {}),
       });
     },
     [],

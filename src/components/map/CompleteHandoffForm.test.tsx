@@ -10,9 +10,20 @@ vi.mock("@/actions/claims", () => ({
   completeClaim: completeClaimMock,
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => "/spots/new",
+}));
+
 import { CompleteHandoffForm } from "@/components/map/CompleteHandoffForm";
 import { FeedbackShell } from "@/components/feedback/FeedbackShell";
+import { HandoffCompletionSuccessController } from "@/components/handoff/HandoffCompletionSuccessController";
+import { HeaderCreditsBalance } from "@/components/layout/HeaderCreditsBalance";
 import { completeClaimSchema } from "@/lib/validations/claim";
+import {
+  presentHandoffCompletionSuccess,
+  resetHandoffCompletionSuccessForTests,
+} from "@/lib/handoff/handoff-completion-success";
 import {
   resetSensoryAdaptersForTests,
   setSensoryAdaptersForTests,
@@ -64,12 +75,15 @@ describe("CompleteHandoffForm", () => {
     mockCompleteWithSchemaValidation();
     resetSensoryOnceForTests();
     resetSensoryAdaptersForTests();
+    resetHandoffCompletionSuccessForTests();
   });
 
   function renderForm() {
     return render(
       <FeedbackShell>
+        <HeaderCreditsBalance credits={4} />
         <CompleteHandoffForm claimId={claimId} />
+        <HandoffCompletionSuccessController />
       </FeedbackShell>,
     );
   }
@@ -232,11 +246,7 @@ describe("CompleteHandoffForm", () => {
     setSensoryAdaptersForTests({ playSound, haptic: vi.fn() });
 
     const user = userEvent.setup();
-    render(
-      <FeedbackShell>
-        <CompleteHandoffForm claimId={claimId} />
-      </FeedbackShell>,
-    );
+    renderForm();
 
     await enterPlateSuffix(user, "67");
     await user.click(
@@ -247,5 +257,82 @@ describe("CompleteHandoffForm", () => {
       expect(screen.getByTestId("handoff-complete-status")).toBeInTheDocument();
     });
     expect(playSound).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("handoff-success-overlay")).not.toBeInTheDocument();
+    expect(screen.queryByText("+1 credit")).not.toBeInTheDocument();
+  });
+
+  it("shows publisher +1 credit only after complete_claim succeeds", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <FeedbackShell>
+        <HeaderCreditsBalance credits={4} />
+        <CompleteHandoffForm claimId={claimId} />
+        <HandoffCompletionSuccessController />
+      </FeedbackShell>,
+    );
+
+    expect(screen.queryByTestId("handoff-success-overlay")).not.toBeInTheDocument();
+    expect(screen.getByTestId("header-credits-balance")).toHaveTextContent("4");
+
+    await enterPlateSuffix(user, "67");
+    await user.click(
+      screen.getByRole("button", { name: "Confirm handoff" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("handoff-success-overlay")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("handoff-success-credit")).toHaveTextContent("+1 credit");
+    expect(screen.getByText("Thanks for sharing your spot.")).toBeInTheDocument();
+
+    rerender(
+      <FeedbackShell>
+        <HeaderCreditsBalance credits={5} />
+        <CompleteHandoffForm claimId={claimId} />
+        <HandoffCompletionSuccessController />
+      </FeedbackShell>,
+    );
+    expect(screen.getByTestId("header-credits-balance")).toHaveTextContent("5");
+    expect(screen.getByTestId("handoff-success-credit")).toHaveTextContent("+1 credit");
+  });
+
+  it("does not show success after a failed completion", async () => {
+    completeClaimMock.mockResolvedValue({
+      error: "Those digits do not match.",
+      errorCode: "INVALID_PLATE_DIGITS",
+    });
+    const user = userEvent.setup();
+    renderForm();
+
+    await enterPlateSuffix(user, "67");
+    await user.click(
+      screen.getByRole("button", { name: "Confirm handoff" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Those digits do not match.")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("handoff-success-overlay")).not.toBeInTheDocument();
+    expect(screen.queryByText("+1 credit")).not.toBeInTheDocument();
+    expect(screen.getByTestId("complete-handoff-form")).toBeInTheDocument();
+  });
+
+  it("does not show a second overlay when completion is presented twice", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await enterPlateSuffix(user, "67");
+    await user.click(
+      screen.getByRole("button", { name: "Confirm handoff" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("handoff-success-overlay")).toBeInTheDocument();
+    });
+
+    presentHandoffCompletionSuccess({ claimId, role: "publisher" });
+    presentHandoffCompletionSuccess({ claimId, role: "seeker" });
+    expect(screen.getAllByTestId("handoff-success-overlay")).toHaveLength(1);
+    expect(screen.getByTestId("handoff-success-credit")).toHaveTextContent("+1 credit");
   });
 });

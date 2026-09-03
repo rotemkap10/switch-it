@@ -30,6 +30,7 @@ import {
 import { classifyGpsAccuracy } from "@/lib/map/watch-best-device-location";
 import { offerHandoffPushPrepromptBeforeHandoff } from "@/lib/push/preprompt-bus";
 import { isNativePushEnabledForPlatform } from "@/lib/push/is-native-push-platform";
+import { zoomForForwardGeocodeResult } from "@/lib/map/address-search-camera";
 import { MAP_FALLBACK_CENTER } from "@/lib/map/resolve-initial-map-camera";
 import { MapLoadingState } from "@/components/map/MapLoadingState";
 
@@ -273,6 +274,7 @@ export function PublishSpotForm() {
     requestId: number;
     latitude: number;
     longitude: number;
+    zoom: number;
   } | null>(null);
   const locationActionSeqRef = useRef(0);
   const gpsRequestSeqRef = useRef<number | null>(null);
@@ -598,6 +600,7 @@ export function PublishSpotForm() {
       requestId: (prev?.requestId ?? 0) + 1,
       latitude: result.latitude,
       longitude: result.longitude,
+      zoom: zoomForForwardGeocodeResult(result.placeTypes),
     }));
   }
 

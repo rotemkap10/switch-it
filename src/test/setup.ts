@@ -3,6 +3,8 @@ import { createElement } from "react";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
+import { resetHandoffCompletionSuccessForTests } from "@/lib/handoff/handoff-completion-success";
+
 vi.mock("next/image", () => ({
   default: ({
     src,
@@ -27,5 +29,6 @@ vi.mock("next/image", () => ({
 }));
 
 afterEach(() => {
+  resetHandoffCompletionSuccessForTests();
   cleanup();
 });

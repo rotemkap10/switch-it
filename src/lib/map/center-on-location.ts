@@ -20,6 +20,8 @@ export type CenterMapOnLocationOptions = {
   fallbackZoom?: number;
   /** Picker: never zoom out below street level. */
   minStreetZoom?: boolean;
+  /** When set, use this zoom instead of preserve/fallback logic. */
+  zoom?: number;
   durationMs?: number;
   reducedMotion?: boolean;
 };
@@ -39,6 +41,7 @@ export function centerMapOnLocation(
     minPreserveZoom = MAP_DEFAULT_ZOOM,
     fallbackZoom = MAP_DEFAULT_ZOOM,
     minStreetZoom = false,
+    zoom: forcedZoom,
     durationMs = RECENTER_DURATION_MS,
     reducedMotion = false,
   } = options;
@@ -46,7 +49,9 @@ export function centerMapOnLocation(
   const currentZoom = map.getZoom();
   let targetZoom = currentZoom;
 
-  if (minStreetZoom) {
+  if (forcedZoom != null && Number.isFinite(forcedZoom)) {
+    targetZoom = forcedZoom;
+  } else if (minStreetZoom) {
     targetZoom = Math.max(currentZoom, MAP_SELECTED_SPOT_ZOOM);
   } else if (currentZoom >= minPreserveZoom) {
     targetZoom = currentZoom;

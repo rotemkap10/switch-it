@@ -2512,6 +2512,37 @@ html.app-boot-splash-exiting #app-boot-splash {
   overscroll-behavior: none;
 }
 
+.handoff-success-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: rgb(18 50 74 / 28%);
+  padding-top: max(1rem, var(--app-safe-top));
+  padding-right: max(1rem, var(--app-safe-right), var(--app-phone-gutter));
+  padding-bottom: max(1rem, var(--app-safe-bottom));
+  padding-left: max(1rem, var(--app-safe-left), var(--app-phone-gutter));
+  overscroll-behavior: none;
+}
+
+.handoff-success-card {
+  display: flex;
+  width: 100%;
+  max-width: 22rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: var(--radius-card);
+  border: 1px solid rgb(79 191 143 / 35%);
+  background: var(--color-success-bg);
+  padding: 1.5rem 1.25rem 1.25rem;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
 .install-sheet {
   width: 100%;
   max-width: 24rem;

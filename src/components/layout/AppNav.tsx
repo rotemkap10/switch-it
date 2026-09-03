@@ -2,6 +2,7 @@
 
 import { Logo } from "@/components/branding/Logo";
 import { AppShellHeaderInner } from "@/components/layout/AppShellHeaderInner";
+import { HeaderCreditsBalance } from "@/components/layout/HeaderCreditsBalance";
 import { ModeHomeLink, ModeSwitch } from "@/components/mode/ModeSwitch";
 import { ProfileMenu } from "@/components/layout/ProfileMenu";
 
@@ -9,14 +10,20 @@ type AppNavProps = {
   /** Map routes: header stays out of the flex shrink of the map stage. */
   compact?: boolean;
   displayName?: string | null;
+  /** Same profiles.credits value as Profile. Null while loading. */
+  credits?: number | null;
 };
 
 /**
  * Authenticated header.
- * Phones: two rows — brand + profile, then full-width ModeSwitch.
- * Desktop (md+): one row — brand, ModeSwitch, profile.
+ * Phones: two rows — brand + credits + profile, then full-width ModeSwitch.
+ * Desktop (md+): one row — brand, ModeSwitch, credits, profile.
  */
-export function AppNav({ compact = false, displayName = null }: AppNavProps) {
+export function AppNav({
+  compact = false,
+  displayName = null,
+  credits = null,
+}: AppNavProps) {
   return (
     <header
       className={[
@@ -41,7 +48,10 @@ export function AppNav({ compact = false, displayName = null }: AppNavProps) {
               <ModeSwitch />
             </div>
           </div>
-          <ProfileMenu displayName={displayName} />
+          <div className="flex shrink-0 items-center gap-1.5">
+            <HeaderCreditsBalance credits={credits} />
+            <ProfileMenu displayName={displayName} />
+          </div>
         </div>
 
         <div className="md:hidden" data-testid="app-nav-row-mode">

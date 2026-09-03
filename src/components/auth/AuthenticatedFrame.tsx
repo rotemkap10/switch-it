@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { HandoffPushController } from "@/components/push/HandoffPushController";
+import { HandoffCompletionSuccessController } from "@/components/handoff/HandoffCompletionSuccessController";
 import { SeekerHandoffTerminalController } from "@/components/handoff/SeekerHandoffTerminalController";
 import { AppNav } from "@/components/layout/AppNav";
 import { MapLibreWarmup } from "@/components/map/MapLibreWarmup";
@@ -19,6 +20,8 @@ type AuthenticatedFrameProps = {
   children?: ReactNode;
   layout?: "default" | "map";
   displayName?: string | null;
+  /** Authoritative profiles.credits. Null while the shell query is unavailable. */
+  credits?: number | null;
   hasActiveHandoff?: boolean;
   headerAlign?: "start" | "center";
 };
@@ -30,6 +33,7 @@ export function AuthenticatedFrame({
   children,
   layout = "default",
   displayName = null,
+  credits = null,
   hasActiveHandoff = false,
   headerAlign = "start",
 }: AuthenticatedFrameProps) {
@@ -43,7 +47,7 @@ export function AuthenticatedFrame({
           data-testid="authenticated-shell"
           data-layout={isMap ? "map" : "page"}
         >
-          <AppNav compact={isMap} displayName={displayName} />
+          <AppNav compact={isMap} displayName={displayName} credits={credits} />
           <main
             className={[
               "app-shell-main",
@@ -69,6 +73,7 @@ export function AuthenticatedFrame({
             hasActiveHandoff={hasActiveHandoff}
           />
           <SeekerHandoffTerminalController />
+          <HandoffCompletionSuccessController />
         </div>
       </ModeGate>
     </ModeProvider>

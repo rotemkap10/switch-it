@@ -3,7 +3,7 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
 import { useFeedback } from "@/components/feedback/FeedbackProvider";
-import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import { presentHandoffCompletionSuccess } from "@/lib/handoff/handoff-completion-success";
 import {
   SEEKER_PARKING_SPOT_NO_LONGER_AVAILABLE,
   notifySeekerHandoffTerminal,
@@ -100,7 +100,7 @@ export function MapRealtimeSync({
         if (!isRealtimeFeedbackSuppressed(key)) {
           suppressRealtimeFeedback(key);
           notifySeekerHandoffTerminal({ claimId, reason: "completed" });
-          info(FEEDBACK_SUCCESS_KEYS["handoff-completed"]);
+          presentHandoffCompletionSuccess({ claimId, role: "seeker" });
           sensoryHandoffCompleted(claimId);
         }
       }

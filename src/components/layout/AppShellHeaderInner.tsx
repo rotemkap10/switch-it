@@ -34,10 +34,20 @@ export function AppShellHeaderLoadingPlaceholder({
     <AppShellHeaderInner>
       <div className="flex items-center justify-between gap-3">
         <Logo variant="nav" decorative />
-        <div
-          className="h-[var(--app-tap-min)] w-[var(--app-tap-min)] shrink-0 rounded-[var(--radius-card)] border border-border bg-accent-soft"
-          aria-hidden="true"
-        />
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span
+            className="inline-flex h-8 items-center gap-1.5 px-1"
+            aria-hidden="true"
+            data-testid="header-credits-loading-placeholder"
+          >
+            <span className="h-5 w-5 shrink-0 rounded-full bg-accent-soft" />
+            <span className="h-3.5 w-5 rounded-sm bg-accent-soft" />
+          </span>
+          <div
+            className="h-[var(--app-tap-min)] w-[var(--app-tap-min)] shrink-0 rounded-[var(--radius-card)] border border-border bg-accent-soft"
+            aria-hidden="true"
+          />
+        </div>
       </div>
       <div
         className="relative flex h-[var(--app-tap-min)] w-full items-center rounded-[var(--radius-card)] border border-border bg-accent-soft p-0.5 md:hidden"

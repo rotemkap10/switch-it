@@ -7,11 +7,10 @@ import {
   type CompleteClaimActionState,
 } from "@/actions/claims";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
-import { HandoffCompleteCelebration } from "@/components/illustrations/HandoffCompleteCelebration";
 import { PlateSuffixInput } from "@/components/map/PlateSuffixInput";
 import { Alert } from "@/components/ui/Alert";
 import { Button } from "@/components/ui/Button";
-import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import { presentHandoffCompletionSuccess } from "@/lib/handoff/handoff-completion-success";
 import { sensoryHandoffCompleted } from "@/lib/sensory/feedback";
 import {
   realtimeFeedbackKey,
@@ -40,9 +39,7 @@ export function CompleteHandoffForm({
 
   useActionFeedback(state, {
     successMessage: (s) =>
-      s.alreadyCompleted
-        ? "Handoff already completed."
-        : FEEDBACK_SUCCESS_KEYS["handoff-completed-publisher"],
+      s.alreadyCompleted ? "Handoff already completed." : null,
     toastErrors: false,
   });
 
@@ -55,6 +52,7 @@ export function CompleteHandoffForm({
     if (state.success) {
       if (!state.alreadyCompleted) {
         sensoryHandoffCompleted(claimId);
+        presentHandoffCompletionSuccess({ claimId, role: "publisher" });
       }
       onCompleted?.();
     }
@@ -63,8 +61,11 @@ export function CompleteHandoffForm({
   if (state.success) {
     return (
       <div className="space-y-2" data-testid="handoff-complete-status" role="status">
-        <HandoffCompleteCelebration animate />
-        <p className="text-center text-sm text-muted">Updating your spot…</p>
+        <p className="text-center text-sm text-muted">
+          {state.alreadyCompleted
+            ? "Handoff already completed."
+            : "Updating your spot…"}
+        </p>
       </div>
     );
   }

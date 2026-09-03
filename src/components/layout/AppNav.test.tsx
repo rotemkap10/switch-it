@@ -41,8 +41,21 @@ describe("AppNav", () => {
     modeState.setMode.mockReset();
   });
 
+  it("shows the credit balance before the profile control", () => {
+    render(<AppNav displayName="Alex" credits={5} />);
+
+    const brandRow = screen.getByTestId("app-nav-row-brand");
+    const credits = screen.getByTestId("header-credits");
+    const profile = screen.getByTestId("profile-menu");
+    expect(brandRow.contains(credits)).toBe(true);
+    expect(credits.compareDocumentPosition(profile) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(screen.getByTestId("header-credits-balance")).toHaveTextContent("5");
+  });
+
   it("uses a two-row phone header: brand+profile, then ModeSwitch", () => {
-    render(<AppNav displayName="Alex" />);
+    render(<AppNav displayName="Alex" credits={4} />);
 
     const brandRow = screen.getByTestId("app-nav-row-brand");
     const modeRow = screen.getByTestId("app-nav-row-mode");

@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const infoMock = vi.fn();
@@ -9,6 +9,11 @@ let claimOnEvent:
       old: Record<string, unknown> | null;
     }) => void)
   | null = null;
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => "/spots/new",
+}));
 
 vi.mock("@/lib/realtime/use-debounced-router-refresh", () => ({
   useDebouncedRouterRefresh: () => scheduleRefreshMock,
@@ -45,6 +50,8 @@ import {
   suppressRealtimeFeedback,
   realtimeFeedbackKey,
 } from "@/lib/realtime/feedback-suppression";
+import { resetHandoffCompletionSuccessForTests } from "@/lib/handoff/handoff-completion-success";
+import { HandoffCompletionSuccessController } from "@/components/handoff/HandoffCompletionSuccessController";
 import {
   PUBLISHER_CLAIM_CANCELLED_BY_SEEKER,
   PublisherRealtimeSync,
@@ -59,6 +66,7 @@ describe("PublisherRealtimeSync cancellation feedback", () => {
     scheduleRefreshMock.mockReset();
     claimOnEvent = null;
     clearRealtimeFeedbackSuppression();
+    resetHandoffCompletionSuccessForTests();
   });
 
   it("toasts once when the seeker cancels even if Realtime delivers twice", () => {
@@ -104,5 +112,35 @@ describe("PublisherRealtimeSync cancellation feedback", () => {
 
     expect(infoMock).not.toHaveBeenCalled();
     expect(scheduleRefreshMock).toHaveBeenCalled();
+  });
+
+  it("shows publisher +1 from Realtime completed without duplicating", () => {
+    render(
+      <>
+        <HandoffCompletionSuccessController />
+        <PublisherRealtimeSync
+          userId="owner-1"
+          spotId={spotId}
+          claimId={claimId}
+        />
+      </>,
+    );
+
+    act(() => {
+      claimOnEvent?.({
+        new: { id: claimId, status: "completed" },
+        old: { id: claimId, status: "active" },
+      });
+      claimOnEvent?.({
+        new: { id: claimId, status: "completed" },
+        old: { id: claimId, status: "active" },
+      });
+    });
+
+    expect(screen.getAllByTestId("handoff-success-overlay")).toHaveLength(1);
+    expect(screen.getByTestId("handoff-success-credit")).toHaveTextContent("+1 credit");
+    expect(infoMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("You earned 1 credit"),
+    );
   });
 });

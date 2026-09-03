@@ -7,7 +7,11 @@ import {
   PARKING_MAP_BASEMAP_CLASS,
   ParkingMapMapLibre,
 } from "@/components/map/ParkingMapMapLibre";
-import { MAP_DEFAULT_ZOOM, MAP_LAYERS } from "@/lib/map/seekerMapConfig";
+import {
+  MAP_ADDRESS_SEARCH_ZOOM,
+  MAP_DEFAULT_ZOOM,
+  MAP_LAYERS,
+} from "@/lib/map/seekerMapConfig";
 
 const mockBaseMapProps: {
   center?: unknown;
@@ -487,6 +491,69 @@ describe("ParkingMapMapLibre picker mode", () => {
       );
     });
     expect(mockMap.jumpTo).not.toHaveBeenCalled();
+  });
+
+  it("zooms to street/building level for a precise address selection", async () => {
+    render(
+      <ParkingMapMapLibre
+        mode="picker"
+        spots={[]}
+        showDiscoveryCarousel={false}
+        pickerExternalRecenter={{
+          requestId: 2,
+          latitude: 32.0853,
+          longitude: 34.7818,
+          zoom: MAP_ADDRESS_SEARCH_ZOOM,
+        }}
+      />,
+    );
+    await waitFor(() => {
+      expect(mockMap.easeTo).toHaveBeenCalledWith(
+        expect.objectContaining({
+          center: [34.7818, 32.0853],
+          zoom: MAP_ADDRESS_SEARCH_ZOOM,
+        }),
+      );
+    });
+    expect(MAP_ADDRESS_SEARCH_ZOOM).toBeGreaterThan(MAP_DEFAULT_ZOOM);
+    expect(mockMap.jumpTo).not.toHaveBeenCalled();
+  });
+
+  it("does not re-apply address zoom after the user pans or zooms", async () => {
+    const { rerender } = render(
+      <ParkingMapMapLibre
+        mode="picker"
+        spots={[]}
+        showDiscoveryCarousel={false}
+        pickerExternalRecenter={{
+          requestId: 4,
+          latitude: 32.0853,
+          longitude: 34.7818,
+          zoom: MAP_ADDRESS_SEARCH_ZOOM,
+        }}
+      />,
+    );
+    await waitFor(() => expect(mockMap.easeTo).toHaveBeenCalled());
+    mockMap.easeTo.mockClear();
+
+    handler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
+    handler("zoomstart")?.({ originalEvent: { type: "wheel" } });
+
+    rerender(
+      <ParkingMapMapLibre
+        mode="picker"
+        spots={[]}
+        showDiscoveryCarousel={false}
+        pickerExternalRecenter={{
+          requestId: 4,
+          latitude: 32.0853,
+          longitude: 34.7818,
+          zoom: MAP_ADDRESS_SEARCH_ZOOM,
+        }}
+      />,
+    );
+
+    expect(mockMap.easeTo).not.toHaveBeenCalled();
   });
 
   it("lifts the center pin via DOM class on dragstart without a move listener", async () => {

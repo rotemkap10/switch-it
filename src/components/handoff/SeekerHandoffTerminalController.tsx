@@ -29,6 +29,12 @@ export function SeekerHandoffTerminalController() {
         info(SEEKER_PARKING_SPOT_NO_LONGER_AVAILABLE);
       }
 
+      // Completed handoff: overlay owns the return to Find Parking after
+      // the success state has been shown. Do not navigate here.
+      if (event.reason === "completed") {
+        return;
+      }
+
       if (pathname !== "/map") {
         router.replace("/map");
       }

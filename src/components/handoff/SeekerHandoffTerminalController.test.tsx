@@ -51,12 +51,13 @@ describe("SeekerHandoffTerminalController", () => {
     expect(replaceMock).toHaveBeenCalledWith("/map");
   });
 
-  it("does not toast for completed terminal events", () => {
+  it("does not toast or navigate for completed terminal events", () => {
     render(<SeekerHandoffTerminalController />);
 
     notifySeekerHandoffTerminal({ claimId, reason: "completed" });
 
     expect(infoMock).not.toHaveBeenCalled();
     expect(clearSessionMock).toHaveBeenCalled();
+    expect(replaceMock).not.toHaveBeenCalled();
   });
 });

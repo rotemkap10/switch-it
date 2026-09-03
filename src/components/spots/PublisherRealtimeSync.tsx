@@ -17,6 +17,7 @@ import {
 import { useActiveHandoffReconciliation } from "@/lib/realtime/use-active-handoff-reconciliation";
 import { useDebouncedRouterRefresh } from "@/lib/realtime/use-debounced-router-refresh";
 import { useRealtimeInvalidation } from "@/lib/realtime/use-realtime-invalidation";
+import { presentHandoffCompletionSuccess } from "@/lib/handoff/handoff-completion-success";
 import { sensoryHandoffCompleted } from "@/lib/sensory/feedback";
 
 export const PUBLISHER_CLAIM_CANCELLED_BY_SEEKER =
@@ -248,7 +249,7 @@ export function PublisherRealtimeSync({
       } else if (id && next === "completed") {
         const key = realtimeFeedbackKey("claim", id, "completed");
         if (!isRealtimeFeedbackSuppressed(key)) {
-          info("Spot handed off\nYou earned 1 credit.");
+          presentHandoffCompletionSuccess({ claimId: id, role: "publisher" });
           sensoryHandoffCompleted(id);
           suppressRealtimeFeedback(key);
         }

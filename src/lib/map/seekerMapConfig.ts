@@ -9,6 +9,8 @@ export const MAP_DEFAULT_CENTER_TEL_AVIV = {
 
 export const MAP_DEFAULT_ZOOM = 14;
 export const MAP_SELECTED_SPOT_ZOOM = 16;
+/** Street/building zoom after selecting a precise address for parking. */
+export const MAP_ADDRESS_SEARCH_ZOOM = 18;
 
 /**
  * Zoom floor so the seeker map stays regionally focused (not a world view).
@@ -19,6 +21,7 @@ export const MAP_MIN_ZOOM = 7;
 /**
  * Street-level ceiling for MapTiler streets tiles / seeker browsing.
  * Selected-spot camera uses MAP_SELECTED_SPOT_ZOOM below this.
+ * Precise address search uses MAP_ADDRESS_SEARCH_ZOOM at this ceiling.
  */
 export const MAP_MAX_ZOOM = 18;
 

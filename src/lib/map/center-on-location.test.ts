@@ -58,4 +58,18 @@ describe("centerMapOnLocation", () => {
       expect.objectContaining({ duration: 0 }),
     );
   });
+
+  it("uses an explicit zoom when the caller forces one", () => {
+    const easeTo = vi.fn();
+    const map = { easeTo, getZoom: () => 14 };
+
+    centerMapOnLocation(map, 34.78, 32.08, { zoom: 18 });
+
+    expect(easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: [34.78, 32.08],
+        zoom: 18,
+      }),
+    );
+  });
 });

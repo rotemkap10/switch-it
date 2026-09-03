@@ -9,6 +9,7 @@ import {
 } from "@/components/spots/PublishSpotForm";
 import { resetSharedForegroundLocationForTests } from "@/lib/map/shared-foreground-location";
 import { publishSpotSchema } from "@/lib/validations/spot";
+import { MAP_ADDRESS_SEARCH_ZOOM, MAP_DEFAULT_ZOOM } from "@/lib/map/seekerMapConfig";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
 const { publishSpotMock } = vi.hoisted(() => ({
@@ -60,6 +61,7 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
     userLatitude,
     userLongitude,
     layout = "card",
+    externalRecenter,
   }: {
     latitude: number;
     longitude: number;
@@ -77,12 +79,21 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
     userLatitude?: number | null;
     userLongitude?: number | null;
     layout?: "card" | "fill";
+    externalRecenter?: {
+      requestId: number;
+      latitude: number;
+      longitude: number;
+      zoom?: number;
+    } | null;
   }) => (
     <div
       role="img"
       aria-label="Map to adjust your parking spot location"
       data-testid="leaver-map-picker"
       data-layout={layout}
+      data-recenter-lat={externalRecenter?.latitude ?? ""}
+      data-recenter-lng={externalRecenter?.longitude ?? ""}
+      data-recenter-zoom={externalRecenter?.zoom ?? ""}
       className={
         layout === "fill"
           ? "leaver-map-picker-shell leaver-map-picker-shell--fill"
@@ -1082,6 +1093,18 @@ describe("PublishSpotForm", () => {
     expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
       "Map at 32.1, 34.2",
     );
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-recenter-lat",
+      "32.1",
+    );
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-recenter-lng",
+      "34.2",
+    );
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-recenter-zoom",
+      String(MAP_ADDRESS_SEARCH_ZOOM),
+    );
 
     await user.click(screen.getByRole("button", { name: "Share spot" }));
 
@@ -1092,6 +1115,32 @@ describe("PublishSpotForm", () => {
     const formData = publishSpotMock.mock.calls[0]?.[1] as FormData;
     expect(formData.get("latitude")).toBe("32.100000");
     expect(formData.get("longitude")).toBe("34.200000");
+  });
+
+  it("uses city-scale zoom when the selected result is a broad locality", async () => {
+    mapTilerForwardGeocodeSearchMock.mockResolvedValueOnce([
+      {
+        latitude: 32.08,
+        longitude: 34.78,
+        label: "Tel Aviv",
+        placeTypes: ["locality"],
+      },
+    ]);
+
+    const user = userEvent.setup();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    const searchInput = await screen.findByPlaceholderText(
+      "Search an address",
+    );
+    await user.type(searchInput, "Tel Aviv");
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+    await user.click(await screen.findByText("Tel Aviv"));
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-recenter-zoom",
+      String(MAP_DEFAULT_ZOOM),
+    );
   });
 
   it("manual pin movement after address selection overrides the chosen coordinates and clears the address", async () => {

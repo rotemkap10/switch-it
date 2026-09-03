@@ -4,7 +4,9 @@ import {
   buildMapTilerSeekerStyleUrl,
   getMapTilerApiKey,
   isWithinSupportedMapBounds,
+  MAP_ADDRESS_SEARCH_ZOOM,
   MAP_DEFAULT_CENTER_TEL_AVIV,
+  MAP_DEFAULT_ZOOM,
   MAP_MAX_ZOOM,
   MAP_MIN_ZOOM,
   MAP_SUPPORTED_BOUNDS,
@@ -44,6 +46,8 @@ describe("seekerMapConfig", () => {
     expect(MAP_SUPPORTED_BOUNDS.south).toBeLessThan(MAP_SUPPORTED_BOUNDS.north);
     expect(MAP_MIN_ZOOM).toBe(7);
     expect(MAP_MAX_ZOOM).toBe(18);
+    expect(MAP_ADDRESS_SEARCH_ZOOM).toBe(18);
+    expect(MAP_ADDRESS_SEARCH_ZOOM).toBeGreaterThan(MAP_DEFAULT_ZOOM);
     expect(MAP_MIN_ZOOM).toBeLessThan(MAP_MAX_ZOOM);
 
     expect(

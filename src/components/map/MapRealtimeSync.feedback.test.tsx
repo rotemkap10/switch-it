@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const infoMock = vi.fn();
@@ -16,6 +16,11 @@ vi.mock("@/lib/handoff/seeker-handoff-terminal", () => ({
     "This parking spot is no longer available",
   notifySeekerHandoffTerminal: (...args: unknown[]) =>
     notifyTerminalMock(...args),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => "/map",
 }));
 
 vi.mock("@/lib/realtime/use-debounced-router-refresh", () => ({
@@ -50,6 +55,12 @@ import {
   realtimeFeedbackKey,
 } from "@/lib/realtime/feedback-suppression";
 import {
+  presentHandoffCompletionSuccess,
+  resetHandoffCompletionSuccessForTests,
+} from "@/lib/handoff/handoff-completion-success";
+import { HandoffCompletionSuccessController } from "@/components/handoff/HandoffCompletionSuccessController";
+import { HeaderCreditsBalance } from "@/components/layout/HeaderCreditsBalance";
+import {
   MapRealtimeSync,
 } from "@/components/map/MapRealtimeSync";
 
@@ -62,6 +73,7 @@ describe("MapRealtimeSync cancellation feedback", () => {
     notifyTerminalMock.mockReset();
     claimOnEvent = null;
     clearRealtimeFeedbackSuppression();
+    resetHandoffCompletionSuccessForTests();
   });
 
   it("notifies terminal once when the publisher cancels even if Realtime delivers twice", () => {
@@ -101,16 +113,85 @@ describe("MapRealtimeSync cancellation feedback", () => {
     expect(scheduleRefreshMock).toHaveBeenCalled();
   });
 
-  it("toasts the seeker when the publisher completes the handoff", () => {
-    render(<MapRealtimeSync userId="seeker-1" activeClaimId={claimId} />);
+  it("shows the seeker −1 overlay when the publisher completes the handoff", () => {
+    const { rerender } = render(
+      <>
+        <HeaderCreditsBalance credits={5} />
+        <HandoffCompletionSuccessController />
+        <MapRealtimeSync userId="seeker-1" activeClaimId={claimId} />
+      </>,
+    );
+
+    act(() => {
+      claimOnEvent?.({
+        new: { id: claimId, status: "completed" },
+        old: { id: claimId, status: "active" },
+      });
+    });
+
+    expect(notifyTerminalMock).toHaveBeenCalledWith({
+      claimId,
+      reason: "completed",
+    });
+    expect(infoMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("handoff-success-overlay")).toHaveAttribute(
+      "data-role",
+      "seeker",
+    );
+    expect(screen.getByTestId("handoff-success-credit")).toHaveTextContent("−1 credit");
+
+    rerender(
+      <>
+        <HeaderCreditsBalance credits={4} />
+        <HandoffCompletionSuccessController />
+        <MapRealtimeSync userId="seeker-1" activeClaimId={claimId} />
+      </>,
+    );
+    expect(screen.getByTestId("header-credits-balance")).toHaveTextContent("4");
+  });
+
+  it("does not show success until the claim is completed", () => {
+    render(
+      <>
+        <HandoffCompletionSuccessController />
+        <MapRealtimeSync userId="seeker-1" activeClaimId={claimId} />
+      </>,
+    );
 
     claimOnEvent?.({
-      new: { id: claimId, status: "completed" },
+      new: { id: claimId, status: "active" },
+      old: { id: claimId, status: "active" },
+    });
+    claimOnEvent?.({
+      new: { id: claimId, status: "cancelled" },
       old: { id: claimId, status: "active" },
     });
 
-    expect(infoMock).toHaveBeenCalledWith(
-      "Parking handoff complete\n1 credit was used.",
+    expect(screen.queryByTestId("handoff-success-overlay")).not.toBeInTheDocument();
+    expect(screen.queryByText("−1 credit")).not.toBeInTheDocument();
+  });
+
+  it("does not re-show success when Realtime delivers completed twice", () => {
+    render(
+      <>
+        <HandoffCompletionSuccessController />
+        <MapRealtimeSync userId="seeker-1" activeClaimId={claimId} />
+      </>,
     );
+
+    act(() => {
+      claimOnEvent?.({
+        new: { id: claimId, status: "completed" },
+        old: { id: claimId, status: "active" },
+      });
+      claimOnEvent?.({
+        new: { id: claimId, status: "completed" },
+        old: { id: claimId, status: "active" },
+      });
+      presentHandoffCompletionSuccess({ claimId, role: "seeker" });
+    });
+
+    expect(screen.getAllByTestId("handoff-success-overlay")).toHaveLength(1);
+    expect(notifyTerminalMock).toHaveBeenCalledTimes(1);
   });
 });

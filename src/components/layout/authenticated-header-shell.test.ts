@@ -10,9 +10,14 @@ function source(relativePath: string) {
 describe("authenticated header shell contract", () => {
   it("keeps AppNav outside page content and never constrains it to page max-width", () => {
     const frame = source("src/components/auth/AuthenticatedFrame.tsx");
-    expect(frame).toContain("<AppNav compact={isMap} displayName={displayName} />");
+    expect(frame).toContain(
+      "<AppNav compact={isMap} displayName={displayName} credits={credits} />",
+    );
+    expect(frame).toContain("<HandoffCompletionSuccessController />");
     expect(frame.indexOf("<AppNav")).toBeLessThan(frame.indexOf("<main"));
-    expect(frame).toContain('isMap ? "app-shell-main--map" : "app-shell-main--page"');
+    const shell = source("src/components/auth/AuthenticatedShell.tsx");
+    expect(shell).toContain('.select("display_name, credits")');
+    expect(shell).toContain("credits={shellProfile.credits}");
   });
 
   it("uses one shared header inner on live nav and loading chrome", () => {
@@ -50,5 +55,14 @@ describe("authenticated header shell contract", () => {
     expect(share).toContain('headerAlign="center"');
     expect(map).toContain('layout="map"');
     expect(map).not.toContain('headerAlign="center"');
+  });
+
+  it("loads header credits from the same profiles.credits field as Profile", () => {
+    const shell = source("src/components/auth/AuthenticatedShell.tsx");
+    const profile = source("src/app/profile/page.tsx");
+    expect(shell).toContain('.select("display_name, credits")');
+    expect(shell).toContain("credits={shellProfile.credits}");
+    expect(profile).toContain("display_name, credits, role");
+    expect(profile).toContain("credits={profile.credits}");
   });
 });

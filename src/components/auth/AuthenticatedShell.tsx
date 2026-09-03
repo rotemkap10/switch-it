@@ -54,19 +54,28 @@ export async function AuthenticatedShell({
 
   const { supabase, user } = access;
 
-  const displayName = await runRscQuery(
-    "load_shell_display_name",
+  const shellProfile = await runRscQuery(
+    "load_shell_profile",
     async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("display_name")
+        .select("display_name, credits")
         .eq("id", user.id)
         .maybeSingle();
-      return profile && typeof profile.display_name === "string"
-        ? profile.display_name
-        : null;
+      return {
+        displayName:
+          profile && typeof profile.display_name === "string"
+            ? profile.display_name
+            : null,
+        credits:
+          profile &&
+          typeof profile.credits === "number" &&
+          Number.isFinite(profile.credits)
+            ? profile.credits
+            : null,
+      };
     },
-    null,
+    { displayName: null, credits: null },
   );
 
   return (
@@ -75,7 +84,8 @@ export async function AuthenticatedShell({
       title={title}
       description={description}
       layout={layout}
-      displayName={displayName}
+      displayName={shellProfile.displayName}
+      credits={shellProfile.credits}
       hasActiveHandoff={access.status.hasActiveHandoff}
       headerAlign={headerAlign}
     >

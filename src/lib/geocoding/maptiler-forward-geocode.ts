@@ -13,6 +13,7 @@ export type ForwardGeocodeResult = {
   latitude: number;
   longitude: number;
   label: string;
+  placeTypes?: string[];
 };
 
 type MapTilerForwardFeature = {
@@ -195,7 +196,7 @@ export async function mapTilerForwardGeocodeSearch(
       }
 
       const score = kindBoost + (relevance ?? 0);
-      results.push({ latitude, longitude, label, score });
+      results.push({ latitude, longitude, label, placeTypes, score });
     }
 
     results.sort((a, b) => b.score - a.score);
