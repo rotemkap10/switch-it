@@ -40,8 +40,8 @@ export function AppShellHeaderLoadingPlaceholder({
             aria-hidden="true"
             data-testid="header-credits-loading-placeholder"
           >
-            <span className="h-5 w-5 shrink-0 rounded-full bg-accent-soft" />
-            <span className="h-3.5 w-5 rounded-sm bg-accent-soft" />
+            <span className="h-6 w-6 shrink-0 rounded-full bg-accent-soft" />
+            <span className="h-4 w-6 rounded-sm bg-accent-soft" />
           </span>
           <div
             className="h-[var(--app-tap-min)] w-[var(--app-tap-min)] shrink-0 rounded-[var(--radius-card)] border border-border bg-accent-soft"

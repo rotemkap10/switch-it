@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { CoinIcon } from "@/components/illustrations/CoinIcon";
+import { CoinStackIcon } from "@/components/illustrations/CoinIcon";
 
 type HeaderCreditsBalanceProps = {
   credits: number | null;
@@ -49,11 +49,11 @@ export function HeaderCreditsBalance({ credits }: HeaderCreditsBalanceProps) {
         aria-label="Credits loading"
       >
         <span
-          className="h-5 w-5 shrink-0 rounded-full bg-accent-soft"
+          className="h-6 w-6 shrink-0 rounded-full bg-accent-soft"
           aria-hidden="true"
         />
         <span
-          className="h-3.5 w-5 rounded-sm bg-accent-soft"
+          className="h-4 w-6 rounded-sm bg-accent-soft"
           aria-hidden="true"
         />
       </div>
@@ -65,7 +65,7 @@ export function HeaderCreditsBalance({ credits }: HeaderCreditsBalanceProps) {
   return (
     <div
       className={[
-        "inline-flex h-8 items-center gap-1 px-1",
+        "inline-flex h-8 items-center gap-1.5 px-1",
         updatePulse ? "motion-credits-update" : "",
       ]
         .filter(Boolean)
@@ -73,9 +73,9 @@ export function HeaderCreditsBalance({ credits }: HeaderCreditsBalanceProps) {
       data-testid="header-credits"
       aria-label={label}
     >
-      <CoinIcon className="h-5 w-5 shrink-0" />
+      <CoinStackIcon className="h-6 w-6 shrink-0" />
       <span
-        className="text-sm font-semibold tabular-nums tracking-tight text-foreground"
+        className="text-base font-semibold leading-none tabular-nums tracking-tight text-foreground"
         data-testid="header-credits-balance"
       >
         {safeCredits}
