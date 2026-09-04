@@ -9,5 +9,7 @@ export const ILLUSTRATION = {
   successSoft: "#e7f8f0",
   coin: "#e0a35c",
   coinSoft: "#fff6ea",
+  coral: "#d9897c",
+  coralSoft: "#fdf6f3",
   surface: "#ffffff",
 } as const;

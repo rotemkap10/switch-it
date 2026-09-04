@@ -10,20 +10,26 @@ import {
 
 type HandoffCompletionSuccessOverlayProps = {
   role: HandoffCompletionRole;
+  exiting?: boolean;
   onContinue: () => void;
 };
 
 export function HandoffCompletionSuccessOverlay({
   role,
+  exiting = false,
   onContinue,
 }: HandoffCompletionSuccessOverlayProps) {
   const copy = HANDOFF_COMPLETION_COPY[role];
 
   return (
     <div
-      className="handoff-success-backdrop motion-fade-in"
+      className={[
+        "handoff-success-backdrop",
+        exiting ? "is-exiting" : "motion-fade-in",
+      ].join(" ")}
       data-testid="handoff-success-overlay"
       data-role={role}
+      data-exiting={exiting ? "true" : "false"}
     >
       <div
         className="handoff-success-card motion-soft-scale-in"
@@ -51,6 +57,7 @@ export function HandoffCompletionSuccessOverlay({
           variant="primary"
           className="mt-1 w-full"
           onClick={onContinue}
+          disabled={exiting}
           data-testid="handoff-success-continue"
         >
           Continue

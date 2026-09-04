@@ -2,7 +2,6 @@
 
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { presentHandoffCompletionSuccess } from "@/lib/handoff/handoff-completion-success";
 import {
   SEEKER_PARKING_SPOT_NO_LONGER_AVAILABLE,
@@ -52,7 +51,6 @@ export function MapRealtimeSync({
   activeClaimId = null,
 }: MapRealtimeSyncProps) {
   const scheduleRefresh = useDebouncedRouterRefresh();
-  const { info } = useFeedback();
 
   useActiveHandoffReconciliation(Boolean(userId && activeClaimId));
 
@@ -91,9 +89,6 @@ export function MapRealtimeSync({
         if (!isRealtimeFeedbackSuppressed(key)) {
           suppressRealtimeFeedback(key);
           notifySeekerHandoffTerminal({ claimId, reason: "expired" });
-          info(
-            "Handoff expired\nThe handoff window ended. No credits were changed.",
-          );
         }
       } else if (claimId && next === "completed") {
         const key = realtimeFeedbackKey("claim", claimId, "completed");

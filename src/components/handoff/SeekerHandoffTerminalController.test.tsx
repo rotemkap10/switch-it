@@ -1,13 +1,23 @@
-import { render, waitFor } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const navigation = vi.hoisted(() => ({
+  pathname: "/profile",
+  replace: vi.fn(),
+  refresh: vi.fn(),
+  prefetch: vi.fn(),
+}));
+
 const infoMock = vi.fn();
-const replaceMock = vi.fn();
 const clearSessionMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: replaceMock }),
-  usePathname: () => "/profile",
+  useRouter: () => ({
+    replace: navigation.replace,
+    refresh: navigation.refresh,
+    prefetch: navigation.prefetch,
+  }),
+  usePathname: () => navigation.pathname,
 }));
 
 vi.mock("@/components/feedback/FeedbackProvider", () => ({
@@ -20,44 +30,90 @@ vi.mock("@/components/map/PostClaimNavigationProvider", () => ({
   }),
 }));
 
+import { HandoffTerminalEndedController } from "@/components/handoff/HandoffTerminalEndedController";
+import { SeekerHandoffTerminalController } from "@/components/handoff/SeekerHandoffTerminalController";
+import { resetHandoffTerminalEndedForTests } from "@/lib/handoff/handoff-terminal-ended";
 import {
   notifySeekerHandoffTerminal,
   resetSeekerHandoffTerminalForTests,
-  SEEKER_PARKING_SPOT_NO_LONGER_AVAILABLE,
 } from "@/lib/handoff/seeker-handoff-terminal";
-import { SeekerHandoffTerminalController } from "@/components/handoff/SeekerHandoffTerminalController";
 
 const claimId = "11111111-1111-4111-8111-111111111111";
 
 describe("SeekerHandoffTerminalController", () => {
   beforeEach(() => {
     infoMock.mockReset();
-    replaceMock.mockReset();
     clearSessionMock.mockReset();
+    navigation.replace.mockReset();
+    navigation.refresh.mockReset();
+    navigation.prefetch.mockReset();
+    navigation.pathname = "/profile";
     resetSeekerHandoffTerminalForTests();
+    resetHandoffTerminalEndedForTests();
   });
 
-  it("shows unavailable copy, clears navigation, and returns to Find parking", async () => {
-    render(<SeekerHandoffTerminalController />);
+  it("shows seeker cancel overlay when the publisher cancels", () => {
+    render(
+      <>
+        <SeekerHandoffTerminalController />
+        <HandoffTerminalEndedController />
+      </>,
+    );
 
-    notifySeekerHandoffTerminal({ claimId, reason: "publisher_cancel" });
-
-    await waitFor(() => {
-      expect(infoMock).toHaveBeenCalledWith(
-        SEEKER_PARKING_SPOT_NO_LONGER_AVAILABLE,
-      );
+    act(() => {
+      notifySeekerHandoffTerminal({ claimId, reason: "publisher_cancel" });
     });
+
     expect(clearSessionMock).toHaveBeenCalled();
-    expect(replaceMock).toHaveBeenCalledWith("/map");
+    expect(infoMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("handoff-terminal-overlay")).toHaveAttribute(
+      "data-kind",
+      "publisher_cancelled",
+    );
+    expect(screen.getByText("Handoff cancelled")).toBeInTheDocument();
+    expect(
+      screen.getByText("The publisher cancelled the spot."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("No credits were transferred.")).toBeInTheDocument();
+    expect(navigation.replace).toHaveBeenCalledWith("/map");
   });
 
   it("does not toast or navigate for completed terminal events", () => {
-    render(<SeekerHandoffTerminalController />);
+    render(
+      <>
+        <SeekerHandoffTerminalController />
+        <HandoffTerminalEndedController />
+      </>,
+    );
 
     notifySeekerHandoffTerminal({ claimId, reason: "completed" });
 
     expect(infoMock).not.toHaveBeenCalled();
     expect(clearSessionMock).toHaveBeenCalled();
-    expect(replaceMock).not.toHaveBeenCalled();
+    expect(navigation.replace).not.toHaveBeenCalled();
+    expect(screen.queryByTestId("handoff-terminal-overlay")).not.toBeInTheDocument();
+  });
+
+  it("shows expired overlay without treating it as success", () => {
+    render(
+      <>
+        <SeekerHandoffTerminalController />
+        <HandoffTerminalEndedController />
+      </>,
+    );
+
+    act(() => {
+      notifySeekerHandoffTerminal({ claimId, reason: "expired" });
+    });
+
+    expect(infoMock).not.toHaveBeenCalled();
+    expect(clearSessionMock).toHaveBeenCalled();
+    expect(screen.getByTestId("handoff-terminal-overlay")).toHaveAttribute(
+      "data-kind",
+      "expired",
+    );
+    expect(screen.getByText("Handoff expired")).toBeInTheDocument();
+    expect(screen.getByText("The handoff window ended.")).toBeInTheDocument();
+    expect(navigation.replace).toHaveBeenCalledWith("/map");
   });
 });

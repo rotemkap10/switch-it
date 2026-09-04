@@ -1,45 +1,46 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import { useOptionalPostClaimNavigation } from "@/components/map/PostClaimNavigationProvider";
-import {
-  SEEKER_PARKING_SPOT_NO_LONGER_AVAILABLE,
-  subscribeSeekerHandoffTerminal,
-} from "@/lib/handoff/seeker-handoff-terminal";
+import { presentHandoffTerminalEnded } from "@/lib/handoff/handoff-terminal-ended";
+import { subscribeSeekerHandoffTerminal } from "@/lib/handoff/seeker-handoff-terminal";
 
 /**
  * Global seeker handoff teardown when a claim becomes terminal remotely
- * (publisher cancel, expiry, completion). Closes navigation UI, shows feedback,
- * and returns to Find parking when the seeker is on another route.
+ * (publisher cancel, expiry, completion). Closes navigation UI. Non-success
+ * terminal overlays own the return to Find parking.
  */
 export function SeekerHandoffTerminalController() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const { info } = useFeedback();
   const navigation = useOptionalPostClaimNavigation();
 
   useEffect(() => {
     return subscribeSeekerHandoffTerminal((event) => {
       navigation?.clearSession();
 
-      if (event.reason === "publisher_cancel") {
-        info(SEEKER_PARKING_SPOT_NO_LONGER_AVAILABLE);
-      }
-
-      // Completed handoff: overlay owns the return to Find Parking after
-      // the success state has been shown. Do not navigate here.
+      // Completed handoff: success overlay owns the return to Find Parking.
       if (event.reason === "completed") {
         return;
       }
 
-      if (pathname !== "/map") {
-        router.replace("/map");
+      if (event.reason === "publisher_cancel") {
+        presentHandoffTerminalEnded({
+          id: event.claimId,
+          role: "seeker",
+          kind: "publisher_cancelled",
+        });
+        return;
+      }
+
+      if (event.reason === "expired") {
+        presentHandoffTerminalEnded({
+          id: event.claimId,
+          role: "seeker",
+          kind: "expired",
+        });
       }
     });
-  }, [info, navigation, pathname, router]);
+  }, [navigation]);
 
   return null;
 }

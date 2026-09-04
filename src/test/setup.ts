@@ -4,6 +4,8 @@ import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
 import { resetHandoffCompletionSuccessForTests } from "@/lib/handoff/handoff-completion-success";
+import { resetHandoffTerminalEndedForTests } from "@/lib/handoff/handoff-terminal-ended";
+import { resetSeekerMapPresentationForTests } from "@/lib/map/seeker-map-presentation";
 
 vi.mock("next/image", () => ({
   default: ({
@@ -30,5 +32,7 @@ vi.mock("next/image", () => ({
 
 afterEach(() => {
   resetHandoffCompletionSuccessForTests();
+  resetHandoffTerminalEndedForTests();
+  resetSeekerMapPresentationForTests();
   cleanup();
 });

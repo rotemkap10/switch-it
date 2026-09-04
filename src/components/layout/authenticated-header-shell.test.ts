@@ -13,8 +13,11 @@ describe("authenticated header shell contract", () => {
     expect(frame).toContain(
       "<AppNav compact={isMap} displayName={displayName} credits={credits} />",
     );
-    expect(frame).toContain("<HandoffCompletionSuccessController />");
+    expect(frame).not.toContain("<HandoffCompletionSuccessController />");
     expect(frame.indexOf("<AppNav")).toBeLessThan(frame.indexOf("<main"));
+    const root = source("src/components/feedback/AppFeedbackRoot.tsx");
+    expect(root).toContain("<HandoffCompletionSuccessController />");
+    expect(root).toContain("<HandoffTerminalEndedController />");
     const shell = source("src/components/auth/AuthenticatedShell.tsx");
     expect(shell).toContain('.select("display_name, credits")');
     expect(shell).toContain("credits={shellProfile.credits}");

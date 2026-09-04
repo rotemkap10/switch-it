@@ -9,7 +9,7 @@ import {
 import { CancellationReasonSheet } from "@/components/handoff/CancellationReasonSheet";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
-import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import { presentHandoffTerminalEnded } from "@/lib/handoff/handoff-terminal-ended";
 import {
   SEEKER_CANCEL_REASON_LABELS,
   SEEKER_CANCEL_REASONS,
@@ -45,7 +45,6 @@ export function CancelClaimButton({
   const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   useActionFeedback(state, {
-    successMessage: FEEDBACK_SUCCESS_KEYS["claim-cancelled"],
     toastErrors: true,
   });
 
@@ -60,9 +59,14 @@ export function CancelClaimButton({
 
   useEffect(() => {
     if (state.success) {
+      presentHandoffTerminalEnded({
+        id: claimId,
+        role: "seeker",
+        kind: "seeker_released",
+      });
       onCancelled?.();
     }
-  }, [state.success, onCancelled]);
+  }, [state.success, claimId, onCancelled]);
 
   if (state.success) {
     return (

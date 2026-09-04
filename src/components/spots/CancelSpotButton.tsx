@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
 import {
   cancelSpot,
@@ -9,7 +9,7 @@ import {
 import { CancellationReasonSheet } from "@/components/handoff/CancellationReasonSheet";
 import { useActionFeedback } from "@/components/feedback/useActionFeedback";
 import { Button } from "@/components/ui/Button";
-import { FEEDBACK_SUCCESS_KEYS } from "@/lib/feedback/success-keys";
+import { presentHandoffTerminalEnded } from "@/lib/handoff/handoff-terminal-ended";
 import {
   PUBLISHER_CANCEL_REASON_LABELS,
   PUBLISHER_CANCEL_REASONS,
@@ -68,9 +68,6 @@ export function CancelSpotButton({
   });
 
   useActionFeedback(state, {
-    successMessage: claimed
-      ? FEEDBACK_SUCCESS_KEYS["handoff-cancelled-publisher"]
-      : FEEDBACK_SUCCESS_KEYS["spot-cancelled"],
     toastErrors: true,
   });
 
@@ -83,11 +80,22 @@ export function CancelSpotButton({
     claimId ? realtimeFeedbackKey("claim", claimId, "cancelled") : null,
   );
 
+  useEffect(() => {
+    if (!state.success) {
+      return;
+    }
+    presentHandoffTerminalEnded({
+      id: claimId ?? spotId,
+      role: "publisher",
+      kind: "publisher_cancelled",
+    });
+  }, [state.success, claimId, spotId]);
+
   if (state.success) {
     return (
       <p className="text-xs text-muted" role="status">
         {claimed
-          ? "Handoff cancelled. You can leave now. No credits were transferred."
+          ? "Handoff cancelled. You can leave now."
           : "Updating your spot…"}
       </p>
     );

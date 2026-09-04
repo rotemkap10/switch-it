@@ -6,7 +6,10 @@
  * status = completed. One claim produces one overlay per device.
  */
 
+/** Minimum time the success overlay stays readable on the auto-dismiss path. */
 export const HANDOFF_COMPLETION_SUCCESS_MS = 2500;
+/** Short fade after the destination view is ready (matches `--motion-fast`). */
+export const HANDOFF_COMPLETION_OVERLAY_FADE_MS = 160;
 
 export type HandoffCompletionRole = "publisher" | "seeker";
 

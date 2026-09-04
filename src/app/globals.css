@@ -16,6 +16,8 @@
   --color-danger-bg: #fdeeee;
   --color-warning: #e0a35c;
   --color-warning-bg: #fff6ea;
+  --color-handoff-terminal-accent: #d9897c;
+  --color-handoff-terminal-bg: #fdf6f3;
   --color-ready: #4fbf8f;
   --shadow-card: 0 1px 2px rgb(47 169 230 / 10%), 0 12px 28px rgb(85 191 243 / 18%);
   --shadow-card-hover: 0 2px 4px rgb(47 169 230 / 12%), 0 16px 32px rgb(85 191 243 / 22%);
@@ -98,6 +100,8 @@
   --color-danger-bg: var(--color-danger-bg);
   --color-warning: var(--color-warning);
   --color-warning-bg: var(--color-warning-bg);
+  --color-handoff-terminal-accent: var(--color-handoff-terminal-accent);
+  --color-handoff-terminal-bg: var(--color-handoff-terminal-bg);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --shadow-card: var(--shadow-card);
@@ -1927,6 +1931,16 @@ html.app-boot-splash-exiting #app-boot-splash {
   }
 }
 
+@keyframes motion-fade-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes motion-fade-slide-up {
   from {
     opacity: 0;
@@ -2349,6 +2363,8 @@ html.app-boot-splash-exiting #app-boot-splash {
 
 @media (prefers-reduced-motion: reduce) {
   .motion-fade-in,
+  .handoff-success-backdrop.is-exiting,
+  .handoff-terminal-backdrop.is-exiting,
   .motion-fade-slide-up,
   .motion-fade-slide-down,
   .motion-soft-scale-in,
@@ -2538,6 +2554,11 @@ html.app-boot-splash-exiting #app-boot-splash {
   overscroll-behavior: none;
 }
 
+.handoff-success-backdrop.is-exiting {
+  animation: motion-fade-out var(--motion-fast) var(--motion-ease) both;
+  pointer-events: none;
+}
+
 .handoff-success-card {
   display: flex;
   width: 100%;
@@ -2549,6 +2570,42 @@ html.app-boot-splash-exiting #app-boot-splash {
   border: 1px solid rgb(79 191 143 / 35%);
   background: var(--color-success-bg);
   padding: 1.5rem 1.25rem 1.25rem;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+}
+
+.handoff-terminal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  background: rgb(18 50 74 / 18%);
+  padding-top: max(1rem, var(--app-safe-top));
+  padding-right: max(1rem, var(--app-safe-right), var(--app-phone-gutter));
+  padding-bottom: max(1rem, var(--app-safe-bottom));
+  padding-left: max(1rem, var(--app-safe-left), var(--app-phone-gutter));
+  overscroll-behavior: none;
+}
+
+.handoff-terminal-backdrop.is-exiting {
+  animation: motion-fade-out var(--motion-fast) var(--motion-ease) both;
+  pointer-events: none;
+}
+
+.handoff-terminal-card {
+  display: flex;
+  width: 100%;
+  max-width: 20rem;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: var(--radius-card);
+  border: 1px solid rgb(217 137 124 / 32%);
+  background: var(--color-handoff-terminal-bg);
+  padding: 1.25rem 1.125rem 1.125rem;
   text-align: center;
   box-shadow: var(--shadow-card);
 }

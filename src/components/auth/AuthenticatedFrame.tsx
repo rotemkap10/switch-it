@@ -3,7 +3,6 @@
 import type { ReactNode } from "react";
 
 import { HandoffPushController } from "@/components/push/HandoffPushController";
-import { HandoffCompletionSuccessController } from "@/components/handoff/HandoffCompletionSuccessController";
 import { SeekerHandoffTerminalController } from "@/components/handoff/SeekerHandoffTerminalController";
 import { AppNav } from "@/components/layout/AppNav";
 import { MapLibreWarmup } from "@/components/map/MapLibreWarmup";
@@ -73,7 +72,6 @@ export function AuthenticatedFrame({
             hasActiveHandoff={hasActiveHandoff}
           />
           <SeekerHandoffTerminalController />
-          <HandoffCompletionSuccessController />
         </div>
       </ModeGate>
     </ModeProvider>

@@ -33,10 +33,6 @@ vi.mock("@/components/handoff/SeekerHandoffTerminalController", () => ({
   SeekerHandoffTerminalController: () => null,
 }));
 
-vi.mock("@/components/handoff/HandoffCompletionSuccessController", () => ({
-  HandoffCompletionSuccessController: () => null,
-}));
-
 const navigationState = vi.hoisted(() => ({
   pathname: "/map",
 }));

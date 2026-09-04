@@ -3,6 +3,11 @@ import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
+import {
+  isSeekerMapReadyForHandoffReturn,
+  peekSeekerMapPresentation,
+} from "@/lib/map/seeker-map-presentation";
+
 const reportInitialMapReadyMock = vi.hoisted(() => vi.fn());
 const parkingMapMounts = vi.hoisted(() => ({ count: 0 }));
 
@@ -380,6 +385,43 @@ describe("SeekerMapExperience overlay hierarchy", () => {
     expect(
       screen.queryByRole("button", { name: "Navigate to spot" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("does not remount the map when the active claim ends", () => {
+    parkingMapMounts.count = 0;
+    const { rerender } = renderExperience({
+      destination: { latitude: 32.08, longitude: 34.78 },
+      activeClaim: claim,
+    });
+
+    act(() => {
+      screen.getByRole("button", { name: "Simulate map ready" }).click();
+    });
+
+    const map = screen.getByTestId("parking-map");
+    expect(parkingMapMounts.count).toBe(1);
+    expect(isSeekerMapReadyForHandoffReturn(claim.claimId)).toBe(false);
+
+    rerender(
+      <SeekerMapExperience
+        spots={[]}
+        userId="seeker-1"
+        destination={null}
+        activeClaim={null}
+        showOwnSpotNotice={false}
+        spotsError={false}
+        activeClaimError={false}
+        ownedSpotError={false}
+      />,
+    );
+
+    expect(screen.getByTestId("parking-map")).toBe(map);
+    expect(parkingMapMounts.count).toBe(1);
+    expect(isSeekerMapReadyForHandoffReturn(claim.claimId)).toBe(true);
+    expect(peekSeekerMapPresentation()).toEqual({
+      visuallyReady: true,
+      activeClaimId: null,
+    });
   });
 
   it("does not show a redundant Find parking title pill", () => {

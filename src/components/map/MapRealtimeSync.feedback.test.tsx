@@ -19,7 +19,12 @@ vi.mock("@/lib/handoff/seeker-handoff-terminal", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn(), refresh: vi.fn() }),
+  useRouter: () => ({
+    replace: vi.fn(),
+    push: vi.fn(),
+    refresh: vi.fn(),
+    prefetch: vi.fn(),
+  }),
   usePathname: () => "/map",
 }));
 
@@ -95,6 +100,21 @@ describe("MapRealtimeSync cancellation feedback", () => {
     });
     expect(infoMock).not.toHaveBeenCalled();
     expect(scheduleRefreshMock).toHaveBeenCalled();
+  });
+
+  it("notifies expiry without a toast", () => {
+    render(<MapRealtimeSync userId="seeker-1" activeClaimId={claimId} />);
+
+    claimOnEvent?.({
+      new: { id: claimId, status: "expired" },
+      old: { id: claimId, status: "active" },
+    });
+
+    expect(notifyTerminalMock).toHaveBeenCalledWith({
+      claimId,
+      reason: "expired",
+    });
+    expect(infoMock).not.toHaveBeenCalled();
   });
 
   it("does not notify terminal when the seeker's own release already suppressed feedback", () => {

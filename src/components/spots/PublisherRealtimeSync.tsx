@@ -3,7 +3,6 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef } from "react";
 
-import { useFeedback } from "@/components/feedback/FeedbackProvider";
 import {
   isRealtimeFeedbackSuppressed,
   realtimeFeedbackKey,
@@ -18,10 +17,8 @@ import { useActiveHandoffReconciliation } from "@/lib/realtime/use-active-handof
 import { useDebouncedRouterRefresh } from "@/lib/realtime/use-debounced-router-refresh";
 import { useRealtimeInvalidation } from "@/lib/realtime/use-realtime-invalidation";
 import { presentHandoffCompletionSuccess } from "@/lib/handoff/handoff-completion-success";
+import { presentHandoffTerminalEnded } from "@/lib/handoff/handoff-terminal-ended";
 import { sensoryHandoffCompleted } from "@/lib/sensory/feedback";
-
-export const PUBLISHER_CLAIM_CANCELLED_BY_SEEKER =
-  "Driver cancelled — your spot is available again.";
 
 type PublisherRealtimeSyncProps = {
   userId: string;
@@ -87,7 +84,6 @@ export function PublisherRealtimeSync({
   onClaimHint,
 }: PublisherRealtimeSyncProps) {
   const scheduleRefresh = useDebouncedRouterRefresh();
-  const { info } = useFeedback();
   const onClaimHintRef = useRef(onClaimHint);
   const hadSpotSubscribedRef = useRef(false);
   const hadClaimsSubscribedRef = useRef(false);
@@ -180,6 +176,22 @@ export function PublisherRealtimeSync({
     ],
     onEvent: (payload) => {
       logParkingSpotEvent(payload, spotId);
+      const next = rowStatus(payload.new as Record<string, unknown>);
+      const id =
+        rowId(payload.new as Record<string, unknown>) ??
+        rowId(payload.old as Record<string, unknown>) ??
+        spotId;
+      if (spotId && id === spotId && next === "expired" && !claimId) {
+        const key = realtimeFeedbackKey("spot", spotId, "expired");
+        if (!isRealtimeFeedbackSuppressed(key)) {
+          suppressRealtimeFeedback(key);
+          presentHandoffTerminalEnded({
+            id: spotId,
+            role: "publisher",
+            kind: "expired",
+          });
+        }
+      }
       if (spotId) {
         applyClaimHint(payload, spotId);
       }
@@ -232,7 +244,11 @@ export function PublisherRealtimeSync({
           !isRealtimeFeedbackSuppressed(claimKey) &&
           !(spotKey && isRealtimeFeedbackSuppressed(spotKey))
         ) {
-          info(PUBLISHER_CLAIM_CANCELLED_BY_SEEKER);
+          presentHandoffTerminalEnded({
+            id,
+            role: "publisher",
+            kind: "seeker_released",
+          });
           suppressRealtimeFeedback(claimKey);
           if (spotKey) {
             suppressRealtimeFeedback(spotKey);
@@ -241,9 +257,11 @@ export function PublisherRealtimeSync({
       } else if (id && next === "expired") {
         const key = realtimeFeedbackKey("claim", id, "expired");
         if (!isRealtimeFeedbackSuppressed(key)) {
-          info(
-            "Handoff expired\nThe handoff window ended. No credits were changed.",
-          );
+          presentHandoffTerminalEnded({
+            id,
+            role: "publisher",
+            kind: "expired",
+          });
           suppressRealtimeFeedback(key);
         }
       } else if (id && next === "completed") {

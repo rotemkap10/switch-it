@@ -21,6 +21,10 @@ import {
   syncDocumentMapBottomStack,
   type MapBottomStack,
 } from "@/lib/map/bottom-stack";
+import {
+  clearSeekerMapPresentation,
+  reportSeekerMapPresentation,
+} from "@/lib/map/seeker-map-presentation";
 import { useSeekerDiscoverySpots } from "@/lib/map/use-seeker-discovery-spots";
 import type { HandoffVehicle } from "@/lib/vehicle/handoff-vehicle";
 import type { MapSpot } from "@/types/map-spot";
@@ -68,6 +72,21 @@ export function SeekerMapExperience({
     setMapVisuallyReady(true);
     reportInitialMapReady();
   }, [reportInitialMapReady]);
+
+  const activeClaimIdForPresentation = activeClaim?.claimId ?? null;
+
+  useEffect(() => {
+    reportSeekerMapPresentation({
+      visuallyReady: mapVisuallyReady || spotsError,
+      activeClaimId: activeClaimIdForPresentation,
+    });
+  }, [mapVisuallyReady, spotsError, activeClaimIdForPresentation]);
+
+  useEffect(() => {
+    return () => {
+      clearSeekerMapPresentation();
+    };
+  }, []);
 
   useEffect(() => {
     if (spotsError) {
