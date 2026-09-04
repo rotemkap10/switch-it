@@ -1,7 +1,7 @@
 /** Switch It conservative PWA service worker — offline fallback only. */
 
 /** Bump when branding PNGs change — launch splash uses rounded app icon. */
-const CACHE_VERSION = "switch-it-pwa-v11";
+const CACHE_VERSION = "switch-it-pwa-v12";
 
 /** Narrow allowlist — no authenticated or third-party resources. */
 const PRECACHE_URLS = [
@@ -16,22 +16,28 @@ const PRECACHE_URLS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) => cache.addAll(PRECACHE_URLS)),
+    caches
+      .open(CACHE_VERSION)
+      .then((cache) => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting()),
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter(
-            (key) =>
-              key.startsWith("switch-it-pwa-") && key !== CACHE_VERSION,
-          )
-          .map((key) => caches.delete(key)),
-      ),
-    ),
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter(
+              (key) =>
+                key.startsWith("switch-it-pwa-") && key !== CACHE_VERSION,
+            )
+            .map((key) => caches.delete(key)),
+        ),
+      )
+      .then(() => self.clients.claim()),
   );
 });
 
@@ -51,6 +57,19 @@ function isPrecacheCandidate(pathname) {
   );
 }
 
+function isNextBuildAsset(pathname) {
+  return pathname.startsWith("/_next/");
+}
+
+function isAppRouterFlightRequest(request) {
+  return (
+    request.headers.get("RSC") === "1" ||
+    request.headers.get("Next-Router-Prefetch") != null ||
+    request.headers.get("Next-Router-State-Tree") != null ||
+    request.headers.get("Next-Url") != null
+  );
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
@@ -64,7 +83,9 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.pathname.startsWith("/_next/")) {
+  // Never intercept hashed Next assets or RSC/flight fetches. Mixing an old
+  // SW-controlled page with a new deploy's chunks is a fatal client crash.
+  if (isNextBuildAsset(url.pathname) || isAppRouterFlightRequest(request)) {
     return;
   }
 

@@ -1,25 +1,44 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   loadMapLibreModule,
   resetMapLibreModuleLoader,
+  setMapLibreModuleImporterForTests,
 } from "@/lib/map/load-maplibre-module";
 
 describe("loadMapLibreModule", () => {
-  it("reuses one shared dynamic-import promise", async () => {
+  afterEach(() => {
+    setMapLibreModuleImporterForTests(null);
     resetMapLibreModuleLoader();
+  });
 
-    const importSpy = vi.fn(async () => ({ Map: vi.fn() }));
-    vi.stubGlobal("dynamicImportStub", importSpy);
+  it("reuses one shared dynamic-import promise", async () => {
+    const importSpy = vi.fn(async () => ({ Map: vi.fn() }) as never);
+    setMapLibreModuleImporterForTests(importSpy);
 
-    // Force the module path by resetting and calling twice.
-    // The real implementation uses import("maplibre-gl"); we assert identity.
     const first = loadMapLibreModule();
     const second = loadMapLibreModule();
     expect(second).toBe(first);
+    expect(importSpy).toHaveBeenCalledTimes(1);
 
-    // Settle without failing if maplibre is unavailable in node.
     await Promise.allSettled([first, second]);
-    resetMapLibreModuleLoader();
+  });
+
+  it("does not cache a rejected import so a later retry can succeed", async () => {
+    const importSpy = vi
+      .fn()
+      .mockRejectedValueOnce(
+        new Error("Failed to fetch dynamically imported module"),
+      )
+      .mockResolvedValueOnce({ Map: vi.fn() } as never);
+    setMapLibreModuleImporterForTests(importSpy);
+
+    await expect(loadMapLibreModule()).rejects.toThrow(
+      "Failed to fetch dynamically imported module",
+    );
+    await expect(loadMapLibreModule()).resolves.toMatchObject({
+      Map: expect.any(Function),
+    });
+    expect(importSpy).toHaveBeenCalledTimes(2);
   });
 });

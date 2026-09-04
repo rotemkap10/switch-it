@@ -84,6 +84,26 @@ describe("useSeekerLiveLocationShare lifecycle", () => {
     vi.unstubAllEnvs();
   });
 
+  it("treats a thrown session refresh as unavailable instead of crashing", async () => {
+    refreshSession.mockRejectedValue(new Error("Auth session missing"));
+    getSession.mockRejectedValue(new Error("Auth session missing"));
+
+    const { result } = renderHook(() =>
+      useSeekerLiveLocationShare({
+        claimId: "11111111-1111-4111-8111-111111111111",
+        spotExpiresAtIso: new Date(Date.now() + 60_000).toISOString(),
+        enabled: true,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.startSharing();
+    });
+
+    expect(result.current.uiState).toBe("unavailable");
+    expect(watchPosition).toHaveBeenCalledTimes(1);
+  });
+
   it("does not start watchPosition before deliberate share", () => {
     renderHook(() =>
       useSeekerLiveLocationShare({

@@ -50,6 +50,7 @@ describe("useDebouncedRouterRefresh", () => {
 
 describe("useRealtimeInvalidation", () => {
   beforeEach(() => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
     removeChannelMock.mockReset();
     subscribeMock.mockReset();
     onMock.mockReset();
@@ -62,6 +63,10 @@ describe("useRealtimeInvalidation", () => {
     onMock.mockReturnValue(channel);
     subscribeMock.mockReturnValue(channel);
     channelMock.mockReturnValue(channel);
+  });
+
+  afterEach(() => {
+    vi.mocked(console.error).mockRestore();
   });
 
   it("subscribes once with the configured table and filter", () => {
@@ -128,6 +133,49 @@ describe("useRealtimeInvalidation", () => {
 
     unmount();
     expect(removeChannelMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not invoke onEvent after unmount and swallows handler throws", () => {
+    const onEvent = vi.fn(() => {
+      throw new Error("handler exploded");
+    });
+    let handler: ((payload: unknown) => void) | undefined;
+    onMock.mockImplementation((_type, _filter, cb) => {
+      handler = cb;
+      return {
+        on: onMock,
+        subscribe: subscribeMock,
+      };
+    });
+    subscribeMock.mockReturnValue({
+      on: onMock,
+      subscribe: subscribeMock,
+    });
+    channelMock.mockReturnValue({
+      on: onMock,
+      subscribe: subscribeMock,
+    });
+
+    const { unmount } = renderHook(() =>
+      useRealtimeInvalidation({
+        channelName: "map-spots:u1",
+        changes: [{ event: "*", table: "parking_spots" }],
+        onEvent,
+      }),
+    );
+
+    expect(() => {
+      act(() => {
+        handler?.({ eventType: "UPDATE", table: "parking_spots" });
+      });
+    }).not.toThrow();
+    expect(onEvent).toHaveBeenCalledTimes(1);
+
+    unmount();
+    act(() => {
+      handler?.({ eventType: "UPDATE", table: "parking_spots" });
+    });
+    expect(onEvent).toHaveBeenCalledTimes(1);
   });
 
   it("does not subscribe when disabled", () => {

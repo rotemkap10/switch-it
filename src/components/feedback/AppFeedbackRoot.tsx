@@ -10,10 +10,12 @@ import { AppLaunchShell } from "@/components/shell/AppLaunchShell";
 import { SafeAreaInsetsSync } from "@/components/shell/SafeAreaInsetsSync";
 import { RouteTransitionProvider } from "@/components/shell/RouteTransitionProvider";
 import { installSensoryAudioUnlock } from "@/lib/sensory/sounds";
+import { installStaleClientBuildListeners } from "@/lib/navigation/stale-client-build";
 
 export function AppFeedbackRoot({ children }: { children: ReactNode }) {
   useEffect(() => {
     installSensoryAudioUnlock();
+    return installStaleClientBuildListeners();
   }, []);
 
   return (

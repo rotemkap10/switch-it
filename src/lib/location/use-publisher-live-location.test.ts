@@ -100,6 +100,22 @@ describe("usePublisherLiveLocation", () => {
     });
   });
 
+  it("does not subscribe or throw when getSession fails after idle resume", async () => {
+    getSession.mockRejectedValue(new Error("Auth session missing"));
+
+    const { result } = renderHook(() =>
+      usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),
+    );
+
+    await waitFor(() => {
+      expect(getSession).toHaveBeenCalled();
+    });
+
+    expect(channel).not.toHaveBeenCalled();
+    expect(result.current.location).toBeNull();
+    expect(result.current.statusLabel).toBe("Waiting for driver location");
+  });
+
   it("subscribes to the correct claim topic", async () => {
     renderHook(() =>
       usePublisherLiveLocation({ claimId: CLAIM_ID, enabled: true }),

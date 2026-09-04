@@ -455,8 +455,21 @@ export function usePublisherLiveLocation({
       subscribeInFlight = true;
       phase = "authorizing";
 
-      const { data } = await client.auth.getSession();
-      const token = data.session?.access_token;
+      let token: string | undefined;
+      try {
+        const { data } = await client.auth.getSession();
+        token = data.session?.access_token;
+      } catch {
+        subscribeInFlight = false;
+        phase = "idle";
+        logHandoffLiveReceiver("session read failed", {
+          claimId,
+          topic,
+          reason,
+          generation,
+        });
+        return;
+      }
       if (!token) {
         subscribeInFlight = false;
         phase = "idle";

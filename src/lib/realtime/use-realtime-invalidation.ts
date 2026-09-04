@@ -8,6 +8,7 @@ import type {
 import { useEffect, useRef } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import { logRecoverableFailure } from "@/lib/feedback/log-recoverable-failure";
 
 export type PostgresChangeFilter = {
   event: "*" | "INSERT" | "UPDATE" | "DELETE";
@@ -83,9 +84,17 @@ export function useRealtimeInvalidation({
           if (cancelled) {
             return;
           }
-          onEventRef.current(
-            payload as RealtimePostgresChangesPayload<Record<string, unknown>>,
-          );
+          try {
+            onEventRef.current(
+              payload as RealtimePostgresChangesPayload<Record<string, unknown>>,
+            );
+          } catch (error) {
+            logRecoverableFailure("realtime-invalidation", {
+              operation: "on_event",
+              phase: "realtime",
+              code: error instanceof Error ? error.name : "UNKNOWN",
+            });
+          }
         },
       );
     }
@@ -100,7 +109,15 @@ export function useRealtimeInvalidation({
         status === "CLOSED" ||
         status === "CHANNEL_ERROR"
       ) {
-        onStatusRef.current?.(status);
+        try {
+          onStatusRef.current?.(status);
+        } catch (error) {
+          logRecoverableFailure("realtime-invalidation", {
+            operation: "on_status",
+            phase: "realtime",
+            code: error instanceof Error ? error.name : "UNKNOWN",
+          });
+        }
       }
     });
 

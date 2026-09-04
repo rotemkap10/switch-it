@@ -18,9 +18,11 @@ export function MapLibreWarmup() {
     }
 
     return scheduleIdle(() => {
-      void import("@/lib/map/prewarm-maplibre").then((mod) =>
-        mod.prewarmMapLibre(),
-      );
+      void import("@/lib/map/prewarm-maplibre")
+        .then((mod) => mod.prewarmMapLibre())
+        .catch(() => {
+          // Non-blocking — first Map create still loads MapLibre.
+        });
     });
   }, [ready]);
 

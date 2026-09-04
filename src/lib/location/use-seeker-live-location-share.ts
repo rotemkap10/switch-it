@@ -58,13 +58,17 @@ function isSecureGeolocationAvailable(): boolean {
 }
 
 async function refreshSeekerAccessToken(): Promise<string | null> {
-  const client = createClient();
-  const refreshed = await client.auth.refreshSession();
-  const token =
-    refreshed.data.session?.access_token ??
-    (await client.auth.getSession()).data.session?.access_token ??
-    null;
-  return token;
+  try {
+    const client = createClient();
+    const refreshed = await client.auth.refreshSession();
+    const token =
+      refreshed.data.session?.access_token ??
+      (await client.auth.getSession()).data.session?.access_token ??
+      null;
+    return token;
+  } catch {
+    return null;
+  }
 }
 
 /**

@@ -88,7 +88,7 @@ describe("service worker policy", () => {
     expect(sw).toContain('"/offline"');
     expect(sw).toContain('"/pwa/icon-192.png"');
     expect(sw).toContain('"/apple-touch-icon.png"');
-    expect(sw).toContain("switch-it-pwa-v11");
+    expect(sw).toContain("switch-it-pwa-v12");
     expect(sw).toContain("/branding/switch-it-logo.png");
     expect(sw).toContain("/branding/switch-it-launch-mark.png");
     expect(sw).not.toContain("iphone-portrait-fallback");
@@ -104,6 +104,13 @@ describe("service worker policy", () => {
   it("returns offline fallback only for navigation failures", () => {
     expect(sw).toContain('request.mode === "navigate"');
     expect(sw).toContain('caches.match("/offline")');
+  });
+
+  it("never intercepts Next hashed assets or App Router flight requests", () => {
+    expect(sw).toContain('pathname.startsWith("/_next/")');
+    expect(sw).toContain('request.headers.get("RSC")');
+    expect(sw).toContain("skipWaiting");
+    expect(sw).toContain("clients.claim");
   });
 });
 
