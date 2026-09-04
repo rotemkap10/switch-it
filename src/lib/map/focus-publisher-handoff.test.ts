@@ -117,4 +117,13 @@ describe("focusPublisherHandoffCamera", () => {
       [34.79, 32.09],
     ]);
   });
+
+  it("normalizes inverted corners so the first point is never treated as northeast", () => {
+    const northEastParking = { longitude: 35.0, latitude: 32.5 };
+    const southWestSeeker = { longitude: 34.7, latitude: 31.8 };
+    expect(publisherHandoffFitBounds(northEastParking, southWestSeeker)).toEqual([
+      [34.7, 31.8],
+      [35.0, 32.5],
+    ]);
+  });
 });

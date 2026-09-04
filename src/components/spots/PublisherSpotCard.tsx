@@ -253,6 +253,7 @@ export function PublisherSpotCard({
           handoffStartedAtIso={spot.handoff_started_at}
           claimed={claimed}
           role="publisher"
+          proximity={claimed && driverNearby ? "close" : null}
           onExpired={onExpired}
           onDepartureDue={claimed && activeClaimId ? onDepartureDue : undefined}
         />

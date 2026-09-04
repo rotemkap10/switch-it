@@ -1,3 +1,4 @@
+import { lngLatBoundsFromPoints } from "@/lib/map/lnglat-bounds";
 import { MAP_SELECTED_SPOT_ZOOM } from "@/lib/map/seekerMapConfig";
 
 export type PublisherHandoffFocusPoint = {
@@ -34,16 +35,12 @@ export function publisherHandoffFitBounds(
   parking: PublisherHandoffFocusPoint,
   seeker: PublisherHandoffFocusPoint,
 ): [[number, number], [number, number]] {
-  return [
-    [
-      Math.min(parking.longitude, seeker.longitude),
-      Math.min(parking.latitude, seeker.latitude),
-    ],
-    [
-      Math.max(parking.longitude, seeker.longitude),
-      Math.max(parking.latitude, seeker.latitude),
-    ],
-  ];
+  return (
+    lngLatBoundsFromPoints([parking, seeker]) ?? [
+      [parking.longitude, parking.latitude],
+      [parking.longitude, parking.latitude],
+    ]
+  );
 }
 
 /**

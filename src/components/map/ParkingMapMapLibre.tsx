@@ -404,6 +404,8 @@ export function ParkingMapMapLibre({
   const mapRef = useRef<MapLibreMap | null>(null);
   const hasInitializedLayersRef = useRef(false);
   const hasInitialDestinationViewRef = useRef(false);
+  const hadDestinationRef = useRef(isValidDestination(destination));
+  const destinationRef = useRef(destination);
   const interactionHandlersBoundRef = useRef(false);
   const lastFocusedSpotIdRef = useRef<string | null>(null);
   const userMovedMapRef = useRef(false);
@@ -471,6 +473,10 @@ export function ParkingMapMapLibre({
     pickerDisabledRef.current = pickerDisabled;
   }, [pickerDisabled]);
 
+  useEffect(() => {
+    destinationRef.current = destination;
+  }, [destination]);
+
   const markUserMovedMap = () => {
     userMovedMapRef.current = true;
     autoCenterGenerationRef.current += 1;
@@ -482,6 +488,9 @@ export function ParkingMapMapLibre({
       return;
     }
     if (userMovedMapRef.current) {
+      return;
+    }
+    if (isValidDestination(destinationRef.current)) {
       return;
     }
     if (!isWithinSupportedMapBounds(fix.longitude, fix.latitude)) {
@@ -641,13 +650,12 @@ export function ParkingMapMapLibre({
   }, [showPickerSelectedHint]);
 
   useEffect(() => {
-    const watchGeneration = autoCenterGenerationRef.current;
     const release = acquireSharedForegroundLocation("find-parking");
 
     const applyTrusted = (fix: DeviceLocationFix) => {
       lastKnownFixRef.current = fix;
       applyFreshFixRef.current(fix);
-      tryAutoCenterOnFix(fix, watchGeneration);
+      tryAutoCenterOnFix(fix, autoCenterGenerationRef.current);
     };
 
     const existing = peekTrustedSharedForegroundFix();
@@ -802,8 +810,32 @@ export function ParkingMapMapLibre({
   }, [destination]);
 
   useEffect(() => {
+    const hasDestination = isValidDestination(destination);
+    const hadDestination = hadDestinationRef.current;
+    hadDestinationRef.current = hasDestination;
+
+    if (hasDestination && !hadDestination) {
+      autoCenterGenerationRef.current += 1;
+      pendingAutoCenterFixRef.current = null;
+      hasInitialDestinationViewRef.current = false;
+    }
+
+    if (!hasDestination) {
+      if (hadDestination && !isPicker) {
+        hasInitialDestinationViewRef.current = false;
+        userMovedMapRef.current = false;
+        autoCenterGenerationRef.current += 1;
+        pendingAutoCenterFixRef.current = null;
+        const fix = lastKnownFixRef.current;
+        if (fix) {
+          tryAutoCenterOnFix(fix, autoCenterGenerationRef.current);
+        }
+      }
+      return;
+    }
+
     const map = mapRef.current;
-    if (!map || !isValidDestination(destination)) {
+    if (!map || !hasInitializedLayersRef.current) {
       return;
     }
     if (hasInitialDestinationViewRef.current) {
@@ -821,40 +853,15 @@ export function ParkingMapMapLibre({
       return;
     }
 
-    const userReadyInBounds =
-      userLocation.status === "ready" &&
-      isWithinSupportedMapBounds(
-        userLocation.longitude,
-        userLocation.latitude,
-      );
-
-    if (userReadyInBounds) {
-      const bounds = [
-        [userLocation.longitude, userLocation.latitude],
-        [destination.longitude, destination.latitude],
-      ] as [[number, number], [number, number]];
-
-      map.fitBounds(bounds, {
-        padding: 80,
-        maxZoom: MAP_SELECTED_SPOT_ZOOM,
-        duration: prefersReducedMotion ? 0 : MAP_MOVEMENT_DURATION_MS,
-        essential: true,
-      });
-    } else {
-      map.easeTo({
-        center: [destination.longitude, destination.latitude],
-        zoom: MAP_SELECTED_SPOT_ZOOM,
-        duration: prefersReducedMotion ? 0 : MAP_MOVEMENT_DURATION_MS,
-        essential: true,
-      });
-    }
+    map.easeTo({
+      center: [destination.longitude, destination.latitude],
+      zoom: MAP_SELECTED_SPOT_ZOOM,
+      duration: prefersReducedMotion ? 0 : MAP_MOVEMENT_DURATION_MS,
+      essential: true,
+    });
 
     hasInitialDestinationViewRef.current = true;
-  }, [
-    destination,
-    prefersReducedMotion,
-    userLocation,
-  ]);
+  }, [destination, isPicker, layersReady, prefersReducedMotion]);
 
   useEffect(() => {
     if (!layersReady) {

@@ -26,26 +26,39 @@ vi.mock("@/components/map/CancelClaimButton", () => ({
   ),
 }));
 
-vi.mock("@/components/ui/HandoffWindowCountdown", () => ({
-  HandoffWindowCountdown: ({
-    role,
-    availableAtIso,
-    expiresAtIso,
-  }: {
-    role: string;
-    availableAtIso: string;
-    expiresAtIso: string;
-  }) => (
-    <div
-      data-testid="handoff-window-countdown"
-      data-role={role}
-      data-available={availableAtIso}
-      data-expires={expiresAtIso}
-    >
-      {role}
-    </div>
-  ),
-}));
+const countdownLifecycle = vi.hoisted(() => ({ mounts: 0 }));
+
+vi.mock("@/components/ui/HandoffWindowCountdown", async () => {
+  const { useEffect } = await import("react");
+  return {
+    HandoffWindowCountdown: ({
+      role,
+      availableAtIso,
+      expiresAtIso,
+      compact = false,
+    }: {
+      role: string;
+      availableAtIso: string;
+      expiresAtIso: string;
+      compact?: boolean;
+    }) => {
+      useEffect(() => {
+        countdownLifecycle.mounts += 1;
+      }, []);
+      return (
+        <div
+          data-testid="handoff-window-countdown"
+          data-role={role}
+          data-available={availableAtIso}
+          data-expires={expiresAtIso}
+          data-compact={compact ? "true" : "false"}
+        >
+          {compact ? "Handoff in 0:43" : "Handoff starts in 0:43"}
+        </div>
+      );
+    },
+  };
+});
 
 const distanceState = vi.hoisted(() => ({
   label: null as string | null,
@@ -108,6 +121,7 @@ import {
   ACTIVE_CLAIM_ON_WAY_STATUS,
   ACTIVE_CLAIM_WAITING_CONFIRMATION,
   ActiveClaimPanel,
+  activeClaimCompactVehicleLabel,
   activeClaimDestinationLabel,
 } from "@/components/map/ActiveClaimPanel";
 import { PostClaimNavigationProvider } from "@/components/map/PostClaimNavigationProvider";
@@ -152,6 +166,22 @@ describe("activeClaimDestinationLabel", () => {
   });
 });
 
+describe("activeClaimCompactVehicleLabel", () => {
+  it("joins make/model and masked plate without color", () => {
+    expect(activeClaimCompactVehicleLabel(ownerVehicle)).toBe(
+      "Hyundai Tucson · 12-345-**",
+    );
+    expect(
+      activeClaimCompactVehicleLabel({
+        ...ownerVehicle,
+        make: "Ford",
+        model: "Ranger",
+        year: 2021,
+      }),
+    ).toBe("Ford Ranger · 12-345-**");
+  });
+});
+
 function renderPanel(ui: ReactElement) {
   const result = render(
     <PostClaimNavigationProvider>{ui}</PostClaimNavigationProvider>,
@@ -173,6 +203,7 @@ describe("ActiveClaimPanel sheet UX", () => {
     startSharingMock.mockReset();
     stopSharingMock.mockReset();
     liveShareState.uiState = "idle";
+    countdownLifecycle.mounts = 0;
     distanceState.label = null;
     distanceState.meters = null;
     sessionStore.clear();
@@ -316,6 +347,10 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.queryByTestId("active-claim-complete-actions"),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Navigate to spot" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Handoff in 0:43")).toBeInTheDocument();
   });
 
   it("starts expanded with complete and cancel actions", () => {
@@ -367,15 +402,27 @@ describe("ActiveClaimPanel sheet UX", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps Navigate to spot available when collapsed and hides complete/cancel", async () => {
+  it("collapses to a compact summary and hides secondary controls", async () => {
     const user = userEvent.setup();
+    liveShareState.uiState = "sharing";
     renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
+        counterpartVehicle={ownerVehicle}
         variant="overlay"
       />,
     );
+
+    expect(screen.getByTestId("vehicle-identity-card")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-identity-color")).toHaveTextContent(
+      "White",
+    );
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Live location on")).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: /Collapse handoff details/i }),
@@ -384,6 +431,10 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.getByRole("button", { name: /Expand handoff details/i }),
     ).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByTestId("active-claim-sheet")).toHaveAttribute(
+      "data-expanded",
+      "false",
+    );
     expect(screen.getByTestId("active-claim-expand-toggle")).toHaveClass(
       "h-11",
       "w-11",
@@ -392,23 +443,37 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.getByTestId("active-claim-expand-toggle").querySelector("svg"),
     ).toHaveClass("rotate-180");
+    expect(screen.getByTestId("active-claim-collapsed-summary")).toBeInTheDocument();
+    expect(screen.getByText("Handoff in 0:43")).toBeInTheDocument();
+    expect(screen.getByTestId("active-claim-compact-vehicle")).toHaveTextContent(
+      "Hyundai Tucson · 12-345-**",
+    );
+    expect(screen.queryByTestId("vehicle-identity-card")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-illustration")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-identity-color")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Navigate to spot" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Navigate to spot" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Confirm handoff" }),
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Release spot" }),
     ).not.toBeInTheDocument();
+    expect(screen.queryByText("Live location on")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("seeker-waiting-confirmation"),
+    ).not.toBeInTheDocument();
   });
 
-  it("expands again to reveal complete and cancel", async () => {
+  it("expands again to restore the full handoff card", async () => {
     const user = userEvent.setup();
+    liveShareState.uiState = "sharing";
     renderPanel(
       <ActiveClaimPanel
         claim={claim}
         destination={destination}
+        counterpartVehicle={ownerVehicle}
         variant="overlay"
       />,
     );
@@ -420,12 +485,103 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: /Expand handoff details/i }),
     );
 
+    expect(screen.getByTestId("active-claim-sheet")).toHaveAttribute(
+      "data-expanded",
+      "true",
+    );
+    expect(screen.getByText(ACTIVE_CLAIM_ON_WAY_STATUS)).toBeInTheDocument();
+    expect(screen.getByText("Handoff starts in 0:43")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-identity-card")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-illustration")).toBeInTheDocument();
+    expect(screen.getByTestId("vehicle-identity-color")).toHaveTextContent(
+      "White",
+    );
+    expect(screen.getByText("Hyundai Tucson")).toBeInTheDocument();
+    expect(screen.getByText("12-345-**")).toBeInTheDocument();
+    expect(screen.getByText("Live location on")).toBeInTheDocument();
     expect(
       screen.getByTestId("seeker-waiting-confirmation"),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Release spot" }),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("active-claim-compact-vehicle"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not remount the countdown or restart live sharing when toggling collapse", async () => {
+    const user = userEvent.setup();
+    liveShareState.uiState = "sharing";
+    renderPanel(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        counterpartVehicle={ownerVehicle}
+        variant="overlay"
+      />,
+    );
+
+    expect(countdownLifecycle.mounts).toBe(1);
+    const shareCallsAfterMount = startSharingMock.mock.calls.length;
+    expect(shareCallsAfterMount).toBeGreaterThan(0);
+    expect(screen.getByText("Handoff starts in 0:43")).toBeInTheDocument();
+    expect(screen.getByText("Live location on")).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
+    );
+
+    expect(countdownLifecycle.mounts).toBe(1);
+    expect(startSharingMock.mock.calls.length).toBe(shareCallsAfterMount);
+    expect(screen.getByText("Handoff in 0:43")).toBeInTheDocument();
+    expect(screen.getByTestId("active-claim-compact-vehicle")).toHaveTextContent(
+      "Hyundai Tucson · 12-345-**",
+    );
+    expect(screen.queryByText("Live location on")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Expand handoff details/i }),
+    );
+
+    expect(countdownLifecycle.mounts).toBe(1);
+    expect(startSharingMock.mock.calls.length).toBe(shareCallsAfterMount);
+    expect(screen.getByText("Handoff starts in 0:43")).toBeInTheDocument();
+    expect(screen.getByText("Live location on")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Navigate to spot" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the collapsed mobile sheet to a single compact bar", async () => {
+    const user = userEvent.setup();
+    renderPanel(
+      <ActiveClaimPanel
+        claim={claim}
+        destination={destination}
+        counterpartVehicle={ownerVehicle}
+        variant="overlay"
+      />,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
+    );
+
+    const sheet = screen.getByTestId("active-claim-sheet");
+    expect(sheet.className).toContain("map-bottom-sheet--claim-collapsed");
+    expect(sheet.className).toContain("active-claim-sheet-collapsed");
+    expect(sheet.className).not.toContain("map-bottom-sheet--claim-expanded");
+    expect(sheet).toHaveAttribute("data-expanded", "false");
+    expect(screen.getByTestId("active-claim-collapsed-summary")).toBeInTheDocument();
+    expect(screen.queryByTestId("vehicle-identity-card")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("seeker-share-location")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("active-claim-complete-actions"),
+    ).not.toBeInTheDocument();
   });
 
   it("uses the destination fallback when address is missing", () => {
@@ -472,9 +628,10 @@ describe("ActiveClaimPanel sheet UX", () => {
     expect(
       screen.getByRole("region", { name: ACTIVE_CLAIM_ON_WAY_STATUS }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Handoff in 0:43")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Navigate to spot" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Navigate to spot" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Release spot" }),
     ).not.toBeInTheDocument();
@@ -658,10 +815,10 @@ describe("ActiveClaimPanel sheet UX", () => {
     );
 
     expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
-    expect(screen.queryByText("12-345-**")).not.toBeInTheDocument();
     expect(screen.getByTestId("active-claim-compact-vehicle")).toHaveTextContent(
-      "Hyundai Tucson · White · 12-345-**",
+      "Hyundai Tucson · 12-345-**",
     );
+    expect(screen.queryByText("White")).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("handoff-vehicle-animation"),
     ).not.toBeInTheDocument();
@@ -914,15 +1071,20 @@ describe("ActiveClaimPanel sheet UX", () => {
       screen.getByRole("button", { name: /Collapse handoff details/i }),
     );
 
+    expect(screen.getByText("Handoff in 0:43")).toBeInTheDocument();
+    expect(screen.getByTestId("active-claim-compact-vehicle")).toHaveTextContent(
+      "Hyundai Tucson · 12-345-**",
+    );
     expect(
-      screen.getByTestId("seeker-waiting-confirmation"),
-    ).toBeInTheDocument();
+      screen.queryByTestId("seeker-waiting-confirmation"),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Release spot" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Release spot" }),
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Navigate to spot" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Navigate to spot" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Look for this vehicle")).not.toBeInTheDocument();
   });
 
   it("renders paused live-location status without blocking the claim", () => {

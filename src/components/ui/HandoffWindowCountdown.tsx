@@ -11,6 +11,7 @@ import {
 } from "@/lib/spots/handoff-phase";
 
 export type HandoffPhase = HandoffTimingPhase;
+export type HandoffCountdownProximity = "close" | null;
 
 type HandoffWindowCountdownProps = {
   availableAtIso: string;
@@ -21,6 +22,10 @@ type HandoffWindowCountdownProps = {
   /** Role-specific waiting / window copy. */
   role: "publisher" | "seeker";
   className?: string;
+  /** Short labels for collapsed cards. Omits the helper line. */
+  compact?: boolean;
+  /** Close-range wording once the meetup window is live. */
+  proximity?: HandoffCountdownProximity;
   /** Fired once when the shared deadline is reached (client hint). */
   onExpired?: () => void;
   /**
@@ -30,20 +35,87 @@ type HandoffWindowCountdownProps = {
   onDepartureDue?: () => void;
 };
 
-function scheduledCopy(_role: "publisher" | "seeker", clock: string): string {
-  return `Leaving in ${clock}`;
+export function handoffScheduledCopy(clock: string, compact = false): string {
+  return compact ? `Handoff in ${clock}` : `Handoff starts in ${clock}`;
 }
 
-function waitingCopy(role: "publisher" | "seeker", clock: string): string {
+export function handoffUnclaimedDueCopy(
+  role: "publisher" | "seeker",
+  clock: string,
+): string {
   return role === "publisher"
     ? `Waiting for a driver · ${clock} left`
-    : `Leaving in ${clock}`;
+    : `Handoff starts in ${clock}`;
 }
 
-function activeCopy(role: "publisher" | "seeker", clock: string): string {
+export function handoffMeetupCopy(clock: string, compact = false): string {
+  return compact ? `Meetup · ${clock}` : `Meetup window · ${clock} left`;
+}
+
+export function handoffCloseCopy(
+  role: "publisher" | "seeker",
+  clock: string,
+  compact = false,
+): string {
+  if (compact) {
+    return handoffMeetupCopy(clock, true);
+  }
   return role === "publisher"
-    ? `Waiting for driver · ${clock} left`
-    : `Complete the handoff · ${clock} left`;
+    ? `Driver is nearby · ${clock} left`
+    : `You’re close · ${clock} left`;
+}
+
+export function handoffScheduledHelper(
+  role: "publisher" | "seeker",
+): string {
+  return role === "publisher"
+    ? "Then you’ll have 3 minutes to complete the handoff"
+    : "Then you’ll have 3 minutes to meet";
+}
+
+export function handoffMeetupHelper(
+  role: "publisher" | "seeker",
+  claimed: boolean,
+): string | null {
+  if (!claimed) {
+    return null;
+  }
+  return role === "publisher"
+    ? "The driver is on the way"
+    : "Head to the parking spot";
+}
+
+export function handoffCloseHelper(role: "publisher" | "seeker"): string {
+  return role === "publisher"
+    ? "Get ready to complete the handoff"
+    : "Find the vehicle and complete the handoff";
+}
+
+function scheduledCopy(
+  _role: "publisher" | "seeker",
+  clock: string,
+  compact: boolean,
+): string {
+  return handoffScheduledCopy(clock, compact);
+}
+
+function waitingCopy(
+  role: "publisher" | "seeker",
+  clock: string,
+): string {
+  return handoffUnclaimedDueCopy(role, clock);
+}
+
+function activeCopy(
+  role: "publisher" | "seeker",
+  clock: string,
+  compact: boolean,
+  proximity: HandoffCountdownProximity,
+): string {
+  if (proximity === "close") {
+    return handoffCloseCopy(role, clock, compact);
+  }
+  return handoffMeetupCopy(clock, compact);
 }
 
 /**
@@ -57,6 +129,8 @@ export function HandoffWindowCountdown({
   claimed,
   role,
   className = "",
+  compact = false,
+  proximity = null,
   onExpired,
   onDepartureDue,
 }: HandoffWindowCountdownProps) {
@@ -111,14 +185,14 @@ export function HandoffWindowCountdown({
       !dueNotifiedRef.current
     ) {
       dueNotifiedRef.current = true;
-      setAnnounce("Handoff window is open.");
+      setAnnounce("Meetup window is open.");
       onDepartureDue?.();
     }
     if (previous === "scheduled" && phase === "active") {
-      setAnnounce("Handoff window is open.");
+      setAnnounce("Meetup window is open.");
     }
     if (phase === "active" && previous === "due") {
-      setAnnounce("Handoff window is open.");
+      setAnnounce("Meetup window is open.");
     }
     if (phase === "ended" && previous && previous !== "ended") {
       setAnnounce("Handoff expired.");
@@ -157,6 +231,7 @@ export function HandoffWindowCountdown({
         className={className}
         data-testid="handoff-window-countdown"
         data-phase="ended"
+        data-compact={compact ? "true" : "false"}
       >
         <p className="text-sm font-semibold text-foreground">Handoff expired</p>
         <p className="sr-only" aria-live="polite">
@@ -176,12 +251,24 @@ export function HandoffWindowCountdown({
       ? "due"
       : phase;
   const nearExpiry = liveDisplay && remainingMs <= 60_000;
+  const clock = formatHandoffClock(remainingMs);
+  const close = liveDisplay && proximity === "close";
 
   const line = liveDisplay
-    ? activeCopy(role, formatHandoffClock(remainingMs))
+    ? activeCopy(role, clock, compact, close ? "close" : null)
     : phase === "due"
-      ? waitingCopy(role, formatHandoffClock(remainingMs))
-      : scheduledCopy(role, formatHandoffClock(remainingMs));
+      ? waitingCopy(role, clock)
+      : scheduledCopy(role, clock, compact);
+
+  const helper = compact
+    ? null
+    : liveDisplay
+      ? close
+        ? handoffCloseHelper(role)
+        : handoffMeetupHelper(role, isClaimed)
+      : phase === "scheduled"
+        ? handoffScheduledHelper(role)
+        : null;
 
   return (
     <div
@@ -189,15 +276,24 @@ export function HandoffWindowCountdown({
       data-testid="handoff-window-countdown"
       data-phase={displayPhase}
       data-near-expiry={nearExpiry ? "true" : "false"}
+      data-compact={compact ? "true" : "false"}
     >
       <p
         className={[
           "text-sm font-semibold text-foreground",
-          nearExpiry ? "text-base" : "",
+          nearExpiry && !compact ? "text-base" : "",
         ].join(" ")}
       >
         {line}
       </p>
+      {helper ? (
+        <p
+          className="mt-0.5 text-xs font-medium leading-4 text-muted"
+          data-testid="handoff-window-helper"
+        >
+          {helper}
+        </p>
+      ) : null}
       <p className="sr-only" aria-live="polite">
         {announce}
       </p>
@@ -222,7 +318,6 @@ export function getHandoffPhase(
 export {
   formatHandoffClock,
   scheduledCopy as handoffWaitingCopy,
-  waitingCopy as handoffUnclaimedDueCopy,
   activeCopy as handoffWindowCopy,
   activeCopy as handoffSeekerWindowCopy,
 };

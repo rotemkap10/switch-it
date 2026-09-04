@@ -8,6 +8,7 @@ import {
   MAP_LAYERS,
   MAP_SOURCES,
   MAP_DEFAULT_CENTER_TEL_AVIV,
+  MAP_SELECTED_SPOT_ZOOM,
 } from "@/lib/map/seekerMapConfig";
 import {
   resetSessionMapCameras,
@@ -976,5 +977,76 @@ describe("ParkingMapMapLibre geolocation", () => {
     expect(screen.getByTestId("base-map")).toBeInTheDocument();
     expect(mockBaseMapProps.center).toEqual([34.89, 32.26]);
     expect(mockBaseMapProps.center).not.toEqual([34.843, 32.167]);
+  });
+
+  it("keeps an active destination camera on the parking spot instead of fitting Israel-wide bounds", async () => {
+    mockedStatus = "loading";
+    peekTrustedFix = deviceFix(32.5, 35.0);
+    render(
+      <ParkingMapMapLibre spots={[spot]} destination={destination} />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.addLayer).toHaveBeenCalled();
+    });
+
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: [destination.longitude, destination.latitude],
+        zoom: MAP_SELECTED_SPOT_ZOOM,
+      }),
+    );
+    expect(mockMap.fitBounds).not.toHaveBeenCalled();
+
+    mockMap.easeTo.mockClear();
+    emitSharedTrusted(deviceFix(32.8, 35.2));
+    expect(mockMap.fitBounds).not.toHaveBeenCalled();
+    expect(mockMap.easeTo).not.toHaveBeenCalled();
+  });
+
+  it("recenters on trusted GPS after the active destination is released", async () => {
+    mockedStatus = "loading";
+    const gps = deviceFix(32.26, 34.89);
+    peekTrustedFix = gps;
+    const { rerender } = render(
+      <ParkingMapMapLibre spots={[spot]} destination={destination} />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.addLayer).toHaveBeenCalled();
+    });
+    emitSharedTrusted(gps);
+    mockMap.easeTo.mockClear();
+    mockMap.fitBounds.mockClear();
+
+    rerender(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+
+    expect(mockMap.fitBounds).not.toHaveBeenCalled();
+    expect(mockMap.easeTo).toHaveBeenCalledWith(
+      expect.objectContaining({
+        center: [34.89, 32.26],
+      }),
+    );
+  });
+
+  it("does not let a late GPS override a pan after the destination is cleared", async () => {
+    mockedStatus = "loading";
+    peekTrustedFix = deviceFix(32.08, 34.78);
+    const { rerender } = render(
+      <ParkingMapMapLibre spots={[spot]} destination={destination} />,
+    );
+
+    await waitFor(() => {
+      expect(mockMap.on).toHaveBeenCalledWith("dragstart", expect.any(Function));
+    });
+    emitSharedTrusted(deviceFix(32.08, 34.78));
+
+    rerender(<ParkingMapMapLibre spots={[spot]} destination={null} />);
+    latestMapHandler("dragstart")?.({ originalEvent: { type: "pointerdown" } });
+    mockMap.easeTo.mockClear();
+
+    emitSharedTrusted(deviceFix(32.26, 34.89));
+    expect(mockMap.easeTo).not.toHaveBeenCalled();
+    expect(mockMap.fitBounds).not.toHaveBeenCalled();
   });
 });

@@ -57,6 +57,20 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain("--map-compose-sheet-clearance");
     expect(css).toContain('[data-map-bottom="claim-collapsed"]');
     expect(css).toContain('[data-map-bottom="claim-expanded"]');
+    expect(css).toContain("--map-claim-collapsed-clearance: 4.5rem");
+    expect(css).not.toContain("--map-claim-collapsed-clearance: 10.25rem");
+    expect(css).toMatch(
+      /\.map-bottom-sheet--claim-collapsed\s*\{[^}]*max-height:\s*4\.25rem/s,
+    );
+    expect(css).toMatch(
+      /\.map-bottom-sheet--claim-collapsed\s*\{[^}]*padding:\s*0\.375rem 0\.5rem 0\.375rem 0\.75rem/s,
+    );
+    expect(css).toContain(
+      ".map-bottom-sheet-host--claim:has(.map-bottom-sheet--claim-collapsed)",
+    );
+    expect(css).toMatch(
+      /\.map-bottom-sheet-host--claim:has\(\.map-bottom-sheet--claim-collapsed\)\s*\{[^}]*padding-top:\s*0\.25rem/s,
+    );
     expect(css).toContain("--map-claim-expanded-clearance");
     expect(css).not.toContain("min(42dvh, 16rem)");
     expect(css).toContain(".map-floating-control");

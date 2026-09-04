@@ -62,7 +62,7 @@
   --map-carousel-height: 5.75rem;
   --map-selected-sheet-clearance: 8.75rem;
   --map-compose-sheet-clearance: 12.5rem;
-  --map-claim-collapsed-clearance: 10.25rem;
+  --map-claim-collapsed-clearance: 4.5rem;
   --map-claim-expanded-clearance: min(52dvh, 24rem);
   --map-sheet-bottom: var(--app-overlay-bottom-gap);
   --map-carousel-bottom: calc(
@@ -332,6 +332,10 @@ html[data-native-status-bar="inset"] .app-shell-header {
   z-index: 30;
 }
 
+.map-bottom-sheet-host--claim:has(.map-bottom-sheet--claim-collapsed) {
+  padding-top: 0.25rem;
+}
+
 .map-bottom-sheet {
   pointer-events: auto;
   display: flex;
@@ -359,6 +363,12 @@ html[data-native-status-bar="inset"] .app-shell-header {
 
 .map-bottom-sheet--claim-collapsed {
   max-width: 28rem;
+  max-height: 4.25rem;
+  min-height: 0;
+  gap: 0;
+  padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+  overflow: hidden;
+  align-items: center;
 }
 
 .map-bottom-sheet--claim-expanded {

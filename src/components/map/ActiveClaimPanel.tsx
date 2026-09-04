@@ -24,7 +24,6 @@ import { useDistanceToSpot } from "@/lib/map/use-distance-to-spot";
 import { isValidNavigationCoords } from "@/lib/map/navigation-urls";
 import { reconcileClaimTiming } from "@/actions/reconcile-claim";
 import { hasHandoffStarted } from "@/lib/spots/handoff-phase";
-import { VEHICLE_COLOR_LABELS } from "@/lib/vehicle/colors";
 import {
   formatVehicleIdentityTitle,
   isCompleteHandoffVehicle,
@@ -56,6 +55,15 @@ export function activeClaimDestinationLabel(
   spotAddress: string | null | undefined,
 ): string {
   return sanitizeLocationLabel(spotAddress) ?? ACTIVE_CLAIM_DESTINATION_FALLBACK;
+}
+
+export function activeClaimCompactVehicleLabel(
+  vehicle: HandoffVehicle | null | undefined,
+): string | null {
+  if (!vehicle || !isCompleteHandoffVehicle(vehicle)) {
+    return null;
+  }
+  return `${formatVehicleIdentityTitle(vehicle.make!, vehicle.model!, null)} · ${vehicle.licensePlateMasked}`;
 }
 
 type ActiveClaimPanelProps = {
@@ -191,11 +199,7 @@ function ActiveClaimSheetBody({
         ? sessionDestination
         : null;
   const canNavigate = Boolean(navigateDestination);
-  const showDetails = expanded || closeToSpot;
-  const compactVehicleLabel =
-    counterpartVehicle && isCompleteHandoffVehicle(counterpartVehicle)
-      ? `${formatVehicleIdentityTitle(counterpartVehicle.make!, counterpartVehicle.model!, counterpartVehicle.year)} · ${VEHICLE_COLOR_LABELS[counterpartVehicle.color!]} · ${counterpartVehicle.licensePlateMasked}`
-      : null;
+  const compactVehicleLabel = activeClaimCompactVehicleLabel(counterpartVehicle);
 
   return (
     <div
@@ -208,18 +212,34 @@ function ActiveClaimSheetBody({
       ].join(" ")}
       data-testid="active-claim-sheet"
       data-arrival={closeToSpot ? "close" : "en-route"}
+      data-expanded={expanded ? "true" : "false"}
     >
-      <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1">
+      <div
+        className={
+          expanded
+            ? "flex items-start gap-2"
+            : "flex min-h-0 items-center gap-2"
+        }
+        data-testid={expanded ? undefined : "active-claim-collapsed-summary"}
+      >
+        <div className="min-w-0 flex-1 overflow-hidden">
           <div
-            className={[
-              "rounded-[calc(var(--radius-card)-4px)] px-3 py-2",
-              closeToSpot ? "bg-success-bg" : "bg-accent-soft",
-            ].join(" ")}
+            className={
+              expanded
+                ? [
+                    "rounded-[calc(var(--radius-card)-4px)] px-3 py-2",
+                    closeToSpot ? "bg-success-bg" : "bg-accent-soft",
+                  ].join(" ")
+                : undefined
+            }
           >
             <p
               id={sheetLabelId}
-              className="text-xs font-semibold text-accent-hover"
+              className={
+                expanded
+                  ? "text-xs font-semibold text-accent-hover"
+                  : "sr-only"
+              }
             >
               {closeToSpot
                 ? ACTIVE_CLAIM_CLOSE_STATUS
@@ -232,10 +252,25 @@ function ActiveClaimSheetBody({
               handoffStartedAtIso={claim.handoffStartedAt}
               claimed
               role="seeker"
-              className="mt-1"
+              compact={!expanded}
+              proximity={closeToSpot ? "close" : null}
+              className={
+                expanded
+                  ? "mt-1"
+                  : "[&_p:not(.sr-only)]:truncate text-sm font-semibold leading-5"
+              }
               onExpired={onExpired}
               onDepartureDue={onDepartureDue}
             />
+            {!expanded && compactVehicleLabel ? (
+              <p
+                className="truncate text-xs font-medium leading-4 text-muted"
+                data-testid="active-claim-compact-vehicle"
+                title={compactVehicleLabel}
+              >
+                {compactVehicleLabel}
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -244,9 +279,11 @@ function ActiveClaimSheetBody({
           data-testid="active-claim-expand-toggle"
           className={[
             "motion-interactive-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full",
-            "border border-border bg-surface text-foreground shadow-[var(--shadow-card)]",
-            "transition-opacity hover:bg-surface/95",
+            "text-foreground",
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+            expanded
+              ? "border border-border bg-surface shadow-[var(--shadow-card)] transition-opacity hover:bg-surface/95"
+              : "bg-transparent",
           ].join(" ")}
           aria-expanded={expanded}
           aria-controls="active-claim-details"
@@ -259,7 +296,7 @@ function ActiveClaimSheetBody({
         </button>
       </div>
 
-      {canNavigate && navigateDestination ? (
+      {expanded && canNavigate && navigateDestination ? (
         <ClaimNavigationActions
           claimId={claim.claimId}
           latitude={navigateDestination.latitude}
@@ -267,22 +304,12 @@ function ActiveClaimSheetBody({
         />
       ) : null}
 
-      {!showDetails && compactVehicleLabel ? (
-        <p
-          className="truncate text-xs font-medium text-foreground"
-          data-testid="active-claim-compact-vehicle"
-          title={compactVehicleLabel}
-        >
-          {compactVehicleLabel}
-        </p>
-      ) : null}
-
       <div
         id="active-claim-details"
-        hidden={!showDetails}
-        className={showDetails ? "flex flex-col gap-3 motion-fade-in" : undefined}
+        hidden={!expanded}
+        className={expanded ? "flex flex-col gap-3 motion-fade-in" : undefined}
       >
-        {showDetails && counterpartVehicle ? (
+        {expanded && counterpartVehicle ? (
           <HandoffVehicleSection
             title="Look for this vehicle"
             vehicle={counterpartVehicle}
@@ -290,12 +317,14 @@ function ActiveClaimSheetBody({
         ) : null}
       </div>
 
-      <SeekerShareLocationCard
-        uiState={liveShare.uiState}
-        resumedOnce={liveShare.resumedOnce}
-      />
+      {expanded ? (
+        <SeekerShareLocationCard
+          uiState={liveShare.uiState}
+          resumedOnce={liveShare.resumedOnce}
+        />
+      ) : null}
 
-      {showDetails ? (
+      {expanded ? (
         <div
           className="map-bottom-sheet-actions"
           data-testid="active-claim-complete-actions"

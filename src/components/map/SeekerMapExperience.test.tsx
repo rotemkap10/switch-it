@@ -1,31 +1,41 @@
 import { act, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 const reportInitialMapReadyMock = vi.hoisted(() => vi.fn());
+const parkingMapMounts = vi.hoisted(() => ({ count: 0 }));
 
-vi.mock("@/components/map/ParkingMapLoader", () => ({
-  ParkingMapLoader: ({
-    onVisuallyReady,
-    showDiscoveryCarousel,
-    bottomStackOverride,
-  }: {
-    onVisuallyReady?: () => void;
-    showDiscoveryCarousel?: boolean;
-    bottomStackOverride?: string | null;
-  }) => (
-    <div
-      data-testid="parking-map"
-      data-discovery={showDiscoveryCarousel === false ? "off" : "on"}
-      data-bottom-stack={bottomStackOverride ?? "none"}
-    >
-      <button type="button" onClick={() => onVisuallyReady?.()}>
-        Simulate map ready
-      </button>
-      <div role="status">Loading the map…</div>
-    </div>
-  ),
-}));
+vi.mock("@/components/map/ParkingMapLoader", async () => {
+  const { useEffect } = await import("react");
+  return {
+    ParkingMapLoader: ({
+      onVisuallyReady,
+      showDiscoveryCarousel,
+      bottomStackOverride,
+    }: {
+      onVisuallyReady?: () => void;
+      showDiscoveryCarousel?: boolean;
+      bottomStackOverride?: string | null;
+    }) => {
+      useEffect(() => {
+        parkingMapMounts.count += 1;
+      }, []);
+      return (
+        <div
+          data-testid="parking-map"
+          data-discovery={showDiscoveryCarousel === false ? "off" : "on"}
+          data-bottom-stack={bottomStackOverride ?? "none"}
+        >
+          <button type="button" onClick={() => onVisuallyReady?.()}>
+            Simulate map ready
+          </button>
+          <div role="status">Loading the map…</div>
+        </div>
+      );
+    },
+  };
+});
 
 vi.mock("@/components/shell/AppLaunchReadyContext", () => ({
   useReportInitialMapReady: () => reportInitialMapReadyMock,
@@ -38,18 +48,32 @@ vi.mock("@/components/map/ActiveClaimPanel", () => ({
   ActiveClaimPanel: ({
     variant,
     expanded,
+    onExpandedChange,
   }: {
     variant?: string;
     expanded?: boolean;
+    onExpandedChange?: (next: boolean) => void;
   }) => (
     <div
       data-testid="active-claim-panel"
       data-variant={variant}
       data-expanded={expanded === false ? "false" : "true"}
     >
-      <button type="button">Navigate to spot</button>
-      <p>Waiting for vehicle confirmation</p>
-      <button type="button">Release spot</button>
+      <button
+        type="button"
+        onClick={() => onExpandedChange?.(expanded === false)}
+      >
+        {expanded === false
+          ? "Expand handoff details"
+          : "Collapse handoff details"}
+      </button>
+      {expanded === false ? null : (
+        <>
+          <button type="button">Navigate to spot</button>
+          <p>Waiting for vehicle confirmation</p>
+          <button type="button">Release spot</button>
+        </>
+      )}
     </div>
   ),
 }));
@@ -303,6 +327,7 @@ describe("SeekerMapExperience overlay hierarchy", () => {
   });
 
   it("passes claim bottom-stack override into the map loader", () => {
+    parkingMapMounts.count = 0;
     renderExperience({
       destination: { latitude: 32.08, longitude: 34.78 },
       activeClaim: claim,
@@ -316,6 +341,45 @@ describe("SeekerMapExperience overlay hierarchy", () => {
       "data-map-bottom",
       "claim-expanded",
     );
+  });
+
+  it("does not remount the map when the active-claim card collapses", async () => {
+    parkingMapMounts.count = 0;
+    const user = userEvent.setup();
+    renderExperience({
+      destination: { latitude: 32.08, longitude: 34.78 },
+      activeClaim: claim,
+    });
+
+    act(() => {
+      screen.getByRole("button", { name: "Simulate map ready" }).click();
+    });
+
+    const map = screen.getByTestId("parking-map");
+    expect(parkingMapMounts.count).toBe(1);
+    expect(map).toHaveAttribute("data-bottom-stack", "claim-expanded");
+
+    await user.click(
+      screen.getByRole("button", { name: /Collapse handoff details/i }),
+    );
+
+    expect(screen.getByTestId("parking-map")).toBe(map);
+    expect(parkingMapMounts.count).toBe(1);
+    expect(screen.getByTestId("parking-map")).toHaveAttribute(
+      "data-bottom-stack",
+      "claim-collapsed",
+    );
+    expect(screen.getByTestId("seeker-map-stage")).toHaveAttribute(
+      "data-map-bottom",
+      "claim-collapsed",
+    );
+    expect(screen.getByTestId("active-claim-panel")).toHaveAttribute(
+      "data-expanded",
+      "false",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Navigate to spot" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not show a redundant Find parking title pill", () => {

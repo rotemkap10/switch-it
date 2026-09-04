@@ -3,6 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   formatHandoffClock,
   getHandoffPhase,
+  handoffCloseCopy,
+  handoffCloseHelper,
+  handoffMeetupCopy,
+  handoffMeetupHelper,
+  handoffScheduledCopy,
+  handoffScheduledHelper,
   handoffSeekerWindowCopy,
   handoffUnclaimedDueCopy,
   handoffWaitingCopy,
@@ -79,9 +85,22 @@ describe("getHandoffPhase", () => {
 
 describe("handoff countdown copy", () => {
   it("shows a live estimated-departure clock before start", () => {
-    expect(handoffWaitingCopy("publisher", "4:37")).toBe("Leaving in 4:37");
-    expect(handoffWaitingCopy("seeker", "4:37")).toBe("Leaving in 4:37");
+    expect(handoffWaitingCopy("publisher", "4:37")).toBe(
+      "Handoff starts in 4:37",
+    );
+    expect(handoffWaitingCopy("seeker", "4:37")).toBe("Handoff starts in 4:37");
+    expect(handoffScheduledCopy("4:37")).toBe("Handoff starts in 4:37");
+    expect(handoffScheduledCopy("0:43", true)).toBe("Handoff in 0:43");
     expect(formatHandoffClock(4 * 60_000 + 37_000)).toBe("4:37");
+  });
+
+  it("explains that a 3-minute meetup window follows", () => {
+    expect(handoffScheduledHelper("seeker")).toBe(
+      "Then you’ll have 3 minutes to meet",
+    );
+    expect(handoffScheduledHelper("publisher")).toBe(
+      "Then you’ll have 3 minutes to complete the handoff",
+    );
   });
 
   it("keeps fallback waiting copy if an unclaimed listing is still open after the estimate", () => {
@@ -90,13 +109,34 @@ describe("handoff countdown copy", () => {
     );
   });
 
-  it("shows the live handoff countdown after start", () => {
+  it("shows meetup-window copy after start instead of restarting Leaving in", () => {
     expect(handoffWindowCopy("publisher", "2:59")).toBe(
-      "Waiting for driver · 2:59 left",
+      "Meetup window · 2:59 left",
     );
     expect(handoffSeekerWindowCopy("seeker", "2:59")).toBe(
-      "Complete the handoff · 2:59 left",
+      "Meetup window · 2:59 left",
     );
+    expect(handoffMeetupCopy("2:59")).toBe("Meetup window · 2:59 left");
+    expect(handoffMeetupCopy("2:50", true)).toBe("Meetup · 2:50");
+    expect(handoffMeetupHelper("seeker", true)).toBe("Head to the parking spot");
+    expect(handoffMeetupHelper("publisher", true)).toBe(
+      "The driver is on the way",
+    );
+    expect(handoffMeetupHelper("publisher", false)).toBeNull();
     expect(formatHandoffClock(179_000)).toBe("2:59");
+  });
+
+  it("uses close-range meetup wording without dropping remaining time", () => {
+    expect(handoffCloseCopy("seeker", "1:24")).toBe("You’re close · 1:24 left");
+    expect(handoffCloseCopy("publisher", "1:24")).toBe(
+      "Driver is nearby · 1:24 left",
+    );
+    expect(handoffCloseCopy("seeker", "1:24", true)).toBe("Meetup · 1:24");
+    expect(handoffCloseHelper("seeker")).toBe(
+      "Find the vehicle and complete the handoff",
+    );
+    expect(handoffCloseHelper("publisher")).toBe(
+      "Get ready to complete the handoff",
+    );
   });
 });

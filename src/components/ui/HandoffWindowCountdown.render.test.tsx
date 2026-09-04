@@ -27,13 +27,16 @@ describe("HandoffWindowCountdown live clock", () => {
       "data-phase",
       "scheduled",
     );
-    expect(screen.getByText("Leaving in 4:37")).toBeInTheDocument();
+    expect(screen.getByText("Handoff starts in 4:37")).toBeInTheDocument();
+    expect(
+      screen.getByText("Then you’ll have 3 minutes to meet"),
+    ).toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(1000);
     });
 
-    expect(screen.getByText("Leaving in 4:36")).toBeInTheDocument();
+    expect(screen.getByText("Handoff starts in 4:36")).toBeInTheDocument();
   });
 
   it("transitions from the departure clock to the 3-minute live window at zero", () => {
@@ -49,7 +52,7 @@ describe("HandoffWindowCountdown live clock", () => {
       />,
     );
 
-    expect(screen.getByText("Leaving in 0:01")).toBeInTheDocument();
+    expect(screen.getByText("Handoff starts in 0:01")).toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(1000);
@@ -59,10 +62,10 @@ describe("HandoffWindowCountdown live clock", () => {
       "data-phase",
       "active",
     );
-    expect(screen.queryByText(/Leaving in 0:00/)).not.toBeInTheDocument();
-    expect(
-      screen.getByText("Complete the handoff · 3:00 left"),
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Handoff starts in 0:00/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Leaving in /)).not.toBeInTheDocument();
+    expect(screen.getByText("Meetup window · 3:00 left")).toBeInTheDocument();
+    expect(screen.getByText("Head to the parking spot")).toBeInTheDocument();
     expect(onDepartureDue).toHaveBeenCalledTimes(1);
   });
 
@@ -77,7 +80,7 @@ describe("HandoffWindowCountdown live clock", () => {
       />,
     );
 
-    expect(screen.getByText("Leaving in 3:00")).toBeInTheDocument();
+    expect(screen.getByText("Handoff starts in 3:00")).toBeInTheDocument();
 
     rerender(
       <HandoffWindowCountdown
@@ -89,9 +92,8 @@ describe("HandoffWindowCountdown live clock", () => {
       />,
     );
 
-    expect(
-      screen.getByText("Complete the handoff · 3:00 left"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Meetup window · 3:00 left")).toBeInTheDocument();
+    expect(screen.queryByText(/^Handoff starts in /)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Leaving in /)).not.toBeInTheDocument();
   });
 
@@ -111,9 +113,8 @@ describe("HandoffWindowCountdown live clock", () => {
       "data-phase",
       "active",
     );
-    expect(
-      screen.getByText("Waiting for driver · 3:00 left"),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Meetup window · 3:00 left")).toBeInTheDocument();
+    expect(screen.queryByText("The driver is on the way")).not.toBeInTheDocument();
   });
 
   it("does not reset the live window when a seeker claims mid-handoff", () => {
@@ -128,8 +129,73 @@ describe("HandoffWindowCountdown live clock", () => {
       />,
     );
 
+    expect(screen.getByText("Meetup window · 1:00 left")).toBeInTheDocument();
+  });
+
+  it("keeps compact labels short and omits the helper line", () => {
+    vi.setSystemTime(new Date("2026-08-04T12:05:23.000Z"));
+    const { unmount } = render(
+      <HandoffWindowCountdown
+        availableAtIso="2026-08-04T12:10:00.000Z"
+        expiresAtIso="2026-08-04T12:13:00.000Z"
+        claimed
+        role="seeker"
+        compact
+      />,
+    );
+
+    expect(screen.getByText("Handoff in 4:37")).toBeInTheDocument();
+    expect(screen.queryByTestId("handoff-window-helper")).not.toBeInTheDocument();
+    unmount();
+
+    vi.setSystemTime(new Date("2026-08-04T12:10:00.000Z"));
+    render(
+      <HandoffWindowCountdown
+        availableAtIso="2026-08-04T12:10:00.000Z"
+        expiresAtIso="2026-08-04T12:13:00.000Z"
+        handoffStartedAtIso="2026-08-04T12:10:00.000Z"
+        claimed
+        role="seeker"
+        compact
+      />,
+    );
+
+    expect(screen.getByText("Meetup · 3:00")).toBeInTheDocument();
+    expect(screen.queryByTestId("handoff-window-helper")).not.toBeInTheDocument();
+  });
+
+  it("uses close-range remaining time once the meetup window is live", () => {
+    vi.setSystemTime(new Date("2026-08-04T12:11:36.000Z"));
+    render(
+      <HandoffWindowCountdown
+        availableAtIso="2026-08-04T12:10:00.000Z"
+        expiresAtIso="2026-08-04T12:13:00.000Z"
+        handoffStartedAtIso="2026-08-04T12:10:00.000Z"
+        claimed
+        role="seeker"
+        proximity="close"
+      />,
+    );
+
+    expect(screen.getByText("You’re close · 1:24 left")).toBeInTheDocument();
     expect(
-      screen.getByText("Complete the handoff · 1:00 left"),
+      screen.getByText("Find the vehicle and complete the handoff"),
     ).toBeInTheDocument();
+  });
+
+  it("uses publisher meetup semantics during the live window", () => {
+    vi.setSystemTime(new Date("2026-08-04T12:10:01.000Z"));
+    render(
+      <HandoffWindowCountdown
+        availableAtIso="2026-08-04T12:10:00.000Z"
+        expiresAtIso="2026-08-04T12:13:00.000Z"
+        handoffStartedAtIso="2026-08-04T12:10:00.000Z"
+        claimed
+        role="publisher"
+      />,
+    );
+
+    expect(screen.getByText("Meetup window · 2:59 left")).toBeInTheDocument();
+    expect(screen.getByText("The driver is on the way")).toBeInTheDocument();
   });
 });
