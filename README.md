@@ -1,5 +1,8 @@
 # Switch It
 
+**Production:** [https://switch-it-wine.vercel.app](https://switch-it-wine.vercel.app)  
+**Repository:** [https://github.com/rotemkap10/switch-it](https://github.com/rotemkap10/switch-it)
+
 **Switch It** is a phone-first web app that helps drivers coordinate direct handoffs of **public street parking spots**.
 
 A driver who is about to leave a parking spot can share when they expect to depart. Another driver looking for parking can claim the handoff, navigate to the location, share live location during the active handoff (subject to device permission and GPS), identify the other vehicle, and complete the exchange.
@@ -36,7 +39,9 @@ Once a seeker claims the spot, the handoff is coordinated between those two driv
 * Vehicle recognition using make, model, year, color, masked plate, and catalog imagery
 * Publisher verifies the arriving seeker's vehicle using the **last 2 digits of the seeker's license plate**
 * Credits transfer only after successful handoff completion
+* Header credit balance (same `profiles.credits` value as Profile)
 * Cancellation / Release spot without credit movement
+* Completion and terminal-ended overlays, then a smooth return to Find parking
 * Handoff History
 * Profile and vehicle management
 * PWA installation
@@ -228,20 +233,17 @@ During an active claim, the seeker app starts live-location sharing with the pub
 
 The publisher can use the live handoff map to see the approaching seeker.
 
-Live seeker location is temporary and is **not stored as a route-history trail**.
+**Transport (web and native):** the seeker posts location to the Supabase Edge Function `handoff-seeker-location` with their JWT. The function authorizes the seeker, atomically accepts or rejects the update (rate limit + sequence), upserts an ephemeral **latest** snapshot, and broadcasts only accepted updates on the private topic `claim-location:<claimId>`. The publisher subscribes to that Broadcast and may read the snapshot if the first event was missed.
 
-- Web/PWA: private Realtime Broadcast (foreground-dependent)
-- Native/Edge pilot: may also upsert an ephemeral **latest** snapshot row for recovery; that row is replaced on update and deleted when the claim becomes terminal
+Live seeker location is **not** a route-history trail. The snapshot row is replaced on update and deleted when the claim becomes terminal.
 
-### PWA
+### Web / PWA
 
-In the web/PWA version, live location is foreground-dependent and may pause when Switch It is sent to the background or an external navigation app is opened.
+GPS comes from foreground `watchPosition`. Sharing pauses when the tab is backgrounded or an external navigation app is opened. The browser still uses the Edge Function path above (not a client-only Broadcast publish).
 
 ### Native pilot
 
-The Capacitor-based native pilot supports background GPS during an active handoff, including while Waze or Maps is open.
-
-Native background location is active only for the duration of the handoff.
+The Capacitor-based native pilot supports **background GPS** during an active handoff, including while Waze or Maps is open. Native background location is active only for the duration of the handoff. Posts use the same Edge Function.
 
 ## History
 
@@ -277,19 +279,28 @@ The publisher remains responsible for confirming that the map pin is placed on t
 ## Stack
 
 * **Next.js 16** App Router
-* **React**
-* **Supabase**
-
-  * Auth
-  * Postgres
-  * RLS
-  * RPC
-  * Realtime
-* **MapLibre**
-* **MapTiler**
-* **CarImages**
+* **React 19** + TypeScript
+* **Supabase** — Auth, Postgres, RLS, RPC, Realtime, Edge Functions
+* **MapLibre** + **MapTiler**
+* **CarImages** (catalog imagery)
 * **Progressive Web App**
-* **Capacitor** for the native pilot
+* **Vitest** + Testing Library
+* **Capacitor** for the optional native pilot
+
+## Repository structure
+
+```text
+src/app/                 App Router pages and auth callbacks
+src/actions/             Server Actions (mutations)
+src/components/          UI (map, spots, auth, overlays)
+src/lib/                 Domain helpers, validation, Realtime, location
+supabase/migrations/     Schema, RLS, RPCs
+supabase/functions/      Edge Functions (live-location bridge)
+public/                  PWA assets, sw.js, branding
+docs/final-submission/   Course documents (canonical)
+submission/              Copies of the required submission Markdown files
+native/                  Optional Capacitor / background-GPS pilot
+```
 
 ## Architecture
 
@@ -302,45 +313,64 @@ Supabase Auth + Postgres
   ├─ RLS
   ├─ RPC business logic
   ├─ parking spots / claims / credits
-  └─ Realtime
-       ├─ postgres_changes
-       └─ private Broadcast for temporary live location
-  ↓
+  └─ Realtime postgres_changes (map / handoff invalidation)
+
+Live seeker location (web + native)
+  GPS → Edge Function handoff-seeker-location
+      → JWT + atomic accept/reject
+      → latest snapshot + private Broadcast if accepted
+
 MapLibre + MapTiler
 
 
-Native iOS / Android pilot
+Native iOS / Android pilot (optional)
   ↓
-Capacitor shell
+Capacitor shell + HandoffBackgroundLocation plugin
   ↓
-HandoffBackgroundLocation plugin
-  ↓
-Native GPS + HTTP
-  ↓
-Supabase Edge Function
-  ↓
-Private handoff Broadcast topic
+Background GPS + HTTP → same Edge Function
 ```
 
-Live seeker location is temporary. Web/PWA uses private Broadcast; the native/Edge path upserts an ephemeral latest snapshot via atomic DB rate limiting, then broadcasts only accepted updates (not a route-history trail). See `docs/final-submission/05-security.md` §11.
+See `docs/final-submission/02-technical-design.md` and `docs/final-submission/05-security.md` §11.
+
+## Prerequisites
+
+- Node.js current LTS (Next.js 16)
+- npm
+- Git
+- A Supabase project (cloud or local CLI)
+- MapTiler API key for maps/geocoding
+- Optional: CarImages public JS-loader key (generic illustration if omitted)
 
 ## Local setup
 
 ```bash
+git clone https://github.com/rotemkap10/switch-it.git
+cd switch-it
 npm install
 cp .env.example .env.local
-npm run dev
 ```
 
-If `.env.example` is not present, create `.env.local` manually.
+Fill `.env.local` with the variable **names** listed below (never commit secret values).
 
-Apply Supabase migrations using the project's normal linked workflow:
+Apply Supabase migrations using the project's linked workflow:
 
 ```bash
 npx supabase db push
 ```
 
-Do not commit secrets.
+Web live location also requires the Edge Function:
+
+```bash
+npx supabase functions deploy handoff-seeker-location
+```
+
+Then:
+
+```bash
+npm run dev
+```
+
+Do not commit secrets. Full Auth/Confirm-email notes: `docs/final-submission/06-local-setup.md`.
 
 ## Environment variables
 
@@ -380,7 +410,9 @@ npm run build
 
 ## Production
 
-The production web application is deployed on **Vercel** or another Next.js-compatible platform.
+Live web app: **[https://switch-it-wine.vercel.app](https://switch-it-wine.vercel.app)**
+
+The production web application is deployed on **Vercel**.
 
 PWA resources include:
 
@@ -395,6 +427,8 @@ The iOS Home Screen icon is:
 ```text
 /apple-touch-icon.png
 ```
+
+The service worker (`public/sw.js`, cache `switch-it-pwa-v12`) precaches only the offline page and icons. It does **not** cache `/_next/` chunks or App Router RSC/flight requests. After a new deploy, a long-lived tab that hits a missing chunk performs **one** hard reload (sessionStorage-guarded) instead of looping on the fatal error page.
 
 Switch It uses a branded startup experience to reduce the default browser/PWA startup flash.
 
@@ -499,9 +533,16 @@ The goal is to make parking handoffs **more coordinated and predictable** than a
 
 ## Documentation
 
-* [`docs/PRODUCT_SPEC.md`](docs/PRODUCT_SPEC.md)
-* [`docs/TECHNICAL_DESIGN.md`](docs/TECHNICAL_DESIGN.md)
-* [`native/README.md`](native/README.md)
+Canonical course pack (copies for upload also live under `submission/`):
+
+* [Product specification](docs/final-submission/01-product-spec.md)
+* [Technical design](docs/final-submission/02-technical-design.md)
+* [Test specification](docs/final-submission/03-test-plan.md)
+* [Scalability](docs/final-submission/04-scale.md)
+* [Security](docs/final-submission/05-security.md)
+* [Local run instructions](docs/final-submission/06-local-setup.md)
+* [Presentation outline](docs/final-submission/07-presentation-outline.md) (10–15 min; build the actual PPT/PDF from this outline)
+* [Native pilot](native/README.md) (optional, not required for the web MVP)
 
 ## Usage Notice
 

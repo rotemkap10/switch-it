@@ -11,17 +11,17 @@ Legend:
 | Assignment requirement | Status | Evidence in repository | Recommended action before submission | Priority |
 | --- | --- | --- | --- | --- |
 | 1. Choose a web product with real business meaning | COMPLETE | Parking handoff product in `README.md`, `/map`, `/spots/new` | Keep two demo accounts ready | LOW |
-| 2. Product specification document | COMPLETE (this pack) | `01-product-spec.md` | Prefer this pack over older `docs/PRODUCT_SPEC.md` | MEDIUM |
+| 2. Product specification document | COMPLETE (this pack) | `01-product-spec.md` + `submission/product-specification.md` | Submit this pack | LOW |
 | 3. Software architecture planning | COMPLETE (this pack) | `02-technical-design.md` | Review Mermaid diagrams against live demo | LOW |
 | 4. Detailed technical design | COMPLETE (this pack) | `02-technical-design.md` | Study RPCs before presentation | HIGH (study) |
-| 5. Implement with Next.js + TypeScript + Supabase (+ Vercel deploy) | COMPLETE (code) / PARTIAL (deploy proof) | `package.json` (`next@16.2.12`, TS, `@supabase/*`); GitHub remote present | Attach **live Vercel URL** on the submission cover sheet; confirm production Supabase has latest migrations | HIGH |
-| 6. Test specification document | COMPLETE (this pack) | `03-test-plan.md` | Do not submit stale older `docs/TEST_PLAN.md` sections | HIGH |
-| 7. Implement tests for main flows | COMPLETE | Vitest + Testing Library; **260 files / 1624 tests** (`npm run test:run`, re-verified after auth/forgot-password work) | Re-run once more before submit | MEDIUM |
-| 8. Basic scalability document | COMPLETE (this pack) | `04-scale.md`; older `docs/SCALABILITY.md` is empty | Submit this pack | MEDIUM |
-| 9. Basic security document | COMPLETE (this pack) | `05-security.md`; older `docs/SECURITY.md` is empty | Prepare honest fraud/Sybil + anti-enumeration answers | HIGH (study) |
-| 10. Deploy to Vercel + Supabase; live URL, GitHub URL, local run, env explanation | PARTIAL | Local instructions: `06-local-setup.md` + `README.md`; GitHub remote present | Confirm live Vercel URL, production Supabase project, and `npx supabase db push` applied. A `vercel.json` is **not** required for a standard Next.js Vercel deploy | HIGH |
+| 5. Implement with Next.js + TypeScript + Supabase (+ Vercel deploy) | COMPLETE | `package.json` (`next@16.2.12`, TS, `@supabase/*`); live [https://switch-it-wine.vercel.app](https://switch-it-wine.vercel.app); GitHub [https://github.com/rotemkap10/switch-it](https://github.com/rotemkap10/switch-it) | Confirm production Supabase has latest migrations + `handoff-seeker-location` | HIGH |
+| 6. Test specification document | COMPLETE (this pack) | `03-test-plan.md` + `submission/test-specification.md` | Keep test counts in sync after last `npx vitest run` | LOW |
+| 7. Implement tests for main flows | COMPLETE | Vitest + Testing Library; **277 files / 1744 tests** (`npx vitest run`, this pass) | Re-run once more immediately before submit if more code lands | MEDIUM |
+| 8. Basic scalability document | COMPLETE (this pack) | `04-scale.md` + `submission/scale.md` | Submit this pack | LOW |
+| 9. Basic security document | COMPLETE (this pack) | `05-security.md` + `submission/security.md` | Prepare honest fraud/Sybil + anti-enumeration answers | HIGH (study) |
+| 10. Deploy to Vercel + Supabase; live URL, GitHub URL, local run, env explanation | COMPLETE (documented) | `06-local-setup.md` + `README.md`; production URL and GitHub URL recorded | Confirm the live URL still loads; `npx supabase db push` on production; deploy `handoff-seeker-location`. A `vercel.json` is **not** required | HIGH |
 | 11. Optional coding agents; student must understand everything | COMPLETE (process) | Study guide: `08-system-study-guide.md` | Fill `docs/AI_USAGE.md` if the course asks for AI disclosure | MEDIUM |
-| 12. 10–15 minute presentation | PARTIAL — presentation outline is complete; final slide deck still needs to be created | `07-presentation-outline.md` | Build PPT/PDF from the outline; rehearse 12–13 minutes with two devices | HIGH |
+| 12. 10–15 minute presentation | PARTIAL — outline complete; **PPT/PDF deck is not in the repository** | `07-presentation-outline.md` | Build the actual slide deck from the outline; rehearse 12–13 minutes with two devices | HIGH |
 | Authentication | COMPLETE | Email/password; Confirm email; Forgot password (`/forgot-password` → `/auth/reset-password`); `/login`, `/register`, `/auth/callback`; `src/proxy.ts` | Be ready to explain cookie session refresh + anti-enumeration UX | MEDIUM |
 | Database with meaningful entities | COMPLETE | `profiles`, `parking_spots`, `claims`, `credit_transactions` (+ support tables) | Know status enums and unique indexes | HIGH |
 | Server Actions / backend mutations | COMPLETE | `src/actions/*` + Postgres RPCs | Explain why claim/complete live in SQL | HIGH |
@@ -50,13 +50,13 @@ Legend:
 - Not a claim that every older document in `docs/` is accurate.
 - Not a claim that Playwright E2E exists (it does **not** in `package.json`).
 - Not a claim that production push delivery is fully verified.
-- Not a substitute for your live Vercel URL and oral understanding.
+- Not a substitute for confirming the live URL still loads, or for oral understanding.
 
 # Repository references
 
 - Assignment PDF (course handout)
 - `package.json`
 - `README.md`
-- `docs/PRODUCT_SPEC.md`, `docs/TECHNICAL_DESIGN.md`, `docs/TEST_PLAN.md`, `docs/SCALABILITY.md`, `docs/SECURITY.md`, `docs/AI_USAGE.md`
+- `docs/final-submission/` (canonical) and `submission/` (copies for upload)
 - `supabase/migrations/`
 - `src/app/`, `src/actions/`, `src/lib/`, `src/components/`

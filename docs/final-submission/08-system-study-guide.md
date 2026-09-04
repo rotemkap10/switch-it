@@ -129,7 +129,7 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 
 - **WHAT:** Seeker position during an active claim.
 - **WHERE:** `use-seeker-live-location-share.ts`, `use-publisher-live-location.ts`, Edge `handoff-seeker-location`, table `claim_live_locations`, RPCs `upsert_claim_live_location` / `try_accept_claim_location_status`.
-- **HOW:** Web = Broadcast; native/Edge calls Edge Function → DB atomically accepts/rejects (2s rate limit, strict sequence) → Broadcast only if accepted. Publisher may read snapshot for recovery. UI treats sharing as mandatory for active claim.
+- **HOW:** Web and native both POST Edge Function `handoff-seeker-location` (JWT + `can_send_claim_location`) → DB atomically accepts/rejects (2s rate limit, strict sequence) → Broadcast only if accepted. Web GPS is foreground `watchPosition`; native can run in the background. Publisher may read snapshot for recovery. UI treats sharing as mandatory for active claim.
 - **WHY:** Help publisher see approaching seeker; prevent Realtime flood abuse.
 - **WRONG:** Claiming coordinates are never stored; claiming permanent tracking history; claiming Edge pre-read rate limit is sufficient without DB atomicity.
 - **HANDLED:** Snapshot is latest-only, deleted on terminal claim; not a route trail; DB uses `clock_timestamp()` + `claims` row lock.
@@ -168,7 +168,7 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 - **HOW:** Map Postgres exceptions; inline vs toast.
 - **WHY:** Users shouldn’t see SQL.
 - **WRONG:** Swallowing errors.
-- **HANDLED:** Typed action states + route error boundaries.
+- **HANDLED:** Typed action states + route error boundaries. Known stale chunk/RSC errors trigger one hard reload.
 
 ## MapLibre / MapTiler
 
@@ -210,7 +210,7 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 
 - **WHAT:** Large Vitest suite; migration string contracts.
 - **WHERE:** `**/*.test.ts(x)`, `*.migration.test.ts`.
-- **HOW:** `npm run test:run` → **260 files / 1624 tests** (re-verified after auth/forgot-password work).
+- **HOW:** `npx vitest run` → **277 files / 1744 tests** (this documentation pass).
 - **WHY:** Guard regressions on timing/UI/actions.
 - **WRONG:** Believing SQL-text contract tests equal live concurrent DB tests; claiming Playwright exists.
 - **HANDLED:** Supplement with manual two-user tests.
@@ -320,7 +320,7 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 **Files:** initial schema.
 
 ### 25. What tests did you write?
-**Answer:** Vitest unit/component/action tests and migration contract tests (~1624). No Playwright project. Manual two-user E2E. SQL-text contracts ≠ live concurrency suite.
+**Answer:** Vitest unit/component/action tests and migration contract tests (**1744** tests / **277** files). No Playwright project. Manual two-user E2E. SQL-text contracts ≠ live concurrency suite.
 **Files:** `package.json`, `03-test-plan.md`.
 
 ### 26. How do cancellation reasons work?
@@ -336,7 +336,7 @@ Items marked **STUDY PRIORITY** are likely oral-exam targets.
 **Files:** `complete_claim` plate migrations.
 
 ### 29. Are live coordinates stored in the database?
-**Answer:** Web path is Broadcast-primary. Native/Edge path may upsert an ephemeral latest snapshot in `claim_live_locations` (one row per claim, deleted on terminal). Not a route history. Do not say “never stored.”  
+**Answer:** Yes, an ephemeral **latest** snapshot in `claim_live_locations` (one row per claim, replaced on upsert, deleted on terminal). Web and native both go through the Edge Function before that write. Not a route history. Do not say “never stored.”  
 **Files:** `20260817140000_claim_live_locations_snapshot.sql`, location hooks, Edge function.
 
 ### 30. If you had one more week, what would you improve?

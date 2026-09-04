@@ -2,12 +2,15 @@
 
 ## Product
 
-Switch It is a responsive web application that helps drivers coordinate the
-handoff of public street parking spots.
+Switch It is a phone-first web application (PWA-capable) that helps drivers
+coordinate the handoff of public street parking spots.
 
-A user who is about to leave a parking spot can publish its location and
-expected availability time. Another authenticated user can claim the spot for
-a limited period.
+A publisher who is about to leave can share location and estimated departure.
+A seeker can claim that listing. The two drivers share timing, vehicle identity
+(masked plate + last-2-digit verification by the publisher), and a short-lived
+live location during the active claim.
+
+Credits are virtual points. They move only after successful completion.
 
 ## Course requirements
 
@@ -20,45 +23,34 @@ Required technologies:
 - Supabase
 - Vercel
 
-The project must demonstrate:
+Canonical documents: `docs/final-submission/`. Submission copies: `submission/`.
 
-- Product thinking
-- Authentication
-- Authorization
-- Database design
-- CRUD operations
-- Business logic
-- Testing
-- Basic security
-- Basic scalability
-- Deployment
-- Technical documentation
+Production: https://switch-it-wine.vercel.app  
+Repository: https://github.com/rotemkap10/switch-it
 
-## MVP
+## MVP (as implemented)
 
-1. User registration, login and logout.
-2. User profile with a credit balance.
-3. Map showing available parking spots.
-4. Publishing a parking spot.
-5. Claiming a parking spot.
+1. Email/password auth, Confirm email, Forgot password.
+2. Profile with credit balance (also shown in the header).
+3. Map of available parking spots (MapLibre + MapTiler).
+4. Publishing a parking spot (Now–10 minutes).
+5. Claiming a parking spot (atomic RPC, 1500 m, ≥1 credit check).
 6. Preventing more than one active claim for a spot.
-7. Completing or cancelling a claim (verified handoff code on completion).
+7. Publisher plate-suffix verification on complete; structured cancel/release/expiry.
 8. Mandatory vehicle onboarding before using the main app.
-8. Credit transactions.
-9. User activity history.
-10. Responsive user interface.
-11. Live UI updates for active handoffs via Supabase Realtime (invalidation + refresh).
+9. Credit transactions (ledger; transfer only on complete).
+10. User activity history (keyset pagination).
+11. Responsive phone-first UI + conservative PWA.
+12. Live UI updates via Supabase Realtime; live seeker location via Edge Function.
 
 ## Non-goals for the MVP
 
 - Real payments
-- Native mobile application
-- Push notifications
-- Chat
-- AI features
-- Computer vision
-- Municipal integrations
-- Complex rating system
+- Chat, ratings, no-show penalties
+- In-app turn-by-turn navigation
+- Legal reservation of public parking
+- Production push as a verified core feature (infra exists; experimental)
+- Native app as a course requirement (Capacitor background-GPS pilot is optional)
 
 ## Technical principles
 
@@ -70,6 +62,5 @@ The project must demonstrate:
 - Never expose service-role keys in client-side code.
 - Store database changes in migration files.
 - Keep components focused and reasonably small.
-- Add tests for central business flows (including handoff code validation).
+- Add tests for central business flows.
 - Prefer simple, readable solutions over unnecessary abstractions.
-- Explain every library and architectural decision.

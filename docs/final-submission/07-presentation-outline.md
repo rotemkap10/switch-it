@@ -148,7 +148,7 @@ MapLibre → MapTiler
 **Visual:** Three columns — one strong fact each.
 
 **Bullets:**
-- **Testing:** ~1624 automated Vitest tests + manual real-device QA (no Playwright project)
+- **Testing:** **1744** automated Vitest tests across **277** files + manual real-device QA (no Playwright project)
 - **Scale:** indexes + keyset History pagination; geo discovery still MVP-limited (no PostGIS)
 - **Security:** Supabase Auth (Confirm email, Forgot password, anti-enumeration UX) + RLS + authenticated RPCs; fraud/collusion remains a residual risk
 

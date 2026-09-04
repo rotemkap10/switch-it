@@ -1,7 +1,9 @@
 # Switch It native pilot
 
-Background seeker location during an **active parking handoff**. Production
-web/PWA is unchanged (Vercel + Next.js Server Actions).
+Background seeker location during an **active parking handoff**.
+
+Web/PWA seekers also POST the same Edge Function (`handoff-seeker-location`);
+the native plugin adds **background GPS** while the WebView is not foreground.
 
 ## Why `webDir` is a placeholder
 
