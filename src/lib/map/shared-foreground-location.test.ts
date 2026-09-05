@@ -204,4 +204,44 @@ describe("shared foreground location session", () => {
       }),
     );
   });
+
+  it("starts a new watch when re-acquired after a GPS error", () => {
+    watchForegroundDeviceLocation.mockImplementation((callbacks) => {
+      callbacks.onError("unavailable");
+      return stopWatch;
+    });
+    const release = acquireSharedForegroundLocation("share-spot");
+    expect(watchForegroundDeviceLocation).toHaveBeenCalledTimes(1);
+    expect(getSharedForegroundLocationSnapshot()).toEqual(
+      expect.objectContaining({
+        status: "error",
+        error: "unavailable",
+        watchActive: false,
+      }),
+    );
+
+    watchForegroundDeviceLocation.mockImplementation((callbacks) => {
+      onUpdate = callbacks.onUpdate;
+      onError = callbacks.onError;
+      return stopWatch;
+    });
+    release();
+    acquireSharedForegroundLocation("share-spot");
+    expect(watchForegroundDeviceLocation).toHaveBeenCalledTimes(2);
+    expect(getSharedForegroundLocationSnapshot().status).toBe("acquiring");
+    onUpdate?.(
+      fix({
+        latitude: 32.26,
+        longitude: 34.89,
+        accuracy: 12,
+        timestamp: Date.now(),
+      }),
+    );
+    expect(peekTrustedSharedForegroundFix()).toEqual(
+      expect.objectContaining({
+        latitude: 32.26,
+        longitude: 34.89,
+      }),
+    );
+  });
 });

@@ -21,6 +21,7 @@ These files are copies of the canonical documents in `docs/final-submission/`. I
 | Basic scalability | [scale.md](./scale.md) |
 | Basic security | [security.md](./security.md) |
 | Local run instructions | [local-setup.md](./local-setup.md) |
+| Links (Vercel, GitHub) | [link.md](./link.md) |
 | Final explanation deck | [Switch_It_Submission_Explanation_v3.pdf](./Switch_It_Submission_Explanation_v3.pdf) |
 
 The PDF is the **final explanation deck** for the grader. This course submission does not require a live oral presentation.

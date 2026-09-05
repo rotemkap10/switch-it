@@ -32,7 +32,6 @@ import { offerHandoffPushPrepromptBeforeHandoff } from "@/lib/push/preprompt-bus
 import { isNativePushEnabledForPlatform } from "@/lib/push/is-native-push-platform";
 import { zoomForForwardGeocodeResult } from "@/lib/map/address-search-camera";
 import { MAP_FALLBACK_CENTER } from "@/lib/map/resolve-initial-map-camera";
-import { MapLoadingState } from "@/components/map/MapLoadingState";
 
 export const PUBLISHER_POOR_LOCATION_WARNING =
   "Your location may not be precise. Check that the pin is in the correct spot.";
@@ -66,7 +65,7 @@ function locationErrorCopy(reason: GeolocationReason | null): string {
     case "timeout":
       return "GPS timed out. Try again or place the pin on the map.";
     default:
-      return "Location unavailable. Place the pin on the map yourself.";
+      return "Location unavailable. Choose the spot on the map manually.";
   }
 }
 
@@ -279,6 +278,7 @@ export function PublishSpotForm() {
   const locationActionSeqRef = useRef(0);
   const gpsRequestSeqRef = useRef<number | null>(null);
   const forwardSearchSeqRef = useRef(0);
+  const geoStatusRef = useRef(geoStatus);
 
   const bumpLocationAction = useCallback(() => {
     locationActionSeqRef.current += 1;
@@ -294,6 +294,8 @@ export function PublishSpotForm() {
   const parsedLat = parseCoord(latitude);
   const parsedLng = parseCoord(longitude);
   const canRenderPicker = parsedLat !== null && parsedLng !== null;
+  const pickerLatitude = parsedLat ?? MAP_FALLBACK_CENTER.lat;
+  const pickerLongitude = parsedLng ?? MAP_FALLBACK_CENTER.lng;
 
   const {
     status: addressLookupStatus,
@@ -476,6 +478,10 @@ export function PublishSpotForm() {
   }, [locationConfirmed]);
 
   useEffect(() => {
+    geoStatusRef.current = geoStatus;
+  }, [geoStatus]);
+
+  useEffect(() => {
     subscribeGpsWatch();
     return () => {
       stopWatchRef.current?.();
@@ -516,10 +522,12 @@ export function PublishSpotForm() {
   }
 
   function handleMapLocationChange(lat: number, lng: number) {
-    setLocation(lat, lng);
-    if (geoStatus !== "manual") {
-      setGeoStatus("success");
+    if (geoStatusRef.current === "loading" && !manualOverrideRef.current) {
+      // GPS is still resolving. Keep form coords empty so fallback Tel Aviv
+      // is display-only and is not treated as a confirmed pin.
+      return;
     }
+    setLocation(lat, lng);
   }
 
   function handleMapInteractionStart() {
@@ -629,31 +637,22 @@ export function PublishSpotForm() {
         className="absolute inset-0"
         data-testid="publish-spot-map-section"
       >
-        {canRenderPicker ? (
-          <SpotLocationPickerLoader
-            layout="fill"
-            latitude={parsedLat}
-            longitude={parsedLng}
-            onLocationChange={handleMapLocationChange}
-            onMapInteractionStart={handleMapInteractionStart}
-            onMapInteractionSettled={handleMapInteractionSettled}
-            onUserMovedMap={handleUserMovedMap}
-            onCurrentLocationRequested={handleCurrentLocationRequested}
-            disabled={pending}
-            userLatitude={detectedLocation?.latitude ?? null}
-            userLongitude={detectedLocation?.longitude ?? null}
-            userAccuracy={accuracyMeters}
-            onCurrentLocationResolved={handleCurrentLocationResolved}
-            externalRecenter={pickerExternalRecenter}
-          />
-        ) : (
-          <div
-            className="absolute inset-0"
-            data-testid="publish-spot-location-loading"
-          >
-            <MapLoadingState />
-          </div>
-        )}
+        <SpotLocationPickerLoader
+          layout="fill"
+          latitude={pickerLatitude}
+          longitude={pickerLongitude}
+          onLocationChange={handleMapLocationChange}
+          onMapInteractionStart={handleMapInteractionStart}
+          onMapInteractionSettled={handleMapInteractionSettled}
+          onUserMovedMap={handleUserMovedMap}
+          onCurrentLocationRequested={handleCurrentLocationRequested}
+          disabled={pending}
+          userLatitude={detectedLocation?.latitude ?? null}
+          userLongitude={detectedLocation?.longitude ?? null}
+          userAccuracy={accuracyMeters}
+          onCurrentLocationResolved={handleCurrentLocationResolved}
+          externalRecenter={pickerExternalRecenter}
+        />
       </div>
 
       <div className="publisher-compose-top-host">

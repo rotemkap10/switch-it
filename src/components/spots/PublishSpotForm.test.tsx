@@ -20,6 +20,8 @@ const { mapTilerForwardGeocodeSearchMock } = vi.hoisted(() => ({
   mapTilerForwardGeocodeSearchMock: vi.fn(),
 }));
 
+let pickerMountCount = 0;
+
 vi.mock("@/actions/spots", () => ({
   publishSpot: publishSpotMock,
 }));
@@ -48,8 +50,10 @@ vi.mock("@/lib/geocoding/maptiler-forward-geocode", () => ({
   mapTilerForwardGeocodeSearch: mapTilerForwardGeocodeSearchMock,
 }));
 
-vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
-  SpotLocationPickerLoader: ({
+vi.mock("@/components/spots/SpotLocationPickerLoader", async () => {
+  const { useRef } = await import("react");
+
+  function SpotLocationPickerLoader({
     latitude,
     longitude,
     onLocationChange,
@@ -85,65 +89,76 @@ vi.mock("@/components/spots/SpotLocationPickerLoader", () => ({
       longitude: number;
       zoom?: number;
     } | null;
-  }) => (
-    <div
-      role="img"
-      aria-label="Map to adjust your parking spot location"
-      data-testid="leaver-map-picker"
-      data-layout={layout}
-      data-recenter-lat={externalRecenter?.latitude ?? ""}
-      data-recenter-lng={externalRecenter?.longitude ?? ""}
-      data-recenter-zoom={externalRecenter?.zoom ?? ""}
-      className={
-        layout === "fill"
-          ? "leaver-map-picker-shell leaver-map-picker-shell--fill"
-          : "leaver-map-picker-shell"
-      }
-    >
-      Map at {latitude}, {longitude}
-      {userLatitude != null && userLongitude != null ? (
-        <span data-testid="picker-blue-dot">
-          Dot at {userLatitude}, {userLongitude}
-        </span>
-      ) : null}
-      <button
-        type="button"
-        onClick={() => {
-          onMapInteractionStart?.();
-          onUserMovedMap?.();
-          onLocationChange?.(32.111111, 34.222222);
-        }}
+  }) {
+    const mountIdRef = useRef<number | null>(null);
+    if (mountIdRef.current === null) {
+      pickerMountCount += 1;
+      mountIdRef.current = pickerMountCount;
+    }
+
+    return (
+      <div
+        role="img"
+        aria-label="Map to adjust your parking spot location"
+        data-testid="leaver-map-picker"
+        data-layout={layout}
+        data-mount-id={String(mountIdRef.current)}
+        data-recenter-lat={externalRecenter?.latitude ?? ""}
+        data-recenter-lng={externalRecenter?.longitude ?? ""}
+        data-recenter-zoom={externalRecenter?.zoom ?? ""}
+        className={
+          layout === "fill"
+            ? "leaver-map-picker-shell leaver-map-picker-shell--fill"
+            : "leaver-map-picker-shell"
+        }
       >
-        Simulate map move
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          onMapInteractionStart?.();
-          onMapInteractionSettled?.();
-        }}
-      >
-        Simulate touch without move
-      </button>
-      <button
-        type="button"
-        aria-label="Use my current location"
-        onClick={() => {
-          onCurrentLocationRequested?.();
-          onCurrentLocationResolved?.({
-            latitude: 32.085312,
-            longitude: 34.781812,
-            accuracy: 8,
-            timestamp: Date.now(),
-          });
-          onLocationChange?.(32.085312, 34.781812);
-        }}
-      >
-        Center
-      </button>
-    </div>
-  ),
-}));
+        Map at {latitude}, {longitude}
+        {userLatitude != null && userLongitude != null ? (
+          <span data-testid="picker-blue-dot">
+            Dot at {userLatitude}, {userLongitude}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => {
+            onMapInteractionStart?.();
+            onUserMovedMap?.();
+            onLocationChange?.(32.111111, 34.222222);
+          }}
+        >
+          Simulate map move
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onMapInteractionStart?.();
+            onMapInteractionSettled?.();
+          }}
+        >
+          Simulate touch without move
+        </button>
+        <button
+          type="button"
+          aria-label="Use my current location"
+          onClick={() => {
+            onCurrentLocationRequested?.();
+            onCurrentLocationResolved?.({
+              latitude: 32.085312,
+              longitude: 34.781812,
+              accuracy: 8,
+              timestamp: Date.now(),
+            });
+            onLocationChange?.(32.085312, 34.781812);
+          }}
+        >
+          Center
+        </button>
+      </div>
+    );
+  }
+
+  return { SpotLocationPickerLoader };
+});
 
 function fieldErrorsFromZod(error: import("zod").ZodError) {
   const fieldErrors: Record<string, string[]> = {};
@@ -215,6 +230,7 @@ function position(
 
 describe("PublishSpotForm", () => {
   beforeEach(() => {
+    pickerMountCount = 0;
     resetSharedForegroundLocationForTests();
     publishSpotMock.mockReset();
     mockPublishWithSchemaValidation();
@@ -407,7 +423,7 @@ describe("PublishSpotForm", () => {
     );
   });
 
-  it("keeps the map in a loading state while GPS is pending, then centers on the fix", async () => {
+  it("renders the map on the fallback center while GPS is pending, then centers on the fix", async () => {
     let success: PositionCallback | null = null;
     vi.stubGlobal("navigator", {
       ...navigator,
@@ -423,8 +439,12 @@ describe("PublishSpotForm", () => {
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
-    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
-    expect(screen.queryByTestId("leaver-map-picker")).not.toBeInTheDocument();
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
+    expect(
+      screen.queryByTestId("publish-spot-location-loading"),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("publisher-location-status")).toHaveTextContent(
       "Finding your location…",
     );
@@ -437,6 +457,10 @@ describe("PublishSpotForm", () => {
       );
     });
     expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-mount-id",
+      "1",
+    );
   });
 
   it("does not publish fallback coordinates when GPS fails", async () => {
@@ -452,7 +476,7 @@ describe("PublishSpotForm", () => {
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
-    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
     });
@@ -474,12 +498,16 @@ describe("PublishSpotForm", () => {
     });
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
-    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
 
     success?.(
       position(32.08, 34.78, 8, Date.now() - 60_000),
     );
-    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
 
     success?.(position(32.26, 34.89, 18));
     await waitFor(() => {
@@ -541,12 +569,7 @@ describe("PublishSpotForm", () => {
     });
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
-    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
-
-    success?.(position(32.085312, 34.781812, 8));
-    await waitFor(() => {
-      expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
-    });
+    expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Simulate map move" }));
     expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
@@ -708,13 +731,20 @@ describe("PublishSpotForm", () => {
 
     render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
 
-    expect(screen.getByTestId("publish-spot-location-loading")).toBeInTheDocument();
+    expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("publish-spot-location-loading"),
+    ).not.toBeInTheDocument();
     expect(
       await screen.findByText(
         "Location permission denied. Place the pin on the map yourself.",
       ),
     ).toBeInTheDocument();
     expect(screen.getByTestId("location-unavailable")).toBeInTheDocument();
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-mount-id",
+      "1",
+    );
 
     await user.click(screen.getByRole("button", { name: "Choose on map" }));
 
@@ -729,6 +759,10 @@ describe("PublishSpotForm", () => {
       ).toBeInTheDocument();
     });
 
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-mount-id",
+      "1",
+    );
     expect(
       screen.getByRole("button", { name: "Use my current location" }),
     ).toBeInTheDocument();
@@ -743,6 +777,148 @@ describe("PublishSpotForm", () => {
     await waitFor(() => {
       expect(publishSpotMock).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("renders the map with fallback when geolocation is unavailable", async () => {
+    stubGeolocation((_success, error) => {
+      error?.({
+        code: 2,
+        message: "Position unavailable",
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
+    expect(
+      await screen.findByText(
+        "Location unavailable. Choose the spot on the map manually.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("location-unavailable")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose on map" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+    expect(
+      screen.queryByTestId("publish-spot-location-loading"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders the map with fallback when GPS times out", async () => {
+    stubGeolocation((_success, error) => {
+      error?.({
+        code: 3,
+        message: "Timeout",
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
+    expect(
+      await screen.findByText(
+        "GPS timed out. Try again or place the pin on the map.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("location-unavailable")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+    expect(
+      screen.queryByTestId("publish-spot-location-loading"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lets Choose on map activate manual selection without remounting", async () => {
+    const user = userEvent.setup();
+    stubGeolocation((_success, error) => {
+      error?.({
+        code: 2,
+        message: "Position unavailable",
+        PERMISSION_DENIED: 1,
+        POSITION_UNAVAILABLE: 2,
+        TIMEOUT: 3,
+      } as GeolocationPositionError);
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    expect(screen.getByTestId("leaver-map-picker")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Choose on map" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-mount-id",
+      "1",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Choose on map" }));
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-mount-id",
+      "1",
+    );
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      `Map at ${MAP_DEFAULT_CENTER.lat}, ${MAP_DEFAULT_CENTER.lng}`,
+    );
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-mount-id",
+      "1",
+    );
+  });
+
+  it("retries geolocation without remounting the map", async () => {
+    const user = userEvent.setup();
+    let shouldFail = true;
+    stubGeolocation((success, error) => {
+      if (shouldFail) {
+        error?.({
+          code: 2,
+          message: "Position unavailable",
+          PERMISSION_DENIED: 1,
+          POSITION_UNAVAILABLE: 2,
+          TIMEOUT: 3,
+        } as GeolocationPositionError);
+        return;
+      }
+      success(position(32.26, 34.89, 12));
+    });
+
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+    expect(
+      await screen.findByRole("button", { name: "Try again" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-mount-id",
+      "1",
+    );
+
+    shouldFail = false;
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+        "Map at 32.26, 34.89",
+      );
+    });
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-mount-id",
+      "1",
+    );
+    expect(screen.queryByTestId("location-unavailable")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
   });
 
   it("shows current-location control after geolocation success and in choose-on-map mode", async () => {

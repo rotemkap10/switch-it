@@ -220,7 +220,9 @@ function handleWatchUpdate(fix: DeviceLocationFix) {
 }
 
 function handleWatchError(reason: GeolocationReason) {
+  const stop = stopWatch;
   stopWatch = null;
+  stop?.();
   const now = Date.now();
   if (
     trustedTracked &&
@@ -271,17 +273,32 @@ function startWatch() {
   error = null;
   emit();
 
-  stopWatch = watchForegroundDeviceLocation(
+  let failedDuringStart = false;
+  const stop = watchForegroundDeviceLocation(
     {
       onUpdate: handleWatchUpdate,
-      onError: handleWatchError,
+      onError: (reason) => {
+        failedDuringStart = true;
+        handleWatchError(reason);
+      },
     },
     watchOptionsForSession(),
   );
+  if (failedDuringStart) {
+    // Provider failed synchronously. Do not keep the returned handle — that
+    // would look like an active watch and block Try again / re-acquire.
+    stop();
+    stopWatch = null;
+    return;
+  }
+  stopWatch = stop;
 }
 
 function ensureWatchRunning() {
   clearReleaseTimer();
+  if (status === "error") {
+    stopWatchInternal(true);
+  }
   if (!stopWatch) {
     startWatch();
   } else {
