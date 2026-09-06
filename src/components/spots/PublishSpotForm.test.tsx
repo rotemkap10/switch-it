@@ -9,7 +9,7 @@ import {
 } from "@/components/spots/PublishSpotForm";
 import { resetSharedForegroundLocationForTests } from "@/lib/map/shared-foreground-location";
 import { publishSpotSchema } from "@/lib/validations/spot";
-import { MAP_ADDRESS_SEARCH_ZOOM, MAP_DEFAULT_ZOOM } from "@/lib/map/seekerMapConfig";
+import { MAP_ADDRESS_SEARCH_ZOOM, MAP_DEFAULT_ZOOM, MAP_SELECTED_SPOT_ZOOM } from "@/lib/map/seekerMapConfig";
 import { MAP_DEFAULT_CENTER } from "@/types/map-spot";
 
 const { publishSpotMock } = vi.hoisted(() => ({
@@ -652,6 +652,7 @@ describe("PublishSpotForm", () => {
         label: "Rothschild Blvd 1, Tel Aviv",
         latitude: 32.064,
         longitude: 34.775,
+        placeTypes: ["address"],
       },
     ]);
 
@@ -1248,6 +1249,7 @@ describe("PublishSpotForm", () => {
         latitude: 32.1,
         longitude: 34.2,
         label: "Dizengoff 120, Tel Aviv",
+        placeTypes: ["address"],
       },
     ]);
 
@@ -1317,6 +1319,8 @@ describe("PublishSpotForm", () => {
       "data-recenter-zoom",
       String(MAP_DEFAULT_ZOOM),
     );
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+    expect(screen.queryByText(/house number/i)).not.toBeInTheDocument();
   });
 
   it("manual pin movement after address selection overrides the chosen coordinates and clears the address", async () => {
@@ -1325,6 +1329,7 @@ describe("PublishSpotForm", () => {
         latitude: 32.2,
         longitude: 34.3,
         label: "Dizengoff 200, Tel Aviv",
+        placeTypes: ["address"],
       },
     ]);
 
@@ -1362,10 +1367,20 @@ describe("PublishSpotForm", () => {
 
   it("stale address search results cannot overwrite a newer manual selection", async () => {
     let resolveFirst:
-      | ((value: Array<{ latitude: number; longitude: number; label: string }>) => void)
+      | ((value: Array<{
+          latitude: number;
+          longitude: number;
+          label: string;
+          placeTypes?: string[];
+        }>) => void)
       | null = null;
     let resolveSecond:
-      | ((value: Array<{ latitude: number; longitude: number; label: string }>) => void)
+      | ((value: Array<{
+          latitude: number;
+          longitude: number;
+          label: string;
+          placeTypes?: string[];
+        }>) => void)
       | null = null;
 
     mapTilerForwardGeocodeSearchMock.mockImplementation((q: string) => {
@@ -1394,7 +1409,12 @@ describe("PublishSpotForm", () => {
     await new Promise((resolve) => window.setTimeout(resolve, 400));
 
     resolveSecond?.([
-      { latitude: 32.4, longitude: 34.5, label: "Result 2" },
+      {
+        latitude: 32.4,
+        longitude: 34.5,
+        label: "Result 2",
+        placeTypes: ["address"],
+      },
     ]);
     const result2 = await screen.findByText("Result 2");
     expect(result2).toBeInTheDocument();
@@ -1428,6 +1448,7 @@ describe("PublishSpotForm", () => {
         latitude: 32.085,
         longitude: 34.79,
         label: "דיזנגוף, תל אביב-יפו",
+        placeTypes: ["road"],
       },
     ]);
 
@@ -1465,11 +1486,47 @@ describe("PublishSpotForm", () => {
     expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
       "Map at 32.085, 34.79",
     );
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-recenter-zoom",
+      String(MAP_SELECTED_SPOT_ZOOM),
+    );
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+  });
 
-    await user.click(screen.getByRole("button", { name: "Share spot" }));
-    await waitFor(() => {
-      expect(publishSpotMock).toHaveBeenCalledTimes(1);
-    });
+  it("confirms a Hebrew house-number result without extra copy", async () => {
+    mapTilerForwardGeocodeSearchMock.mockResolvedValueOnce([
+      {
+        latitude: 32.075,
+        longitude: 34.774,
+        label: "דיזנגוף 23, תל אביב-יפו",
+        placeTypes: ["address"],
+      },
+    ]);
+
+    const user = userEvent.setup();
+    render(<FeedbackShell><PublishSpotForm /></FeedbackShell>);
+
+    const searchInput = await screen.findByPlaceholderText(
+      "Search an address",
+    );
+    await user.type(searchInput, "דיזנגוף 23");
+    await new Promise((resolve) => window.setTimeout(resolve, 400));
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "דיזנגוף 23, תל אביב-יפו",
+      }),
+    );
+
+    expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
+      "Map at 32.075, 34.774",
+    );
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-recenter-zoom",
+      String(MAP_ADDRESS_SEARCH_ZOOM),
+    );
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
+    expect(screen.queryByText(/house number/i)).not.toBeInTheDocument();
   });
 
   it("hebrew selection works with street-only results (house number not required)", async () => {
@@ -1478,6 +1535,7 @@ describe("PublishSpotForm", () => {
         latitude: 32.086,
         longitude: 34.788,
         label: "דיזנגוף, תל אביב-יפו",
+        placeTypes: ["road"],
       },
     ]);
 
@@ -1494,10 +1552,25 @@ describe("PublishSpotForm", () => {
     await screen.findByText("דיזנגוף, תל אביב-יפו");
     await user.click(screen.getByText("דיזנגוף, תל אביב-יפו"));
 
-    // Marker should update even without a house-number-specific match.
+    // Street centroid recenters the map; the pin stays unconfirmed.
     expect(screen.getByTestId("leaver-map-picker")).toHaveTextContent(
       "Map at 32.086, 34.788",
     );
+    expect(screen.getByTestId("leaver-map-picker")).toHaveAttribute(
+      "data-recenter-zoom",
+      String(MAP_SELECTED_SPOT_ZOOM),
+    );
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeDisabled();
+    expect(screen.queryByText(/house number/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/exact (location|address|house)/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/not found/i),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Simulate map move" }));
+    expect(screen.getByRole("button", { name: "Share spot" })).toBeEnabled();
 
     await user.click(screen.getByRole("button", { name: "Share spot" }));
     await waitFor(() => {

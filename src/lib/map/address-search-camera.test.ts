@@ -1,11 +1,30 @@
 import { describe, expect, it } from "vitest";
 
-import { zoomForForwardGeocodeResult } from "@/lib/map/address-search-camera";
+import {
+  isPreciseForwardGeocodeResult,
+  zoomForForwardGeocodeResult,
+} from "@/lib/map/address-search-camera";
 import {
   MAP_ADDRESS_SEARCH_ZOOM,
   MAP_DEFAULT_ZOOM,
   MAP_SELECTED_SPOT_ZOOM,
 } from "@/lib/map/seekerMapConfig";
+
+describe("isPreciseForwardGeocodeResult", () => {
+  it("treats house-number results as precise", () => {
+    expect(isPreciseForwardGeocodeResult(["address"])).toBe(true);
+    expect(isPreciseForwardGeocodeResult(["locality", "address"])).toBe(true);
+  });
+
+  it("treats street-level and broader results as imprecise", () => {
+    expect(isPreciseForwardGeocodeResult(["road"])).toBe(false);
+    expect(isPreciseForwardGeocodeResult(["street"])).toBe(false);
+    expect(isPreciseForwardGeocodeResult(["locality"])).toBe(false);
+    expect(isPreciseForwardGeocodeResult(["neighbourhood"])).toBe(false);
+    expect(isPreciseForwardGeocodeResult(undefined)).toBe(false);
+    expect(isPreciseForwardGeocodeResult([])).toBe(false);
+  });
+});
 
 describe("zoomForForwardGeocodeResult", () => {
   it("uses street/building zoom for a precise address", () => {
@@ -15,6 +34,7 @@ describe("zoomForForwardGeocodeResult", () => {
 
   it("keeps neighborhood zoom for a road without a house number", () => {
     expect(zoomForForwardGeocodeResult(["road"])).toBe(MAP_SELECTED_SPOT_ZOOM);
+    expect(zoomForForwardGeocodeResult(["street"])).toBe(MAP_SELECTED_SPOT_ZOOM);
   });
 
   it("keeps the city-scale zoom for a broad locality", () => {

@@ -14,8 +14,16 @@ const BROAD_TYPES = new Set([
   "district",
   "municipality",
   "neighborhood",
+  "neighbourhood",
   "poi",
 ]);
+
+/** True only for a house-number / building result — not a street or city. */
+export function isPreciseForwardGeocodeResult(
+  placeTypes: readonly string[] | undefined,
+): boolean {
+  return (placeTypes ?? []).some((type) => PRECISE_TYPES.has(type));
+}
 
 /**
  * Camera zoom for a one-shot address-search selection.

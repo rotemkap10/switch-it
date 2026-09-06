@@ -30,7 +30,10 @@ import {
 import { classifyGpsAccuracy } from "@/lib/map/watch-best-device-location";
 import { offerHandoffPushPrepromptBeforeHandoff } from "@/lib/push/preprompt-bus";
 import { isNativePushEnabledForPlatform } from "@/lib/push/is-native-push-platform";
-import { zoomForForwardGeocodeResult } from "@/lib/map/address-search-camera";
+import {
+  isPreciseForwardGeocodeResult,
+  zoomForForwardGeocodeResult,
+} from "@/lib/map/address-search-camera";
 import { MAP_FALLBACK_CENTER } from "@/lib/map/resolve-initial-map-camera";
 
 export const PUBLISHER_POOR_LOCATION_WARNING =
@@ -603,7 +606,9 @@ export function PublishSpotForm() {
     setAddressQuery("");
     setAddressSuggestions([]);
     setAddressSearchPending(false);
-    setLocationConfirmed(true);
+    // Street / city results only fly the camera. The pin stays unconfirmed
+    // until the user places or adjusts it (or a house-number result is chosen).
+    setLocationConfirmed(isPreciseForwardGeocodeResult(result.placeTypes));
     setPickerExternalRecenter((prev) => ({
       requestId: (prev?.requestId ?? 0) + 1,
       latitude: result.latitude,

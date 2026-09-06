@@ -13,6 +13,25 @@ describe("formatLocationLabel", () => {
     ).toBe("Dizengoff Street 120, Tel Aviv");
   });
 
+  it("formats Hebrew street, house number, and city naturally", () => {
+    expect(
+      formatLocationLabel({
+        street: "דיזנגוף",
+        houseNumber: "23",
+        city: "תל אביב-יפו",
+      }),
+    ).toBe("דיזנגוף 23, תל אביב-יפו");
+  });
+
+  it("formats a Hebrew street without a house number", () => {
+    expect(
+      formatLocationLabel({
+        street: "דיזנגוף",
+        city: "תל אביב-יפו",
+      }),
+    ).toBe("דיזנגוף, תל אביב-יפו");
+  });
+
   it("falls back to street and city without a house number", () => {
     expect(
       formatLocationLabel({
