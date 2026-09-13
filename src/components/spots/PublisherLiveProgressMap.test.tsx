@@ -29,17 +29,31 @@ type FakeMap = {
 };
 
 let lastOnMapReady: ((map: FakeMap) => void) | null = null;
+let baseMapMountCount = 0;
 
-vi.mock("@/components/map/BaseMap", () => ({
-  BaseMap: ({
-    onMapReady,
-  }: {
-    onMapReady?: (map: FakeMap) => void;
-  }) => {
-    lastOnMapReady = onMapReady ?? null;
-    return <div data-testid="base-map" />;
-  },
-}));
+vi.mock("@/components/map/BaseMap", async () => {
+  const { useRef } = await import("react");
+  return {
+    BaseMap: ({
+      onMapReady,
+    }: {
+      onMapReady?: (map: FakeMap) => void;
+    }) => {
+      lastOnMapReady = onMapReady ?? null;
+      const mountIdRef = useRef<number | null>(null);
+      if (mountIdRef.current === null) {
+        baseMapMountCount += 1;
+        mountIdRef.current = baseMapMountCount;
+      }
+      return (
+        <div
+          data-testid="base-map"
+          data-mount-id={String(mountIdRef.current)}
+        />
+      );
+    },
+  };
+});
 
 vi.mock("@/lib/map/seekerMarkerImages", () => ({
   SEEKER_MARKER_IMAGE_IDS: {
@@ -137,6 +151,7 @@ function stubMatchMedia() {
 describe("PublisherLiveProgressMap", () => {
   beforeEach(() => {
     lastOnMapReady = null;
+    baseMapMountCount = 0;
     stubMatchMedia();
   });
 
@@ -160,6 +175,44 @@ describe("PublisherLiveProgressMap", () => {
     expect(screen.getByTestId("publisher-live-updated")).toHaveTextContent(
       "Updated just now",
     );
+  });
+
+  it("does not remount MapLibre when live location or chrome updates", () => {
+    const { rerender } = render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+        expanded
+        compactChrome
+      />,
+    );
+    readyMap();
+    expect(screen.getByTestId("base-map")).toHaveAttribute("data-mount-id", "1");
+
+    rerender(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={{
+          ...seekerLocation,
+          latitude: 32.087,
+          longitude: 34.783,
+          sequence: 2,
+          sentAt: Date.now() + 1_000,
+        }}
+        statusLabel="Live location"
+        updatedLabel="Updated 1 second ago"
+        progressLabel="200 m away"
+        expanded
+        compactChrome
+      />,
+    );
+
+    expect(screen.getByTestId("base-map")).toHaveAttribute("data-mount-id", "1");
+    expect(screen.getByTestId("publisher-live-progress-map")).toBeInTheDocument();
   });
 
   it("uses a bottom-anchored parking pin and a centered live car", () => {
@@ -487,6 +540,7 @@ describe("PublisherLiveProgressMap", () => {
 describe("PublisherLiveProgressMap handoff focus", () => {
   beforeEach(() => {
     lastOnMapReady = null;
+    baseMapMountCount = 0;
     stubMatchMedia();
   });
 
@@ -672,6 +726,46 @@ describe("PublisherLiveProgressMap handoff focus", () => {
 
     expect(map.fitBounds).not.toHaveBeenCalled();
     expect(map.easeTo).not.toHaveBeenCalled();
+  });
+
+  it("does not reset the camera or resize on in-view live updates", () => {
+    const { rerender } = render(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={seekerLocation}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+        expanded
+      />,
+    );
+    const map = readyMap();
+    expect(map.fitBounds).toHaveBeenCalledTimes(1);
+    map.fitBounds.mockClear();
+    map.easeTo.mockClear();
+    map.resize.mockClear();
+
+    rerender(
+      <PublisherLiveProgressMap
+        parkingLatitude={parkingLatitude}
+        parkingLongitude={parkingLongitude}
+        seekerLocation={{
+          ...seekerLocation,
+          latitude: 32.0862,
+          longitude: 34.7821,
+          sequence: 4,
+        }}
+        statusLabel="Live location"
+        updatedLabel="Updated just now"
+        progressLabel="180 m away"
+        expanded
+      />,
+    );
+
+    expect(map.fitBounds).not.toHaveBeenCalled();
+    expect(map.easeTo).not.toHaveBeenCalled();
+    expect(map.resize).not.toHaveBeenCalled();
+    expect(screen.getByTestId("base-map")).toHaveAttribute("data-mount-id", "1");
   });
 
   it("refocuses both points after an explicit tap following a live update", async () => {

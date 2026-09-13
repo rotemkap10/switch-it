@@ -305,6 +305,9 @@ describe("PublisherSpotCard", () => {
       "data-status",
       "available",
     );
+    expect(screen.getByTestId("publisher-spot-card").className).toContain(
+      "motion-fade-slide-up",
+    );
     expect(screen.getByText(PUBLISHER_WAITING_STATUS)).toBeInTheDocument();
     expect(
       screen.queryByText("Your spot is visible to nearby drivers."),
@@ -605,6 +608,7 @@ describe("PublisherSpotCard", () => {
 
     const card = screen.getByTestId("publisher-spot-card");
     expect(card).toHaveAttribute("data-layout", "claimed-map-first");
+    expect(card.className).not.toContain("motion-fade-slide-up");
     const testIds = Array.from(card.querySelectorAll("[data-testid]")).map(
       (element) => element.getAttribute("data-testid"),
     );

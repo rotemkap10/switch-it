@@ -534,14 +534,18 @@ html[data-native-status-bar="inset"] .app-shell-header {
 .publisher-live-map-shell {
   width: 100%;
   overflow: hidden;
+  /* Size is explicit so parent reflow / scroll cannot stretch the canvas. */
+  contain: layout size style;
 }
 
 .publisher-live-map-shell--collapsed {
-  height: clamp(160px, 28dvh, 220px);
+  /* Small viewport height stays put when mobile browser chrome shows/hides
+     during scroll. Dynamic viewport units would resize the MapLibre canvas. */
+  height: clamp(160px, 28svh, 220px);
 }
 
 .publisher-live-map-shell--expanded {
-  height: clamp(260px, 48dvh, 420px);
+  height: clamp(260px, 48svh, 420px);
 }
 
 .publisher-compose {
@@ -850,11 +854,11 @@ html[data-native-status-bar="inset"] .app-shell-header {
   }
 
   .publisher-live-map-shell--collapsed {
-    height: clamp(140px, 26dvh, 200px);
+    height: clamp(140px, 26svh, 200px);
   }
 
   .publisher-live-map-shell--expanded {
-    height: clamp(220px, 46dvh, 380px);
+    height: clamp(220px, 46svh, 380px);
   }
 }
 

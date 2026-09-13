@@ -146,6 +146,14 @@ describe("mobile shell CSS foundation", () => {
     expect(css).toContain(".publisher-preview-map-shell--handoff");
     expect(css).toContain(".publisher-live-map-shell--collapsed");
     expect(css).toContain(".publisher-live-map-shell--expanded");
+    expect(css).toContain("clamp(260px, 48svh, 420px)");
+    expect(css).toContain("clamp(160px, 28svh, 220px)");
+    expect(css).not.toMatch(
+      /\.publisher-live-map-shell--expanded\s*\{[^}]*\bdvh\b/,
+    );
+    expect(css).not.toMatch(
+      /\.publisher-live-map-shell--collapsed\s*\{[^}]*\bdvh\b/,
+    );
     expect(css).toContain(".publisher-spot-card");
     expect(css).toMatch(
       /\.publisher-location-summary__warning\s*\{[^}]*color:\s*var\(--color-accent-hover\)/s,

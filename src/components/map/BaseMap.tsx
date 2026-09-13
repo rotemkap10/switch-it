@@ -322,6 +322,9 @@ export function BaseMap({
         logMissingStyleImageOnce(event?.id);
       });
 
+      let lastResizeWidth = Number.NaN;
+      let lastResizeHeight = Number.NaN;
+
       const requestResize = () => {
         if (cancelled || !mapRef.current) {
           return;
@@ -333,13 +336,25 @@ export function BaseMap({
             resizeWhileMovingScheduled = true;
             mapRef.current.once("moveend", () => {
               resizeWhileMovingScheduled = false;
-              if (!cancelled && mapRef.current) {
-                mapRef.current.resize();
-              }
+              requestResize();
             });
           }
           return;
         }
+        const el = containerRef.current;
+        if (!el) {
+          return;
+        }
+        const width = el.clientWidth;
+        const height = el.clientHeight;
+        // Scroll, subpixel rounding, and dvh/toolbar motion can notify
+        // ResizeObserver without a real canvas size change. Skipping those
+        // avoids WebGL framebuffer resets (white flashes).
+        if (width === lastResizeWidth && height === lastResizeHeight) {
+          return;
+        }
+        lastResizeWidth = width;
+        lastResizeHeight = height;
         mapRef.current.resize();
       };
 

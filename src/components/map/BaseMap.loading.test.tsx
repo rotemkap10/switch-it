@@ -135,6 +135,18 @@ describe("BaseMap loading lifecycle", () => {
     vi.unstubAllGlobals();
   });
 
+  function setMapContainerSize(width: number, height: number) {
+    const el = mapInstance.getContainer();
+    Object.defineProperty(el, "clientWidth", {
+      configurable: true,
+      value: width,
+    });
+    Object.defineProperty(el, "clientHeight", {
+      configurable: true,
+      value: height,
+    });
+  }
+
   it("shows the branded loader before the map is visually ready", async () => {
     // Keep rAF from immediately completing readiness during this assertion.
     vi.stubGlobal("requestAnimationFrame", () => 0);
@@ -344,6 +356,7 @@ describe("BaseMap loading lifecycle", () => {
     mapInstance.resize.mockClear();
     mapInstance.once.mockClear();
     mapInstance.isMoving.mockReturnValue(true);
+    setMapContainerSize(320, 240);
 
     expect(resizeCallback).toBeTypeOf("function");
     act(() => {
@@ -394,6 +407,7 @@ describe("BaseMap loading lifecycle", () => {
     mapInstance.once.mockClear();
     mapInstance.isMoving.mockReturnValue(false);
     mapInstance.isEasing.mockReturnValue(true);
+    setMapContainerSize(320, 240);
 
     act(() => {
       resizeCallback?.();
@@ -404,6 +418,52 @@ describe("BaseMap loading lifecycle", () => {
       "moveend",
       expect.any(Function),
     );
+  });
+
+  it("does not call map.resize when the container size is unchanged", () => {
+    let resizeCallback: (() => void) | null = null;
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        constructor(cb: () => void) {
+          resizeCallback = cb;
+        }
+        observe() {}
+        disconnect() {}
+        unobserve() {}
+      },
+    );
+
+    render(
+      <BaseMap
+        styleUrl="https://example.test/style.json"
+        center={[34.78, 32.08]}
+        zoom={14}
+        onMapReady={vi.fn()}
+      />,
+    );
+
+    act(() => {
+      mapInstance.__emitOnce("load");
+    });
+
+    setMapContainerSize(320, 240);
+    act(() => {
+      resizeCallback?.();
+    });
+    expect(mapInstance.resize).toHaveBeenCalled();
+    mapInstance.resize.mockClear();
+
+    act(() => {
+      resizeCallback?.();
+    });
+    expect(mapInstance.resize).not.toHaveBeenCalled();
+
+    setMapContainerSize(320, 280);
+    act(() => {
+      resizeCallback?.();
+    });
+    expect(mapInstance.resize).toHaveBeenCalledTimes(1);
   });
 
   it("constructs every map with compact native attribution", () => {

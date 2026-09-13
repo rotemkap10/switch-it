@@ -348,7 +348,9 @@ export function PublisherSpotCard({
   return (
     <div
       className={[
-        "publisher-spot-card flex w-full flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] motion-fade-slide-up sm:gap-4 sm:p-5",
+        "publisher-spot-card flex w-full flex-col gap-3 rounded-[var(--radius-card)] border border-border bg-surface p-4 shadow-[var(--shadow-card)] sm:gap-4 sm:p-5",
+        // Entrance transform on a MapLibre ancestor causes scroll flicker.
+        claimed ? "" : "motion-fade-slide-up",
         layout === "page" ? "mx-auto max-w-lg md:max-w-2xl" : "",
       ].join(" ")}
       data-testid="publisher-spot-card"
